@@ -1,0 +1,297 @@
+#+title: StarLang from Zero to Durable Actors
+:PROPERTIES:
+:ID:       4d7f2db4-ec84-46dd-a208-d541153e3c55
+:END:
+
+* Status
+SCAFFOLD ONLY. Do not write manuscript chapters yet.
+
+This README defines the scope, evidence rules, verification gates, and provisional chapter architecture for a deep book about StarLang itself.
+
+* Working title
+=StarLang from Zero to Durable Actors=
+
+The title is intentionally beginner-friendly without implying that the material is shallow. The book should start from zero StarLang knowledge and progress into the compiler, language semantics, generated contracts, and durable actor runtime.
+
+Alternative title if the scope later becomes more reference-oriented:
+=Inside StarLang: Language, Compiler, and Durable Actor Runtime=
+
+* Purpose
+Create a serious, implementation-grounded technical book devoted to StarLang.
+
+The book must explain what the current StarLang implementation can actually do, how those capabilities work, how to use them, how to debug them, and how the pieces compose into real programs.
+
+This is NOT:
+- a general StarIntel book;
+- a speculative StarLang design document;
+- a restatement of approved research proposals;
+- a wishlist for future StarLang features;
+- a generic Common Lisp or actor-model textbook.
+
+Common Lisp, Sento/cl-gserver, JSON, Nix, Python, TypeScript, networking, and StarIntel may appear only where they are required to explain a verified StarLang capability.
+
+* Audience
+Programmers who know basic programming but may know nothing about StarLang.
+
+The book should remain approachable at the beginning while becoming deep enough for a reader to understand the implementation boundaries, compiler pipeline, runtime behavior, durability mechanisms, remoting, and interoperability that are genuinely present in the repository.
+
+* Canonical implementation source
+The primary implementation source is:
+
+- repository: =lost-rob0t/star-lang=
+- default branch: =main=
+- authoritative transitional implementation: =prototype/=
+- ASDF system: =starlang-prototype=
+
+Future agents MUST pin the exact =star-lang= commit SHA used for every research/writing pass.
+
+Do not assume the target =star-*= or =starlang-*= package directories are complete merely because their ASDF systems or package boundaries exist. The upstream README explicitly describes the prototype as authoritative during migration.
+
+* Hard verification rule
+NO CAPABILITY MAY ENTER MANUSCRIPT PROSE UNTIL AN AGENT VERIFIES IT.
+
+A feature is teachable only when the writing agent can establish all applicable evidence below:
+
+1. implementation source exists on the pinned =star-lang= commit;
+2. the implementation path is actually reachable from the supported StarLang/compiler/runtime entry points;
+3. relevant tests or fixtures exist;
+4. those tests are inspected to determine what behavior they really prove;
+5. executable checks are run when the environment permits;
+6. observed behavior agrees with the claim being written;
+7. version-sensitive details are recorded against the pinned commit SHA.
+
+Documentation, research notes, issue descriptions, roadmap text, target-system names, or comments are NOT sufficient evidence by themselves.
+
+* Evidence precedence
+When evidence disagrees, use this order:
+
+1. observed behavior from a reproducible run;
+2. executable tests on the pinned implementation;
+3. implementation source;
+4. conformance ledger and repository documentation;
+5. approved research/design documents;
+6. issues, plans, and future work.
+
+Lower-ranked evidence may explain intent but may not override current executable behavior.
+
+* Capability labels
+Every researched topic must receive one of these labels before chapter drafting:
+
+- =VERIFIED-IMPLEMENTED= -- source inspected, test evidence inspected, and relevant executable checks pass.
+- =VERIFIED-PARTIAL= -- a real capability exists, but important portions are incomplete or blocked. Teach only the demonstrated subset and state the boundary precisely.
+- =SOURCE-ONLY= -- implementation appears to exist but has not yet been validated strongly enough for instructional claims.
+- =RESEARCH-ONLY= -- described by research/design but not proven in the implementation. Exclude from the book as a capability.
+- =NOT-IMPLEMENTED= -- known missing behavior. Do not teach it as StarLang functionality.
+- =FAILED-VERIFICATION= -- claimed behavior did not survive inspection/tests. Do not teach it as supported behavior.
+
+Only =VERIFIED-IMPLEMENTED= and carefully bounded =VERIFIED-PARTIAL= material may enter manuscript chapters.
+
+* Current upstream caution
+At scaffold time the upstream implementation ledger explicitly reports that StarLang is NOT yet fully conformant with research 000--009.
+
+Known blocked areas currently include parts of specification locking/resolution, canonical relation-position migration, =float= support, geo migration, generated float bindings, and the permanent full research-conformance CI gate.
+
+Agents must re-check the ledger and source on every future writing pass because these statuses can change.
+
+Do not write future-design behavior as though it already exists.
+
+* Source-backed starting areas
+The current repository gives agents concrete implementation and test areas to investigate before chapter writing. These are research targets, not permission to make unchecked claims.
+
+** Language and compiler
+- closed =.star= source parsing from UTF-8 bytes;
+- syntax objects, source spans, identifier spelling, and parser limits;
+- the read -> import-resolution -> expand -> validate -> compile pipeline;
+- bounded declarative macro expansion and provenance;
+- semantic validation and field-name rules;
+- normalized runtime-neutral IR;
+- deterministic source maps;
+- specification/domain compilation;
+- local and remote import behavior, limited strictly to what current code proves.
+
+** Data and interchange
+- StarLang document/message/schema surfaces that are implemented by the compiler/runtime;
+- lower camelCase wire/field behavior;
+- canonical JSON behavior that is implemented today;
+- generated Python and TypeScript bindings that are produced by the current compiler;
+- exact decimal behavior and other scalar behavior only where current tests prove it.
+
+** Actor/runtime behavior
+Investigate the authoritative prototype implementation and its tests for:
+- actor wire protocol behavior;
+- dispatch and message handling;
+- runtime loading and construction;
+- domain-server behavior;
+- idempotent run/message handling;
+- remoting;
+- reconnect behavior;
+- journaling, recovery, and replay;
+- leases;
+- transport/adapters;
+- Sento/cl-gserver integration boundaries.
+
+Each bullet above remains blocked from manuscript prose until the verification rule is satisfied for the pinned implementation.
+
+* Provisional book architecture
+This is a chapter scaffold only. Chapter titles may move, split, merge, or disappear after verification.
+
+** Part I -- Getting Oriented
+1. What StarLang Actually Is
+2. Building and Running the Current Implementation
+3. Your First Verified =.star= Program
+4. How to Read StarLang Errors and Test Fixtures
+
+** Part II -- The Language Surface
+5. StarLang Source Forms
+6. Names, Fields, Values, and Declarations
+7. Documents, Messages, and Schemas
+8. Relations and Domain Data -- current implemented form only
+9. Macros -- only the currently implemented expansion model
+10. Imports and Specification Libraries -- only behavior verified on the pinned commit
+
+** Part III -- Inside the Compiler
+11. The Closed Parser
+12. Syntax Objects, Spans, and Provenance
+13. Expansion
+14. Semantic Validation
+15. Core Lowering and Normalized IR
+16. Determinism and Source Maps
+17. Compiler Errors, Limits, and Failure Modes
+
+** Part IV -- Interchange and Generated Interfaces
+18. Canonical JSON
+19. Portable Manifests and Wire Contracts
+20. Generated Python Bindings
+21. Generated TypeScript Bindings
+22. Cross-Language Contract Testing
+
+** Part V -- The Actor Runtime
+23. The StarLang Actor Model as Implemented
+24. Messages and Dispatch
+25. Runtime Loading and Actor Construction
+26. Domain Servers
+27. Idempotency and Duplicate Work
+28. Journaling and Recovery
+29. Leases and Runtime Ownership
+30. Remoting
+31. Reconnect and Failure Handling
+32. Transport and Adapter Boundaries
+33. Sento/cl-gserver Integration
+
+** Part VI -- Building Real StarLang Systems
+34. Testing StarLang Programs
+35. Debugging Compiler and Runtime Failures
+36. Reproducible Builds with ASDF, SBCL, and Nix
+37. Reading the Conformance Ledger Without Confusing Design With Implementation
+38. End-to-End Verified StarLang Application
+
+* Major project slots
+Do not design the detailed projects yet. Reserve several major projects so the eventual book teaches by building substantial systems rather than isolated snippets.
+
+Provisional slots:
+
+1. =Compiler Explorer= -- inspect parsing, expansion, validation, normalized IR, and source maps using only exposed/verified compiler behavior.
+2. =Typed StarLang Data Service= -- build a real program around verified document/message/schema and interchange capabilities.
+3. =Durable Actor Service= -- exercise verified dispatch, idempotency, journaling, and recovery behavior.
+4. =Remote Actor System= -- use verified remoting/reconnect/lease behavior if those capabilities pass the future evidence gate.
+5. =Capstone StarLang Application= -- combine the verified language, compiler, runtime, and generated interfaces into one reproducible system.
+
+If a required capability is not verified, redesign or remove the affected project rather than inventing functionality.
+
+* Required research artifact before manuscript work
+Before writing Chapter 1, agents should create a capability inventory under this book's future =research/= directory.
+
+The inventory should contain at minimum:
+
+| Capability | Status | Source files | Test files | Fixture/example | Command run | Result | star-lang SHA | Notes |
+|------------+--------+--------------+------------+-----------------+-------------+--------+---------------+-------|
+
+Every chapter should reference this inventory.
+
+A chapter may not move from outline to manuscript until its required capability rows are =VERIFIED-IMPLEMENTED= or explicitly bounded =VERIFIED-PARTIAL=.
+
+* Agent verification procedure
+For each capability or chapter:
+
+1. Record the current =lost-rob0t/star-lang= commit SHA.
+2. Read the upstream =README.md= and =RESEARCH-CONFORMANCE-000-009.md=.
+3. Locate the authoritative implementation source in =prototype/= or its migrated final-system location.
+4. Trace the entry point through the real call path.
+5. Locate all relevant tests and fixtures.
+6. Read the tests; do not infer coverage from filenames alone.
+7. Run the narrowest relevant test first.
+8. Run the full supported StarLang test contract when practical.
+9. Run =nix flake check -L= when practical.
+10. Record failures exactly; never convert a failing or skipped test into a passing claim.
+11. Compare implementation behavior with upstream docs and research.
+12. Assign the capability label.
+13. Only then authorize chapter prose about that behavior.
+
+* Supported upstream validation commands to re-check
+Agents should verify that these remain the supported commands on the pinned revision before relying on them:
+
+#+begin_src sh
+sbcl --non-interactive \
+  --eval '(require :asdf)' \
+  --eval '(asdf:load-system :starlang-prototype)' \
+  --eval '(asdf:test-system :starlang-prototype)' \
+  --eval '(sb-ext:quit)'
+#+end_src
+
+#+begin_src sh
+nix flake check -L
+#+end_src
+
+Do not claim either command passed unless it was actually run for the revision being documented.
+
+* Writing rules for the future manuscript
+- Teach the implementation that exists, not the language someone hopes will exist.
+- Prefer runnable =.star= examples taken from or reduced from verified fixtures/tests.
+- Every nontrivial example should be executed or covered by a test before publication.
+- Mark transitional APIs and prototype ownership honestly.
+- Never hide partial implementation behind polished prose.
+- Never describe a target ASDF package as functional merely because the package loads.
+- Explain failure modes and limits wherever they materially affect real use.
+- Keep StarIntel-specific examples subordinate to learning StarLang itself.
+- Do not drift into a Common Lisp tutorial except where implementation understanding requires it.
+- Do not drift into generic distributed-systems theory except where it explains observed StarLang runtime behavior.
+
+* Out of scope until implemented and verified
+Any feature that exists only in research, issues, future plans, TODOs, unimplemented target package boundaries, or speculative architecture is outside instructional scope.
+
+It may be mentioned briefly as "not implemented" only when necessary to prevent reader confusion. It must not receive tutorial steps, fake examples, or forward-looking API documentation.
+
+* Depth target
+This should eventually be a substantial technical book rather than a long README.
+
+Depth should come from:
+- executable examples;
+- source-guided explanations;
+- compiler/runtime traces;
+- diagrams derived from verified code paths;
+- failure analysis;
+- tests;
+- substantial projects;
+- comparison of inputs, IR, manifests, wire data, and runtime effects.
+
+Do not pad the book with generic background material merely to increase page count.
+
+* Future book files
+When manuscript work is authorized, follow the repository's existing book structure and add only what is needed, likely including:
+
+- =OUTLINE.org=
+- =PROJECTS.org=
+- =ROADMAP.org=
+- =STATUS.org=
+- =metadata.yaml=
+- =references.bib=
+- =research/=
+- =manuscript/=
+- =assets/=
+
+Do not create or populate the manuscript yet.
+
+* Build
+When the book is later fully scaffolded into the repository build system, follow the existing =chatgpt-books= conventions.
+
+Do not claim =make book BOOK=starlang= or =make check BOOK=starlang= works until the supporting book files/build integration actually exist and the commands have been run.
