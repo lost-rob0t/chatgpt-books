@@ -1,7 +1,7 @@
-#+title: Unification
 :PROPERTIES:
 :ID:       5b8fe78b-39b5-50ce-bc90-822aa1713c05
 :END:
+#+title: Unification
 * Note
 Unification solves compatible term/variable bindings and is a foundation for Prolog and symbolic inference.
 * Connected books
