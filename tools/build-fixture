@@ -12,11 +12,10 @@ pandoc fixture.org \
   --standalone \
   --citeproc \
   --bibliography=references.bib \
+  --metadata-file=metadata.yaml \
   --resource-path="$FIX:$FIX/build" \
   --css="$ROOT/assets/styles/epub.css" \
   --epub-cover-image=cover.svg \
   --lua-filter="$ROOT/tools/pandoc-org-id.lua" \
-  --metadata title="Bootstrap Publishing Fixture" \
-  --metadata lang="en-US" \
   -o "$DIST/bootstrap-fixture.epub"
 printf '%s\n' "$DIST/bootstrap-fixture.epub"
