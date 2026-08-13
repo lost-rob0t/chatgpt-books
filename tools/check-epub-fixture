@@ -24,6 +24,10 @@ EXPECTED_IDS = {
     "org-id-ae561fc7-3188-59ed-8e5a-a48b829f8618",
     "fixture-resolution",
 }
+EXPECTED_INTERNAL_FRAGMENTS = {
+    "fixture-resolution",
+    "org-id-ae561fc7-3188-59ed-8e5a-a48b829f8618",
+}
 EXPECTED_ALT_TEXT = {
     "Org source flows to generated assets, Pandoc EPUB output, then EPUBCheck validation.",
     "A U-shaped quadratic curve whose minimum is at x equals 3.",
@@ -217,6 +221,7 @@ def main() -> None:
         if code_count < 1:
             die("code regression failed: no pre/code block found")
 
+        observed_internal_fragments = set()
         for document_path, root in trees.items():
             for anchor in root.findall(f".//{{{XHTML_NS}}}a"):
                 href = anchor.get("href")
@@ -231,6 +236,7 @@ def main() -> None:
                     else document_path
                 )
                 fragment = unquote(parsed.fragment)
+                observed_internal_fragments.add(fragment)
                 if target_document not in ids_by_document:
                     die(
                         f"internal link from {document_path} points to missing document: {href}"
@@ -239,6 +245,13 @@ def main() -> None:
                     die(
                         f"internal link from {document_path} points to missing fragment: {href}"
                     )
+
+        missing_fragments = EXPECTED_INTERNAL_FRAGMENTS - observed_internal_fragments
+        if missing_fragments:
+            die(
+                "expected fixture fragment links did not survive/rewrite correctly: "
+                f"missing {sorted(missing_fragments)}; observed {sorted(observed_internal_fragments)}"
+            )
 
         joined_text = "\n".join(combined_text)
         for required_text in {
