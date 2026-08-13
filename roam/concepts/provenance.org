@@ -1,7 +1,7 @@
-#+title: Provenance
 :PROPERTIES:
 :ID:       c867411e-9b07-5c12-93e2-21112810a593
 :END:
+#+title: Provenance
 * Note
 Provenance records where data/knowledge/claims came from and supports auditability, explanations, reproducibility, and safe updates.
 * Connected books
