@@ -1,0 +1,139 @@
+#!/usr/bin/env python3
+"""Prepare canonical Org source for Pandoc without mutating the source file.
+
+Pandoc 3.10.1's Org reader uses CUSTOM_ID in preference to ID and does not
+retain the losing property in the Header AST. For publication, materialize a
+stable XML-safe alias for every :ID: before the reader sees the document, and
+rewrite same-document Org id: links to those aliases.
+"""
+
+from __future__ import annotations
+
+import re
+import sys
+from pathlib import Path
+
+ID_LINE = re.compile(r"^\s*:ID:\s*(.*?)\s*$", re.IGNORECASE)
+PROPERTIES_START = re.compile(r"^\s*:PROPERTIES:\s*$", re.IGNORECASE)
+DRAWER_END = re.compile(r"^\s*:END:\s*$", re.IGNORECASE)
+ID_LINK = re.compile(r"\[\[id:([^\]\[]+)\](?:\[([^\]]*)\])?\]", re.IGNORECASE)
+
+
+def fail(message: str) -> None:
+    print(f"ORG PREP FAILED: {message}", file=sys.stderr)
+    raise SystemExit(2)
+
+
+def anchor_for(org_id: str) -> str:
+    """Map an arbitrary Org ID to an ASCII XML-safe fragment identifier."""
+    encoded = []
+    for byte in org_id.encode("utf-8"):
+        char = chr(byte)
+        if (
+            ord("a") <= byte <= ord("z")
+            or ord("A") <= byte <= ord("Z")
+            or ord("0") <= byte <= ord("9")
+            or char in "._-"
+        ):
+            encoded.append(char)
+        else:
+            encoded.append(f"_{byte:02x}")
+    return "org-id-" + "".join(encoded)
+
+
+def collect_ids(lines: list[str]) -> dict[str, str]:
+    ids: dict[str, str] = {}
+    in_properties = False
+    for line in lines:
+        if not in_properties and PROPERTIES_START.match(line):
+            in_properties = True
+            continue
+        if in_properties and DRAWER_END.match(line):
+            in_properties = False
+            continue
+        if in_properties:
+            match = ID_LINE.match(line)
+            if match:
+                org_id = match.group(1).strip()
+                if not org_id:
+                    fail("encountered an empty :ID: property")
+                anchor = anchor_for(org_id)
+                previous = ids.get(org_id)
+                if previous and previous != anchor:
+                    fail(f"inconsistent mapping for Org ID {org_id!r}")
+                ids[org_id] = anchor
+    return ids
+
+
+def rewrite_same_document_id_links(text: str, ids: dict[str, str]) -> str:
+    def replace(match: re.Match[str]) -> str:
+        org_id = match.group(1).strip()
+        description = match.group(2)
+        anchor = ids.get(org_id)
+        if not anchor:
+            return match.group(0)
+        if description is None:
+            return f"[[#{anchor}]]"
+        return f"[[#{anchor}][{description}]]"
+
+    return ID_LINK.sub(replace, text)
+
+
+def materialize_aliases(lines: list[str], ids: dict[str, str]) -> list[str]:
+    existing_targets = set(re.findall(r"<<([^<>\n]+)>>", "".join(lines)))
+    output: list[str] = []
+    drawer: list[str] | None = None
+    drawer_id: str | None = None
+
+    for line in lines:
+        if drawer is None:
+            if PROPERTIES_START.match(line):
+                drawer = [line]
+                drawer_id = None
+            else:
+                output.append(line)
+            continue
+
+        drawer.append(line)
+        id_match = ID_LINE.match(line)
+        if id_match:
+            drawer_id = id_match.group(1).strip()
+
+        if DRAWER_END.match(line):
+            output.extend(drawer)
+            if drawer_id:
+                anchor = ids[drawer_id]
+                if anchor not in existing_targets:
+                    output.append(f"<<{anchor}>>\n")
+                    existing_targets.add(anchor)
+            drawer = None
+            drawer_id = None
+
+    if drawer is not None:
+        fail("unterminated :PROPERTIES: drawer")
+    return output
+
+
+def main() -> None:
+    if len(sys.argv) != 3:
+        fail("usage: prepare-org-for-pandoc SOURCE.org OUTPUT.org")
+
+    source = Path(sys.argv[1])
+    output = Path(sys.argv[2])
+    if not source.is_file():
+        fail(f"missing source: {source}")
+    if source.resolve() == output.resolve():
+        fail("refusing to overwrite canonical Org source")
+
+    text = source.read_text(encoding="utf-8")
+    lines = text.splitlines(keepends=True)
+    ids = collect_ids(lines)
+    prepared = "".join(materialize_aliases(lines, ids))
+    prepared = rewrite_same_document_id_links(prepared, ids)
+
+    output.write_text(prepared, encoding="utf-8")
+    print(f"prepared {source} -> {output}: {len(ids)} stable Org ID alias(es)")
+
+
+if __name__ == "__main__":
+    main()
