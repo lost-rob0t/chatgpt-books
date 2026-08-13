@@ -99,3 +99,17 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Authority: current upstream implementation documentation in the user's StarIntel server repository.
 - Retrieved: 2026-08-13.
 - Relevant to: Chapters 2, 20; Project 1 and capstone schema/provenance boundary.
+
+** Pass 02 -- canonical StarIntel 0.9 locked revision
+- URL: https://github.com/lost-rob0t/starintel-gpt-auto-dig/tree/ff814ff63868286d68e21502122832802cd5e361
+- Authority: revision named by the inspected Python/Nim/Common Lisp/server schema locks.
+- Observed: schema 0.9.0; revision =0.9.0+fields.20260726.2=; 50 dtypes. Retrieved: 2026-08-13.
+
+** Pass 02 -- GLEIF LEI data
+- URLs: https://www.gleif.org/en/meta/lei-data-terms-of-use ; https://www.gleif.org/en/lei-data/gleif-golden-copy
+- Authority: official GLEIF terms/data documentation; CC0 access terms inspected. Retrieved: 2026-08-13.
+
+** Pass 02 -- leakage primary paper
+- URL: https://pmc.ncbi.nlm.nih.gov/articles/PMC10499856/
+- DOI: 10.1016/j.patter.2023.100804
+- Authority: Kapoor and Narayanan, =Patterns= 4(9), 100804, 2023. Retrieved: 2026-08-13.
