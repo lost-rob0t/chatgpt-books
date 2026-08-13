@@ -45,6 +45,8 @@ jobs:
         run: |
           rm -rf .bootstrap
           rm -f .github/workflows/bootstrap-seed.yml
+          rm -f .github/workflows/ci.yml
+          rm -f .github/workflows/private-build.yml
 
       - name: Commit bootstrap
         shell: bash
