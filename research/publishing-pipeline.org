@@ -7,6 +7,8 @@ DOCUMENTED 2026-08-12: use direct Pandoc Org input to EPUB 3, with deterministic
 * Primary-source evidence
 - Pandoc User's Guide (retrieved 2026-08-12): https://pandoc.org/demo/example3.html
   - current guide documents modular readers/writers, explicit input/output formats, =--citeproc=, external bibliographies, math, linked media inclusion, EPUB 3 semantics, and accessibility metadata.
+- Pandoc 3.10.1 release notes (retrieved 2026-08-12): https://pandoc.org/releases.html
+  - EPUB3 no longer forces MathML automatically. Existing EPUB3 workflows that require MathML must pass =--mathml= explicitly. Both fixture and production book builds therefore pin that option.
 - Pandoc EPUB metadata (retrieved 2026-08-12): https://pandoc.org/demo/example33/11.1-epub-metadata.html
   - documents explicit =accessModes=, =accessModeSufficient=, =accessibilityHazards=, =accessibilityFeatures=, and =accessibilitySummary= metadata fields.
 - Pandoc 3.10.1 Org reader source (retrieved 2026-08-12): https://github.com/jgm/pandoc/blob/3.10.1/src/Text/Pandoc/Readers/Org/DocumentTree.hs
@@ -27,6 +29,8 @@ Pandoc's Org reader is not Emacs itself. Authoring-only constructs must be teste
 Before Pandoc reads a manuscript, =tools/prepare-org-for-pandoc= writes a temporary sibling copy. For every source =:ID:= it materializes an explicit XML-safe =org-id-<ID>= target. Same-document =id:= links are rewritten to those aliases; links to IDs not present in the current source are left unchanged. Existing Pandoc-generated heading identifiers and =:CUSTOM_ID:= values remain intact. Build scripts delete the temporary copy on exit and never mutate the canonical Org source.
 
 The Lua filter is intentionally narrower: it handles Pandoc's Figure-level =alt= quirk, which is actually visible in the AST. It does not attempt to reconstruct an =ID= value that Pandoc 3.10.1 has already discarded.
+
+Pandoc 3.10.1 also changed EPUB3 math behavior: MathML is no longer the unconditional default. The build scripts pass =--mathml= explicitly so equations remain semantic MathML and the fixture's declared =MathML= accessibility feature stays truthful.
 * Feature acceptance fixture
 The fixture proves headings, stable Org-ID aliases, same-document Org =id:= links, custom-anchor behavior, internal fragment resolution, source block, table, footnote, citation/bibliography, MathML equation output, deterministic SVG, PNG and JPEG media, ordinary image inclusion, meaningful alt text, captions, Unicode, explicit cover/accessibility metadata, and EPUBCheck conformance. =tools/check-pandoc-org-reader= asserts the pinned reader quirks consumed by the compatibility layer; =tools/check-epub-fixture= inspects the packaged OPF/XHTML for repository-specific regressions after the standards validator runs.
 
