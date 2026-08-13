@@ -7,13 +7,15 @@
 - EPUB publication regression inspection for package accessibility metadata, stable IDs/internal links, citations, footnotes, MathML, tables/code, SVG/PNG/JPEG media, captions, meaningful alt text, Unicode, and cover metadata (issue #4).
 - Explicit fixture accessibility metadata and an accessibility/failure-diagnostics policy grounded in W3C EPUB Accessibility 1.1.
 - A Pandoc Org-reader contract test that detects upstream AST changes affecting =:ID:=, =:CUSTOM_ID:=, and Figure-level alt normalization.
+- =tools/prepare-org-for-pandoc=, which creates an export-only temporary Org copy containing deterministic =org-id-<ID>= aliases and rewritten same-document =id:= links while leaving canonical Org untouched.
 
 ** Changed
 - =elisp/chatgpt-books-roam.el= now forward-declares Org-roam variables (=org-roam-directory=, =org-roam-db-location=, =org-roam-capture-templates=, =org-roam-db-autosync-mode=) so the project package and its ERT suite behave correctly before =(require 'org-roam)= executes. =chatgpt-books-roam-restore= now reads =org-roam-db-autosync-mode= with =boundp=, fixing a =void-variable= failure exposed by the minimal Nix devShell.
-- =tools/pandoc-org-id.lua= maps every stable Org =:ID:= to =org-id-<ID>= for deterministic XML-safe EPUB anchors and preserves the previous =:CUSTOM_ID:= target as an alias.
+- Fixture and per-book builds now prepare stable Org-ID aliases before invoking Pandoc, because Pandoc 3.10.1 discards =:ID:= from the Header AST when =:CUSTOM_ID:= is also present.
+- =tools/pandoc-org-id.lua= is intentionally limited to Figure-alt normalization; it no longer tries to reconstruct stable IDs after the Org reader has discarded information.
 - The publishing fixture now includes deterministic JPEG coverage in addition to SVG and PNG.
 
 ** Fixed
 - ERT =chatgpt-books-roam-state-roundtrip= no longer depends on Org-roam being pre-loaded; the alphabetical test run order still lets CI's real Org-roam sync test load the package first, but the roundtrip test is now robust on hosts without Org-roam installed.
-- Custom fragment links no longer become dangling when Pandoc exposes both =:CUSTOM_ID:= and =:ID:= on the same Org heading.
-- Org IDs beginning with digits no longer depend on Pandoc's writer-specific identifier rewrite; all EPUB Org-ID anchors use one stable namespace.
+- Same-document Org =id:= links now resolve to deterministic EPUB fragment aliases without replacing existing =:CUSTOM_ID:= targets.
+- Org IDs beginning with digits no longer depend on Pandoc's writer-specific identifier rewrite; all publication aliases use one stable namespace.
