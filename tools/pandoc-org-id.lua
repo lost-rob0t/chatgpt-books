@@ -1,40 +1,16 @@
 -- Normalize Pandoc's Org reader representation for EPUB output.
 --
--- Org :ID: properties appear as an "id" key/value attribute while Pandoc also
--- assigns a generated/custom Header identifier. EPUB content is XHTML/XML, so
--- identifiers that begin with digits can be rewritten by the writer. Map every
--- Org ID to the same explicit XML-safe namespace instead: org-id-<ID>.
--- This keeps the mapping stable regardless of the first character of the Org
--- UUID and avoids input-dependent writer rewrites such as an added "id_".
---
--- When a heading also has :CUSTOM_ID:, Pandoc can place that value in the
--- Header identifier while keeping :ID: in the attributes table. Canonicalizing
--- the stable Org ID must not silently break links to the custom anchor, so an
--- empty inline span preserves the former identifier as an alias.
+-- Stable Org :ID: preservation is handled before Pandoc parsing by
+-- tools/prepare-org-for-pandoc. Pandoc 3.10.1 chooses CUSTOM_ID over ID and
+-- drops the losing property from the Header AST, so a Header Lua filter cannot
+-- reliably recover both values. The preprocessor materializes XML-safe
+-- org-id-<ID> aliases while leaving Pandoc's normal heading/custom identifiers
+-- intact.
 --
 -- Org #+attr_html: :alt metadata on captioned images is represented as a
 -- Figure-level "alt" attribute by Pandoc's Org reader. EPUB 3.3 does not allow
 -- alt on <figure>; move that text to the nested Image where it becomes the
 -- required <img alt="..."> value.
-
-local function epub_org_id(org_id)
-  return "org-id-" .. org_id
-end
-
-function Header(el)
-  local org_id = el.attributes["id"]
-  if org_id and org_id ~= "" then
-    local previous_identifier = el.identifier
-    local canonical_identifier = epub_org_id(org_id)
-    el.identifier = canonical_identifier
-    el.attributes["id"] = nil
-
-    if previous_identifier and previous_identifier ~= "" and previous_identifier ~= canonical_identifier then
-      table.insert(el.content, 1, pandoc.Span({}, pandoc.Attr(previous_identifier)))
-    end
-  end
-  return el
-end
 
 function Figure(el)
   local alt = el.attributes["alt"]
