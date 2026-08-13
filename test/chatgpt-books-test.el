@@ -3,8 +3,8 @@
 (require 'cl-lib)
 
 (defconst chatgpt-books-test-root
-  (file-name-directory
-   (directory-file-name
+  (file-name-as-directory
+   (file-truename
     (expand-file-name ".." (file-name-directory (or load-file-name buffer-file-name)))))
   "Repository root captured while this ERT file is loading.")
 
