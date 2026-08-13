@@ -4,6 +4,17 @@
 ;;; Code:
 (require 'cl-lib)
 (require 'chatgpt-books)
+
+;; Forward-declare Org-roam variables so this package and its tests behave
+;; correctly even before (require 'org-roam) has executed.  These forms only
+;; mark the variables special; supplying nil lets defvar mark them as
+;; special without overriding Org-roam's own defvar/defcustom values once the
+;; package loads (defvar never clobbers an existing value).
+(defvar org-roam-directory nil)
+(defvar org-roam-db-location nil)
+(defvar org-roam-capture-templates nil)
+(defvar org-roam-db-autosync-mode nil)
+
 (defvar chatgpt-books-roam--saved-state nil)
 (defun chatgpt-books-roam-directory () (file-truename (expand-file-name "roam" (chatgpt-books-root))))
 (defun chatgpt-books-roam-db-location () (expand-file-name ".cache/org-roam.db" (chatgpt-books-root)))
@@ -40,11 +51,16 @@
   "Restore Org-roam variables captured before project setup."
   (interactive)
   (when chatgpt-books-roam--saved-state
-    (when (and (fboundp 'org-roam-db-autosync-mode) org-roam-db-autosync-mode) (org-roam-db-autosync-mode -1))
+    (when (and (boundp 'org-roam-db-autosync-mode)
+               (symbol-value 'org-roam-db-autosync-mode)
+               (fboundp 'org-roam-db-autosync-mode))
+      (org-roam-db-autosync-mode -1))
     (setq org-roam-directory (plist-get chatgpt-books-roam--saved-state :directory)
           org-roam-db-location (plist-get chatgpt-books-roam--saved-state :db)
           org-roam-capture-templates (plist-get chatgpt-books-roam--saved-state :templates))
-    (when (and (plist-get chatgpt-books-roam--saved-state :autosync) (fboundp 'org-roam-db-autosync-mode)) (org-roam-db-autosync-mode 1))
+    (when (and (plist-get chatgpt-books-roam--saved-state :autosync)
+               (fboundp 'org-roam-db-autosync-mode))
+      (org-roam-db-autosync-mode 1))
     (setq chatgpt-books-roam--saved-state nil)))
 (defun chatgpt-books-roam-db-sync () (interactive) (require 'org-roam) (chatgpt-books-roam-setup) (org-roam-db-sync))
 (defun chatgpt-books-roam-db-clear-and-sync () (interactive) (require 'org-roam) (chatgpt-books-roam-setup) (org-roam-db-clear-all) (org-roam-db-sync))
