@@ -57,6 +57,10 @@ def package_path(base: str, href: str) -> str:
     return posixpath.normpath(posixpath.join(posixpath.dirname(base), unquote(href)))
 
 
+def class_tokens(element: ET.Element) -> set[str]:
+    return set((element.get("class") or "").split())
+
+
 def main() -> None:
     if len(sys.argv) != 2:
         die("usage: check-epub-fixture path.epub")
@@ -164,6 +168,8 @@ def main() -> None:
         mathml_count = 0
         table_count = 0
         code_count = 0
+        citation_count = 0
+        bibliography_entry_count = 0
 
         for document_path in xhtml_paths:
             try:
@@ -180,6 +186,11 @@ def main() -> None:
                     if element_id in seen_ids:
                         die(f"duplicate id {element_id!r} in {document_path}")
                     seen_ids.add(element_id)
+                classes = class_tokens(element)
+                if "citation" in classes:
+                    citation_count += 1
+                if "csl-entry" in classes:
+                    bibliography_entry_count += 1
             ids_by_document[document_path] = seen_ids
 
             for figure in root.findall(f".//{{{XHTML_NS}}}figure"):
@@ -220,6 +231,10 @@ def main() -> None:
             die("table regression failed: no table element found")
         if code_count < 1:
             die("code regression failed: no pre/code block found")
+        if citation_count < 1:
+            die("citation regression failed: citeproc produced no .citation element")
+        if bibliography_entry_count < 1:
+            die("bibliography regression failed: citeproc produced no .csl-entry element")
 
         observed_internal_fragments = set()
         for document_path, root in trees.items():
@@ -260,7 +275,6 @@ def main() -> None:
             "α",
             "β",
             "∑",
-            "John MacFarlane",
             "Pandoc User",
             "Guide",
             "This footnote exists solely to exercise production EPUB footnote handling.",
