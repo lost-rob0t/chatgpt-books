@@ -6,5 +6,9 @@
 - Which primary sources define the foundational concepts?
 - Which behavior is version-sensitive in the current toolchain?
 - Which claims require reproduction/benchmarking rather than citation alone?
+- Which StarIntel document/schema boundary should the ML projects target?
+- Which split policies avoid leakage across related entities, time, and source lineage?
+* Research passes
+- [[file:foundations-pass-01.org][Foundational Research Pass 01]] -- RESEARCH; 2026-08-13. Seeds Chapters 1--5 and Project 1, records the current scikit-learn/PyTorch baseline, and documents the current StarIntel 0.9/legacy 0.8 integration boundary.
 * Records
 Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
