@@ -9,7 +9,7 @@ OUT="$ROOT/books/$BOOK/dist/$BOOK.epub"
 mkdir -p "$(dirname "$OUT")"
 PREPARED="$(mktemp "$ROOT/books/$BOOK/manuscript/.index-pandoc.XXXXXX.org")"
 trap 'rm -f "$PREPARED"' EXIT
-"$ROOT/tools/prepare-org-for-pandoc" "$SRC" "$PREPARED"
+python3 "$ROOT/tools/prepare-org-for-pandoc" "$SRC" "$PREPARED"
 pandoc "$PREPARED" \
   --from=org \
   --to=epub3 \
