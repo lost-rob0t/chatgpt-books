@@ -1,0 +1,6 @@
+#+title: Prolog for Beginners: Thinking in Relations -- Source Inventory
+:PROPERTIES:
+:ID:       1354f7e5-2b6b-54f5-923c-8d6fc99513d6
+:END:
+* Policy
+Add only sources actually inspected. Record URL, authority, publication/version date when known, retrieval date, relevant sections, and affected chapters/projects.

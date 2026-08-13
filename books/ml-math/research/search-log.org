@@ -1,0 +1,6 @@
+#+title: Machine Learning Math for People Who Actually Want to Understand It -- Search Log
+:PROPERTIES:
+:ID:       37f1e51a-0fec-55bc-9b29-d9ba25d3149b
+:END:
+* Entries
+No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.

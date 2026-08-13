@@ -1,0 +1,12 @@
+#+title: LFE for Beginners: Lisp on the Erlang VM -- Asset Plan
+:PROPERTIES:
+:ID:       88de66ff-6070-595a-ad47-0bfdfc879871
+:END:
+* Required asset classes
+- editable architecture/algorithm diagrams
+- reproducible plots where data/math warrants them
+- screenshots only when real UI teaches something
+- generated illustration provenance records when used
+- unique cover background/motif + deterministic typography
+* Rule
+Do not add decorative assets merely to inflate the book. Every informative figure gets caption + alt text.

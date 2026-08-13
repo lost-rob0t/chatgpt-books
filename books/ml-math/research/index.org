@@ -1,0 +1,10 @@
+#+title: Machine Learning Math for People Who Actually Want to Understand It -- Research Index
+:PROPERTIES:
+:ID:       b307d419-9bb8-5bd5-9d1a-c3f9a1dc4575
+:END:
+* Research questions
+- Which primary sources define the foundational concepts?
+- Which behavior is version-sensitive in the current toolchain?
+- Which claims require reproduction/benchmarking rather than citation alone?
+* Records
+Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].

@@ -1,0 +1,12 @@
+#+title: Symbolic AI in Common Lisp -- Asset Plan
+:PROPERTIES:
+:ID:       a31a0f86-d936-5f4d-958c-62e2279dd292
+:END:
+* Required asset classes
+- editable architecture/algorithm diagrams
+- reproducible plots where data/math warrants them
+- screenshots only when real UI teaches something
+- generated illustration provenance records when used
+- unique cover background/motif + deterministic typography
+* Rule
+Do not add decorative assets merely to inflate the book. Every informative figure gets caption + alt text.

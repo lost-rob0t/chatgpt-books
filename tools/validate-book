@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+EPUB="${1:-}"
+if [[ -z "$EPUB" ]]; then echo "usage: validate-book path.epub" >&2; exit 2; fi
+if command -v epubcheck >/dev/null 2>&1; then exec epubcheck "$EPUB"; fi
+if [[ -n "${EPUBCHECK_JAR:-}" && -f "$EPUBCHECK_JAR" ]]; then exec java -jar "$EPUBCHECK_JAR" "$EPUB"; fi
+echo "EPUBCheck unavailable: install epubcheck or set EPUBCHECK_JAR" >&2; exit 127

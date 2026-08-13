@@ -1,0 +1,21 @@
+#+title: Publishing Pipeline Decision
+:PROPERTIES:
+:ID:       a994a0f4-5e02-50f1-80a2-d07c963a3664
+:END:
+* Decision
+DOCUMENTED 2026-08-12: use direct Pandoc Org input to EPUB 3, with deterministic prebuilt assets, then validate with EPUBCheck 5.3.0.
+* Primary-source evidence
+- Pandoc User's Guide (retrieved 2026-08-12): https://pandoc.org/demo/example3.html
+  - current guide documents modular readers/writers, explicit input/output formats, =--citeproc=, external bibliographies, math, linked media inclusion, EPUB 3 semantics, and accessibility metadata.
+- Org Manual, citations (retrieved 2026-08-12): https://orgmode.org/manual/Citations.html
+  - Org 9.8 documents =#+bibliography:= and =[cite:@key]= authoring syntax.
+- W3C EPUBCheck releases (retrieved 2026-08-12): https://github.com/w3c/epubcheck/releases
+  - 5.3.0 is identified upstream as the latest production-ready release and validates EPUB 3.3.
+- Org-roam upstream repository (retrieved 2026-08-12): https://github.com/org-roam/org-roam
+  - confirms Doom integration and the plain-text/project-directory model used by our scoped setup.
+* Why this route
+Pandoc is current, scriptable, reproducible in CI/Nix, accepts Org directly, and has a mature EPUB writer. It avoids making an unmaintained third-party Org EPUB exporter the critical path. Org remains canonical; Pandoc is the publication compiler, not the authoring format.
+* Compatibility boundary
+Pandoc's Org reader is not Emacs itself. Authoring-only constructs must be tested in the representative fixture before relying on them. Stable =:ID:= properties remain canonical in Org; where a reader cannot resolve =id:= links without Emacs' ID database, exported manuscripts should also provide stable local/custom anchors or an export preprocessing step.
+* Feature acceptance fixture
+The fixture must prove headings, ID property, cross-reference, source block, table, footnote, citation/bibliography, equation, SVG diagram, generated plot, image, alt text, Unicode, cover and EPUBCheck.

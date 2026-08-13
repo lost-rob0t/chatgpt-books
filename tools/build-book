@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+BOOK="${1:-${BOOK:-}}"
+[[ -n "$BOOK" ]] || { echo "usage: build-book BOOK|BOOK=name" >&2; exit 2; }
+SRC="$ROOT/books/$BOOK/manuscript/index.org"
+OUT="$ROOT/books/$BOOK/dist/$BOOK.epub"
+[[ -f "$SRC" ]] || { echo "unknown book: $BOOK" >&2; exit 2; }
+mkdir -p "$(dirname "$OUT")"
+pandoc "$SRC" --from=org --to=epub3 --standalone --resource-path="$ROOT/books/$BOOK:$ROOT" --css="$ROOT/assets/styles/epub.css" --metadata-file="$ROOT/books/$BOOK/metadata.yaml" -o "$OUT"
+echo "$OUT"

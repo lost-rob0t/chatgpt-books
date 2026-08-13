@@ -1,0 +1,3 @@
+#+title: Fixture Cover Provenance
+
+No image generator was used. Background geometry and typography are deterministic SVG source committed as =cover.svg=.

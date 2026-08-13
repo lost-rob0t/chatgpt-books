@@ -1,0 +1,6 @@
+#+title: Symbolic AI in Common Lisp -- Source Inventory
+:PROPERTIES:
+:ID:       4287391f-8853-540a-bb20-a766243a8c57
+:END:
+* Policy
+Add only sources actually inspected. Record URL, authority, publication/version date when known, retrieval date, relevant sections, and affected chapters/projects.

@@ -1,0 +1,23 @@
+#+title: Symbolic AI in Prolog
+:PROPERTIES:
+:ID:       00c70066-a514-5750-a69f-3f9d7d695cc0
+:END:
+* Purpose
+A serious independent technical book, eventually about 300--700 rendered EPUB pages when depth warrants it. It is not a README expansion or generic tutorial dump.
+* Audience
+Prolog learners ready to use logic programming for AI, planning, explanation, and knowledge representation.
+* Prerequisites
+Prolog fundamentals or completion of Prolog for Beginners.
+* Learning outcomes
+The reader should be able to explain the core ideas, implement important mechanisms, debug failures, evaluate tradeoffs, and extend the systems built in the major projects.
+* Major projects
+- [[id:feb3b263-3d59-562d-bc7b-487c3fdf432e][Meta-Interpreter]] -- Develop increasingly capable interpreters with tracing, control, and explanation.
+- [[id:868dd81e-3d0d-5f7b-bd3c-83a9fba898df][Planner]] -- Model goals, states, and actions relationally and compare planning strategies.
+- [[id:fad84457-f03e-5fa2-b513-d5e6a0e34475][Semantic Knowledge Graph]] -- Represent structured knowledge as relations with provenance and query APIs.
+- [[id:20c5f8d9-0f29-50c2-b98d-5c887fdccc86][Abductive Explanation System]] -- Generate candidate explanations, assumptions, contradictions, and justification traces.
+- [[id:72bc9870-0c97-572e-9c27-5c444141cfc6][Rule/Expert-System Engine]] -- Contrast native Prolog inference with an explicit production-system engine.
+- [[id:dd7637af-b3a4-54bc-aba2-309412a1da1a][Hybrid Symbolic Reasoning System]] -- Capstone combining rules, constraints, planning, explanation, and external integration.
+* Research
+Record primary-source work under =research/= and bibliography metadata in =references.bib=. Never let version-sensitive prose outrun current documentation.
+* Build
+From repository root: =make book BOOK=symbolic-ai-prolog= and =make check BOOK=symbolic-ai-prolog=. Bootstrap manuscripts are outlines, not release-ready books.

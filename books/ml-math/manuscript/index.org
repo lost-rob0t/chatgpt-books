@@ -1,0 +1,8 @@
+#+title: Machine Learning Math for People Who Actually Want to Understand It
+:PROPERTIES:
+:ID:       dedf9257-97c5-5c9c-b775-2c47eef7616f
+:END:
+#+bibliography: ../references.bib
+
+* Manuscript bootstrap
+This is the canonical manuscript entry point. Long-form drafting begins only after the publishing/research bootstrap and the relevant research issue are ready. See [[file:../OUTLINE.org][OUTLINE.org]].

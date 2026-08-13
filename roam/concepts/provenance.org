@@ -1,0 +1,10 @@
+#+title: Provenance
+:PROPERTIES:
+:ID:       c867411e-9b07-5c12-93e2-21112810a593
+:END:
+* Note
+Provenance records where data/knowledge/claims came from and supports auditability, explanations, reproducibility, and safe updates.
+* Connected books
+- [[file:../../books/starintel/README.org][StarIntel: Primer, Architecture, Internals, and Hacker's Guide]]
+- [[file:../../books/expert-systems/README.org][Expert System Design and Implementation: From Rules to Production Knowledge Systems]]
+- [[file:../../books/ml-starintel/README.org][Machine Learning for StarIntel: From Zero to Useful Models]]

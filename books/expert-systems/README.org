@@ -1,0 +1,24 @@
+#+title: Expert System Design and Implementation: From Rules to Production Knowledge Systems
+:PROPERTIES:
+:ID:       164979f0-60d4-5464-b179-3898a51305fa
+:END:
+* Purpose
+A serious independent technical book, eventually about 300--700 rendered EPUB pages when depth warrants it. It is not a README expansion or generic tutorial dump.
+* Audience
+Engineers who want to design, implement, test, persist, explain, and operate serious expert systems.
+* Prerequisites
+Programming experience; Common Lisp and Prolog books are useful companions but not mandatory.
+* Learning outcomes
+The reader should be able to explain the core ideas, implement important mechanisms, debug failures, evaluate tradeoffs, and extend the systems built in the major projects.
+* Major projects
+- [[id:8f64ec5f-7322-52d9-a73b-b1ac83873ab6][Progressive Inference Engine]] -- Build from literal matcher through bindings, joins, working memory, agenda, incremental alpha/beta matching, RETE-like propagation, truth maintenance, and explanation.
+- [[id:74177fb5-740c-50cb-a8c4-345e1fea11bb][Technical Troubleshooting Knowledge Base]] -- Build a substantial Linux/server/distributed-service diagnosis KB with provenance, contradictions, temporal observations, and regression scenarios.
+- [[id:c3777f4c-e6c2-56c7-8e88-44d6f01c8ca5][Knowledge Engineering Workbench]] -- Build the interface/API for adding, validating, testing, previewing, versioning, activating, deprecating, and explaining facts and rules without editing engine source.
+- [[id:5ea227ce-d70c-563d-8fc0-95bb38dc840e][Standalone Expert-System Application]] -- Integrate engine, real KB, workbench, CLI/API, explanation graph, tests, benchmarks, and observability.
+- [[id:a44f89ef-546e-5bb9-8ebe-b87c80173000][CouchDB-Backed Expert System]] -- Persist facts, rules, observations, sessions, provenance, explanations, versions, conflicts, and reactive _changes-driven updates through a database-neutral adapter.
+- [[id:d858e428-6341-55ac-b04d-384ed570a478][PostgreSQL-Backed Expert System]] -- Model normalized relational knowledge, transactional inference, concurrency, provenance queries, constraints, and versioned rules without reducing the schema to a JSONB blob.
+- [[id:66d3f9da-355c-5dce-b23a-a9226a6404ce][Production Knowledge System]] -- Capstone comparing persistence models and operating a complete, explainable, versioned knowledge system under controlled failure and concurrency.
+* Research
+Record primary-source work under =research/= and bibliography metadata in =references.bib=. Never let version-sensitive prose outrun current documentation.
+* Build
+From repository root: =make book BOOK=expert-systems= and =make check BOOK=expert-systems=. Bootstrap manuscripts are outlines, not release-ready books.

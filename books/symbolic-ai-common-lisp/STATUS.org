@@ -1,0 +1,16 @@
+#+title: Symbolic AI in Common Lisp -- Status
+:PROPERTIES:
+:ID:       e0a9c8b4-bf74-5afe-aba0-f8570f7927a6
+:END:
+* Phase
+Bootstrap curriculum and architecture.
+* Completed
+- Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
+* Active research
+Foundational primary-source research has not yet been declared complete.
+* Unverified claims
+All version-sensitive implementation details remain RESEARCH/UNTESTED until the relevant issue verifies them.
+* Technical/editorial/visual review
+Not started.
+* Blockers
+Dependency-aware backlog must be executed before chapter prose is promoted to DONE.

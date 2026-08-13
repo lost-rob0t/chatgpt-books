@@ -1,0 +1,23 @@
+#+title: StarIntel: Primer, Architecture, Internals, and Hacker's Guide
+:PROPERTIES:
+:ID:       7a6b5052-2954-5e2c-a3f0-cd0eab956810
+:END:
+* Purpose
+A serious independent technical book, eventually about 300--700 rendered EPUB pages when depth warrants it. It is not a README expansion or generic tutorial dump.
+* Audience
+Developers who want to understand, extend, debug, and operate the real StarIntel codebase.
+* Prerequisites
+General programming; Common Lisp, Prolog, message queues, and databases are introduced where needed.
+* Learning outcomes
+The reader should be able to explain the core ideas, implement important mechanisms, debug failures, evaluate tradeoffs, and extend the systems built in the major projects.
+* Major projects
+- [[id:95600b49-6e43-550d-b202-6aa6ae80ddb2][Create Valid StarIntel Records]] -- Create, validate, explain, and test public/synthetic records using the current document model.
+- [[id:26942a4e-e550-5416-b136-6a14fa591577][Build an Ingest Adapter]] -- Build a safe public/demo-data adapter through the actual current ingest architecture.
+- [[id:bf7baaa8-ae6f-5dd9-adda-026e1437c38b][Build a New Actor]] -- Implement and test a new actor through the current runtime and messaging boundaries.
+- [[id:33c8e718-032d-5a5a-b104-746748a9f154][Add Search or Inference]] -- Extend a development environment with a meaningful search or inference capability.
+- [[id:fa271d01-af9e-5892-b544-4ef1f20cf63d][Debug a Broken Pipeline]] -- Inject controlled failures across services, RabbitMQ, databases, APIs, and logs and trace them systematically.
+- [[id:5755d789-1897-5437-b9d1-0ccc3cf93a73][Add a Complete StarIntel Capability]] -- Capstone based on fresh repository research, integrating data, runtime, tests, observability, and documentation.
+* Research
+Record primary-source work under =research/= and bibliography metadata in =references.bib=. Never let version-sensitive prose outrun current documentation.
+* Build
+From repository root: =make book BOOK=starintel= and =make check BOOK=starintel=. Bootstrap manuscripts are outlines, not release-ready books.

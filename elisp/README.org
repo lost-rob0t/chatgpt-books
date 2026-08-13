@@ -1,0 +1,3 @@
+#+title: chatgpt-books Elisp
+
+Project-local package. Add this directory to =load-path=, then =M-x chatgpt-books=. The dotfiles integration should stay a tiny discovery/autoload hook.

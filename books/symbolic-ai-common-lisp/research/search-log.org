@@ -1,0 +1,6 @@
+#+title: Symbolic AI in Common Lisp -- Search Log
+:PROPERTIES:
+:ID:       9e6067f5-9009-5cdd-8a70-6c85fcfb42ba
+:END:
+* Entries
+No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.

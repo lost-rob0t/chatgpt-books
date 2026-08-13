@@ -1,0 +1,12 @@
+#+title: Expert System Design and Implementation: From Rules to Production Knowledge Systems -- Asset Plan
+:PROPERTIES:
+:ID:       2806e4d9-f34e-5c47-bac0-b05ae06a3afd
+:END:
+* Required asset classes
+- editable architecture/algorithm diagrams
+- reproducible plots where data/math warrants them
+- screenshots only when real UI teaches something
+- generated illustration provenance records when used
+- unique cover background/motif + deterministic typography
+* Rule
+Do not add decorative assets merely to inflate the book. Every informative figure gets caption + alt text.

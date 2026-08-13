@@ -1,0 +1,16 @@
+#+title: Machine Learning for StarIntel: From Zero to Useful Models -- Status
+:PROPERTIES:
+:ID:       bd0a1f78-be2c-5c86-bc56-345bd5b94196
+:END:
+* Phase
+Bootstrap curriculum and architecture.
+* Completed
+- Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
+* Active research
+Foundational primary-source research has not yet been declared complete.
+* Unverified claims
+All version-sensitive implementation details remain RESEARCH/UNTESTED until the relevant issue verifies them.
+* Technical/editorial/visual review
+Not started.
+* Blockers
+Dependency-aware backlog must be executed before chapter prose is promoted to DONE.

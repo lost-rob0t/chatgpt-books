@@ -1,0 +1,260 @@
+#+title: Expert System Design and Implementation: From Rules to Production Knowledge Systems -- Detailed Bootstrap Outline
+:PROPERTIES:
+:ID:       f7c55b2c-e2e5-5071-877f-2bedab7af802
+:END:
+* Part I -- Foundations
+** Chapter 1 -- History And Knowledge Engineering
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for history and knowledge engineering.
+Dependencies: none.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 2 -- Knowledge Acquisition And Domain Modeling
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for knowledge acquisition and domain modeling.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 3 -- Facts And Working Memory
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for facts and working memory.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 4 -- Rules Conditions Actions
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for rules conditions actions.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 5 -- Naive Matching
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for naive matching.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 6 -- Variables And Bindings
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for variables and bindings.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 7 -- Multi-Condition Joins
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for multi-condition joins.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 8 -- Forward And Backward Chaining
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for forward and backward chaining.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 9 -- Conflict Sets And Agenda
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for conflict sets and agenda.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 10 -- Salience Recency Specificity Refraction
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for salience recency specificity refraction.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+
+* Part II -- Building Useful Systems
+** Chapter 11 -- Incremental Matching
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for incremental matching.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 12 -- Alpha Networks
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for alpha networks.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 13 -- Beta Networks
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for beta networks.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 14 -- Join Nodes And Tokens
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for join nodes and tokens.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 15 -- Rete
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for RETE.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 16 -- Treat And Alternatives
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for TREAT and alternatives.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 17 -- Truth Maintenance
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for truth maintenance.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 18 -- Assumptions And Contradictions
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for assumptions and contradictions.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 19 -- Certainty And Fuzzy Systems
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for certainty and fuzzy systems.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 20 -- Explanation And Provenance
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for explanation and provenance.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+
+* Part III -- Advanced Design, Integration, and Failure
+** Chapter 21 -- Kb Evolution And Versioning
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for KB evolution and versioning.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 22 -- Verification Testing Benchmarking
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for verification testing benchmarking.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 23 -- Knowledge-Engineering Ux
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for knowledge-engineering UX.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 24 -- Persistence Protocol
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for persistence protocol.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 25 -- Couchdb Architecture
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for CouchDB architecture.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 26 -- Postgresql Architecture
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for PostgreSQL architecture.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 27 -- Transactions Concurrency
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for transactions concurrency.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 28 -- Event-Driven And Distributed Inference
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for event-driven and distributed inference.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 29 -- Apis Observability Deployment
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for APIs observability deployment.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 30 -- Controlled Llm Integration
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for controlled LLM integration.
+Dependencies: previous chapter.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+
+* Project integration map
+- Project 1 (Progressive Inference Engine) begins after the foundations it needs and reappears in later chapters for extension/testing.
+- Project 2 (Technical Troubleshooting Knowledge Base) begins after the foundations it needs and reappears in later chapters for extension/testing.
+- Project 3 (Knowledge Engineering Workbench) begins after the foundations it needs and reappears in later chapters for extension/testing.
+- Project 4 (Standalone Expert-System Application) begins after the foundations it needs and reappears in later chapters for extension/testing.
+- Project 5 (CouchDB-Backed Expert System) begins after the foundations it needs and reappears in later chapters for extension/testing.
+- Project 6 (PostgreSQL-Backed Expert System) begins after the foundations it needs and reappears in later chapters for extension/testing.
+- Project 7 (Production Knowledge System) begins after the foundations it needs and reappears in later chapters for extension/testing.
+* Capstone
+The final major project in [[file:PROJECTS.org][PROJECTS.org]] is an integrated capstone, not a toy appendix. It must include requirements, architecture, implementation, tests, failure analysis, visuals, research provenance, and a reproducible deliverable.

@@ -1,0 +1,85 @@
+#+title: LFE for Beginners: Lisp on the Erlang VM -- Major Projects
+:PROPERTIES:
+:ID:       db3a4d2b-7d24-5f55-91c3-daecb14106d2
+:END:
+* Major Projects
+** Project 1 -- LFE DSL
+:PROPERTIES:
+:ID:       55542619-da75-550e-a955-874f79c97643
+:END:
+Purpose: Design, macro-expand, test, and document a useful domain-specific language.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 2 -- Actor Application
+:PROPERTIES:
+:ID:       3b068142-3d00-5f2a-abe0-8f321c9817bb
+:END:
+Purpose: Build process/message abstractions while preserving BEAM semantics.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 3 -- OTP Service
+:PROPERTIES:
+:ID:       2b4274af-a32a-5057-91be-6e894c5a298f
+:END:
+Purpose: Implement an OTP service using direct Erlang interoperability.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 4 -- Supervised Distributed Workflow
+:PROPERTIES:
+:ID:       c3aa8a55-f0c8-591a-a153-47d67a4cdfd7
+:END:
+Purpose: Combine Lisp abstractions with supervisors, failure recovery, and distributed nodes.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 5 -- Lisp-Driven BEAM Application
+:PROPERTIES:
+:ID:       41daba36-743f-5c20-8271-b3158d24347f
+:END:
+Purpose: Capstone using macros/DSLs to produce a clean fault-tolerant distributed application architecture.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.

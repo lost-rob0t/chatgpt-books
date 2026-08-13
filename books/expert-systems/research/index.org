@@ -1,0 +1,10 @@
+#+title: Expert System Design and Implementation: From Rules to Production Knowledge Systems -- Research Index
+:PROPERTIES:
+:ID:       36f79586-a460-53f9-af57-d0d1211be942
+:END:
+* Research questions
+- Which primary sources define the foundational concepts?
+- Which behavior is version-sensitive in the current toolchain?
+- Which claims require reproduction/benchmarking rather than citation alone?
+* Records
+Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].

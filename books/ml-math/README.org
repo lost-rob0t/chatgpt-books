@@ -1,0 +1,22 @@
+#+title: Machine Learning Math for People Who Actually Want to Understand It
+:PROPERTIES:
+:ID:       a51f1382-9bda-57ec-a43b-0fe0c25e2f70
+:END:
+* Purpose
+A serious independent technical book, eventually about 300--700 rendered EPUB pages when depth warrants it. It is not a README expansion or generic tutorial dump.
+* Audience
+Readers who want the math needed for ML without assuming a strong math background.
+* Prerequisites
+Basic arithmetic and willingness to work executable examples.
+* Learning outcomes
+The reader should be able to explain the core ideas, implement important mechanisms, debug failures, evaluate tradeoffs, and extend the systems built in the major projects.
+* Major projects
+- [[id:fb326207-7fd5-5fb1-abbc-cfa91523cf6e][Vector/Matrix Toolkit]] -- Implement core vector and matrix operations from first principles, verify against a numerical library, and visualize transformations.
+- [[id:bed7dd64-23a6-52ae-81ef-24aafe8d134f][Linear Regression From the Math]] -- Derive the model, loss, gradients, optimization, and evaluation, then implement them.
+- [[id:5cfb6882-e155-5af1-8fce-f52619464538][Gradient Descent Visualizer]] -- Plot objective surfaces and trace convergence, oscillation, bad learning rates, and divergence.
+- [[id:446bb7dd-7bb8-56ab-81de-8f20d838473c][Probability and Bayesian Inference Tool]] -- Build executable probability models and posterior updates with visual diagnostics.
+- [[id:cd8b5fb6-8966-58df-8384-6eb2dbbe7ad9][Small Neural Network From First Principles]] -- Capstone connecting matrices, derivatives, chain rule, optimization, probability, and numerical stability.
+* Research
+Record primary-source work under =research/= and bibliography metadata in =references.bib=. Never let version-sensitive prose outrun current documentation.
+* Build
+From repository root: =make book BOOK=ml-math= and =make check BOOK=ml-math=. Bootstrap manuscripts are outlines, not release-ready books.

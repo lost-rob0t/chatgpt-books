@@ -1,0 +1,22 @@
+#+title: Series Roadmap
+:PROPERTIES:
+:ID:       11b9c197-ef18-5e73-83ab-a17e25ec31e9
+:END:
+* Phase 0 -- bootstrap infrastructure
+Publishing, Org-roam, Elisp, fixture, CI, book skeletons, major-project architecture, backlog.
+* Phase 1 -- foundational research
+Fresh primary-source research for each book; StarIntel book additionally reconciles current repos before prose.
+* Phase 2 -- curriculum and dependency review
+Resolve overlap through Org-roam and keep each book independently intelligible.
+* Phase 3 -- detailed outline review
+Turn bootstrap chapter maps into research-ready chapter specifications.
+* Phases 4--6 -- foundational, intermediate, advanced authoring
+Implement projects progressively alongside chapters.
+* Phase 7 -- capstones
+Complete and integrate each book's substantial capstone.
+* Phase 8 -- technical review
+Re-run examples, tests, benchmarks, citations, and architecture validation.
+* Phase 9 -- editorial and visual review
+Accessibility, diagrams, cover, prose, navigation, and consistency.
+* Phase 10 -- private EPUB release
+Build with production path, pass EPUBCheck, retain CI/release artifacts.

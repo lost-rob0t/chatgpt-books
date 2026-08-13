@@ -1,0 +1,13 @@
+#+title: %TITLE%
+:PROPERTIES:
+:ID:       df5c8efe-4600-5981-b0f8-7cf61f2c5f07
+:END:
+* Goal
+* Dependencies
+* Research questions
+* Explanation
+* Runnable examples
+* Failure/debugging cases
+* Exercises
+* Visuals and alt text
+* Verification checklist

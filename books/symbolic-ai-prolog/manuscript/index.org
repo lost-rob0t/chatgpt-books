@@ -1,0 +1,8 @@
+#+title: Symbolic AI in Prolog
+:PROPERTIES:
+:ID:       bd453848-7c4e-58e5-8cd9-795d5ae5f81e
+:END:
+#+bibliography: ../references.bib
+
+* Manuscript bootstrap
+This is the canonical manuscript entry point. Long-form drafting begins only after the publishing/research bootstrap and the relevant research issue are ready. See [[file:../OUTLINE.org][OUTLINE.org]].

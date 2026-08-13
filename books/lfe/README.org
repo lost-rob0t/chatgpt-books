@@ -1,0 +1,22 @@
+#+title: LFE for Beginners: Lisp on the Erlang VM
+:PROPERTIES:
+:ID:       47a56ef4-51fd-5c6e-a25c-1d78157d8539
+:END:
+* Purpose
+A serious independent technical book, eventually about 300--700 rendered EPUB pages when depth warrants it. It is not a README expansion or generic tutorial dump.
+* Audience
+Lisp or BEAM-curious programmers who want idiomatic LFE rather than Erlang transliterated into parentheses.
+* Prerequisites
+Basic programming; Erlang book is useful but not mandatory.
+* Learning outcomes
+The reader should be able to explain the core ideas, implement important mechanisms, debug failures, evaluate tradeoffs, and extend the systems built in the major projects.
+* Major projects
+- [[id:55542619-da75-550e-a955-874f79c97643][LFE DSL]] -- Design, macro-expand, test, and document a useful domain-specific language.
+- [[id:3b068142-3d00-5f2a-abe0-8f321c9817bb][Actor Application]] -- Build process/message abstractions while preserving BEAM semantics.
+- [[id:2b4274af-a32a-5057-91be-6e894c5a298f][OTP Service]] -- Implement an OTP service using direct Erlang interoperability.
+- [[id:c3aa8a55-f0c8-591a-a153-47d67a4cdfd7][Supervised Distributed Workflow]] -- Combine Lisp abstractions with supervisors, failure recovery, and distributed nodes.
+- [[id:41daba36-743f-5c20-8271-b3158d24347f][Lisp-Driven BEAM Application]] -- Capstone using macros/DSLs to produce a clean fault-tolerant distributed application architecture.
+* Research
+Record primary-source work under =research/= and bibliography metadata in =references.bib=. Never let version-sensitive prose outrun current documentation.
+* Build
+From repository root: =make book BOOK=lfe= and =make check BOOK=lfe=. Bootstrap manuscripts are outlines, not release-ready books.

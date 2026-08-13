@@ -1,0 +1,6 @@
+#+title: LFE for Beginners: Lisp on the Erlang VM -- Source Inventory
+:PROPERTIES:
+:ID:       bc0e784f-5d2d-5e9b-87d6-a1af58937167
+:END:
+* Policy
+Add only sources actually inspected. Record URL, authority, publication/version date when known, retrieval date, relevant sections, and affected chapters/projects.

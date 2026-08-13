@@ -1,0 +1,8 @@
+#+title: StarIntel: Primer, Architecture, Internals, and Hacker's Guide
+:PROPERTIES:
+:ID:       01ae6baa-67eb-59fa-8cf6-b06ea83d946e
+:END:
+#+bibliography: ../references.bib
+
+* Manuscript bootstrap
+This is the canonical manuscript entry point. Long-form drafting begins only after the publishing/research bootstrap and the relevant research issue are ready. See [[file:../OUTLINE.org][OUTLINE.org]].

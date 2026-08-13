@@ -1,0 +1,17 @@
+#+title: %TITLE%
+:PROPERTIES:
+:ID:       563bcccf-acb7-5823-b05e-1c1d3b01fb25
+:END:
+:PROPERTIES:
+:URL:
+:AUTHOR:
+:PUBLISHED:
+:RETRIEVED:
+:AUTHORITY:
+:BOOKS:
+:END:
+* Question
+* Evidence
+* Reproduction/verification
+* Implications
+* Remaining uncertainty

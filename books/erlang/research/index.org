@@ -1,0 +1,10 @@
+#+title: Erlang for Beginners: Building Systems That Refuse to Die -- Research Index
+:PROPERTIES:
+:ID:       ea4683a5-5116-5c1b-b6cd-906dc2a8c93d
+:END:
+* Research questions
+- Which primary sources define the foundational concepts?
+- Which behavior is version-sensitive in the current toolchain?
+- Which claims require reproduction/benchmarking rather than citation alone?
+* Records
+Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].

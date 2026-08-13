@@ -1,0 +1,12 @@
+#+title: Machine Learning for StarIntel: From Zero to Useful Models -- Asset Plan
+:PROPERTIES:
+:ID:       c69cc34d-87cb-56db-85e0-2b11b608fccb
+:END:
+* Required asset classes
+- editable architecture/algorithm diagrams
+- reproducible plots where data/math warrants them
+- screenshots only when real UI teaches something
+- generated illustration provenance records when used
+- unique cover background/motif + deterministic typography
+* Rule
+Do not add decorative assets merely to inflate the book. Every informative figure gets caption + alt text.

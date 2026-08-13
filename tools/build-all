@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+for d in "$ROOT"/books/*; do [[ -d "$d" ]] || continue; "$ROOT/tools/build-book" "$(basename "$d")"; done

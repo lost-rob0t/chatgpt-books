@@ -1,0 +1,18 @@
+#+title: Visual Style Guide
+:PROPERTIES:
+:ID:       d2973496-2fd5-5fe1-962f-7016cc27c9d0
+:END:
+* Series identity
+Technical, high-contrast, diagram-forward, minimal decorative noise. Each book gets a distinct motif while typography and information hierarchy remain recognizably one series.
+* Typography
+Use deterministic title/subtitle placement on covers. Prefer reader-provided system serif/sans fallbacks in EPUB CSS; do not bundle fonts without an explicit license record.
+* Diagrams
+Keep editable DOT/D2/PlantUML/SVG sources. Favor simple geometry, labeled edges, visible direction, consistent node semantics, and line weights that survive e-reader downscaling.
+* Code
+Code remains text in EPUB. Avoid screenshots of terminals when a source block communicates the same information.
+* Captions and alt text
+A caption states what the figure demonstrates; alt text states the essential visual information. Complex figures are also explained in nearby prose.
+* Covers
+Use a unique background/motif per title, deterministic typography, high-resolution master, and EPUB derivative. Keep =cover-background=, =cover.svg=, =cover.png= and =cover.prompt.org= when generated art is involved.
+* Accessibility
+Do not rely on color alone. Keep contrast high, labels explicit, reading order sensible, and alt text meaningful.

@@ -1,0 +1,6 @@
+body { font-family: serif; line-height: 1.45; }
+code, pre { font-family: monospace; }
+img { max-width: 100%; height: auto; }
+figure { break-inside: avoid; }
+table { border-collapse: collapse; }
+th, td { border: 1px solid currentColor; padding: .25em .5em; }

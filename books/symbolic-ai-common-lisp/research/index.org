@@ -1,0 +1,10 @@
+#+title: Symbolic AI in Common Lisp -- Research Index
+:PROPERTIES:
+:ID:       97b0e123-5e8a-57cf-bca9-2f8e48b46ed3
+:END:
+* Research questions
+- Which primary sources define the foundational concepts?
+- Which behavior is version-sensitive in the current toolchain?
+- Which claims require reproduction/benchmarking rather than citation alone?
+* Records
+Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].

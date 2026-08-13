@@ -1,0 +1,6 @@
+#+title: Prolog for Beginners: Thinking in Relations -- Search Log
+:PROPERTIES:
+:ID:       ac86e2b6-a9f8-5be1-9734-53a1b9255980
+:END:
+* Entries
+No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.

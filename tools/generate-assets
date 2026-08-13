@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+mkdir -p "$ROOT/fixtures/epub/build"
+dot -Tsvg "$ROOT/fixtures/epub/pipeline.dot" -o "$ROOT/fixtures/epub/build/pipeline.svg"
+python3 "$ROOT/fixtures/epub/plot.py"
+printf 'assets: fixture diagram and plot generated\n'

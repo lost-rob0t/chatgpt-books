@@ -1,0 +1,6 @@
+#+title: Machine Learning Math for People Who Actually Want to Understand It -- Source Inventory
+:PROPERTIES:
+:ID:       3cfb2dea-1836-5935-998c-16f5015cd18f
+:END:
+* Policy
+Add only sources actually inspected. Record URL, authority, publication/version date when known, retrieval date, relevant sections, and affected chapters/projects.

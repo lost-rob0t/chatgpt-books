@@ -1,0 +1,82 @@
+#+title: Expert Systems -- Architecture and Knowledge Engineering Workbench
+:PROPERTIES:
+:ID:       55eb9f80-17c4-574c-8b4c-d8eec1a48999
+:END:
+* Core architecture
+#+begin_example
+Domain Observations -> Fact Normalization -> Working Memory -> Matcher/Rule Network
+ -> Conflict Set -> Agenda -> Conflict Resolution -> Rule Firing
+ -> Working-Memory Updates -> Truth Maintenance -> Explanation/Provenance
+ -> Persistence Protocol
+#+end_example
+
+Keep =KnowledgeBase=, =Rule=, =Condition=, =Action=, =Fact=, =WorkingMemory=, =Matcher=, =Agenda=, =Activation=, =InferenceEngine=, =Justification=, =Explanation=, and persistence abstractions separable unless implementation research supports a better boundary.
+
+* Progressive RETE derivation
+Literal matching -> variables/bindings -> multi-condition joins -> working memory -> forward chaining -> agenda -> conflict resolution -> incremental matching -> alpha memories -> beta memories -> join nodes -> tokens -> production nodes -> RETE-like network -> truth maintenance -> explanation.
+
+The book must show why naive rematching becomes expensive using only benchmarks actually run. Diagrams trace alpha filtering, beta partial matches, tokens, activations, agenda order, firing, retraction, and cascading truth-maintenance updates.
+
+* Real domain knowledge base
+Default domain: Linux/server/distributed-service diagnosis. Model services, processes, ports, DNS, connectivity, filesystems, CPU/memory pressure, permissions, configuration, dependencies, queues, databases, HTTP services, observations, failure modes, diagnoses, and recommendations.
+
+Every knowledge record/rule has stable identity, source/provenance, version, status, dates, and confidence only when confidence semantics are defined. Distinguish asserted, observed, derived, predicted, and retracted knowledge. Never make a high-stakes medical/legal diagnostic system the teaching KB.
+
+* Knowledge Engineering Workbench
+The final workbench must let a knowledge engineer add or edit facts/rules without touching inference-engine source.
+
+#+begin_example
+UI / CLI / API
+      |
+      v
+Authoring Service
+      |
+      +--> Schema + semantic validation
+      +--> Draft/version store
+      +--> Scenario test runner
+      +--> Dry-run inference sandbox
+      +--> Review/publish lifecycle
+      |
+      v
+Persistence Protocol <--> Memory / CouchDB / PostgreSQL
+      |
+      v
+Inference Engine (reads ACTIVE immutable KB version)
+      |
+      v
+Explanation / Provenance / Contradiction views
+#+end_example
+
+This separation is mandatory: the UI does not directly mutate the live matcher and the inference engine does not own authoring UI state.
+
+** Fact editor
+Fields: stable fact ID, entity/subject, predicate, typed value/object, status, valid/observed time, source/provenance, notes, KB/version membership. Validate malformed types, duplicate IDs, broken references, missing required provenance, invalid lifecycle transitions, and contradictory knowledge without silently resolving contradictions by last write.
+
+** Rule editor
+Edit stable rule ID, version, conditions, variable bindings, actions, salience/priority when supported, status, provenance, rationale, and tests. Provide structured condition/action builders plus a textual representation suitable for review/diff.
+
+Validation catches unknown predicates, unbound variables, unsupported actions/operators, invalid salience/types, malformed conditions, duplicate IDs, missing provenance, broken references, and structurally impossible/cyclic forms where the chosen rule language disallows them. Runtime inference is not the first validator.
+
+** Rule testing
+Draft rule -> select scenario -> load facts -> run matcher -> show bindings/condition results -> preview activation -> show agenda position -> show consequences. Expose both matched and failed conditions. Tests are durable regression fixtures attached to rule/KB versions.
+
+** Dry-run inference
+Run proposed KB N+1 in a sandbox against selected scenarios and compare with active KB N: added/removed activations, conclusions added/lost, contradictions, and explanation changes. No live side effects.
+
+** Lifecycle and versioning
+Research a lifecycle like DRAFT -> VALIDATED -> TESTED -> REVIEWED -> ACTIVE -> DEPRECATED. Publishing creates immutable rule/KB versions; inference sessions record the exact KB and rule versions used so historical explanations remain reproducible.
+
+** Contradiction and explainability views
+Show competing facts, sources, timestamps, confidence semantics, and affected conclusions. Support Why?, Why not?, What depends on this?, What changes if this fact is retracted?, which rules fired, bindings, support facts, and source observations.
+
+* Database-neutral persistence protocol
+Candidate operations: =assert_fact=, =retract_fact=, =get_fact=, =find_facts=, =store_rule_version=, =load_kb_version=, =begin_session=, =store_activation=, =store_justification=. Engine semantics must not depend on one database.
+
+* CouchDB project
+Use genuine documents for facts, rules, observations, inference sessions, explanations, provenance, and versions. Research current =_id=, =_rev=, optimistic concurrency/conflicts, Mango indexes, partitioning, =_changes=, replication, and write-feedback-loop prevention before implementation. Reactive flow: =_changes -> adapter -> working-memory delta -> incremental network -> activation -> persisted derived knowledge=.
+
+* PostgreSQL project
+Use normalized tables for KB/rule versions, conditions/actions, entities, facts/values/provenance, sessions/activations/firings, justifications, observations, retractions, contradictions, and sources. Use constraints, transactions, indexes, CTEs/recursive CTEs, views and LISTEN/NOTIFY only when justified. Compare transaction-per-cycle, per-firing, batch, and eventual persistence with real failure scenarios.
+
+* CouchDB vs PostgreSQL
+Compare document shape/schema evolution, transaction scope, joins, provenance graphs, replication, revision/version models, reactive update mechanisms, constraints, ad-hoc analysis, rule storage, and working-memory persistence. Do not claim universal superiority; benchmark only when run reproducibly.

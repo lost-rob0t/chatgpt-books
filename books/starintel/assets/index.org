@@ -1,0 +1,12 @@
+#+title: StarIntel: Primer, Architecture, Internals, and Hacker's Guide -- Asset Plan
+:PROPERTIES:
+:ID:       ac8e1b90-454f-5b65-9027-6ca8b27b862e
+:END:
+* Required asset classes
+- editable architecture/algorithm diagrams
+- reproducible plots where data/math warrants them
+- screenshots only when real UI teaches something
+- generated illustration provenance records when used
+- unique cover background/motif + deterministic typography
+* Rule
+Do not add decorative assets merely to inflate the book. Every informative figure gets caption + alt text.

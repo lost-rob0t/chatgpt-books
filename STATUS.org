@@ -1,0 +1,19 @@
+#+title: Bootstrap Status
+:PROPERTIES:
+:ID:       3aca3fd1-5971-567f-ac81-338155b9ee27
+:END:
+* Phase
+Bootstrap infrastructure and curriculum design.
+* Completed in this bootstrap slice
+- Nine independent book directories with substantial curricula and project specifications.
+- Project-local Org-roam design and Emacs Lisp implementation.
+- Pandoc/EPUBCheck publishing pipeline and representative fixture.
+- Deterministic Graphviz/plot/cover tooling.
+- Structural validator and CI workflow.
+- Initial cross-book Org-roam nodes and research architecture.
+* Verification state
+- TESTED locally: structural validator, Graphviz fixture diagram, Python plot, Pandoc EPUB fixture export (when host dependencies support it).
+- UNTESTED locally: ERT/Org-roam runtime because this execution container has no Emacs. CI is authoritative for that slice.
+- EPUBCheck is downloaded/validated in CI; local result is recorded when runnable.
+* Blockers
+See CI and open issues. Do not mark runtime checks complete until they actually run.

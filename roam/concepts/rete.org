@@ -1,0 +1,10 @@
+#+title: Rete
+:PROPERTIES:
+:ID:       7c62dd9d-4aa3-5128-8391-5c173dc398bd
+:END:
+* Note
+RETE is an incremental pattern-matching architecture for production rules; this project derives it rather than presenting it as magic.
+* Connected books
+- [[file:../../books/expert-systems/README.org][Expert System Design and Implementation: From Rules to Production Knowledge Systems]]
+- [[file:../../books/symbolic-ai-common-lisp/README.org][Symbolic AI in Common Lisp]]
+- [[file:../../books/starintel/README.org][StarIntel: Primer, Architecture, Internals, and Hacker's Guide]]

@@ -1,0 +1,6 @@
+#+title: Symbolic AI in Prolog -- Search Log
+:PROPERTIES:
+:ID:       0cf1c49a-eaf9-5404-947c-81aee168a42b
+:END:
+* Entries
+No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.

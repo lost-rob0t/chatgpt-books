@@ -1,0 +1,17 @@
+#+title: %PROJECT%
+:PROPERTIES:
+:ID:       6ff8bce5-dbfe-5f05-a795-5e038529a4da
+:END:
+* Purpose
+* Learning outcomes
+* Prerequisites
+* Relevant chapters
+* Requirements
+* Architecture
+* Implementation language/tooling
+* External dependencies
+* Tests
+* Failure scenarios
+* Visuals
+* Research requirements
+* Expected deliverable

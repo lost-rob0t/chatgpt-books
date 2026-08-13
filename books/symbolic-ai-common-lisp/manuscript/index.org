@@ -1,0 +1,8 @@
+#+title: Symbolic AI in Common Lisp
+:PROPERTIES:
+:ID:       5f61291b-31b3-5f78-85e4-579aaafeb69c
+:END:
+#+bibliography: ../references.bib
+
+* Manuscript bootstrap
+This is the canonical manuscript entry point. Long-form drafting begins only after the publishing/research bootstrap and the relevant research issue are ready. See [[file:../OUTLINE.org][OUTLINE.org]].

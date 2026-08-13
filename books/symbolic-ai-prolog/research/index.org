@@ -1,0 +1,10 @@
+#+title: Symbolic AI in Prolog -- Research Index
+:PROPERTIES:
+:ID:       87daeae4-78fb-584b-bec7-6d5883eb7241
+:END:
+* Research questions
+- Which primary sources define the foundational concepts?
+- Which behavior is version-sensitive in the current toolchain?
+- Which claims require reproduction/benchmarking rather than citation alone?
+* Records
+Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
