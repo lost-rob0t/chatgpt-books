@@ -1,0 +1,5 @@
+#+title: Machine Learning for StarIntel -- Foundational Research Pass 02
+#+date: 2026-08-13
+
+* Status
+RESEARCH. Foundational research remains open. This pass records schema, dataset-fixture, evaluation-split, provenance, and toolchain research for Book 1.
