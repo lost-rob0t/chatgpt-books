@@ -5,16 +5,15 @@
 * Phase
 Phase 1 -- foundational research.
 * Completed
-- Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
-- Foundational research pass 01 seeded authoritative sources for Chapters 1--5 and Project 1, recorded the 2026-08-13 scikit-learn/PyTorch baseline, and documented the current StarIntel 0.9/legacy 0.8 integration boundary.
+- Curriculum and project map initialized.
+- Foundational research passes 01 and 02 completed as research records; the foundational phase itself remains open.
 * Active research
-- Inspect the canonical StarIntel 0.9 schema/validator actually used by the implementation.
-- Design and test grouped/entity-aware and time-aware split policies for correlated StarIntel-style records.
-- Define the Project 1 public/synthetic fixture and provenance manifest.
-- Pin and run the initial Python scientific environment before drafting version-sensitive code prose.
+- Create the reproducible Project 1 research harness.
+- Verify the canonical document adapter and fixture.
+- Execute Experiments A--E and record real outputs.
 * Unverified claims
-Concrete implementation behavior, metrics, benchmark numbers, reproducibility guarantees, and StarIntel validation round-trips remain RESEARCH/UNTESTED until the relevant experiment actually runs.
+Implementation behavior and experiment results remain UNTESTED until their commands run.
 * Technical/editorial/visual review
 Not started.
 * Blockers
-Foundational experiments and source-backed research must continue before Chapters 2--5 or Project 1 are promoted beyond RESEARCH/DRAFT.
+Executable foundational experiments must run before Chapters 2--5 or Project 1 move beyond RESEARCH/DRAFT.
