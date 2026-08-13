@@ -32,6 +32,9 @@ jobs:
       - name: Structural validation
         run: ./tools/check-structure
 
+      - name: Pandoc Org-reader contract
+        run: python3 ./tools/check-pandoc-org-reader
+
       - name: Build deterministic assets and fixture
         run: ./tools/build-fixture
 
