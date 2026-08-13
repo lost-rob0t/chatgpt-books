@@ -23,9 +23,9 @@ The fixture is a regression contract, not a blanket certification of every futur
 - Mathematical expressions survive as MathML in EPUB 3 output.
 - Text remains Unicode rather than being rasterized as images of text.
 - Tables and source listings remain semantic XHTML structures.
-- Stable Org =:ID:= values map deterministically to XML-safe XHTML targets of the form =org-id-<ID>=.
-- The mapping is uniform for every Org ID, so an ID beginning with a digit cannot receive a writer-dependent prefix while another UUID remains unchanged.
-- A heading that has both =:ID:= and =:CUSTOM_ID:= uses the mapped Org ID as its canonical heading target without breaking links to the custom anchor.
+- Canonical Org =:ID:= values remain untouched in source and gain deterministic XML-safe EPUB aliases of the form =org-id-<ID>= during export preparation.
+- Same-document =id:= links are rewritten in the temporary export copy to those aliases; links to IDs not present in the current source are left unchanged.
+- Existing Pandoc heading identifiers and =:CUSTOM_ID:= targets remain intact rather than being replaced by the Org-ID alias.
 - Internal fragment links resolve to a real target in the packaged XHTML.
 - No XHTML document contains duplicate IDs.
 - Pandoc's Org-reader figure quirk is normalized so =alt= is placed on the nested =img=, never on =figure=.
@@ -37,6 +37,7 @@ The representative fixture intentionally contains:
 - stable Org IDs whose UUIDs begin with both a digit and a letter;
 - a custom anchor on a heading that also has an Org ID;
 - an internal cross-reference to that custom anchor;
+- a same-document Org =id:= link to the same heading;
 - citation and generated bibliography;
 - footnote;
 - inline equations exported as MathML;
@@ -59,20 +60,28 @@ epubcheck dist/bootstrap-fixture.epub
 python3 ./tools/check-epub-fixture dist/bootstrap-fixture.epub
 #+end_src
 
-=check-pandoc-org-reader= asserts the pinned Pandoc reader shapes that the Lua normalization depends on. EPUBCheck remains the standards/conformance gate. =check-epub-fixture= unpacks the final generated publication and asserts repository-specific invariants that EPUBCheck may not reject, such as deterministic Org-ID mapping, custom-anchor survival, complete fixture media coverage, and meaningful known alt text.
+=check-pandoc-org-reader= asserts the pinned Pandoc 3.10.1 reader shapes that the publication preprocessor and Lua Figure filter are designed around. EPUBCheck remains the standards/conformance gate. =check-epub-fixture= unpacks the final generated publication and asserts repository-specific invariants that EPUBCheck may not reject, such as deterministic Org-ID aliases, same-document ID-link resolution, custom-anchor survival, complete fixture media coverage, and meaningful known alt text.
+
+* Pandoc Org-reader compatibility boundary
+Pandoc 3.10.1 converts a plain Org =:ID:= into =Header.identifier=. When both =:CUSTOM_ID:= and =:ID:= are present, it prefers =:CUSTOM_ID:= and does not retain the losing =:ID:= in Header attributes. A post-reader Lua Header filter therefore cannot recover both values reliably.
+
+=tools/prepare-org-for-pandoc= solves this before parsing. It writes a temporary copy beside the canonical source, materializes an explicit =<<org-id-...>>= target for each Org ID, and rewrites same-document =id:= links to those targets. Build scripts remove the temporary file on exit. The canonical Org file is never modified.
 
 * Failure diagnostics
 ** EPUBCheck failure
 Treat any fatal, error, or warning as a publication regression. Run EPUBCheck directly against the generated file and inspect the reported package/XHTML path and location. Do not suppress the validator or downgrade the hard gate to make CI green.
 
 ** =PANDOC ORG READER REGRESSION FAILED=
-The pinned Pandoc reader no longer produces the AST shape expected by =tools/pandoc-org-id.lua=. Inspect =pandoc fixtures/epub/fixture.org --from=org --to=json= before changing the filter. This gate intentionally fails rather than allowing an upstream reader change to be masked by downstream heuristics.
+The pinned Pandoc reader no longer produces the AST shape expected by the publication compatibility layer. Inspect =pandoc fixtures/epub/fixture.org --from=org --to=json= and compare it with =tools/check-pandoc-org-reader=. If ID precedence changed, update the preprocessor contract deliberately; if Figure alt placement changed, review =tools/pandoc-org-id.lua=. Do not mask the upstream change by weakening the assertion.
+
+** =ORG PREP FAILED=
+Inspect the canonical Org property drawers and =tools/prepare-org-for-pandoc=. The preprocessor refuses to overwrite its source and rejects malformed/unterminated property drawers rather than silently producing a lossy export copy.
 
 ** =stable Org/custom anchors were lost=
-Inspect =tools/pandoc-org-id.lua= and the generated XHTML. Pandoc's Org reader exposes =:ID:= in the Header attribute map, but the XHTML writer can rewrite identifiers that are not XML-safe. The filter maps every Org ID to =org-id-<ID>= before writing and preserves a previous custom/generated identifier as an alias.
+Inspect =tools/prepare-org-for-pandoc=, the temporary prepared Org behavior, and the generated XHTML. The final EPUB must contain =org-id-<ID>= aliases for the fixture IDs while retaining the original custom target.
 
 ** =duplicate id=
-Inspect the exact XHTML document named by the checker. A mapped Org ID must appear only once per document. Do not solve this by stripping stable IDs from the source.
+Inspect the exact XHTML document named by the checker. A mapped Org-ID alias must appear only once per document. Do not solve this by stripping stable IDs from the canonical source.
 
 ** =invalid alt attribute remained on <figure>=
 Pandoc's Org reader can attach =#+attr_html: :alt= to a Figure rather than its nested Image. The Lua filter must move that value to the Image so EPUB XHTML emits =img alt= instead of an invalid =figure alt= attribute.
@@ -84,7 +93,7 @@ Fix the canonical Org source. Informative fixture images require meaningful =#+a
 If the Org source is correct, inspect the Lua Figure transformation and generated XHTML. This is a converter regression, not a reason to weaken the expected text silently.
 
 ** =internal link ... missing fragment=
-Compare the source target properties with the XHTML IDs. If a heading has both =:ID:= and =:CUSTOM_ID:=, verify that the Org ID maps to =org-id-<ID>= and the custom target survives as an alias.
+Compare the canonical link with the prepared alias and final XHTML IDs. A same-document =id:= link should become =#org-id-<ID>= in the temporary export copy; a =#CUSTOM_ID= link should continue to target Pandoc's original custom heading identifier.
 
 ** =schema:... metadata is incomplete=
 Inspect =fixtures/epub/metadata.yaml= and the generated OPF package document. The fixture sets accessibility metadata explicitly so a Pandoc default change cannot silently alter the contract.
