@@ -1,7 +1,7 @@
-#+title: Actor Model
 :PROPERTIES:
 :ID:       fc516be6-f9ff-5bc7-9b71-183ddc15dba6
 :END:
+#+title: Actor Model
 * Note
 Actor-style concurrency isolates state behind message passing; the book graph connects it to BEAM and StarIntel architecture.
 * Connected books
