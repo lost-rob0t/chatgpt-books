@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assert the Pandoc Org-reader shapes that the EPUB Lua filter normalizes."""
+"""Assert the Pandoc 3.10.1 Org-reader quirks normalized by publication tools."""
 
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = ROOT / "fixtures" / "epub" / "fixture.org"
 
 PUBLISHING_ID = "8fec0670-b0c5-5741-9ab5-6d07b7aa9a30"
-RESOLUTION_ID = "ae561fc7-3188-59ed-8e5a-a48b829f8618"
 
 
 def fail(message: str) -> None:
@@ -77,21 +76,22 @@ def main() -> None:
     publishing = headers.get("Publishing contract")
     if publishing is None:
         fail(f"Publishing contract header missing; headers were {sorted(headers)}")
-    _level, generated_identifier, attrs = publishing
-    if attrs.get("id") != PUBLISHING_ID:
+    _level, identifier, attrs = publishing
+    if identifier != PUBLISHING_ID or "id" in attrs:
         fail(
-            "plain :ID: is no longer exposed as Header attribute id; "
-            f"identifier={generated_identifier!r}, attrs={attrs!r}"
+            "plain :ID: reader shape changed; Pandoc 3.10.1 is expected to put "
+            f"the Org ID directly in Header.identifier: identifier={identifier!r}, attrs={attrs!r}"
         )
 
     resolution = headers.get("Resolution")
     if resolution is None:
         fail(f"Resolution header missing; headers were {sorted(headers)}")
-    _level, custom_identifier, attrs = resolution
-    if custom_identifier != "fixture-resolution" or attrs.get("id") != RESOLUTION_ID:
+    _level, identifier, attrs = resolution
+    if identifier != "fixture-resolution" or "id" in attrs:
         fail(
-            "combined :CUSTOM_ID:/:ID: reader shape changed; "
-            f"identifier={custom_identifier!r}, attrs={attrs!r}"
+            "combined :CUSTOM_ID:/:ID: reader shape changed; Pandoc 3.10.1 is "
+            "expected to prefer CUSTOM_ID and omit ID from Header attributes: "
+            f"identifier={identifier!r}, attrs={attrs!r}"
         )
 
     if figures_with_alt < 4:
@@ -101,8 +101,9 @@ def main() -> None:
         )
 
     print(
-        "PANDOC ORG READER CONTRACT OK: :ID:, :CUSTOM_ID:/:ID:, and "
-        f"Figure-level alt quirks observed ({figures_with_alt} figures)"
+        "PANDOC ORG READER CONTRACT OK: plain :ID: identifier precedence, "
+        ":CUSTOM_ID: over :ID:, and Figure-level alt quirks observed "
+        f"({figures_with_alt} figures)"
     )
 
 
