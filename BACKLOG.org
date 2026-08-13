@@ -5,6 +5,7 @@
 * Infrastructure
 - Publishing/Org/Org-roam/Elisp/dotfiles/citations/diagrams/images/covers/CI/ERT bootstrap verification.
 - DONE (issue #3): Reproducible Nix lock generation and full flake check on a Nix host.
+- DONE (issue #4): EPUB accessibility/publication regression fixture, Pandoc-reader contract checks, deterministic Org-ID mapping, and EPUB package assertions.
 * Per-book
 Each book gets a consolidated foundational research + curriculum/outline/dependency review issue, then project implementation issues in dependency order, then first writing phase.
 * Expert Systems

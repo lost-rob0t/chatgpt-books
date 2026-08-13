@@ -1,22 +1,16 @@
 -- Normalize Pandoc's Org reader representation for EPUB output.
 --
--- Org :ID: properties can appear both as a generated Header identifier and as
--- an "id" key/value attribute. XHTML cannot contain duplicate id attributes,
--- so make the stable Org ID canonical.
+-- Stable Org :ID: preservation is handled before Pandoc parsing by
+-- tools/prepare-org-for-pandoc. Pandoc 3.10.1 chooses CUSTOM_ID over ID and
+-- drops the losing property from the Header AST, so a Header Lua filter cannot
+-- reliably recover both values. The preprocessor materializes XML-safe
+-- org-id-<ID> aliases while leaving Pandoc's normal heading/custom identifiers
+-- intact.
 --
 -- Org #+attr_html: :alt metadata on captioned images is represented as a
 -- Figure-level "alt" attribute by Pandoc's Org reader. EPUB 3.3 does not allow
 -- alt on <figure>; move that text to the nested Image where it becomes the
 -- required <img alt="..."> value.
-
-function Header(el)
-  local org_id = el.attributes["id"]
-  if org_id and org_id ~= "" then
-    el.identifier = org_id
-    el.attributes["id"] = nil
-  end
-  return el
-end
 
 function Figure(el)
   local alt = el.attributes["alt"]

@@ -1,0 +1,21 @@
+title: Bootstrap Publishing Fixture
+author: chatgpt-books
+lang: en-US
+identifier: urn:uuid:8c4b5381-34b3-55e6-a5cf-21195e090004
+accessModes:
+  - textual
+  - visual
+accessModeSufficient:
+  - textual
+accessibilityHazards:
+  - none
+accessibilityFeatures:
+  - alternativeText
+  - MathML
+  - readingOrder
+  - structuralNavigation
+  - tableOfContents
+accessibilitySummary: >-
+  This regression fixture uses semantic text structure, MathML, and meaningful
+  alternative text for informative images. It contains no audio, video,
+  flashing, or motion-simulation content.

@@ -5,18 +5,21 @@ FIX="$ROOT/fixtures/epub"
 DIST="$ROOT/dist"
 mkdir -p "$DIST"
 "$ROOT/tools/generate-assets"
+PREPARED="$(mktemp "$FIX/.fixture-pandoc.XXXXXX.org")"
+trap 'rm -f "$PREPARED"' EXIT
+python3 "$ROOT/tools/prepare-org-for-pandoc" "$FIX/fixture.org" "$PREPARED"
 cd "$FIX"
-pandoc fixture.org \
+pandoc "$PREPARED" \
   --from=org \
   --to=epub3 \
   --standalone \
+  --mathml \
   --citeproc \
   --bibliography=references.bib \
+  --metadata-file=metadata.yaml \
   --resource-path="$FIX:$FIX/build" \
   --css="$ROOT/assets/styles/epub.css" \
   --epub-cover-image=cover.svg \
   --lua-filter="$ROOT/tools/pandoc-org-id.lua" \
-  --metadata title="Bootstrap Publishing Fixture" \
-  --metadata lang="en-US" \
   -o "$DIST/bootstrap-fixture.epub"
 printf '%s\n' "$DIST/bootstrap-fixture.epub"

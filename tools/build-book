@@ -7,10 +7,14 @@ SRC="$ROOT/books/$BOOK/manuscript/index.org"
 OUT="$ROOT/books/$BOOK/dist/$BOOK.epub"
 [[ -f "$SRC" ]] || { echo "unknown book: $BOOK" >&2; exit 2; }
 mkdir -p "$(dirname "$OUT")"
-pandoc "$SRC" \
+PREPARED="$(mktemp "$ROOT/books/$BOOK/manuscript/.index-pandoc.XXXXXX.org")"
+trap 'rm -f "$PREPARED"' EXIT
+python3 "$ROOT/tools/prepare-org-for-pandoc" "$SRC" "$PREPARED"
+pandoc "$PREPARED" \
   --from=org \
   --to=epub3 \
   --standalone \
+  --mathml \
   --resource-path="$ROOT/books/$BOOK:$ROOT" \
   --css="$ROOT/assets/styles/epub.css" \
   --metadata-file="$ROOT/books/$BOOK/metadata.yaml" \

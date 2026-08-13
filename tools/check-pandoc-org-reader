@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+"""Assert the Pandoc 3.10.1 Org-reader quirks normalized by publication tools."""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+FIXTURE = ROOT / "fixtures" / "epub" / "fixture.org"
+
+PUBLISHING_ID = "8fec0670-b0c5-5741-9ab5-6d07b7aa9a30"
+
+
+def fail(message: str) -> None:
+    print(f"PANDOC ORG READER REGRESSION FAILED: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def attr_parts(attr):
+    identifier, classes, keyvals = attr
+    return identifier, classes, dict(keyvals)
+
+
+def inline_text(inlines) -> str:
+    parts = []
+    for inline in inlines:
+        kind = inline.get("t")
+        if kind == "Str":
+            parts.append(inline.get("c", ""))
+        elif kind in {"Space", "SoftBreak", "LineBreak"}:
+            parts.append(" ")
+    return "".join(parts).strip()
+
+
+def walk(node):
+    if isinstance(node, dict):
+        yield node
+        for value in node.values():
+            yield from walk(value)
+    elif isinstance(node, list):
+        for value in node:
+            yield from walk(value)
+
+
+def main() -> None:
+    try:
+        result = subprocess.run(
+            ["pandoc", str(FIXTURE), "--from=org", "--to=json"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        fail("pandoc is not available")
+    except subprocess.CalledProcessError as exc:
+        fail(f"pandoc failed while reading fixture: {exc.stderr.strip()}")
+
+    document = json.loads(result.stdout)
+    headers = {}
+    figures_with_alt = 0
+
+    for node in walk(document.get("blocks", [])):
+        if node.get("t") == "Header":
+            level, attr, inlines = node["c"]
+            identifier, _classes, attrs = attr_parts(attr)
+            headers[inline_text(inlines)] = (level, identifier, attrs)
+        elif node.get("t") == "Figure":
+            attr = node["c"][0]
+            _identifier, _classes, attrs = attr_parts(attr)
+            if attrs.get("alt"):
+                figures_with_alt += 1
+
+    publishing = headers.get("Publishing contract")
+    if publishing is None:
+        fail(f"Publishing contract header missing; headers were {sorted(headers)}")
+    _level, identifier, attrs = publishing
+    if identifier != PUBLISHING_ID or "id" in attrs:
+        fail(
+            "plain :ID: reader shape changed; Pandoc 3.10.1 is expected to put "
+            f"the Org ID directly in Header.identifier: identifier={identifier!r}, attrs={attrs!r}"
+        )
+
+    resolution = headers.get("Resolution")
+    if resolution is None:
+        fail(f"Resolution header missing; headers were {sorted(headers)}")
+    _level, identifier, attrs = resolution
+    if identifier != "fixture-resolution" or "id" in attrs:
+        fail(
+            "combined :CUSTOM_ID:/:ID: reader shape changed; Pandoc 3.10.1 is "
+            "expected to prefer CUSTOM_ID and omit ID from Header attributes: "
+            f"identifier={identifier!r}, attrs={attrs!r}"
+        )
+
+    if figures_with_alt < 4:
+        fail(
+            "captioned #+attr_html :alt reader shape changed; expected at least "
+            f"four Figure-level alt attributes, found {figures_with_alt}"
+        )
+
+    print(
+        "PANDOC ORG READER CONTRACT OK: plain :ID: identifier precedence, "
+        ":CUSTOM_ID: over :ID:, and Figure-level alt quirks observed "
+        f"({figures_with_alt} figures)"
+    )
+
+
+if __name__ == "__main__":
+    main()

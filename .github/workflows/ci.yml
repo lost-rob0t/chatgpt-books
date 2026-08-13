@@ -32,11 +32,17 @@ jobs:
       - name: Structural validation
         run: ./tools/check-structure
 
+      - name: Pandoc Org-reader contract
+        run: python3 ./tools/check-pandoc-org-reader
+
       - name: Build deterministic assets and fixture
         run: ./tools/build-fixture
 
       - name: EPUBCheck 5.3.0
         run: java -jar .cache/epubcheck-5.3.0/epubcheck.jar dist/bootstrap-fixture.epub
+
+      - name: Publication regression assertions
+        run: python3 ./tools/check-epub-fixture dist/bootstrap-fixture.epub
 
       - name: Install Org-roam for ERT
         shell: bash

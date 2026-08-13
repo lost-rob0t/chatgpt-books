@@ -1,0 +1,102 @@
+#+title: EPUB Accessibility and Regression Policy
+:PROPERTIES:
+:ID:       9de255dc-082d-5bc3-a374-33ebf5c7b004
+:END:
+
+* Baseline
+DOCUMENTED 2026-08-12: the production fixture targets EPUB 3 output validated by EPUBCheck 5.3.0 and uses EPUB Accessibility 1.1 (W3C Recommendation, 2024-10-17) as the stable accessibility baseline. EPUB Accessibility 1.2 is under active development in 2026 and is tracked, but this repository does not claim conformance to a draft merely because individual checks pass.
+
+Primary references:
+- EPUB Accessibility 1.1: https://www.w3.org/TR/epub-a11y-11/
+- EPUB Accessibility Techniques 1.1: https://www.w3.org/TR/epub-a11y-tech-11/
+- EPUB 3.3: https://www.w3.org/TR/epub-33/
+- Pandoc EPUB metadata: https://pandoc.org/demo/example33/11.1-epub-metadata.html
+
+* Accessibility expectations
+The fixture is a regression contract, not a blanket certification of every future book. It proves that the shared production path preserves the features below so manuscripts can build on them safely.
+
+- Package language is valid BCP 47 (=en-US= for the fixture).
+- Package discoverability metadata explicitly reports access modes, accessibility features, hazards, and a human-readable accessibility summary.
+- Informative raster and vector images retain meaningful alternative text after Org -> Pandoc conversion.
+- =#+caption:= survives as semantic figure captions.
+- The cover is identified with the EPUB manifest =cover-image= property.
+- Mathematical expressions survive as MathML in EPUB 3 output.
+- Text remains Unicode rather than being rasterized as images of text.
+- Tables and source listings remain semantic XHTML structures.
+- Canonical Org =:ID:= values remain untouched in source and gain deterministic XML-safe EPUB aliases of the form =org-id-<ID>= during export preparation.
+- Same-document =id:= links are rewritten in the temporary export copy to those aliases; links to IDs not present in the current source are left unchanged.
+- Existing Pandoc heading identifiers and =:CUSTOM_ID:= targets remain intact rather than being replaced by the Org-ID alias.
+- Internal fragment links resolve to a real target in the packaged XHTML.
+- No XHTML document contains duplicate IDs.
+- Pandoc's Org-reader figure quirk is normalized so =alt= is placed on the nested =img=, never on =figure=.
+
+EPUB Accessibility 1.1 requires accessibility metadata in the package document and relates accessible EPUB content to WCAG. Its techniques specifically cover Unicode text, alternative text, discovery metadata, and publication structure. Pandoc 3.10.1 supports =accessModes=, =accessModeSufficient=, =accessibilityHazards=, =accessibilityFeatures=, and =accessibilitySummary= EPUB metadata fields, so the fixture sets those values explicitly rather than relying only on writer defaults.
+
+* Regression fixture
+The representative fixture intentionally contains:
+- stable Org IDs whose UUIDs begin with both a digit and a letter;
+- a custom anchor on a heading that also has an Org ID;
+- an internal cross-reference to that custom anchor;
+- a same-document Org =id:= link to the same heading;
+- citation and generated bibliography;
+- footnote;
+- inline equations exported as MathML;
+- table;
+- source block;
+- deterministic SVG diagram;
+- deterministic PNG plot;
+- deterministic JPEG plot;
+- ordinary SVG image;
+- meaningful alt text and figure captions;
+- Unicode λ, →, α, β, and ∑;
+- explicit EPUB cover and accessibility metadata.
+
+The regression path has three independent checks:
+
+#+begin_src sh
+python3 ./tools/check-pandoc-org-reader
+./tools/build-fixture
+epubcheck dist/bootstrap-fixture.epub
+python3 ./tools/check-epub-fixture dist/bootstrap-fixture.epub
+#+end_src
+
+=check-pandoc-org-reader= asserts the pinned Pandoc 3.10.1 reader shapes that the publication preprocessor and Lua Figure filter are designed around. EPUBCheck remains the standards/conformance gate. =check-epub-fixture= unpacks the final generated publication and asserts repository-specific invariants that EPUBCheck may not reject, such as deterministic Org-ID aliases, same-document ID-link resolution, custom-anchor survival, complete fixture media coverage, and meaningful known alt text.
+
+* Pandoc Org-reader compatibility boundary
+Pandoc 3.10.1 converts a plain Org =:ID:= into =Header.identifier=. When both =:CUSTOM_ID:= and =:ID:= are present, it prefers =:CUSTOM_ID:= and does not retain the losing =:ID:= in Header attributes. A post-reader Lua Header filter therefore cannot recover both values reliably.
+
+=tools/prepare-org-for-pandoc= solves this before parsing. It writes a temporary copy beside the canonical source, materializes an explicit =<<org-id-...>>= target for each Org ID, and rewrites same-document =id:= links to those targets. Build scripts remove the temporary file on exit. The canonical Org file is never modified.
+
+* Failure diagnostics
+** EPUBCheck failure
+Treat any fatal, error, or warning as a publication regression. Run EPUBCheck directly against the generated file and inspect the reported package/XHTML path and location. Do not suppress the validator or downgrade the hard gate to make CI green.
+
+** =PANDOC ORG READER REGRESSION FAILED=
+The pinned Pandoc reader no longer produces the AST shape expected by the publication compatibility layer. Inspect =pandoc fixtures/epub/fixture.org --from=org --to=json= and compare it with =tools/check-pandoc-org-reader=. If ID precedence changed, update the preprocessor contract deliberately; if Figure alt placement changed, review =tools/pandoc-org-id.lua=. Do not mask the upstream change by weakening the assertion.
+
+** =ORG PREP FAILED=
+Inspect the canonical Org property drawers and =tools/prepare-org-for-pandoc=. The preprocessor refuses to overwrite its source and rejects malformed/unterminated property drawers rather than silently producing a lossy export copy.
+
+** =stable Org/custom anchors were lost=
+Inspect =tools/prepare-org-for-pandoc=, the temporary prepared Org behavior, and the generated XHTML. The final EPUB must contain =org-id-<ID>= aliases for the fixture IDs while retaining the original custom target.
+
+** =duplicate id=
+Inspect the exact XHTML document named by the checker. A mapped Org-ID alias must appear only once per document. Do not solve this by stripping stable IDs from the canonical source.
+
+** =invalid alt attribute remained on <figure>=
+Pandoc's Org reader can attach =#+attr_html: :alt= to a Figure rather than its nested Image. The Lua filter must move that value to the Image so EPUB XHTML emits =img alt= instead of an invalid =figure alt= attribute.
+
+** =informative image has missing or weak alt text=
+Fix the canonical Org source. Informative fixture images require meaningful =#+attr_html: :alt= text. The checker exempts the generated cover image because cover accessibility is represented separately from the instructional figures.
+
+** =expected image alt text did not survive export=
+If the Org source is correct, inspect the Lua Figure transformation and generated XHTML. This is a converter regression, not a reason to weaken the expected text silently.
+
+** =internal link ... missing fragment=
+Compare the canonical link with the prepared alias and final XHTML IDs. A same-document =id:= link should become =#org-id-<ID>= in the temporary export copy; a =#CUSTOM_ID= link should continue to target Pandoc's original custom heading identifier.
+
+** =schema:... metadata is incomplete=
+Inspect =fixtures/epub/metadata.yaml= and the generated OPF package document. The fixture sets accessibility metadata explicitly so a Pandoc default change cannot silently alter the contract.
+
+* Scope boundary
+Passing this fixture does not by itself justify claiming that a finished book conforms to EPUB Accessibility 1.1 or WCAG. Full publications still require content review, reading-order/navigation review, appropriate descriptions for their actual visuals, and any additional metadata or techniques required by their content.

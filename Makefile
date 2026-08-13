@@ -1,9 +1,13 @@
 SHELL := /usr/bin/env bash
-.PHONY: assets fixture test ert book check all-books
+.PHONY: assets pandoc-reader fixture fixture-regression test ert book check all-books
 assets:
 	./tools/generate-assets
+pandoc-reader:
+	python3 ./tools/check-pandoc-org-reader
 fixture:
 	./tools/build-fixture
+fixture-regression: pandoc-reader fixture
+	python3 ./tools/check-epub-fixture dist/bootstrap-fixture.epub
 test:
 	./tools/check-structure
 ert:
