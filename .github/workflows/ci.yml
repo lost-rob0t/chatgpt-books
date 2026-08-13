@@ -38,6 +38,9 @@ jobs:
       - name: EPUBCheck 5.3.0
         run: java -jar .cache/epubcheck-5.3.0/epubcheck.jar dist/bootstrap-fixture.epub
 
+      - name: Publication regression assertions
+        run: python3 ./tools/check-epub-fixture dist/bootstrap-fixture.epub
+
       - name: Install Org-roam for ERT
         shell: bash
         run: |
