@@ -1,7 +1,7 @@
-#+title: Gradient Descent
 :PROPERTIES:
 :ID:       6f9d2dc4-2c3a-59e9-9113-872cada00576
 :END:
+#+title: Gradient Descent
 * Note
 Gradient descent updates parameters along a negative objective gradient and links mathematical optimization to practical ML.
 * Connected books
