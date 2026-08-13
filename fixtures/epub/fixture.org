@@ -34,10 +34,15 @@ The quadratic objective is $f(x) = (x-3)^2$ and its derivative is $f'(x)=2(x-3)$
 #+attr_html: :alt Org source flows to generated assets, Pandoc EPUB output, then EPUBCheck validation.
 [[file:build/pipeline.svg]]
 
-** Programmatic plot
+** Programmatic PNG plot
 #+caption: Reproducible quadratic objective generated from source code with its minimum at x equals 3.
 #+attr_html: :alt A U-shaped quadratic curve whose minimum is at x equals 3.
 [[file:build/objective.png]]
+
+** Programmatic JPEG plot
+#+caption: JPEG export of the same deterministic objective, included to exercise a second raster media type.
+#+attr_html: :alt JPEG rendering of the U-shaped quadratic objective, with the minimum at x equals 3.
+[[file:build/objective.jpg]]
 
 ** Image and accessibility
 #+caption: Series fixture mark assembled deterministically as SVG, demonstrating ordinary image inclusion.
