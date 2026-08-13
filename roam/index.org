@@ -1,7 +1,7 @@
-#+title: chatgpt-books Knowledge Graph
 :PROPERTIES:
 :ID:       cca66535-c37e-5eb8-8bfd-77cb71d41453
 :END:
+#+title: chatgpt-books Knowledge Graph
 * Core concepts
 - [[id:5b8fe78b-39b5-50ce-bc90-822aa1713c05][Unification]]
 - [[id:7c62dd9d-4aa3-5128-8391-5c173dc398bd][RETE]]
