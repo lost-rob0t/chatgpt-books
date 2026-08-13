@@ -1,9 +1,11 @@
 SHELL := /usr/bin/env bash
-.PHONY: assets fixture test ert book check all-books
+.PHONY: assets fixture fixture-regression test ert book check all-books
 assets:
 	./tools/generate-assets
 fixture:
 	./tools/build-fixture
+fixture-regression: fixture
+	python3 ./tools/check-epub-fixture dist/bootstrap-fixture.epub
 test:
 	./tools/check-structure
 ert:
