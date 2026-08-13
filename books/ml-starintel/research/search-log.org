@@ -3,4 +3,21 @@
 :ID:       7aeac52b-1241-5d74-a501-c79bcb1f33c2
 :END:
 * Entries
-No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.
+** 2026-08-13 -- foundational pass 01
+- Question: What primary/authoritative sources should ground Chapters 1--5 and Project 1 before prose begins?
+- Queries/topics: Tom Mitchell ML definition; scikit-learn supervised workflow, train/test split, cross-validation, leakage, pipelines, randomness; dataset provenance/datasheets; PyTorch reproducibility/current release.
+- Sources inspected: Tom Mitchell/CMU textbook page; scikit-learn 1.9 official documentation and release notes; PyTorch reproducibility docs and 2.13 release blog; Gebru et al. =Datasheets for Datasets=.
+- Result: seeded a source-grounded foundation for ML terminology, split/leakage discipline, provenance, and reproducibility. Concrete behavior/metrics remain UNTESTED until executable experiments run.
+- Record: [[file:foundations-pass-01.org][foundations-pass-01.org]].
+- Remaining uncertainty: exact grouped/time-aware split policy for StarIntel-style records; exact pinned Python scientific stack; canonical current StarIntel validator/schema package used by implementation.
+
+** 2026-08-13 -- StarIntel integration boundary
+- Question: What current StarIntel surface should Book 1 target without duplicating server/storage semantics?
+- Sources inspected: =lost-rob0t/starintel-server= README and =docs/document-spec.org= on the current default branch.
+- Result: documented strict schema-driven StarIntel 0.9 alongside legacy flat 0.8 code paths; current HTTP/RabbitMQ ingest does not itself enforce strict 0.9 validation. Project code should use an adapter boundary and explicit validation.
+- Remaining uncertainty: inspect the canonical 0.9 schema/validator repository used by =star-cl= and test a real validation round-trip before implementation prose is promoted.
+
+** 2026-08-13 -- later-project bibliography seed
+- Question: Which canonical sources should be queued now for entity resolution and semantic retrieval without prematurely drafting those chapters?
+- Sources inspected: Fellegi & Sunter (1969) record linkage; Sentence-BERT; HNSW.
+- Result: source candidates recorded for later research passes. Their published benchmark numbers are not treated as measurements of this book's future implementation.
