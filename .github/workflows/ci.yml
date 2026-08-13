@@ -45,6 +45,7 @@ jobs:
           emacs -Q --batch \
             --eval "(require 'package)" \
             --eval "(setq package-user-dir (expand-file-name \".cache/elpa\" default-directory))" \
+            --eval "(setq package-install-upgrade-built-in t)" \
             --eval "(setq package-archives '((\"gnu\" . \"https://elpa.gnu.org/packages/\") (\"nongnu\" . \"https://elpa.nongnu.org/nongnu/\") (\"melpa\" . \"https://melpa.org/packages/\")))" \
             --eval "(package-initialize)" \
             --eval "(package-refresh-contents)" \
