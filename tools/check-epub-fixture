@@ -1,0 +1,262 @@
+#!/usr/bin/env python3
+"""Inspect the built EPUB fixture for publication and accessibility regressions."""
+
+from __future__ import annotations
+
+import posixpath
+import sys
+from collections import defaultdict
+from pathlib import Path
+from urllib.parse import unquote, urlsplit
+from zipfile import BadZipFile, ZipFile
+import xml.etree.ElementTree as ET
+
+CONTAINER_NS = "urn:oasis:names:tc:opendocument:xmlns:container"
+OPF_NS = "http://www.idpf.org/2007/opf"
+DC_NS = "http://purl.org/dc/elements/1.1/"
+XHTML_NS = "http://www.w3.org/1999/xhtml"
+MATHML_NS = "http://www.w3.org/1998/Math/MathML"
+
+EXPECTED_TITLE = "Bootstrap Publishing Fixture"
+EXPECTED_LANGUAGE = "en-US"
+EXPECTED_IDS = {
+    "8fec0670-b0c5-5741-9ab5-6d07b7aa9a30",
+    "fixture-resolution",
+}
+EXPECTED_ALT_TEXT = {
+    "Org source flows to generated assets, Pandoc EPUB output, then EPUBCheck validation.",
+    "A U-shaped quadratic curve whose minimum is at x equals 3.",
+    "JPEG rendering of the U-shaped quadratic objective, with the minimum at x equals 3.",
+    "A geometric star-like node network used as a publication fixture mark.",
+}
+REQUIRED_ACCESS_MODES = {"textual", "visual"}
+REQUIRED_FEATURES = {
+    "alternativeText",
+    "MathML",
+    "readingOrder",
+    "structuralNavigation",
+    "tableOfContents",
+}
+
+
+def die(message: str) -> None:
+    print(f"EPUB FIXTURE REGRESSION FAILED: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def text_content(element: ET.Element) -> str:
+    return " ".join("".join(element.itertext()).split())
+
+
+def package_path(base: str, href: str) -> str:
+    return posixpath.normpath(posixpath.join(posixpath.dirname(base), unquote(href)))
+
+
+def main() -> None:
+    if len(sys.argv) != 2:
+        die("usage: check-epub-fixture path.epub")
+
+    epub_path = Path(sys.argv[1])
+    if not epub_path.is_file():
+        die(f"missing EPUB: {epub_path}")
+
+    try:
+        archive = ZipFile(epub_path)
+    except BadZipFile as exc:
+        die(f"not a valid ZIP/EPUB container: {exc}")
+
+    with archive:
+        names = set(archive.namelist())
+        if "META-INF/container.xml" not in names:
+            die("META-INF/container.xml is missing")
+
+        try:
+            container = ET.fromstring(archive.read("META-INF/container.xml"))
+        except ET.ParseError as exc:
+            die(f"container.xml is not well-formed XML: {exc}")
+
+        rootfile = container.find(f".//{{{CONTAINER_NS}}}rootfile")
+        if rootfile is None or not rootfile.get("full-path"):
+            die("container.xml does not identify a package document")
+        opf_path = rootfile.get("full-path")
+        assert opf_path is not None
+        if opf_path not in names:
+            die(f"package document is missing: {opf_path}")
+
+        try:
+            package = ET.fromstring(archive.read(opf_path))
+        except ET.ParseError as exc:
+            die(f"package document is not well-formed XML: {exc}")
+
+        title = package.find(f".//{{{DC_NS}}}title")
+        language = package.find(f".//{{{DC_NS}}}language")
+        if title is None or text_content(title) != EXPECTED_TITLE:
+            die(f"unexpected dc:title: {text_content(title) if title is not None else '<missing>'}")
+        if language is None or text_content(language) != EXPECTED_LANGUAGE:
+            die(
+                "unexpected dc:language: "
+                f"{text_content(language) if language is not None else '<missing>'}"
+            )
+
+        manifest = {}
+        media_types = set()
+        cover_resources = []
+        for item in package.findall(f".//{{{OPF_NS}}}manifest/{{{OPF_NS}}}item"):
+            item_id = item.get("id")
+            href = item.get("href")
+            media_type = item.get("media-type")
+            if not item_id or not href or not media_type:
+                die("manifest contains an item without id, href, or media-type")
+            full_path = package_path(opf_path, href)
+            manifest[item_id] = (full_path, media_type, item.get("properties", ""))
+            media_types.add(media_type)
+            if full_path not in names:
+                die(f"manifest resource is missing from archive: {full_path}")
+            if "cover-image" in item.get("properties", "").split():
+                cover_resources.append(full_path)
+
+        if len(cover_resources) != 1:
+            die(f"expected exactly one manifest cover-image, found {len(cover_resources)}")
+        for required_type in {"image/svg+xml", "image/png", "image/jpeg"}:
+            if required_type not in media_types:
+                die(f"required fixture media type is absent from manifest: {required_type}")
+
+        accessibility = defaultdict(set)
+        for meta in package.findall(f".//{{{OPF_NS}}}metadata/{{{OPF_NS}}}meta"):
+            prop = meta.get("property")
+            value = text_content(meta)
+            if prop and value:
+                accessibility[prop].add(value)
+
+        if not REQUIRED_ACCESS_MODES.issubset(accessibility["schema:accessMode"]):
+            die(
+                "schema:accessMode metadata is incomplete: "
+                f"{sorted(accessibility['schema:accessMode'])}"
+            )
+        if not REQUIRED_FEATURES.issubset(accessibility["schema:accessibilityFeature"]):
+            die(
+                "schema:accessibilityFeature metadata is incomplete: "
+                f"{sorted(accessibility['schema:accessibilityFeature'])}"
+            )
+        if "none" not in accessibility["schema:accessibilityHazard"]:
+            die("schema:accessibilityHazard must explicitly include none for this fixture")
+        if not accessibility["schema:accessibilitySummary"]:
+            die("schema:accessibilitySummary is missing")
+
+        xhtml_paths = [
+            full_path
+            for full_path, media_type, _properties in manifest.values()
+            if media_type == "application/xhtml+xml"
+        ]
+        if not xhtml_paths:
+            die("manifest contains no XHTML content documents")
+
+        trees = {}
+        ids_by_document = {}
+        combined_text = []
+        found_alt = set()
+        figure_caption_count = 0
+        mathml_count = 0
+        table_count = 0
+        code_count = 0
+
+        for document_path in xhtml_paths:
+            try:
+                root = ET.fromstring(archive.read(document_path))
+            except ET.ParseError as exc:
+                die(f"{document_path} is not well-formed XML: {exc}")
+            trees[document_path] = root
+            combined_text.append(text_content(root))
+
+            seen_ids = set()
+            for element in root.iter():
+                element_id = element.get("id")
+                if element_id:
+                    if element_id in seen_ids:
+                        die(f"duplicate id {element_id!r} in {document_path}")
+                    seen_ids.add(element_id)
+            ids_by_document[document_path] = seen_ids
+
+            for figure in root.findall(f".//{{{XHTML_NS}}}figure"):
+                if "alt" in figure.attrib:
+                    die(f"invalid alt attribute remained on <figure> in {document_path}")
+
+            for image in root.findall(f".//{{{XHTML_NS}}}img"):
+                src = image.get("src", "")
+                resolved_src = package_path(document_path, src) if src else ""
+                if resolved_src in cover_resources:
+                    continue
+                alt = (image.get("alt") or "").strip()
+                if len(alt) < 12 or alt.lower() in {"image", "figure", "picture", "photo"}:
+                    die(f"informative image has missing or weak alt text in {document_path}: {src}")
+                found_alt.add(alt)
+
+            figure_caption_count += len(root.findall(f".//{{{XHTML_NS}}}figcaption"))
+            mathml_count += sum(1 for el in root.iter() if el.tag == f"{{{MATHML_NS}}}math")
+            table_count += len(root.findall(f".//{{{XHTML_NS}}}table"))
+            code_count += len(root.findall(f".//{{{XHTML_NS}}}pre/{{{XHTML_NS}}}code"))
+
+        all_ids = set().union(*ids_by_document.values())
+        missing_ids = EXPECTED_IDS - all_ids
+        if missing_ids:
+            die(f"stable Org/custom anchors were lost: {sorted(missing_ids)}")
+
+        missing_alt = EXPECTED_ALT_TEXT - found_alt
+        if missing_alt:
+            die(f"expected image alt text did not survive export: {sorted(missing_alt)}")
+        if figure_caption_count < 4:
+            die(f"expected at least four exported figure captions, found {figure_caption_count}")
+        if mathml_count < 1:
+            die("equation regression failed: no MathML element found")
+        if table_count < 1:
+            die("table regression failed: no table element found")
+        if code_count < 1:
+            die("code regression failed: no pre/code block found")
+
+        for document_path, root in trees.items():
+            for anchor in root.findall(f".//{{{XHTML_NS}}}a"):
+                href = anchor.get("href")
+                if not href:
+                    continue
+                parsed = urlsplit(href)
+                if parsed.scheme or parsed.netloc or not parsed.fragment:
+                    continue
+                target_document = (
+                    package_path(document_path, parsed.path)
+                    if parsed.path
+                    else document_path
+                )
+                fragment = unquote(parsed.fragment)
+                if target_document not in ids_by_document:
+                    die(
+                        f"internal link from {document_path} points to missing document: {href}"
+                    )
+                if fragment not in ids_by_document[target_document]:
+                    die(
+                        f"internal link from {document_path} points to missing fragment: {href}"
+                    )
+
+        joined_text = "\n".join(combined_text)
+        for required_text in {
+            "λ",
+            "→",
+            "α",
+            "β",
+            "∑",
+            "John MacFarlane",
+            "Pandoc User's Guide",
+            "This footnote exists solely to exercise production EPUB footnote handling.",
+            "def square(x):",
+            "EPUBCheck",
+        }:
+            if required_text not in joined_text:
+                die(f"expected exported content is missing: {required_text!r}")
+
+    print(
+        "EPUB FIXTURE REGRESSION OK: metadata, IDs/links, citations, footnotes, "
+        "MathML, table/code, SVG/PNG/JPEG, captions, alt text, Unicode, and cover verified"
+    )
+
+
+if __name__ == "__main__":
+    main()
