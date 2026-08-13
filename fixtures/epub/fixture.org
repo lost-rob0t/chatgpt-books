@@ -9,7 +9,7 @@
 :END:
 This fixture proves the real publication path rather than a mock exporter. Pandoc is the selected compiler [cite:@pandoc-manual-2026]. It includes Unicode such as λ, →, α, β, and ∑.
 
-See [[#fixture-resolution][the resolution section]].
+See [[#fixture-resolution][the resolution section by custom anchor]] and [[id:ae561fc7-3188-59ed-8e5a-a48b829f8618][the same section by stable Org ID]].
 
 ** Code block
 #+begin_src python
@@ -58,7 +58,7 @@ A footnote is preserved by the exporter.[fn:fixture]
 :CUSTOM_ID: fixture-resolution
 :ID:       ae561fc7-3188-59ed-8e5a-a48b829f8618
 :END:
-This stable section gives the internal cross-reference a deterministic target.
+This stable section gives both internal cross-references deterministic targets.
 
 * References
 #+print_bibliography:
