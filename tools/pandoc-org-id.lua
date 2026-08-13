@@ -4,6 +4,11 @@
 -- an "id" key/value attribute. XHTML cannot contain duplicate id attributes,
 -- so make the stable Org ID canonical.
 --
+-- When a heading also has :CUSTOM_ID:, Pandoc can place that value in the
+-- Header identifier while keeping :ID: in the attributes table. Canonicalizing
+-- the stable Org ID must not silently break links to the custom anchor, so an
+-- empty inline span preserves the former identifier as an alias.
+--
 -- Org #+attr_html: :alt metadata on captioned images is represented as a
 -- Figure-level "alt" attribute by Pandoc's Org reader. EPUB 3.3 does not allow
 -- alt on <figure>; move that text to the nested Image where it becomes the
@@ -12,8 +17,13 @@
 function Header(el)
   local org_id = el.attributes["id"]
   if org_id and org_id ~= "" then
+    local previous_identifier = el.identifier
     el.identifier = org_id
     el.attributes["id"] = nil
+
+    if previous_identifier and previous_identifier ~= "" and previous_identifier ~= org_id then
+      table.insert(el.content, 1, pandoc.Span({}, pandoc.Attr(previous_identifier)))
+    end
   end
   return el
 end
