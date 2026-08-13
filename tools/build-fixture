@@ -7,7 +7,7 @@ mkdir -p "$DIST"
 "$ROOT/tools/generate-assets"
 PREPARED="$(mktemp "$FIX/.fixture-pandoc.XXXXXX.org")"
 trap 'rm -f "$PREPARED"' EXIT
-"$ROOT/tools/prepare-org-for-pandoc" "$FIX/fixture.org" "$PREPARED"
+python3 "$ROOT/tools/prepare-org-for-pandoc" "$FIX/fixture.org" "$PREPARED"
 cd "$FIX"
 pandoc "$PREPARED" \
   --from=org \
