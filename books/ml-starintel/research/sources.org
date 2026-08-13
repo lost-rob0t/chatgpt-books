@@ -4,3 +4,98 @@
 :END:
 * Policy
 Add only sources actually inspected. Record URL, authority, publication/version date when known, retrieval date, relevant sections, and affected chapters/projects.
+
+* Inspected sources
+** Mitchell -- Machine Learning
+- URL: https://www.cs.cmu.edu/~tom/book.html
+- Authority: author-maintained Carnegie Mellon University page for Tom Mitchell's textbook.
+- Publication: Tom M. Mitchell, =Machine Learning=, McGraw-Hill, 1997. ISBN 0070428077.
+- Retrieved: 2026-08-13.
+- Relevant to: Chapter 1; foundational terminology and historical framing.
+
+** scikit-learn 1.9 -- Getting Started
+- URL: https://scikit-learn.org/stable/getting_started.html
+- Authority: official scikit-learn documentation.
+- Version observed: 1.9.0.
+- Retrieved: 2026-08-13.
+- Relevant to: Chapters 1--7; estimator/transformer/pipeline workflow and Project 1 scaffolding.
+
+** scikit-learn 1.9 -- Cross-validation
+- URL: https://scikit-learn.org/stable/modules/cross_validation.html
+- Authority: official scikit-learn documentation.
+- Version observed: 1.9.0.
+- Retrieved: 2026-08-13.
+- Relevant to: Chapters 3, 5, 8; Project 1 evaluation boundaries.
+
+** scikit-learn 1.9 -- Common pitfalls and recommended practices
+- URL: https://scikit-learn.org/stable/common_pitfalls.html
+- Authority: official scikit-learn documentation.
+- Version observed: 1.9.0.
+- Retrieved: 2026-08-13.
+- Relevant sections: inconsistent preprocessing, data leakage, controlling randomness.
+- Relevant to: Chapters 2--5, 8, 18; Project 1 and later evaluation harnesses.
+
+** scikit-learn 1.9 release notes
+- URL: https://scikit-learn.org/stable/whats_new/v1.9.html
+- Authority: official scikit-learn release notes.
+- Publication/version date: 1.9.0, June 2026.
+- Retrieved: 2026-08-13.
+- Relevant to: all version-sensitive scikit-learn code; current baseline only, not a permanent pin.
+
+** Gebru et al. -- Datasheets for Datasets
+- URL: https://arxiv.org/abs/1803.09010
+- Authority: author-submitted primary paper/preprint.
+- Authors: Timnit Gebru, Jamie Morgenstern, Briana Vecchione, Jennifer Wortman Vaughan, Hanna Wallach, Hal Daumé III, Kate Crawford.
+- Initial arXiv date: 2018-03-23.
+- Retrieved: 2026-08-13.
+- Relevant to: Chapter 2; Project 1 dataset/provenance documentation.
+
+** PyTorch -- Reproducibility
+- URL: https://docs.pytorch.org/docs/stable/notes/randomness.html
+- Authority: official PyTorch documentation.
+- Version observed with current docs: PyTorch 2.13 era.
+- Retrieved: 2026-08-13.
+- Relevant to: Chapters 11, 18, 19; reproducibility claims and experiment recording.
+
+** PyTorch 2.13 release blog
+- URL: https://pytorch.org/blog/pytorch-2-13-release-blog/
+- Authority: PyTorch Foundation official release announcement.
+- Publication date: 2026-07-08.
+- Retrieved: 2026-08-13.
+- Relevant to: current version baseline; Chapters 11, 18, 19.
+
+** Fellegi and Sunter -- A Theory for Record Linkage
+- URL: https://www.tandfonline.com/doi/abs/10.1080/01621459.1969.10501049
+- DOI: 10.1080/01621459.1969.10501049
+- Authority: publisher record for the primary paper.
+- Publication: Ivan P. Fellegi and Alan B. Sunter, =Journal of the American Statistical Association= 64(328), 1969, pp. 1183--1210.
+- Retrieved: 2026-08-13.
+- Relevant to: Chapter 14; Project 2.
+
+** Reimers and Gurevych -- Sentence-BERT
+- URL: https://arxiv.org/abs/1908.10084
+- Authority: author-submitted primary paper/preprint.
+- Authors: Nils Reimers and Iryna Gurevych.
+- Initial arXiv date: 2019-08-27.
+- Retrieved: 2026-08-13.
+- Relevant to: Chapters 12 and 15; Project 3.
+
+** Malkov and Yashunin -- HNSW
+- URL: https://arxiv.org/abs/1603.09320
+- Authority: author-submitted primary paper/preprint.
+- Authors: Yu. A. Malkov and D. A. Yashunin.
+- Initial arXiv date: 2016-03-30.
+- Retrieved: 2026-08-13.
+- Relevant to: Chapter 15; Project 3; ANN index design/benchmark research.
+
+** StarIntel Server README
+- URL: https://github.com/lost-rob0t/starintel-server/blob/master/README.org
+- Authority: current upstream implementation documentation in the user's StarIntel server repository.
+- Retrieved: 2026-08-13.
+- Relevant to: Chapter 20 and all projects that cross the StarIntel adapter boundary.
+
+** StarIntel Server document specification
+- URL: https://github.com/lost-rob0t/starintel-server/blob/master/docs/document-spec.org
+- Authority: current upstream implementation documentation in the user's StarIntel server repository.
+- Retrieved: 2026-08-13.
+- Relevant to: Chapters 2, 20; Project 1 and capstone schema/provenance boundary.
