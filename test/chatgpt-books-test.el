@@ -1,13 +1,22 @@
 ;;; chatgpt-books-test.el --- ERT tests -*- lexical-binding: t; -*-
 (require 'ert)
 (require 'cl-lib)
-(add-to-list 'load-path (expand-file-name "../elisp" (file-name-directory (or load-file-name buffer-file-name))))
+
+(defconst chatgpt-books-test-root
+  (file-name-directory
+   (directory-file-name
+    (expand-file-name ".." (file-name-directory (or load-file-name buffer-file-name)))))
+  "Repository root captured while this ERT file is loading.")
+
+(add-to-list 'load-path (expand-file-name "elisp" chatgpt-books-test-root))
 (require 'chatgpt-books)
 (require 'chatgpt-books-roam)
 
 (ert-deftest chatgpt-books-root-detection ()
-  (let ((chatgpt-books-root (file-name-directory (directory-file-name (expand-file-name ".." (file-name-directory (or load-file-name buffer-file-name)))))))
+  (let ((chatgpt-books-root chatgpt-books-test-root))
     (should (file-directory-p (chatgpt-books-root)))
+    (should (equal (file-truename chatgpt-books-test-root)
+                   (chatgpt-books-root)))
     (should (file-exists-p (expand-file-name "README.org" (chatgpt-books-root))))))
 
 (ert-deftest chatgpt-books-discovers-nine-books ()
@@ -35,7 +44,7 @@
     (should (equal org-roam-db-location "/tmp/personal.db"))))
 
 (ert-deftest chatgpt-books-roam-real-database-sync ()
-  "Build the project Org-roam DB and prove that real nodes are indexed."
+  "Build the project Org-roam DB and prove that bootstrap nodes are indexed."
   (skip-unless (require 'org-roam nil t))
   (let ((db (chatgpt-books-roam-db-location))
         (chatgpt-books-roam--saved-state nil))
@@ -46,5 +55,5 @@
           (chatgpt-books-roam-setup)
           (org-roam-db-sync)
           (should (file-exists-p db))
-          (should (> (length (org-roam-node-list)) 0)))
+          (should (= 6 (length (org-roam-node-list)))))
       (chatgpt-books-roam-restore))))
