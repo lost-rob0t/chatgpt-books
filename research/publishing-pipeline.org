@@ -3,12 +3,14 @@
 :ID:       a994a0f4-5e02-50f1-80a2-d07c963a3664
 :END:
 * Decision
-DOCUMENTED 2026-08-12: use direct Pandoc Org input to EPUB 3, with deterministic prebuilt assets, then validate with EPUBCheck 5.3.0 and repository-specific EPUB regression assertions.
+DOCUMENTED 2026-08-12: use direct Pandoc Org input to EPUB 3, with deterministic prebuilt assets and an export-only Org compatibility preparation step, then validate with EPUBCheck 5.3.0 and repository-specific EPUB regression assertions.
 * Primary-source evidence
 - Pandoc User's Guide (retrieved 2026-08-12): https://pandoc.org/demo/example3.html
   - current guide documents modular readers/writers, explicit input/output formats, =--citeproc=, external bibliographies, math, linked media inclusion, EPUB 3 semantics, and accessibility metadata.
 - Pandoc EPUB metadata (retrieved 2026-08-12): https://pandoc.org/demo/example33/11.1-epub-metadata.html
   - documents explicit =accessModes=, =accessModeSufficient=, =accessibilityHazards=, =accessibilityFeatures=, and =accessibilitySummary= metadata fields.
+- Pandoc 3.10.1 Org reader source (retrieved 2026-08-12): https://github.com/jgm/pandoc/blob/3.10.1/src/Text/Pandoc/Readers/Org/DocumentTree.hs
+  - =propertiesToAttr= chooses =CUSTOM_ID= before =ID= for the Header identifier and filters both special properties from ordinary key/value attributes. Therefore a post-reader Header filter cannot recover the losing =ID= when both are present.
 - Org Manual, citations (retrieved 2026-08-12): https://orgmode.org/manual/Citations.html
   - Org 9.8 documents =#+bibliography:= and =[cite:@key]= authoring syntax.
 - W3C EPUB Accessibility 1.1 (retrieved 2026-08-12): https://www.w3.org/TR/epub-a11y-11/
@@ -20,8 +22,12 @@ DOCUMENTED 2026-08-12: use direct Pandoc Org input to EPUB 3, with deterministic
 * Why this route
 Pandoc is current, scriptable, reproducible in CI/Nix, accepts Org directly, and has a mature EPUB writer. It avoids making an unmaintained third-party Org EPUB exporter the critical path. Org remains canonical; Pandoc is the publication compiler, not the authoring format.
 * Compatibility boundary
-Pandoc's Org reader is not Emacs itself. Authoring-only constructs must be tested in the representative fixture before relying on them. Stable =:ID:= properties remain canonical in Org. For EPUB/XHTML, =tools/pandoc-org-id.lua= maps every Org ID to the deterministic XML-safe target =org-id-<ID>=. This avoids writer-dependent rewriting for UUIDs that begin with digits. When =:CUSTOM_ID:= and =:ID:= coexist, the mapped Org ID is canonical and the custom identifier is retained as an alias so existing fragment links remain valid.
+Pandoc's Org reader is not Emacs itself. Authoring-only constructs must be tested in the representative fixture before relying on them. Stable =:ID:= properties remain canonical in Org.
+
+Before Pandoc reads a manuscript, =tools/prepare-org-for-pandoc= writes a temporary sibling copy. For every source =:ID:= it materializes an explicit XML-safe =org-id-<ID>= target. Same-document =id:= links are rewritten to those aliases; links to IDs not present in the current source are left unchanged. Existing Pandoc-generated heading identifiers and =:CUSTOM_ID:= values remain intact. Build scripts delete the temporary copy on exit and never mutate the canonical Org source.
+
+The Lua filter is intentionally narrower: it handles Pandoc's Figure-level =alt= quirk, which is actually visible in the AST. It does not attempt to reconstruct an =ID= value that Pandoc 3.10.1 has already discarded.
 * Feature acceptance fixture
-The fixture proves headings, stable Org-ID mapping and custom-anchor behavior, internal cross-reference resolution, source block, table, footnote, citation/bibliography, MathML equation output, deterministic SVG, PNG and JPEG media, ordinary image inclusion, meaningful alt text, captions, Unicode, explicit cover/accessibility metadata, and EPUBCheck conformance. =tools/check-pandoc-org-reader= asserts the pinned reader quirks consumed by the Lua filter; =tools/check-epub-fixture= inspects the packaged OPF/XHTML for repository-specific regressions after the standards validator runs.
+The fixture proves headings, stable Org-ID aliases, same-document Org =id:= links, custom-anchor behavior, internal fragment resolution, source block, table, footnote, citation/bibliography, MathML equation output, deterministic SVG, PNG and JPEG media, ordinary image inclusion, meaningful alt text, captions, Unicode, explicit cover/accessibility metadata, and EPUBCheck conformance. =tools/check-pandoc-org-reader= asserts the pinned reader quirks consumed by the compatibility layer; =tools/check-epub-fixture= inspects the packaged OPF/XHTML for repository-specific regressions after the standards validator runs.
 
 Detailed accessibility expectations and diagnostics live in [[file:epub-accessibility.org][epub-accessibility.org]].
