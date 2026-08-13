@@ -13,6 +13,7 @@ pandoc "$PREPARED" \
   --from=org \
   --to=epub3 \
   --standalone \
+  --mathml \
   --citeproc \
   --bibliography=references.bib \
   --metadata-file=metadata.yaml \
