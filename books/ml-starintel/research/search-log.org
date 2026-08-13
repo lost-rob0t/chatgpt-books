@@ -21,3 +21,11 @@
 - Question: Which canonical sources should be queued now for entity resolution and semantic retrieval without prematurely drafting those chapters?
 - Sources inspected: Fellegi & Sunter (1969) record linkage; Sentence-BERT; HNSW.
 - Result: source candidates recorded for later research passes. Their published benchmark numbers are not treated as measurements of this book's future implementation.
+
+** 2026-08-13 -- foundational pass 02
+- Question: What exact StarIntel 0.9 revision should Project 1 target; which public fixture fits the curriculum; which grouped/temporal/duplicate/source/graph constraints prevent ML leakage; which provenance fields are material; and which current Python stack is appropriate?
+- Query/repositories inspected: StarIntel Python/Nim/Common Lisp/server schema locks, validators, tests, docs, and ingest source; locked canonical =starintel-gpt-auto-dig@ff814ff63868286d68e21502122832802cd5e361= schema/spec/manifest/conformance fixtures; official GLEIF, CFPB, Wikidata, scikit-learn, PyG, W3C and scientific-Python docs; Kapoor/Narayanan, Datasheets, Data Statements.
+- Sources inspected: recorded in [[file:sources.org][sources.org]] and [[file:foundations-pass-02.org][foundations-pass-02.org]].
+- Conclusion: canonical lock is 0.9.0 at the named commit; Project 1 should use a narrow adapter, a tiny frozen GLEIF+synthetic fixture, train-only fitted preprocessing, explicit split/build manifests, and a pinned boring Python stack.
+- Uncertainty: exact GLEIF slice, cross-language conformance, grouped+temporal policy, environment compatibility, provenance round trip, and Experiments A--E remain UNTESTED.
+- Follow-up: pin/materialize the schema and executable environment; run E, D, then A--C.
