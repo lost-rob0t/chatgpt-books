@@ -3,3 +3,10 @@
 * Unreleased
 ** Added
 - Initial private Org-first nine-book publishing bootstrap.
+- Generated =flake.lock= via =nix flake lock= on a Nix-capable host (issue #3). The lockfile pins =nixpkgs/nixos-unstable= and is reproducible.
+
+** Changed
+- =elisp/chatgpt-books-roam.el= now forward-declares Org-roam variables (=org-roam-directory=, =org-roam-db-location=, =org-roam-capture-templates=, =org-roam-db-autosync-mode=) so the project package and its ERT suite behave correctly before =(require 'org-roam)= executes. =chatgpt-books-roam-restore= now reads =org-roam-db-autosync-mode= with =boundp=, fixing a =void-variable= failure exposed by the minimal Nix devShell.
+
+** Fixed
+- ERT =chatgpt-books-roam-state-roundtrip= no longer depends on Org-roam being pre-loaded; the alphabetical test run order still lets CI's real Org-roam sync test load the package first, but the roundtrip test is now robust on hosts without Org-roam installed.
