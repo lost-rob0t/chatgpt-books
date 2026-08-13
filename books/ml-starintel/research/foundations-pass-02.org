@@ -2,4 +2,72 @@
 #+date: 2026-08-13
 
 * Status
-RESEARCH. Foundational research remains open. This pass records schema, dataset-fixture, evaluation-split, provenance, and toolchain research for Book 1.
+RESEARCH; foundational phase remains open. =DOCUMENTED= means authoritative source inspected, =TESTED= run here, =UNTESTED= not run here, =EXPERIMENTAL= provisional design, =FAILED= attempted failure, =UPSTREAM-REPORTED= upstream result not reproduced here. No Book 1 experiment ran in this pass.
+
+* Scope
+Chapters 1--5 / Project 1 research only: canonical StarIntel 0.9, fixture design, leakage-aware splitting, provenance, current Python stack, and Experiments A--E. No chapter prose or duplicate StarIntel runtime/validator.
+
+* Research questions
+- What exact 0.9 schema/revision is canonical and what does it validate?
+- Which public/synthetic fixture best teaches Project 1?
+- Which entity/time/duplicate/source/graph/preprocessing/target boundaries constrain evaluation?
+- What provenance belongs per record vs per dataset artifact?
+- What stable Python stack should be pinned?
+
+* Sources inspected
+StarIntel language repos/server plus their schema locks; locked canonical dependency =lost-rob0t/starintel-gpt-auto-dig@ff814ff63868286d68e21502122832802cd5e361=; official GLEIF/CFPB/Wikidata docs; scikit-learn 1.9; Kapoor/Narayanan 2023; PyG split docs; Datasheets, Data Statements, W3C PROV-DM; official current scientific-Python project docs. Detailed queries/sources are in =search-log.org= / =sources.org=.
+
+* Findings
+** StarIntel boundary
+All inspected locks identify schema =0.9.0= and the same canonical commit. Locked manifest: profile =starintel-core=, additive revision =0.9.0+fields.20260726.2=, 50 dtypes, base+expansion materialization before validation. =DOCUMENTED=.
+
+Required common fields: =_id dataset dtype schema_version version date_added date_updated sources evidence data=. Top-level and dtype =data= are closed; =extensions= is open/namespaced. Existing source/provenance/lineage sections already cover URI, retrieval time, hashes, license, transforms, environment and derivation, so Book 1 should adapt rather than clone the schema.
+
+Relations use =data.subject/predicate/object= with ID or structured endpoints. Strict v0.9 rejects legacy 0.8 shapes.
+
+Python uses Draft-2020-12 =jsonschema=; Nim/Common Lisp implement the needed subset. Canonical conformance fixtures cover every registered dtype plus invalid version/alias/field/type/date/ID/range/relation cases. Cross-language edge equivalence is =UNTESTED=.
+
+The inspected server HTTP/Rabbit document path routes/persists without calling strict v0.9 validation. Persistence is not proof of conformance. Source finding =DOCUMENTED=; live Book 1 run =UNTESTED=.
+
+** Project 1 fixture
+GLEIF Level 1/2 is preferred: official CC0 terms and strong entity/identifier/address/status/parent-child semantics. CFPB remains a later structured-data exercise; initial bundle should avoid consumer narratives. Wikidata is a CC0 fallback.
+
+Design =EXPERIMENTAL=: tiny deterministic frozen GLEIF slice + fixed-seed synthetic observations adding repeated entities, aliases, exact/near duplicates, missingness, contradictions, short synthetic text, labels, source variation and relations. Record snapshot/URI/hash/extraction rule/IDs/license; tests never require live upstream.
+
+** Splitting/provenance/toolchain
+Random/stratified splits do not protect correlated records. Proposed planner =EXPERIMENTAL=: cutoff first; deterministic entity/duplicate groups; no group crossing; no post-cutoff training information; spanning groups wholly later or purged with reason; optional publisher holdout; exact split manifest. Learned preprocessing fits on training only.
+
+Per record use canonical source/provenance/lineage/temporal/quality fields. Dataset manifest records source snapshot/hashes, transform parameters, StarIntel lock/revision, code/environment, seeds, split membership, exclusions, label policy, warnings/license/counts. Borrow W3C PROV concepts without adding RDF infrastructure.
+
+Proposed stack =UNTESTED=: Python 3.13.x, NumPy 2.5.x, pandas 3.0.x, scikit-learn 1.9.x, Matplotlib 3.11.x, PyArrow 25.0.x if Parquet, jsonschema 4.25.x, pytest 9.1.x, optional Hypothesis 6.x. PyTorch 2.13.x is for later chapters; Pydantic must not redefine StarIntel. No embedding dependency needed.
+
+* Claim-status table
+| Claim | Status |
+| canonical lock/envelope behavior | DOCUMENTED |
+| server inspected path omits strict v0.9 validation | DOCUMENTED |
+| cross-language conformance equivalence | UNTESTED |
+| GLEIF CC0 terms | DOCUMENTED |
+| GLEIF+synthetic initial fixture | EXPERIMENTAL |
+| Experiments A--E hypotheses/results | UNTESTED |
+| proposed Python stack works together | UNTESTED |
+
+* Proposed implementation implications
+Narrow StarIntel adapter; pinned/materialized schema offline; canonical JSONL semantic source with derived ML views; immutable hashed snapshots; frozen fixture/group/split manifests; train-only fitted transforms; explicit upstream 0.8 bridge only.
+
+* Experiment specifications
+** A -- Random split leakage
+=UNTESTED=. Repeated similar observations/entity. Compare fixed random row split with =GroupShuffleSplit= using one simple fixed model. Record seed, split hashes, group overlap and real metrics. Hypothesis: random split is optimistic.
+** B -- Temporal leakage
+=UNTESTED=. Record observation/retrieval/label-availability times and later-only fields. Compare random vs strict chronological cutoff; assert no post-cutoff training information.
+** C -- Duplicate leakage
+=UNTESTED=. Exact, normalized and deterministic near copies. Compare random, exact-hash-cluster and predeclared near-duplicate-cluster splits. Record cross-split copies/parameters/metrics; never tune from test results.
+** D -- Provenance round trip
+=UNTESTED=. =source -> normalize -> adapter -> validate -> features -> split manifest=. Pass only if record+manifests reconstruct source/time/hash/snapshot, transforms, schema lock, code/environment, seed, labels, split/exclusions without live upstream.
+** E -- StarIntel 0.9 conformance
+=UNTESTED=. Positive entity/org/relation/source/extension fixtures plus negative required-field/undeclared-field/date/dtype/version/ID/relation cases. Run exact locked Python validator, then other bindings where available; record exact commands/environment/output.
+
+* Unresolved questions
+Cross-language edge behavior; schema vendoring vs deterministic materialization; exact GLEIF selection/refresh; spanning-group policy; near-duplicate method; canonical dataset-manifest vs external build metadata; Nix-only vs Nix+Python lock.
+
+* Next research slice
+Create minimal executable Project 1 research harness without chapter prose; pin/materialize schema+adapter; predeclare/retrieve/hash tiny GLEIF slice; implement deterministic fixture/manifests; run E, then D, then A--C. Foundational research stays open.
