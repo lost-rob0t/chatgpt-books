@@ -7,8 +7,10 @@
 - Which behavior is version-sensitive in the current toolchain?
 - Which claims require reproduction/benchmarking rather than citation alone?
 - Which StarIntel document/schema boundary should the ML projects target?
-- Which split policies avoid leakage across related entities, time, and source lineage?
+- Which split policies avoid evaluation contamination across related entities, time, duplicate clusters, graph edges, and source lineage?
+- Which provenance facts belong on canonical StarIntel records versus dataset-build manifests?
 * Research passes
 - [[file:foundations-pass-01.org][Foundational Research Pass 01]] -- RESEARCH; 2026-08-13. Seeds Chapters 1--5 and Project 1, records the current scikit-learn/PyTorch baseline, and documents the current StarIntel 0.9/legacy 0.8 integration boundary.
+- [[file:foundations-pass-02.org][Foundational Research Pass 02]] -- RESEARCH; 2026-08-13. Documents the locked canonical StarIntel 0.9 schema revision, selects a preliminary GLEIF + deterministic synthetic fixture strategy, specifies grouped/time-aware evaluation and provenance requirements, verifies current toolchain assumptions from primary documentation, and defines Experiments A--E. All Book 1 experiments remain UNTESTED until executed.
 * Records
 Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
