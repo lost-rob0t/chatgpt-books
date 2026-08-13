@@ -3,14 +3,18 @@
 :ID:       bd0a1f78-be2c-5c86-bc56-345bd5b94196
 :END:
 * Phase
-Bootstrap curriculum and architecture.
+Phase 1 -- foundational research.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
+- Foundational research pass 01 seeded authoritative sources for Chapters 1--5 and Project 1, recorded the 2026-08-13 scikit-learn/PyTorch baseline, and documented the current StarIntel 0.9/legacy 0.8 integration boundary.
 * Active research
-Foundational primary-source research has not yet been declared complete.
+- Inspect the canonical StarIntel 0.9 schema/validator actually used by the implementation.
+- Design and test grouped/entity-aware and time-aware split policies for correlated StarIntel-style records.
+- Define the Project 1 public/synthetic fixture and provenance manifest.
+- Pin and run the initial Python scientific environment before drafting version-sensitive code prose.
 * Unverified claims
-All version-sensitive implementation details remain RESEARCH/UNTESTED until the relevant issue verifies them.
+Concrete implementation behavior, metrics, benchmark numbers, reproducibility guarantees, and StarIntel validation round-trips remain RESEARCH/UNTESTED until the relevant experiment actually runs.
 * Technical/editorial/visual review
 Not started.
 * Blockers
-Dependency-aware backlog must be executed before chapter prose is promoted to DONE.
+Foundational experiments and source-backed research must continue before Chapters 2--5 or Project 1 are promoted beyond RESEARCH/DRAFT.
