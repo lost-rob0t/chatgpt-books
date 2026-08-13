@@ -3,6 +3,7 @@
 ;; Entry point and discovery helpers for the Org-first books repository.
 ;;; Code:
 (require 'cl-lib)
+(require 'seq)
 (require 'subr-x)
 (defgroup chatgpt-books nil "Project-local technical book authoring." :group 'org)
 (defcustom chatgpt-books-root nil "Explicit repository root, or nil for discovery." :type '(choice (const nil) directory))
@@ -48,6 +49,7 @@
   (require 'chatgpt-books-roam)
   (chatgpt-books-roam-setup)
   (find-file (expand-file-name "README.org" (chatgpt-books-root))))
-(require 'chatgpt-books-export)
+(autoload 'chatgpt-books-build-book "chatgpt-books-export" "Build one book via repository tooling." t)
+(autoload 'chatgpt-books-build-all "chatgpt-books-export" "Build all books via repository tooling." t)
 (provide 'chatgpt-books)
 ;;; chatgpt-books.el ends here
