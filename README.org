@@ -1,0 +1,111 @@
+#+title: chatgpt-books
+:PROPERTIES:
+:ID:       e8e60d08-bea1-552e-a847-da7b7c99f1ee
+:END:
+
+* Mission
+This PRIVATE repository is an Org-mode-first environment for researching, writing, testing, illustrating, and publishing nine independent long-form technical books. Each finished principal book targets roughly 300--700 rendered EPUB pages when the subject warrants it. Depth, tested implementation, source quality, and useful projects matter more than mechanical page count.
+
+No repository/book license has been selected yet. Do not infer one.
+
+* Non-negotiable rules
+- The repository remains private.
+- Org is canonical for manuscripts, research notes, roadmaps, outlines, and project specifications.
+- A book must be source-grounded, original, code-heavy where appropriate, and free of fabricated claims.
+- Every book has several curriculum-integrated major projects plus a capstone.
+- Never publish investigation secrets, credentials, private data, or copyrighted passages without permission.
+- Generated prose is reviewed like code: verify claims, run examples, preserve provenance, and remove filler.
+
+* The nine books
+- [[file:books/ml-starintel/README.org][Machine Learning for StarIntel: From Zero to Useful Models]]
+- [[file:books/ml-math/README.org][Machine Learning Math for People Who Actually Want to Understand It]]
+- [[file:books/starintel/README.org][StarIntel: Primer, Architecture, Internals, and Hacker's Guide]]
+- [[file:books/prolog/README.org][Prolog for Beginners: Thinking in Relations]]
+- [[file:books/erlang/README.org][Erlang for Beginners: Building Systems That Refuse to Die]]
+- [[file:books/lfe/README.org][LFE for Beginners: Lisp on the Erlang VM]]
+- [[file:books/symbolic-ai-common-lisp/README.org][Symbolic AI in Common Lisp]]
+- [[file:books/symbolic-ai-prolog/README.org][Symbolic AI in Prolog]]
+- [[file:books/expert-systems/README.org][Expert System Design and Implementation: From Rules to Production Knowledge Systems]]
+
+* Repository map
+- =books/= -- separate book projects and manuscripts.
+- =roam/= -- shared project-scoped Org-roam graph.
+- =elisp/= -- project-local Emacs integration.
+- =research/= -- cross-book publishing/research decisions.
+- =references/= -- verified shared bibliographic metadata.
+- =templates/= -- authoring/capture templates.
+- =assets/= -- shared deterministic source assets and visual style.
+- =fixtures/epub/= -- representative production-pipeline fixture.
+- =tools/= -- deterministic build/validation helpers.
+- =.github/workflows/= -- CI.
+
+* Org authoring conventions
+** IDs and links
+Important books, chapters, projects, and reusable concepts get stable =:ID:= properties. Prefer =[[id:UUID][Title]]= for durable cross-book links and relative =file:= links for repository navigation. Do not use absolute home-directory links in manuscripts.
+
+** TODO lifecycle
+Use =IDEA -> RESEARCH -> DRAFT -> VERIFY -> REVIEW -> EDIT -> DONE=. DONE means the important claims are verified, code/tests run, required assets exist, and export is checked.
+
+** Babel
+Babel is for literate teaching and reproducible experiments. Never globally disable confirmation for arbitrary execution and never execute code merely because an Org file opened. Canonical significant examples also live as normal source files when practical.
+
+* Project-scoped Org-roam
+Run =M-x chatgpt-books=. The package scopes =org-roam-directory= to =<repo>/roam= and =org-roam-db-location= to =<repo>/.cache/org-roam.db=. The package saves the user's prior directory, DB, capture templates, and autosync state before switching, and =M-x chatgpt-books-roam-restore= restores them. The SQLite DB is disposable cache; Org files are truth.
+
+Capture types: concept, technology, academic paper, book research note, research question, algorithm, source, and major project. Never invent unknown source metadata.
+
+* Research workflow
+1. Turn chapter/project uncertainties into explicit research questions.
+2. Prefer standards/specifications, official docs, original papers/repos, university material, authoritative books, maintainers, reproducible community reports, then strong secondary sources.
+3. For version-sensitive software, verify current primary documentation.
+4. Record query/date/source/result in the relevant =research/search-log.org=.
+5. Record durable source metadata in =sources.org= and BibTeX only when verified.
+6. Separate DOCUMENTED, TESTED, UNTESTED, EXPERIMENTAL, FAILED, and UPSTREAM-REPORTED claims.
+
+* Citations and copyright
+Use Org citations in manuscripts and BibTeX files. Org's =org-cite= markup is the authoring convention; the production Pandoc path renders citations with =--citeproc=. Never fabricate metadata. Quote sparingly and write original explanations. Track source, creator, license, and attribution for reused assets. Prefer original diagrams where reuse rights are unclear.
+
+* Code, tests, and experiments
+Important code must be readable, runnable, versioned, explained, and tested where practical. Pin dependencies in project environments, use deterministic seeds where relevant, and record the real environment for experiments. Never invent output or benchmark numbers. Failure cases and debugging are curriculum material, not clutter.
+
+* Major-project policy
+A major project integrates multiple chapters, has explicit requirements and architecture, contains real implementation, tests, failure scenarios, engineering choices, diagrams where useful, and a useful deliverable. Projects should evolve from small useful systems toward production-style capstones rather than appearing as one detached final exercise.
+
+* Visual policy
+Architecture, algorithms, state machines, rule networks, search trees, math, and data behavior should be diagrams/plots when that teaches better than prose. Preserve editable source. Build deterministically to SVG/PNG. Every informative image gets a meaningful caption and alt text; never convey essential meaning by color alone. See [[file:assets/styles/VISUAL-STYLE.org][VISUAL-STYLE.org]].
+
+Generated illustrations and cover backgrounds require a neighboring =*.prompt.org= provenance record. CI must never call an online image generator. Title/subtitle typography is deterministic SVG/ImageMagick/Pillow, not generated text.
+
+* Publishing pipeline
+The selected bootstrap route is:
+
+#+begin_example
+Org source -> deterministic assets -> Pandoc EPUB 3 -> EPUBCheck 5.3.0
+#+end_example
+
+Rationale and verified feature research live in [[file:research/publishing-pipeline.org][research/publishing-pipeline.org]]. The canonical commands are:
+
+#+begin_src sh
+make assets BOOK=prolog
+make book BOOK=prolog
+make check BOOK=prolog
+make fixture
+make test
+#+end_src
+
+Generated EPUBs belong in =dist/= or CI artifacts, not ordinary Git history.
+
+* Issue and Git workflow
+Meaningful work follows =issue -> research -> branch -> implementation/writing -> tests/assets/build -> PR -> review -> merge=. Do not let multiple agents edit the same chapter/project concurrently without coordination. Keep the books and dotfiles commits separate.
+
+* Book lifecycle
+Scope -> foundational research -> curriculum -> detailed outline -> foundational chapters/projects -> intermediate chapters/projects -> advanced chapters/projects -> capstones -> technical review -> editorial/visual review -> EPUB release.
+
+* Emacs and dotfiles boundary
+The real dotfiles repository owns package availability and a tiny loader hook. This repository owns root discovery, scoped Org-roam variables/DB/captures, book/project commands, export behavior, and project-local settings. Do not duplicate this implementation into dotfiles.
+
+* Definition of done for a finished chapter/project
+A unit is not DONE until its important factual claims are sourced, runnable examples/tests have actually run, unresolved experiment status is explicit, diagrams/assets are present where promised, accessibility metadata exists, and its production export path succeeds.
+
+* Bootstrap status
+This repository is infrastructure + curriculum bootstrap, not nine completed books. See [[file:STATUS.org][STATUS.org]] and [[file:ROADMAP.org][ROADMAP.org]].

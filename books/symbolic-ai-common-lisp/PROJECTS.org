@@ -1,0 +1,101 @@
+#+title: Symbolic AI in Common Lisp -- Major Projects
+:PROPERTIES:
+:ID:       cba60ce5-d0fa-55f9-93f9-e02093fc77eb
+:END:
+* Major Projects
+** Project 1 -- Search Library
+:PROPERTIES:
+:ID:       26337135-20c4-5ddf-b634-9f52ad7ecfe9
+:END:
+Purpose: Implement reusable DFS, BFS, uniform-cost, and A* with instrumentation and tests.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 2 -- Pattern Matcher and Unifier
+:PROPERTIES:
+:ID:       9afe2b74-5542-59c6-b17d-c4a0f862ce14
+:END:
+Purpose: Grow literal matching into variable bindings, substitutions, occurs-check discussion, and tests.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 3 -- Symbolic Planner
+:PROPERTIES:
+:ID:       d31db328-6bf2-5d83-8450-8256a563c57a
+:END:
+Purpose: Build a real planner with state, actions, heuristics, and failure analysis.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 4 -- Production Rule System
+:PROPERTIES:
+:ID:       87a793f9-f3bf-50ef-bc48-086eefa4f357
+:END:
+Purpose: Implement facts, rules, working memory, matching, agenda, and conflict resolution.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 5 -- Knowledge Representation System
+:PROPERTIES:
+:ID:       d014a501-e228-532a-80d6-32c73ddd5617
+:END:
+Purpose: Build frames, semantic networks, inheritance/relations, provenance, and queries.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 6 -- Hybrid Symbolic AI Application
+:PROPERTIES:
+:ID:       1bf5fff5-fcb4-5828-bd3b-2f661dd3bf0b
+:END:
+Purpose: Capstone combining search, knowledge representation, rules, explanation, and an optional controlled LLM interface.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.

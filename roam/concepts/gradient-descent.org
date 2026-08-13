@@ -1,0 +1,9 @@
+:PROPERTIES:
+:ID:       6f9d2dc4-2c3a-59e9-9113-872cada00576
+:END:
+#+title: Gradient Descent
+* Note
+Gradient descent updates parameters along a negative objective gradient and links mathematical optimization to practical ML.
+* Connected books
+- [[file:../../books/ml-math/README.org][Machine Learning Math for People Who Actually Want to Understand It]]
+- [[file:../../books/ml-starintel/README.org][Machine Learning for StarIntel: From Zero to Useful Models]]

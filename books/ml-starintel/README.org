@@ -1,0 +1,22 @@
+#+title: Machine Learning for StarIntel: From Zero to Useful Models
+:PROPERTIES:
+:ID:       bb531878-1ee5-5def-8228-c4294790cd09
+:END:
+* Purpose
+A serious independent technical book, eventually about 300--700 rendered EPUB pages when depth warrants it. It is not a README expansion or generic tutorial dump.
+* Audience
+Engineers new to ML who want to apply it to structured intelligence-style data.
+* Prerequisites
+Python basics; no prior ML assumed. ML Math is a recommended companion.
+* Learning outcomes
+The reader should be able to explain the core ideas, implement important mechanisms, debug failures, evaluate tradeoffs, and extend the systems built in the major projects.
+* Major projects
+- [[id:a289a81e-a645-52da-bcb6-6e72b9848a72][Investigation Dataset Pipeline]] -- Build a reproducible public/synthetic StarIntel-style data pipeline with validation, feature engineering, splits, provenance, and quality reports.
+- [[id:5cde0f4f-a3c1-56a3-bbfd-08f26bd96820][Entity Resolution System]] -- Grow exact matching into normalized, similarity, learned-feature, and embedding-assisted entity resolution with labeled evaluation.
+- [[id:96a059d7-fc29-5d69-802b-ca9f81c447c5][Semantic Search]] -- Build embeddings, an index, retrieval API, evaluation harness, and debugging tools.
+- [[id:c1779ee7-fd1a-5c11-af44-c5fe397b8e7d][Graph/Relationship ML]] -- Build graph features, anomaly detection, node representations, and carefully evaluated link prediction on public/synthetic graphs.
+- [[id:c8487c3f-2367-5f3e-88ca-a1dc8cc01eca][ML-Enriched StarIntel Pipeline]] -- Capstone integrating ingestion, entity resolution, semantic retrieval, graph features, evaluation, provenance, and an explicit StarIntel adapter.
+* Research
+Record primary-source work under =research/= and bibliography metadata in =references.bib=. Never let version-sensitive prose outrun current documentation.
+* Build
+From repository root: =make book BOOK=ml-starintel= and =make check BOOK=ml-starintel=. Bootstrap manuscripts are outlines, not release-ready books.

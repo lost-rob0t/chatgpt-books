@@ -1,0 +1,8 @@
+#+title: Erlang for Beginners: Building Systems That Refuse to Die
+:PROPERTIES:
+:ID:       2bcf788e-7b54-56ef-9d03-75270940ff07
+:END:
+#+bibliography: ../references.bib
+
+* Manuscript bootstrap
+This is the canonical manuscript entry point. Long-form drafting begins only after the publishing/research bootstrap and the relevant research issue are ready. See [[file:../OUTLINE.org][OUTLINE.org]].

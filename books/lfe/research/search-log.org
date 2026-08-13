@@ -1,0 +1,6 @@
+#+title: LFE for Beginners: Lisp on the Erlang VM -- Search Log
+:PROPERTIES:
+:ID:       307487a4-810c-5c7c-9193-df348ee4dbf8
+:END:
+* Entries
+No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.

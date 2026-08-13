@@ -1,0 +1,1 @@
+digraph pipeline { rankdir=LR; graph [bgcolor="transparent"]; node [shape=box]; org [label="Org source"]; assets [label="Deterministic assets"]; pandoc [label="Pandoc EPUB 3"]; check [label="EPUBCheck"]; org -> assets -> pandoc -> check; }

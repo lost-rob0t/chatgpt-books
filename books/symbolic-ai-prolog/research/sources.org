@@ -1,0 +1,6 @@
+#+title: Symbolic AI in Prolog -- Source Inventory
+:PROPERTIES:
+:ID:       78d3f1f2-6c00-56b1-9fb0-d3c7e5fd62ce
+:END:
+* Policy
+Add only sources actually inspected. Record URL, authority, publication/version date when known, retrieval date, relevant sections, and affected chapters/projects.

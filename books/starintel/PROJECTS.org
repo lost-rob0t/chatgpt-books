@@ -1,0 +1,101 @@
+#+title: StarIntel: Primer, Architecture, Internals, and Hacker's Guide -- Major Projects
+:PROPERTIES:
+:ID:       2418ff78-7cfe-558c-84e9-a9a8a079463d
+:END:
+* Major Projects
+** Project 1 -- Create Valid StarIntel Records
+:PROPERTIES:
+:ID:       95600b49-6e43-550d-b202-6aa6ae80ddb2
+:END:
+Purpose: Create, validate, explain, and test public/synthetic records using the current document model.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 2 -- Build an Ingest Adapter
+:PROPERTIES:
+:ID:       26942a4e-e550-5416-b136-6a14fa591577
+:END:
+Purpose: Build a safe public/demo-data adapter through the actual current ingest architecture.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 3 -- Build a New Actor
+:PROPERTIES:
+:ID:       bf7baaa8-ae6f-5dd9-adda-026e1437c38b
+:END:
+Purpose: Implement and test a new actor through the current runtime and messaging boundaries.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 4 -- Add Search or Inference
+:PROPERTIES:
+:ID:       33c8e718-032d-5a5a-b104-746748a9f154
+:END:
+Purpose: Extend a development environment with a meaningful search or inference capability.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 5 -- Debug a Broken Pipeline
+:PROPERTIES:
+:ID:       fa271d01-af9e-5892-b544-4ef1f20cf63d
+:END:
+Purpose: Inject controlled failures across services, RabbitMQ, databases, APIs, and logs and trace them systematically.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 6 -- Add a Complete StarIntel Capability
+:PROPERTIES:
+:ID:       5755d789-1897-5437-b9d1-0ccc3cf93a73
+:END:
+Purpose: Capstone based on fresh repository research, integrating data, runtime, tests, observability, and documentation.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.

@@ -1,0 +1,8 @@
+#+title: Prolog for Beginners: Thinking in Relations
+:PROPERTIES:
+:ID:       b500381b-81f9-5eff-8f05-56fd2f860f8a
+:END:
+#+bibliography: ../references.bib
+
+* Manuscript bootstrap
+This is the canonical manuscript entry point. Long-form drafting begins only after the publishing/research bootstrap and the relevant research issue are ready. See [[file:../OUTLINE.org][OUTLINE.org]].

@@ -1,0 +1,11 @@
+#+title: Initial Backlog Map
+:PROPERTIES:
+:ID:       769eb23f-83b3-5315-a6e4-f905e7d31947
+:END:
+* Infrastructure
+- Publishing/Org/Org-roam/Elisp/dotfiles/citations/diagrams/images/covers/CI/ERT bootstrap verification.
+- Reproducible Nix lock generation and full flake check on a Nix host.
+* Per-book
+Each book gets a consolidated foundational research + curriculum/outline/dependency review issue, then project implementation issues in dependency order, then first writing phase.
+* Expert Systems
+Group work into: history + RETE/TREAT research; matcher foundations; alpha/beta/RETE engine; truth maintenance/provenance/explanations; technical KB/schema; workbench fact/rule editors + validation/test/dry run/versioning; contradiction/explanation/RETE UI; standalone app; CouchDB adapter/reactivity/conflicts; PostgreSQL schema/transactions/concurrency/provenance; comparative benchmark.

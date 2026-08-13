@@ -1,0 +1,6 @@
+#+title: StarIntel: Primer, Architecture, Internals, and Hacker's Guide -- Source Inventory
+:PROPERTIES:
+:ID:       1db0a530-5a5d-50ce-b4e9-bde5e3cf8769
+:END:
+* Policy
+Add only sources actually inspected. Record URL, authority, publication/version date when known, retrieval date, relevant sections, and affected chapters/projects.

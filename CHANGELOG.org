@@ -1,0 +1,5 @@
+#+title: Changelog
+
+* Unreleased
+** Added
+- Initial private Org-first nine-book publishing bootstrap.

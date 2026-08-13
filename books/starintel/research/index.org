@@ -1,0 +1,10 @@
+#+title: StarIntel: Primer, Architecture, Internals, and Hacker's Guide -- Research Index
+:PROPERTIES:
+:ID:       e64310a5-9567-5da8-aed0-d3e8c34b5d39
+:END:
+* Research questions
+- Which primary sources define the foundational concepts?
+- Which behavior is version-sensitive in the current toolchain?
+- Which claims require reproduction/benchmarking rather than citation alone?
+* Records
+Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].

@@ -1,0 +1,6 @@
+#+title: Erlang for Beginners: Building Systems That Refuse to Die -- Search Log
+:PROPERTIES:
+:ID:       5c4985ee-bed7-522c-a155-e60fbd066396
+:END:
+* Entries
+No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.

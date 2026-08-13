@@ -1,0 +1,6 @@
+#+title: Expert System Design and Implementation: From Rules to Production Knowledge Systems -- Source Inventory
+:PROPERTIES:
+:ID:       19c27920-d704-5bd7-8e4a-cfa01b1c009e
+:END:
+* Policy
+Add only sources actually inspected. Record URL, authority, publication/version date when known, retrieval date, relevant sections, and affected chapters/projects.

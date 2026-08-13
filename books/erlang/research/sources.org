@@ -1,0 +1,6 @@
+#+title: Erlang for Beginners: Building Systems That Refuse to Die -- Source Inventory
+:PROPERTIES:
+:ID:       b223c0bb-5b38-5e2e-9a9d-fbd3bf1f0040
+:END:
+* Policy
+Add only sources actually inspected. Record URL, authority, publication/version date when known, retrieval date, relevant sections, and affected chapters/projects.

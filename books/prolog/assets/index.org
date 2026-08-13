@@ -1,0 +1,12 @@
+#+title: Prolog for Beginners: Thinking in Relations -- Asset Plan
+:PROPERTIES:
+:ID:       9f31185c-4769-52a1-a1c1-1e0c0f463121
+:END:
+* Required asset classes
+- editable architecture/algorithm diagrams
+- reproducible plots where data/math warrants them
+- screenshots only when real UI teaches something
+- generated illustration provenance records when used
+- unique cover background/motif + deterministic typography
+* Rule
+Do not add decorative assets merely to inflate the book. Every informative figure gets caption + alt text.

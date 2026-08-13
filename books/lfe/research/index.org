@@ -1,0 +1,10 @@
+#+title: LFE for Beginners: Lisp on the Erlang VM -- Research Index
+:PROPERTIES:
+:ID:       756b4d0d-9dd1-5150-82ce-146f7886dbd1
+:END:
+* Research questions
+- Which primary sources define the foundational concepts?
+- Which behavior is version-sensitive in the current toolchain?
+- Which claims require reproduction/benchmarking rather than citation alone?
+* Records
+Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].

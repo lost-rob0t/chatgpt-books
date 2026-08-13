@@ -1,0 +1,8 @@
+#+title: LFE for Beginners: Lisp on the Erlang VM
+:PROPERTIES:
+:ID:       7e52288b-546c-5094-a73e-fb10ca0d1c70
+:END:
+#+bibliography: ../references.bib
+
+* Manuscript bootstrap
+This is the canonical manuscript entry point. Long-form drafting begins only after the publishing/research bootstrap and the relevant research issue are ready. See [[file:../OUTLINE.org][OUTLINE.org]].

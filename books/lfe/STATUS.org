@@ -1,0 +1,16 @@
+#+title: LFE for Beginners: Lisp on the Erlang VM -- Status
+:PROPERTIES:
+:ID:       892d2db3-009e-5775-9ed1-183e882114a5
+:END:
+* Phase
+Bootstrap curriculum and architecture.
+* Completed
+- Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
+* Active research
+Foundational primary-source research has not yet been declared complete.
+* Unverified claims
+All version-sensitive implementation details remain RESEARCH/UNTESTED until the relevant issue verifies them.
+* Technical/editorial/visual review
+Not started.
+* Blockers
+Dependency-aware backlog must be executed before chapter prose is promoted to DONE.

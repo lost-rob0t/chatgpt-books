@@ -1,0 +1,10 @@
+#+title: Machine Learning for StarIntel: From Zero to Useful Models -- Research Index
+:PROPERTIES:
+:ID:       eef10bc4-ad44-5da5-8d61-b7b822414c3d
+:END:
+* Research questions
+- Which primary sources define the foundational concepts?
+- Which behavior is version-sensitive in the current toolchain?
+- Which claims require reproduction/benchmarking rather than citation alone?
+* Records
+Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].

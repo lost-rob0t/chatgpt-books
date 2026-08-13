@@ -1,0 +1,85 @@
+#+title: Machine Learning for StarIntel: From Zero to Useful Models -- Major Projects
+:PROPERTIES:
+:ID:       6182c958-3556-5c06-a03b-d3669c4b5c7d
+:END:
+* Major Projects
+** Project 1 -- Investigation Dataset Pipeline
+:PROPERTIES:
+:ID:       a289a81e-a645-52da-bcb6-6e72b9848a72
+:END:
+Purpose: Build a reproducible public/synthetic StarIntel-style data pipeline with validation, feature engineering, splits, provenance, and quality reports.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 2 -- Entity Resolution System
+:PROPERTIES:
+:ID:       5cde0f4f-a3c1-56a3-bbfd-08f26bd96820
+:END:
+Purpose: Grow exact matching into normalized, similarity, learned-feature, and embedding-assisted entity resolution with labeled evaluation.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 3 -- Semantic Search
+:PROPERTIES:
+:ID:       96a059d7-fc29-5d69-802b-ca9f81c447c5
+:END:
+Purpose: Build embeddings, an index, retrieval API, evaluation harness, and debugging tools.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 4 -- Graph/Relationship ML
+:PROPERTIES:
+:ID:       c1779ee7-fd1a-5c11-af44-c5fe397b8e7d
+:END:
+Purpose: Build graph features, anomaly detection, node representations, and carefully evaluated link prediction on public/synthetic graphs.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 5 -- ML-Enriched StarIntel Pipeline
+:PROPERTIES:
+:ID:       c8487c3f-2367-5f3e-88ca-a1dc8cc01eca
+:END:
+Purpose: Capstone integrating ingestion, entity resolution, semantic retrieval, graph features, evaluation, provenance, and an explicit StarIntel adapter.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.

@@ -1,0 +1,6 @@
+#+title: Machine Learning for StarIntel: From Zero to Useful Models -- Search Log
+:PROPERTIES:
+:ID:       7aeac52b-1241-5d74-a501-c79bcb1f33c2
+:END:
+* Entries
+No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.

@@ -1,0 +1,10 @@
+#+title: Prolog for Beginners: Thinking in Relations -- Research Index
+:PROPERTIES:
+:ID:       c368988a-e9d2-56c6-8a93-1bbd8a0b3af1
+:END:
+* Research questions
+- Which primary sources define the foundational concepts?
+- Which behavior is version-sensitive in the current toolchain?
+- Which claims require reproduction/benchmarking rather than citation alone?
+* Records
+Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].

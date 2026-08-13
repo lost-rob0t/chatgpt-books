@@ -1,0 +1,22 @@
+#+title: Erlang for Beginners: Building Systems That Refuse to Die
+:PROPERTIES:
+:ID:       688b8ff0-6fbc-53cc-85aa-7b63420985ce
+:END:
+* Purpose
+A serious independent technical book, eventually about 300--700 rendered EPUB pages when depth warrants it. It is not a README expansion or generic tutorial dump.
+* Audience
+Programmers who want to learn BEAM concurrency, OTP, and fault-tolerant service design.
+* Prerequisites
+General programming; no functional-programming background required.
+* Learning outcomes
+The reader should be able to explain the core ideas, implement important mechanisms, debug failures, evaluate tradeoffs, and extend the systems built in the major projects.
+* Major projects
+- [[id:13645c4b-038c-5970-99f3-e6852768fd95][Process-Based Messaging System]] -- Build process protocols with links, monitors, timeouts, failures, and tests.
+- [[id:80c110b1-bc1a-56d6-ae93-924c4b541baf][OTP Worker Service]] -- Convert ad-hoc processes into a proper OTP application with gen_server boundaries.
+- [[id:6d9afccc-5159-5527-9caf-447701fc748e][Supervised Job Processor]] -- Add supervisors, workers, restart strategies, queueing, backpressure, and telemetry.
+- [[id:103b12a9-2303-52f3-850e-19e0f7043d30][Distributed Erlang Service]] -- Run cooperating nodes and handle disconnects and partial failures.
+- [[id:0a80a100-37ef-58b1-8621-55edebdf3932][Fault-Tolerant Distributed Application]] -- Capstone with supervision, persistence boundary, telemetry, controlled failure injection, and recovery tests.
+* Research
+Record primary-source work under =research/= and bibliography metadata in =references.bib=. Never let version-sensitive prose outrun current documentation.
+* Build
+From repository root: =make book BOOK=erlang= and =make check BOOK=erlang=. Bootstrap manuscripts are outlines, not release-ready books.

@@ -1,0 +1,6 @@
+#+title: Expert System Design and Implementation: From Rules to Production Knowledge Systems -- Search Log
+:PROPERTIES:
+:ID:       e04fc04d-4b5e-56c2-adc2-b3c6a90fad5e
+:END:
+* Entries
+No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.

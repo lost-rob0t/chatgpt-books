@@ -1,0 +1,6 @@
+#+title: Machine Learning for StarIntel: From Zero to Useful Models -- Source Inventory
+:PROPERTIES:
+:ID:       f1c22721-0f29-5e43-b9bb-b2c597c5fad3
+:END:
+* Policy
+Add only sources actually inspected. Record URL, authority, publication/version date when known, retrieval date, relevant sections, and affected chapters/projects.

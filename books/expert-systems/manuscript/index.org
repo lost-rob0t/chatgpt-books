@@ -1,0 +1,8 @@
+#+title: Expert System Design and Implementation: From Rules to Production Knowledge Systems
+:PROPERTIES:
+:ID:       9becfcba-8a01-5ff0-ac83-eadd89103df0
+:END:
+#+bibliography: ../references.bib
+
+* Manuscript bootstrap
+This is the canonical manuscript entry point. Long-form drafting begins only after the publishing/research bootstrap and the relevant research issue are ready. See [[file:../OUTLINE.org][OUTLINE.org]].

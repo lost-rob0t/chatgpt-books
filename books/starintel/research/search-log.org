@@ -1,0 +1,6 @@
+#+title: StarIntel: Primer, Architecture, Internals, and Hacker's Guide -- Search Log
+:PROPERTIES:
+:ID:       85646cfc-4148-5e4f-b484-6f9530e8a279
+:END:
+* Entries
+No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.

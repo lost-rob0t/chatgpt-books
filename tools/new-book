@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+echo "The canonical nine-book series is fixed during bootstrap. Use templates/ only after updating README.org and structural policy." >&2
+exit 2

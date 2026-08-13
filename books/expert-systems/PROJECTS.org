@@ -1,0 +1,117 @@
+#+title: Expert System Design and Implementation: From Rules to Production Knowledge Systems -- Major Projects
+:PROPERTIES:
+:ID:       7ef4f080-3d36-5668-8737-62728f4c8a94
+:END:
+* Major Projects
+** Project 1 -- Progressive Inference Engine
+:PROPERTIES:
+:ID:       8f64ec5f-7322-52d9-a73b-b1ac83873ab6
+:END:
+Purpose: Build from literal matcher through bindings, joins, working memory, agenda, incremental alpha/beta matching, RETE-like propagation, truth maintenance, and explanation.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 2 -- Technical Troubleshooting Knowledge Base
+:PROPERTIES:
+:ID:       74177fb5-740c-50cb-a8c4-345e1fea11bb
+:END:
+Purpose: Build a substantial Linux/server/distributed-service diagnosis KB with provenance, contradictions, temporal observations, and regression scenarios.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 3 -- Knowledge Engineering Workbench
+:PROPERTIES:
+:ID:       c3777f4c-e6c2-56c7-8e88-44d6f01c8ca5
+:END:
+Purpose: Build the interface/API for adding, validating, testing, previewing, versioning, activating, deprecating, and explaining facts and rules without editing engine source.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 4 -- Standalone Expert-System Application
+:PROPERTIES:
+:ID:       5ea227ce-d70c-563d-8fc0-95bb38dc840e
+:END:
+Purpose: Integrate engine, real KB, workbench, CLI/API, explanation graph, tests, benchmarks, and observability.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 5 -- CouchDB-Backed Expert System
+:PROPERTIES:
+:ID:       a44f89ef-546e-5bb9-8ebe-b87c80173000
+:END:
+Purpose: Persist facts, rules, observations, sessions, provenance, explanations, versions, conflicts, and reactive _changes-driven updates through a database-neutral adapter.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 6 -- PostgreSQL-Backed Expert System
+:PROPERTIES:
+:ID:       d858e428-6341-55ac-b04d-384ed570a478
+:END:
+Purpose: Model normalized relational knowledge, transactional inference, concurrency, provenance queries, constraints, and versioned rules without reducing the schema to a JSONB blob.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+** Project 7 -- Production Knowledge System
+:PROPERTIES:
+:ID:       66d3f9da-355c-5dce-b23a-a9226a6404ce
+:END:
+Purpose: Capstone comparing persistence models and operating a complete, explainable, versioned knowledge system under controlled failure and concurrency.
+Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
+Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
+Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
+External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
+Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
+Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
+Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
+Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
+Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.

@@ -1,0 +1,55 @@
+;;; chatgpt-books-roam.el --- Scoped Org-roam integration -*- lexical-binding: t; -*-
+;;; Commentary:
+;; Switch Org-roam into a disposable project-local DB without overwriting the user's personal graph.
+;;; Code:
+(require 'cl-lib)
+(require 'chatgpt-books)
+(defvar chatgpt-books-roam--saved-state nil)
+(defun chatgpt-books-roam-directory () (file-truename (expand-file-name "roam" (chatgpt-books-root))))
+(defun chatgpt-books-roam-db-location () (expand-file-name ".cache/org-roam.db" (chatgpt-books-root)))
+(defun chatgpt-books-roam--capture-templates ()
+  (let ((root (chatgpt-books-roam-directory)))
+    `(("c" "concept" plain "%?" :target (file+head "concepts/${slug}.org" ":PROPERTIES:\n:ID: %(org-id-new)\n:END:\n#+title: ${title}\n") :unnarrowed t)
+      ("t" "technology" plain "%?" :target (file+head "technologies/${slug}.org" ":PROPERTIES:\n:ID: %(org-id-new)\n:END:\n#+title: ${title}\n") :unnarrowed t)
+      ("p" "academic paper" plain "* Notes\n%?" :target (file+head "papers/${slug}.org" ":PROPERTIES:\n:ID: %(org-id-new)\n:URL: %^{URL}\n:AUTHOR: %^{Author}\n:PUBLISHED: %^{Published}\n:RETRIEVED: %U\n:AUTHORITY: %^{Authority}\n:END:\n#+title: ${title}\n") :unnarrowed t)
+      ("b" "book research note" plain "%?" :target (file+head "research/${slug}.org" ":PROPERTIES:\n:ID: %(org-id-new)\n:RETRIEVED: %U\n:BOOKS: %^{Book slugs}\n:END:\n#+title: ${title}\n") :unnarrowed t)
+      ("q" "research question" plain "* Question\n%?" :target (file+head "research/${slug}.org" ":PROPERTIES:\n:ID: %(org-id-new)\n:RETRIEVED: %U\n:END:\n#+title: ${title}\n") :unnarrowed t)
+      ("a" "algorithm" plain "%?" :target (file+head "algorithms/${slug}.org" ":PROPERTIES:\n:ID: %(org-id-new)\n:END:\n#+title: ${title}\n") :unnarrowed t)
+      ("s" "source" plain "* Relevance\n%?" :target (file+head "research/${slug}.org" ":PROPERTIES:\n:ID: %(org-id-new)\n:URL: %^{URL}\n:RETRIEVED: %U\n:AUTHORITY: %^{Authority}\n:END:\n#+title: ${title}\n") :unnarrowed t)
+      ("m" "major project" plain "* Purpose\n%?\n* Requirements\n* Architecture\n* Tests\n* Failure scenarios\n* Visuals\n* Research\n" :target (file+head "research/${slug}.org" ":PROPERTIES:\n:ID: %(org-id-new)\n:END:\n#+title: ${title}\n") :unnarrowed t))))
+(defun chatgpt-books-roam--save-state ()
+  (unless chatgpt-books-roam--saved-state
+    (setq chatgpt-books-roam--saved-state
+          (list :directory (and (boundp 'org-roam-directory) org-roam-directory)
+                :db (and (boundp 'org-roam-db-location) org-roam-db-location)
+                :templates (and (boundp 'org-roam-capture-templates) org-roam-capture-templates)
+                :autosync (and (boundp 'org-roam-db-autosync-mode) org-roam-db-autosync-mode)))))
+(defun chatgpt-books-roam-setup ()
+  "Switch Org-roam to the chatgpt-books graph and sync it."
+  (interactive)
+  (require 'org-roam)
+  (chatgpt-books-roam--save-state)
+  (let ((cache-dir (file-name-directory (chatgpt-books-roam-db-location))))
+    (make-directory cache-dir t))
+  (setq org-roam-directory (chatgpt-books-roam-directory)
+        org-roam-db-location (chatgpt-books-roam-db-location)
+        org-roam-capture-templates (chatgpt-books-roam--capture-templates))
+  (org-roam-db-sync)
+  (when (fboundp 'org-roam-db-autosync-mode) (org-roam-db-autosync-mode 1)))
+(defun chatgpt-books-roam-restore ()
+  "Restore Org-roam variables captured before project setup."
+  (interactive)
+  (when chatgpt-books-roam--saved-state
+    (when (and (fboundp 'org-roam-db-autosync-mode) org-roam-db-autosync-mode) (org-roam-db-autosync-mode -1))
+    (setq org-roam-directory (plist-get chatgpt-books-roam--saved-state :directory)
+          org-roam-db-location (plist-get chatgpt-books-roam--saved-state :db)
+          org-roam-capture-templates (plist-get chatgpt-books-roam--saved-state :templates))
+    (when (and (plist-get chatgpt-books-roam--saved-state :autosync) (fboundp 'org-roam-db-autosync-mode)) (org-roam-db-autosync-mode 1))
+    (setq chatgpt-books-roam--saved-state nil)))
+(defun chatgpt-books-roam-db-sync () (interactive) (require 'org-roam) (chatgpt-books-roam-setup) (org-roam-db-sync))
+(defun chatgpt-books-roam-db-clear-and-sync () (interactive) (require 'org-roam) (chatgpt-books-roam-setup) (org-roam-db-clear-all) (org-roam-db-sync))
+(defun chatgpt-books-roam-node-find () (interactive) (chatgpt-books-roam-setup) (call-interactively #'org-roam-node-find))
+(defun chatgpt-books-roam-node-insert () (interactive) (chatgpt-books-roam-setup) (call-interactively #'org-roam-node-insert))
+(defun chatgpt-books-roam-open-index () (interactive) (find-file (expand-file-name "index.org" (chatgpt-books-roam-directory))))
+(provide 'chatgpt-books-roam)
+;;; chatgpt-books-roam.el ends here

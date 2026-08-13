@@ -1,0 +1,12 @@
+#+title: Symbolic AI in Prolog -- Asset Plan
+:PROPERTIES:
+:ID:       23e18b35-3b2d-58a2-a373-adf2c624df5e
+:END:
+* Required asset classes
+- editable architecture/algorithm diagrams
+- reproducible plots where data/math warrants them
+- screenshots only when real UI teaches something
+- generated illustration provenance records when used
+- unique cover background/motif + deterministic typography
+* Rule
+Do not add decorative assets merely to inflate the book. Every informative figure gets caption + alt text.

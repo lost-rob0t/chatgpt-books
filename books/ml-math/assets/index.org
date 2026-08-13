@@ -1,0 +1,12 @@
+#+title: Machine Learning Math for People Who Actually Want to Understand It -- Asset Plan
+:PROPERTIES:
+:ID:       16621e19-3594-517c-8b13-112aa7cdd81f
+:END:
+* Required asset classes
+- editable architecture/algorithm diagrams
+- reproducible plots where data/math warrants them
+- screenshots only when real UI teaches something
+- generated illustration provenance records when used
+- unique cover background/motif + deterministic typography
+* Rule
+Do not add decorative assets merely to inflate the book. Every informative figure gets caption + alt text.

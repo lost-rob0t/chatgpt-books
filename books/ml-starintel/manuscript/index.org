@@ -1,0 +1,8 @@
+#+title: Machine Learning for StarIntel: From Zero to Useful Models
+:PROPERTIES:
+:ID:       28b0306c-3cb3-545e-9cfe-a43fa63d094f
+:END:
+#+bibliography: ../references.bib
+
+* Manuscript bootstrap
+This is the canonical manuscript entry point. Long-form drafting begins only after the publishing/research bootstrap and the relevant research issue are ready. See [[file:../OUTLINE.org][OUTLINE.org]].
