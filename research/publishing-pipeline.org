@@ -3,12 +3,16 @@
 :ID:       a994a0f4-5e02-50f1-80a2-d07c963a3664
 :END:
 * Decision
-DOCUMENTED 2026-08-12: use direct Pandoc Org input to EPUB 3, with deterministic prebuilt assets, then validate with EPUBCheck 5.3.0.
+DOCUMENTED 2026-08-12: use direct Pandoc Org input to EPUB 3, with deterministic prebuilt assets, then validate with EPUBCheck 5.3.0 and repository-specific EPUB regression assertions.
 * Primary-source evidence
 - Pandoc User's Guide (retrieved 2026-08-12): https://pandoc.org/demo/example3.html
   - current guide documents modular readers/writers, explicit input/output formats, =--citeproc=, external bibliographies, math, linked media inclusion, EPUB 3 semantics, and accessibility metadata.
+- Pandoc EPUB metadata (retrieved 2026-08-12): https://pandoc.org/demo/example33/11.1-epub-metadata.html
+  - documents explicit =accessModes=, =accessModeSufficient=, =accessibilityHazards=, =accessibilityFeatures=, and =accessibilitySummary= metadata fields.
 - Org Manual, citations (retrieved 2026-08-12): https://orgmode.org/manual/Citations.html
   - Org 9.8 documents =#+bibliography:= and =[cite:@key]= authoring syntax.
+- W3C EPUB Accessibility 1.1 (retrieved 2026-08-12): https://www.w3.org/TR/epub-a11y-11/
+  - requires package accessibility discoverability metadata and defines the accessibility conformance baseline used by the fixture policy.
 - W3C EPUBCheck releases (retrieved 2026-08-12): https://github.com/w3c/epubcheck/releases
   - 5.3.0 is identified upstream as the latest production-ready release and validates EPUB 3.3.
 - Org-roam upstream repository (retrieved 2026-08-12): https://github.com/org-roam/org-roam
@@ -16,6 +20,8 @@ DOCUMENTED 2026-08-12: use direct Pandoc Org input to EPUB 3, with deterministic
 * Why this route
 Pandoc is current, scriptable, reproducible in CI/Nix, accepts Org directly, and has a mature EPUB writer. It avoids making an unmaintained third-party Org EPUB exporter the critical path. Org remains canonical; Pandoc is the publication compiler, not the authoring format.
 * Compatibility boundary
-Pandoc's Org reader is not Emacs itself. Authoring-only constructs must be tested in the representative fixture before relying on them. Stable =:ID:= properties remain canonical in Org; where a reader cannot resolve =id:= links without Emacs' ID database, exported manuscripts should also provide stable local/custom anchors or an export preprocessing step.
+Pandoc's Org reader is not Emacs itself. Authoring-only constructs must be tested in the representative fixture before relying on them. Stable =:ID:= properties remain canonical in Org. When =:CUSTOM_ID:= and =:ID:= coexist, the Lua normalization preserves the Org ID as the canonical XHTML heading identifier and retains the custom identifier as an alias so existing fragment links remain valid.
 * Feature acceptance fixture
-The fixture must prove headings, ID property, cross-reference, source block, table, footnote, citation/bibliography, equation, SVG diagram, generated plot, image, alt text, Unicode, cover and EPUBCheck.
+The fixture proves headings, stable Org ID and custom-anchor behavior, internal cross-reference resolution, source block, table, footnote, citation/bibliography, MathML equation output, deterministic SVG, PNG and JPEG media, ordinary image inclusion, meaningful alt text, captions, Unicode, explicit cover/accessibility metadata, and EPUBCheck conformance. =tools/check-epub-fixture= inspects the packaged OPF/XHTML for repository-specific regressions after the standards validator runs.
+
+Detailed accessibility expectations and diagnostics live in [[file:epub-accessibility.org][epub-accessibility.org]].
