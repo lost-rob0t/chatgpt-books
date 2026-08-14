@@ -29,3 +29,17 @@
 - Conclusion: canonical lock is 0.9.0 at the named commit; Project 1 should use a narrow adapter, a tiny frozen GLEIF+synthetic fixture, train-only fitted preprocessing, explicit split/build manifests, and a pinned boring Python stack.
 - Uncertainty: exact GLEIF slice, cross-language conformance, grouped+temporal policy, environment compatibility, provenance round trip, and Experiments A--E remain UNTESTED.
 - Follow-up: pin/materialize the schema and executable environment; run E, D, then A--C.
+
+** 2026-08-14 -- foundational pass 03 / executable conformance harness
+- Exact question: Can Project 1 materialize the exact canonical StarIntel 0.9 schema by immutable commit + verified Git blob identity and successfully validate representative records without duplicating upstream schema/runtime semantics?
+- Repositories/files inspected: =lost-rob0t/starintel-gpt-auto-dig@ff814ff63868286d68e21502122832802cd5e361/schemas/starintel-doc-v0.9.0.schema.json= and =conformance/README.md=; current =lost-rob0t/starintel-doc/starintel_doc/v090.py= and =pyproject.toml=.
+- External primary documentation inspected: official PyPI =jsonschema= project record; current release observed 4.26.0 on 2026-08-14.
+- Command executed in GitHub Actions: =python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_experiments.py= after installing =requirements.txt=.
+- First result: =FAILED= in =ml-starintel-research= run #1. The supposed-valid record used =version: "0.9.0"=; canonical validation rejected it because top-level =version= is integer >= 1. Six negative cases already matched their expected categories.
+- Correction: changed the positive fixture to =version: 1= and preserved the original mistake as the =wrong_document_version_type= negative regression case.
+- Second result: =TESTED= in =ml-starintel-research= run #2. Experiment E passed 9/9 smoke checks with zero failed checks; minimal person + namespaced extension accepted, required/undeclared/date/alias/spec-version/version-type/data-type negatives rejected as expected, and JSON round trip preserved the valid document.
+- D0 result: =TESTED= narrow synthetic provenance-manifest round trip; canonical record valid, manifest round-trip equal, required predeclared metadata paths present.
+- Environment recorded by successful run: Ubuntu 24.04.4 runner, Python 3.12.3, =jsonschema= 4.26.0, pinned schema commit =ff814ff63868286d68e21502122832802cd5e361=, verified schema Git blob =b26d62644c675e2d55f4ea95f8ec207cfb08ae9a=.
+- Remaining uncertainty: full upstream conformance matrix and cross-language equivalence; exact public GLEIF fixture; full public-source provenance Experiment D; transitive Python locking; grouped+temporal and near-duplicate policies; leakage Experiments A--C.
+- Follow-up: freeze/hash a tiny explicit GLEIF fixture, run full D, then implement A--C only after split/group rules are predeclared.
+- Record: [[file:foundations-pass-03.org][foundations-pass-03.org]].
