@@ -9,8 +9,10 @@
 - Which StarIntel document/schema boundary should the ML projects target?
 - Which split policies avoid evaluation contamination across related entities, time, duplicate clusters, graph edges, and source lineage?
 - Which provenance facts belong on canonical StarIntel records versus dataset-build manifests?
+- Which canonical-schema assumptions survive executable validation before Project 1 data is admitted?
 * Research passes
 - [[file:foundations-pass-01.org][Foundational Research Pass 01]] -- RESEARCH; 2026-08-13. Seeds Chapters 1--5 and Project 1, records the current scikit-learn/PyTorch baseline, and documents the current StarIntel 0.9/legacy 0.8 integration boundary.
-- [[file:foundations-pass-02.org][Foundational Research Pass 02]] -- RESEARCH; 2026-08-13. Documents the locked canonical StarIntel 0.9 schema revision, selects a preliminary GLEIF + deterministic synthetic fixture strategy, specifies grouped/time-aware evaluation and provenance requirements, verifies current toolchain assumptions from primary documentation, and defines Experiments A--E. All Book 1 experiments remain UNTESTED until executed.
+- [[file:foundations-pass-02.org][Foundational Research Pass 02]] -- RESEARCH; 2026-08-13. Documents the locked canonical StarIntel 0.9 schema revision, selects a preliminary GLEIF + deterministic synthetic fixture strategy, specifies grouped/time-aware evaluation and provenance requirements, verifies current toolchain assumptions from primary documentation, and defines Experiments A--E. At the end of that pass all Book 1 experiments were UNTESTED.
+- [[file:foundations-pass-03.org][Foundational Research Pass 03]] -- RESEARCH; 2026-08-14. Adds the executable Project 1 research harness, records an initial FAILED conformance run that corrected the top-level =version= assumption, then records a successful pinned-schema Experiment E smoke matrix plus the narrow TESTED D0 provenance-manifest round trip. Full public-data D and leakage Experiments A--C remain UNTESTED.
 * Records
 Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
