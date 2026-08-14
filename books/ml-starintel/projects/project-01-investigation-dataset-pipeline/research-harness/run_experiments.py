@@ -19,10 +19,10 @@ import sys
 import urllib.request
 from copy import deepcopy
 from datetime import datetime, timezone
+from importlib.metadata import version as package_version
 from pathlib import Path
 from typing import Any
 
-import jsonschema
 from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import ValidationError as JsonSchemaValidationError
 
@@ -162,7 +162,7 @@ def base_document() -> dict[str, Any]:
         "dataset": "book1-project1-research",
         "dtype": "person",
         "schema_version": SPEC_VERSION,
-        "version": SPEC_VERSION,
+        "version": 1,
         "date_added": "2026-08-14T14:00:00Z",
         "date_updated": "2026-08-14T14:00:00Z",
         "sources": [],
@@ -202,9 +202,13 @@ def experiment_e(schema: dict[str, Any]) -> dict[str, Any]:
     alias["dtype"] = "organization"
     cases.append(("legacy_alias_dtype", alias, False, "invalid_enum"))
 
-    bad_version = deepcopy(positive)
-    bad_version["schema_version"] = "0.8.0"
-    cases.append(("wrong_schema_version", bad_version, False, "unsupported_spec_version"))
+    bad_spec_version = deepcopy(positive)
+    bad_spec_version["schema_version"] = "0.8.0"
+    cases.append(("wrong_schema_version", bad_spec_version, False, "unsupported_spec_version"))
+
+    bad_document_version = deepcopy(positive)
+    bad_document_version["version"] = "0.9.0"
+    cases.append(("wrong_document_version_type", bad_document_version, False, "wrong_type"))
 
     wrong_data_type = deepcopy(positive)
     wrong_data_type["data"] = []
@@ -304,7 +308,7 @@ def environment_record(schema_source: str) -> dict[str, Any]:
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "python": sys.version.split()[0],
         "platform": platform.platform(),
-        "jsonschema": jsonschema.__version__,
+        "jsonschema": package_version("jsonschema"),
         "schema_source": schema_source,
         "schema_repository": SCHEMA_REPOSITORY,
         "schema_commit": SCHEMA_COMMIT,
