@@ -1,0 +1,43 @@
+#+title: Project 1 -- Foundational Research Harness
+
+* Purpose
+This is an executable research harness for Project 1, not chapter prose and not a replacement StarIntel runtime.
+
+It currently exercises:
+- Experiment E: a pinned StarIntel 0.9 conformance smoke matrix.
+- Experiment D0: a narrow synthetic provenance-manifest round trip used to verify the harness shape before the real public-data provenance experiment.
+
+Experiments A--C and the full public-data Experiment D remain UNTESTED.
+
+* Canonical boundary
+The harness materializes the canonical schema from:
+
+- repository: =lost-rob0t/starintel-gpt-auto-dig=
+- commit: =ff814ff63868286d68e21502122832802cd5e361=
+- path: =schemas/starintel-doc-v0.9.0.schema.json=
+- Git blob SHA-1: =b26d62644c675e2d55f4ea95f8ec207cfb08ae9a=
+
+The fetched bytes are rejected unless their Git blob identity matches exactly. This avoids silently following a moving branch while also avoiding a second hand-maintained StarIntel schema in this book.
+
+* Run
+#+begin_src sh
+python3 -m pip install -r requirements.txt
+python3 run_experiments.py
+#+end_src
+
+After the first successful materialization, the same schema cache can be exercised without network access:
+
+#+begin_src sh
+python3 run_experiments.py --offline
+#+end_src
+
+Machine-readable results are written to =artifacts/experiments.json= and uploaded by the =ml-starintel-research= GitHub Actions workflow.
+
+* Claim-status rules
+- A CI invocation that actually executes a case may be recorded as TESTED.
+- A failing invocation is FAILED and remains part of the research record.
+- The synthetic D0 manifest check does not prove the eventual GLEIF/public-source provenance pipeline; that remains UNTESTED.
+- Cross-language Python/Nim/Common Lisp conformance remains UNTESTED here.
+
+* First observed failure
+The first CI execution on 2026-08-14 rejected the supposed-valid fixture because top-level StarIntel =version= is an integer with minimum 1, not the schema-version string. The harness was corrected to =version: 1= and retains the original mistake as a negative regression case. This is exactly why implementation claims stay UNTESTED until exercised against the canonical schema.
