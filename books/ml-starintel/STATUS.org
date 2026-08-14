@@ -6,14 +6,18 @@
 Phase 1 -- foundational research.
 * Completed
 - Curriculum and project map initialized.
-- Foundational research passes 01 and 02 completed as research records; the foundational phase itself remains open.
+- Foundational research passes 01--03 completed as research records; the foundational phase itself remains open.
+- Project 1 executable research harness added with pinned canonical StarIntel schema materialization and Git blob verification.
+- Experiment E StarIntel 0.9 Python/Draft-2020-12 smoke matrix TESTED in CI after one recorded FAILED assumption correction; corrected run passed all 9 smoke checks.
+- D0 narrow synthetic provenance-manifest round trip TESTED in CI.
 * Active research
-- Create the reproducible Project 1 research harness.
-- Verify the canonical document adapter and fixture.
-- Execute Experiments A--E and record real outputs.
+- Freeze and hash the tiny redistribution-safe public GLEIF fixture and normalized StarIntel records.
+- Execute the full public-source provenance Experiment D.
+- Predeclare deterministic entity/time/duplicate grouping rules, then execute leakage Experiments A--C with real outputs/plots.
+- Verify broader upstream/cross-language StarIntel conformance separately from the Book 1 Python smoke matrix.
 * Unverified claims
-Implementation behavior and experiment results remain UNTESTED until their commands run.
+- Full public-data provenance, leakage measurements, cross-language conformance equivalence, and the final dependency lock remain UNTESTED.
 * Technical/editorial/visual review
 Not started.
 * Blockers
-Executable foundational experiments must run before Chapters 2--5 or Project 1 move beyond RESEARCH/DRAFT.
+A reproducible public fixture plus full Experiment D and leakage Experiments A--C must run before Chapters 2--5 or Project 1 move beyond RESEARCH/DRAFT.
