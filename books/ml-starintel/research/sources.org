@@ -103,13 +103,49 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 ** Pass 02 -- canonical StarIntel 0.9 locked revision
 - URL: https://github.com/lost-rob0t/starintel-gpt-auto-dig/tree/ff814ff63868286d68e21502122832802cd5e361
 - Authority: revision named by the inspected Python/Nim/Common Lisp/server schema locks.
-- Observed: schema 0.9.0; revision =0.9.0+fields.20260726.2=; 50 dtypes. Retrieved: 2026-08-13.
+- Observed: schema 0.9.0; revision =0.9.0+fields.20260726.2=; 50 dtypes.
+- Retrieved: 2026-08-13.
 
 ** Pass 02 -- GLEIF LEI data
 - URLs: https://www.gleif.org/en/meta/lei-data-terms-of-use ; https://www.gleif.org/en/lei-data/gleif-golden-copy
-- Authority: official GLEIF terms/data documentation; CC0 access terms inspected. Retrieved: 2026-08-13.
+- Authority: official GLEIF terms/data documentation; CC0 access terms inspected.
+- Retrieved: 2026-08-13.
 
 ** Pass 02 -- leakage primary paper
 - URL: https://pmc.ncbi.nlm.nih.gov/articles/PMC10499856/
 - DOI: 10.1016/j.patter.2023.100804
-- Authority: Kapoor and Narayanan, =Patterns= 4(9), 100804, 2023. Retrieved: 2026-08-13.
+- Authority: Kapoor and Narayanan, =Patterns= 4(9), 100804, 2023.
+- Retrieved: 2026-08-13.
+
+** Pass 03 -- canonical StarIntel 0.9 schema
+- URL: https://github.com/lost-rob0t/starintel-gpt-auto-dig/blob/ff814ff63868286d68e21502122832802cd5e361/schemas/starintel-doc-v0.9.0.schema.json
+- Authority: exact immutable canonical schema revision named by inspected StarIntel bindings.
+- Git blob SHA observed: =b26d62644c675e2d55f4ea95f8ec207cfb08ae9a=.
+- Retrieved/used: 2026-08-14.
+- Relevant to: Chapters 2--5; Project 1 admission/validation boundary.
+
+** Pass 03 -- canonical StarIntel conformance documentation
+- URL: https://github.com/lost-rob0t/starintel-gpt-auto-dig/blob/ff814ff63868286d68e21502122832802cd5e361/conformance/README.md
+- Authority: immutable upstream conformance contract documentation.
+- Retrieved: 2026-08-14.
+- Relevant to: Project 1 conformance strategy and later cross-language verification.
+
+** Pass 03 -- current StarIntel Python v0.9 adapter
+- URL: https://github.com/lost-rob0t/starintel-doc/blob/master/starintel_doc/v090.py
+- Authority: current Python binding implementation.
+- Observed behavior: Draft 2020-12 validation, explicit 0.9 version guard, alias rejection, RFC3339 timezone check, canonical error categories.
+- Retrieved: 2026-08-14.
+- Relevant to: Project 1 executable validation harness.
+
+** Pass 03 -- current StarIntel Python package metadata
+- URL: https://github.com/lost-rob0t/starintel-doc/blob/master/pyproject.toml
+- Authority: current Python binding package metadata.
+- Observed dependency contract: =jsonschema>=4.23,<5=; Python >=3.10.
+- Retrieved: 2026-08-14.
+
+** Pass 03 -- jsonschema 4.26.0 package record
+- URL: https://pypi.org/project/jsonschema/
+- Authority: official PyPI project record owned by the JSON Schema project.
+- Current release observed: 4.26.0, published 2026-01-07.
+- Retrieved: 2026-08-14.
+- Relevant to: pinned Project 1 research harness dependency; version-sensitive implementation detail, not a permanent book-wide pin.
