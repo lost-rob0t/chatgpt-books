@@ -1,0 +1,34 @@
+name: ml-starintel-research
+
+on:
+  pull_request:
+    paths:
+      - 'books/ml-starintel/**'
+      - '.github/workflows/ml-starintel-research.yml'
+  workflow_dispatch:
+
+jobs:
+  project1-foundations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pinned research dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check \
+            -r books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/requirements.txt
+
+      - name: Run Project 1 foundational experiments
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_experiments.py
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ml-starintel-project1-research-results
+          path: books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/experiments.json
+          if-no-files-found: warn
