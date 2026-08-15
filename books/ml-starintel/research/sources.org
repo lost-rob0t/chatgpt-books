@@ -149,3 +149,45 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Current release observed: 4.26.0, published 2026-01-07.
 - Retrieved: 2026-08-14.
 - Relevant to: pinned Project 1 research harness dependency; version-sensitive implementation detail, not a permanent book-wide pin.
+
+** Pass 04 -- GLEIF LEI Data: Access & Use
+- URL: https://www.gleif.org/en/lei-data/access-and-use-lei-data
+- Authority: official Global Legal Entity Identifier Foundation documentation.
+- Retrieved: 2026-08-15.
+- Observed: complete LEI data pool is publicly accessible; GLEIF exposes search, concatenated files, Golden Copy/deltas and an API.
+- Relevant to: Chapter 2 and Project 1 fixture/source policy.
+
+** Pass 04 -- GLEIF LEI Data Terms of Use
+- URL: https://www.gleif.org/en/meta/lei-data-terms-of-use
+- Authority: official GLEIF data terms.
+- Retrieved: 2026-08-15.
+- Observed: Access Service is free; LEI and related reference data available through it are provided under CC0 1.0 Universal.
+- Relevant to: Project 1 redistribution/licence provenance.
+
+** Pass 04 -- GLEIF Level 1 / Level 2 definitions
+- URLs: https://www.gleif.org/en/lei-data/access-and-use-lei-data/level-1-data-who-is-who ; https://www.gleif.org/en/lei-data/access-and-use-lei-data/level-2-data-who-owns-whom
+- Authority: official GLEIF documentation.
+- Retrieved: 2026-08-15.
+- Observed: Level 1 covers identifying reference data ('who is who'); Level 2 covers direct/ultimate accounting-consolidating parent relationships ('who owns whom').
+- Relevant to: Project 1 final public fixture and later graph/entity projects.
+
+** Pass 04 -- GLEIF API and Concatenated Files
+- URLs: https://www.gleif.org/en/lei-data/gleif-api/ ; https://www.gleif.org/en/lei-data/gleif-concatenated-file/about-the-concatenated-file
+- Authority: official GLEIF API/data-distribution documentation.
+- Retrieved: 2026-08-15.
+- Observed: API is based on Golden Copy data; concatenated files are updated daily, so ordinary tests must not silently track mutable latest data.
+- Relevant to: Project 1 immutable snapshot/hash policy.
+
+** Pass 04 -- GLEIF Contact Information
+- URL: https://www.gleif.org/en/contact/contact-information
+- Authority: official GLEIF contact page.
+- Retrieved: 2026-08-15.
+- Observed: legal name =Global Legal Entity Identifier Foundation (GLEIF)=; LEI =506700GE1G29325QX363=; physical address =St. Alban-Vorstadt 12, 4052 Basel, Switzerland=.
+- Relevant to: first frozen public-source fixture and Experiment D1.
+
+** Pass 04 -- locked StarIntel conformance fixture semantics
+- URL: https://github.com/lost-rob0t/starintel-gpt-auto-dig/blob/ff814ff63868286d68e21502122832802cd5e361/conformance/fixtures.py
+- Authority: immutable canonical upstream conformance fixture implementation.
+- Retrieved: 2026-08-15.
+- Observed: canonical top-level fixture uses =schema_version= 0.9.0, separate integer document =version= 1, =sources= / =evidence= arrays, and typed source objects.
+- Relevant to: Project 1 normalized GLEIF fixture; no duplicate validator/schema implementation.
