@@ -5,7 +5,7 @@
 RESEARCH; foundational phase remains open.
 
 * Scope
-Freeze the first redistribution-safe public GLEIF source fixture, hash both source and normalized artifacts, map it through the narrow StarIntel adapter boundary, and add an executable provenance check. No chapter prose and no StarIntel storage/runtime duplication.
+Freeze the first redistribution-safe public GLEIF source fixture, hash both source and normalized artifacts, map it through the narrow StarIntel adapter boundary, and execute an observable provenance check. No chapter prose and no StarIntel storage/runtime duplication.
 
 * Research questions
 - Can Project 1 rerun a public-source provenance experiment without depending on mutable live GLEIF responses?
@@ -24,7 +24,7 @@ Freeze the first redistribution-safe public GLEIF source fixture, hash both sour
 
 * Findings
 ** Freeze policy
-=D O C U M E N T E D=. Project tests must not mean "whatever GLEIF returns today". GLEIF data is intentionally refreshed; therefore deterministic book tests require committed source bytes, immutable hashes, retrieval metadata, and an explicit refresh procedure. Live API/Golden-Copy retrieval belongs in a maintenance/import step, not ordinary offline tests.
+=DOCUMENTED=. Project tests must not mean "whatever GLEIF returns today". GLEIF data is intentionally refreshed; therefore deterministic book tests require committed source bytes, immutable hashes, retrieval metadata, and an explicit refresh procedure. Live API/Golden-Copy retrieval belongs in a maintenance/import step, not ordinary offline tests.
 
 ** First frozen public source fixture
 The first fixture is deliberately small and fully attributable: GLEIF's own public self-record as published on its official contact page.
@@ -47,10 +47,19 @@ Normalized StarIntel artifact:
 
 This fixture is a curated deterministic extract from an official GLEIF page. It is *not* represented as a raw GLEIF API or Golden Copy record.
 
-** Experiment D1
+** Experiment D1 -- TESTED
 Added =run_fixture_experiment.py=. It checks frozen raw and normalized SHA-256 values, validates the normalized record through the existing locked StarIntel schema harness, and verifies reconstruction of source URL/licence/hash plus LEI/legal-name/fixture identity.
 
-Claim status remains =UNTESTED= until the new CI invocation is observed. D0 from pass 03 remains TESTED; the final Level 1/Level 2 public-source Experiment D remains open until an actual official API/Golden-Copy response is frozen with exact upstream retrieval metadata.
+GitHub Actions =ml-starintel-research= run 18, job =project1-foundations=, executed on 2026-08-15 and completed successfully. The inspected log records all five D1 checks as true:
+- =raw_sha256_matches_frozen_value=
+- =normalized_sha256_matches_frozen_value=
+- =normalized_starintel_record_valid=
+- =source_and_transform_provenance_reconstructable=
+- =fixture_lei_matches_official_source_extract=
+
+Observed D1 result: =status: TESTED=, =validation_category: null=, =validation_message: null=. The same job re-ran Experiment E with zero failed checks and D0 remained TESTED. Environment recorded by the harness: Ubuntu 24.04.4 runner, Python 3.12.3, =jsonschema= 4.26.0, locked StarIntel schema commit =ff814ff63868286d68e21502122832802cd5e361=.
+
+D1 is deliberately narrower than the final public-source Experiment D. The final Level 1/Level 2 Experiment D remains UNTESTED until an actual official API/Golden-Copy response is frozen with exact upstream retrieval metadata and its provenance round trip is executed.
 
 * Claim-status table
 | Claim | Status |
@@ -58,10 +67,11 @@ Claim status remains =UNTESTED= until the new CI invocation is observed. D0 from
 | GLEIF Level 1 identifies who-is-who; Level 2 describes who-owns-whom | DOCUMENTED |
 | mutable GLEIF upstream must be frozen for deterministic tests | DOCUMENTED + DESIGN DECISION |
 | official GLEIF self LEI/name/address used in fixture | DOCUMENTED |
-| frozen source SHA-256 identity | TESTED locally by deterministic byte hashing before commit |
-| frozen normalized SHA-256 identity | TESTED locally by deterministic byte hashing before commit |
-| D1 normalized StarIntel validation/provenance reconstruction in repository CI | UNTESTED pending observed run |
+| frozen source SHA-256 identity | TESTED |
+| frozen normalized SHA-256 identity | TESTED |
+| D1 normalized StarIntel validation/provenance reconstruction | TESTED in GitHub Actions run 18 |
 | final Level 1/Level 2 API/Golden-Copy fixture | UNTESTED |
+| full public-source Experiment D | UNTESTED |
 | leakage Experiments A--C | UNTESTED |
 
 * Remaining uncertainty
@@ -71,4 +81,4 @@ Claim status remains =UNTESTED= until the new CI invocation is observed. D0 from
 - Entity+time spanning-group rule and deterministic near-duplicate clustering for Experiments A--C.
 
 * Next research slice
-Observe D1 CI and correct any schema/provenance mismatch without weakening the canonical schema. Then freeze a tiny genuine GLEIF Level 1/Level 2 API or Golden-Copy slice with explicit LEI IDs, upstream retrieval metadata, raw hashes and licence provenance. Once that fixture is immutable, execute the full Experiment D and then predeclare/run leakage Experiments A--C with real measured outputs and plots.
+Freeze a tiny genuine GLEIF Level 1/Level 2 API or Golden-Copy slice with explicit LEI IDs, upstream retrieval metadata, raw hashes and licence provenance. Prefer a small ownership chain or relationship case that materially exercises both entity and relationship records rather than another isolated organization. Once that fixture is immutable, execute the full Experiment D and then predeclare/run leakage Experiments A--C with real measured outputs and plots.
