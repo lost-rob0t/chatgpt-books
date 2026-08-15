@@ -25,10 +25,13 @@ jobs:
         run: |
           set -euo pipefail
           python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_experiments.py
+          python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_fixture_experiment.py
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ml-starintel-project1-research-results
-          path: books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/experiments.json
+          path: |
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/experiments.json
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/fixture-experiment.json
           if-no-files-found: warn
