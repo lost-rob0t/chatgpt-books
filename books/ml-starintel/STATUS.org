@@ -6,18 +6,20 @@
 Phase 1 -- foundational research.
 * Completed
 - Curriculum and project map initialized.
-- Foundational research passes 01--03 completed as research records; the foundational phase itself remains open.
+- Foundational research passes 01--04 completed as research records; the foundational phase itself remains open.
 - Project 1 executable research harness added with pinned canonical StarIntel schema materialization and Git blob verification.
 - Experiment E StarIntel 0.9 Python/Draft-2020-12 smoke matrix TESTED in CI after one recorded FAILED assumption correction; corrected run passed all 9 smoke checks.
 - D0 narrow synthetic provenance-manifest round trip TESTED in CI.
+- First official GLEIF public-source extract frozen with SHA-256 identity alongside a normalized StarIntel =org= artifact; D1 executable provenance validation is wired into Book 1 CI but remains UNTESTED until its new run is observed.
 * Active research
-- Freeze and hash the tiny redistribution-safe public GLEIF fixture and normalized StarIntel records.
+- Observe D1 CI and correct any canonical-schema/provenance mismatch without weakening validation.
+- Freeze a genuine official GLEIF Level 1/Level 2 API or Golden-Copy slice with exact upstream metadata/hashes.
 - Execute the full public-source provenance Experiment D.
 - Predeclare deterministic entity/time/duplicate grouping rules, then execute leakage Experiments A--C with real outputs/plots.
 - Verify broader upstream/cross-language StarIntel conformance separately from the Book 1 Python smoke matrix.
 * Unverified claims
-- Full public-data provenance, leakage measurements, cross-language conformance equivalence, and the final dependency lock remain UNTESTED.
+- D1 CI result, final Level 1/Level 2 public fixture, full public-data provenance, leakage measurements, cross-language conformance equivalence, and the final dependency lock remain UNTESTED unless separately recorded as executed.
 * Technical/editorial/visual review
 Not started.
 * Blockers
-A reproducible public fixture plus full Experiment D and leakage Experiments A--C must run before Chapters 2--5 or Project 1 move beyond RESEARCH/DRAFT.
+A genuine reproducible Level 1/Level 2 public fixture plus full Experiment D and leakage Experiments A--C must run before Chapters 2--5 or Project 1 move beyond RESEARCH/DRAFT.
