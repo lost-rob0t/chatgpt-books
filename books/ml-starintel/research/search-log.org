@@ -43,3 +43,16 @@
 - Remaining uncertainty: full upstream conformance matrix and cross-language equivalence; exact public GLEIF fixture; full public-source provenance Experiment D; transitive Python locking; grouped+temporal and near-duplicate policies; leakage Experiments A--C.
 - Follow-up: freeze/hash a tiny explicit GLEIF fixture, run full D, then implement A--C only after split/group rules are predeclared.
 - Record: [[file:foundations-pass-03.org][foundations-pass-03.org]].
+
+** 2026-08-15 -- foundational pass 04 / frozen GLEIF public-source fixture
+- Exact questions: Can Project 1 freeze a redistribution-safe public GLEIF source without making tests depend on mutable live responses? Which source and normalized bytes should be hashed? Can source URI/licence/hash plus LEI/legal-name/fixture identity be reconstructed after normalization into canonical StarIntel 0.9?
+- Exact web queries/topics: official GLEIF API documentation; GLEIF LEI Data Terms of Use; GLEIF Level 1 =who is who=; GLEIF Level 2 =who owns whom=; GLEIF Concatenated Files update behavior; official GLEIF legal name/LEI/contact address.
+- Primary sources inspected: GLEIF =LEI Data: Access & Use=, =GLEIF API=, =Level 1 Data: Who is Who=, =Level 2 Data: Who Owns Whom=, =LEI Data Terms of Use=, =About the Concatenated Files=, and GLEIF =Contact Information=; locked StarIntel =conformance/fixtures.py= at commit =ff814ff63868286d68e21502122832802cd5e361=.
+- Retrieval date: 2026-08-15.
+- Result: GLEIF data access is documented as free and LEI data as CC0; GLEIF publishes changing data, so deterministic book tests require frozen bytes/hashes rather than a live latest lookup. The official GLEIF self-record was selected as the first tiny public fixture: LEI =506700GE1G29325QX363= and legal name =Global Legal Entity Identifier Foundation (GLEIF)=.
+- Artifacts created: =research-harness/fixtures/gleif-public-self-record-v1.raw.json= SHA-256 =3785689e0d5e768d0adfa4838540646b815b5df4e32c2619abc51b1419584c4f=; normalized =gleif-public-self-record-v1.starintel.json= SHA-256 =0e433da6b856a48378b011786dd49f4edc1d771eddca936d681bae703ebf85b2=.
+- Implementation: added =run_fixture_experiment.py= and wired it into =ml-starintel-research= CI. It reuses the existing canonical schema harness rather than implementing another StarIntel validator/server.
+- Claim status: GLEIF access/licence/update behavior and self-record fields =DOCUMENTED=; deterministic byte hashes =TESTED= locally before commit; repository CI validation/provenance reconstruction =UNTESTED= until the new workflow run is observed; final genuine Level 1/Level 2 API/Golden-Copy fixture =UNTESTED=.
+- Remaining uncertainty: exact Level 1/Level 2 records to freeze, upstream response metadata/hash, relationship/reporting-exception coverage, refresh policy, grouped+temporal rule, near-duplicate clustering, and Experiments A--C.
+- Follow-up: observe D1 CI; then freeze a genuine official Level 1/Level 2 response and execute full D before leakage experiments.
+- Record: [[file:foundations-pass-04.org][foundations-pass-04.org]].
