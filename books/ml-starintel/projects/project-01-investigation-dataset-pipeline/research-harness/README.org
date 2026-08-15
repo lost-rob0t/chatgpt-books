@@ -5,9 +5,10 @@ This is an executable research harness for Project 1, not chapter prose and not 
 
 It currently exercises:
 - Experiment E: a pinned StarIntel 0.9 conformance smoke matrix.
-- Experiment D0: a narrow synthetic provenance-manifest round trip used to verify the harness shape before the real public-data provenance experiment.
+- Experiment D0: a narrow synthetic provenance-manifest round trip used to verify the harness shape.
+- Experiment D1: a frozen official GLEIF public-source extract mapped into a canonical StarIntel =org= record with byte hashes and provenance reconstruction checks.
 
-Experiments A--C and the full public-data Experiment D remain UNTESTED.
+Experiments A--C and the final genuine Level 1/Level 2 public-data Experiment D remain UNTESTED.
 
 * Canonical boundary
 The harness materializes the canonical schema from:
@@ -19,24 +20,38 @@ The harness materializes the canonical schema from:
 
 The fetched bytes are rejected unless their Git blob identity matches exactly. This avoids silently following a moving branch while also avoiding a second hand-maintained StarIntel schema in this book.
 
+* Frozen GLEIF fixture
+The first public fixture is intentionally narrow: GLEIF's own official self-record as published on its contact page. It is a deterministic curated source extract, not a raw API/Golden-Copy response.
+
+- source extract: =fixtures/gleif-public-self-record-v1.raw.json=
+- source SHA-256: =3785689e0d5e768d0adfa4838540646b815b5df4e32c2619abc51b1419584c4f=
+- normalized StarIntel record: =fixtures/gleif-public-self-record-v1.starintel.json=
+- normalized SHA-256: =0e433da6b856a48378b011786dd49f4edc1d771eddca936d681bae703ebf85b2=
+- LEI: =506700GE1G29325QX363=
+- source licence: CC0-1.0 under GLEIF LEI Data Terms of Use.
+
+The fixture exists so ordinary tests remain stable when upstream GLEIF data changes. Refreshing public source data must be an explicit operation that updates the frozen bytes, hashes, provenance, and research record.
+
 * Run
 #+begin_src sh
 python3 -m pip install -r requirements.txt
 python3 run_experiments.py
+python3 run_fixture_experiment.py
 #+end_src
 
-After the first successful materialization, the same schema cache can be exercised without network access:
+After the first successful schema materialization, the canonical-schema smoke matrix can be exercised without network access:
 
 #+begin_src sh
 python3 run_experiments.py --offline
 #+end_src
 
-Machine-readable results are written to =artifacts/experiments.json= and uploaded by the =ml-starintel-research= GitHub Actions workflow.
+Machine-readable results are written under =artifacts/= and uploaded by the =ml-starintel-research= GitHub Actions workflow.
 
 * Claim-status rules
 - A CI invocation that actually executes a case may be recorded as TESTED.
 - A failing invocation is FAILED and remains part of the research record.
-- The synthetic D0 manifest check does not prove the eventual GLEIF/public-source provenance pipeline; that remains UNTESTED.
+- D0 does not prove public-source provenance.
+- D1 proves only the frozen official contact-page extract path after its CI run is observed; it does not substitute for the final Level 1/Level 2 API/Golden-Copy fixture.
 - Cross-language Python/Nim/Common Lisp conformance remains UNTESTED here.
 
 * First observed failure
