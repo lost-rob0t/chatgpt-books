@@ -191,3 +191,31 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Retrieved: 2026-08-15.
 - Observed: canonical top-level fixture uses =schema_version= 0.9.0, separate integer document =version= 1, =sources= / =evidence= arrays, and typed source objects.
 - Relevant to: Project 1 normalized GLEIF fixture; no duplicate validator/schema implementation.
+
+** Pass 05 -- GLEIF Supporting Documents / current-format samples
+- URL: https://www.gleif.org/en/lei-data/access-and-use-lei-data/supporting-documents
+- Authority: official GLEIF technical documentation and sample distribution page.
+- Retrieved: 2026-08-16.
+- Observed: GLEIF explicitly publishes sample XML, JSON and CSV files plus a sample API response for verifying/testing current LEI formats. The current matrix lists LEI-CDF 3.1, RR-CDF 2.1 and Reporting Exceptions 2.1. The JSON sample archive is =2021-11-23_lei-cdf-3.1-and-rr-cdf-2.1-and-repex-cdf-2.1-json-samples_v1.1-final.zip=.
+- Relevant to: Chapter 2; Project 1 deterministic public fixture and full Experiment D.
+
+** Pass 05 -- GLEIF RR-CDF 2.1
+- URL: https://www.gleif.org/en/lei-data/access-and-use-lei-data/level-2-data-relationship-record-rr-cdf-2-1-format
+- Authority: official GLEIF format documentation.
+- Retrieved: 2026-08-16.
+- Observed: RR-CDF 2.1 is the current Level 2 relationship-record format; relationship records identify involved entities, relationship type/characteristics and dates, and validation/reporting information.
+- Relevant to: Project 1 relation normalization; later graph chapters/projects.
+
+** Pass 05 -- GLEIF API relationship endpoints
+- URL: https://documenter.getpostman.com/view/7679680/SVYrrxuU
+- Authority: GLEIF-linked official API documentation collection.
+- Retrieved: 2026-08-16.
+- Observed: =/lei-records/:id/direct-parent-relationship=, =/direct-parent=, =/ultimate-parent= and child relationship/record endpoints are documented; direct/ultimate semantics are defined by accounting consolidation.
+- Relevant to: Project 1 refresh/integration path and interpretation of Level 2 relationships.
+
+** Pass 05 -- GLEIF Golden Copy download behavior
+- URL: https://www.gleif.org/en/lei-data/gleif-golden-copy/download-the-golden-copy
+- Authority: official GLEIF distribution documentation.
+- Retrieved: 2026-08-16.
+- Observed: GLEIF publishes Level 1, Level 2 RR and reporting-exception Golden Copy data and updates Golden Copy sets multiple times daily; deterministic book fixtures therefore must be frozen explicitly rather than track latest implicitly.
+- Relevant to: Project 1 snapshot/refresh policy.
