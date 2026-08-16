@@ -59,3 +59,15 @@
 - Remaining uncertainty: exact Level 1/Level 2 records to freeze, upstream response metadata/hash, relationship/reporting-exception coverage, refresh policy, grouped+temporal rule, near-duplicate clustering, and Experiments A--C.
 - Follow-up: freeze a genuine official Level 1/Level 2 response and execute full D before leakage experiments.
 - Record: [[file:foundations-pass-04.org][foundations-pass-04.org]].
+
+** 2026-08-16 -- foundational pass 05 / official GLEIF sample-corpus decision
+- Exact questions: Does GLEIF publish a stable official sample corpus covering current Level 1 and Level 2 formats; is it explicitly intended for verification/testing; and should Project 1 use that corpus instead of a moving live API response for its deterministic fixture?
+- Exact web queries/topics: official GLEIF supporting documents/current CDF sample files; RR-CDF 2.1; GLEIF API relationship endpoints; Golden Copy update behavior.
+- Primary sources inspected: GLEIF =Supporting Documents=, =Level 2 Data: Relationship Record (RR) CDF Format 2.1=, =GLEIF API= / official API documentation, and =Download the GLEIF Golden Copy and Delta Files=.
+- Retrieval date: 2026-08-16.
+- Result: GLEIF explicitly publishes XML/JSON/CSV samples and a sample API response for verifying/testing current formats. The current sample matrix covers LEI-CDF 3.1, RR-CDF 2.1 and Reporting Exceptions 2.1. The official JSON archive is =2021-11-23_lei-cdf-3.1-and-rr-cdf-2.1-and-repex-cdf-2.1-json-samples_v1.1-final.zip=.
+- Research decision: use a frozen minimal subset of that official JSON sample bundle as Project 1's deterministic Level 1 + Level 2 fixture source. Keep live API/Golden Copy access as an explicit refresh/integration path, not ordinary deterministic tests.
+- Claim status: sample availability/purpose/formats and API parent-child semantics =DOCUMENTED=; archive bytes/member names/hashes, RR-CDF -> StarIntel relation mapping and full Experiment D =UNTESTED=.
+- Failure/blocker: the available web fetch path resolved the official ZIP link but rejected the binary =application/zip= response. No archive/member hash was guessed and nothing was marked frozen.
+- Follow-up: acquire the official archive through a binary-capable path, hash the archive/members, select the smallest self-contained ownership subset, normalize entity+relation records through the narrow StarIntel adapter, then execute full Experiment D offline.
+- Record: [[file:foundations-pass-05.org][foundations-pass-05.org]].
