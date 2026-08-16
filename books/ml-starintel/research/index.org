@@ -11,10 +11,12 @@
 - Which provenance facts belong on canonical StarIntel records versus dataset-build manifests?
 - Which canonical-schema assumptions survive executable validation before Project 1 data is admitted?
 - Which public-source bytes can be frozen so provenance and evaluation remain reproducible when upstream GLEIF data changes?
+- Which official GLEIF current-format sample records form the smallest deterministic Level 1 + Level 2 ownership fixture for Project 1?
 * Research passes
 - [[file:foundations-pass-01.org][Foundational Research Pass 01]] -- RESEARCH; 2026-08-13. Seeds Chapters 1--5 and Project 1, records the current scikit-learn/PyTorch baseline, and documents the current StarIntel 0.9/legacy 0.8 integration boundary.
 - [[file:foundations-pass-02.org][Foundational Research Pass 02]] -- RESEARCH; 2026-08-13. Documents the locked canonical StarIntel 0.9 schema revision, selects a preliminary GLEIF + deterministic synthetic fixture strategy, specifies grouped/time-aware evaluation and provenance requirements, verifies current toolchain assumptions from primary documentation, and defines Experiments A--E. At the end of that pass all Book 1 experiments were UNTESTED.
 - [[file:foundations-pass-03.org][Foundational Research Pass 03]] -- RESEARCH; 2026-08-14. Adds the executable Project 1 research harness, records an initial FAILED conformance run that corrected the top-level =version= assumption, then records a successful pinned-schema Experiment E smoke matrix plus the narrow TESTED D0 provenance-manifest round trip. Full public-data D and leakage Experiments A--C remain UNTESTED.
 - [[file:foundations-pass-04.org][Foundational Research Pass 04]] -- RESEARCH; 2026-08-15. Freezes and hashes the first official GLEIF public-source extract plus its normalized StarIntel =org= artifact, records the deterministic fixture policy, and adds D1 CI coverage for source-hash/provenance reconstruction. A genuine Level 1/Level 2 API/Golden-Copy fixture and full Experiment D remain open until observed and frozen explicitly.
+- [[file:foundations-pass-05.org][Foundational Research Pass 05]] -- RESEARCH; 2026-08-16. Replaces the moving-live-response fixture assumption with GLEIF's official current-format JSON sample bundle as the preferred deterministic Level 1 + RR-CDF + reporting-exception source. The exact archive/member bytes remain UNTESTED until acquired and hashed.
 * Records
 Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
