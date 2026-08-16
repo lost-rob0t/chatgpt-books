@@ -6,20 +6,22 @@
 Phase 1 -- foundational research.
 * Completed
 - Curriculum and project map initialized.
-- Foundational research passes 01--04 completed as research records; the foundational phase itself remains open.
+- Foundational research passes 01--05 completed as research records; the foundational phase itself remains open.
 - Project 1 executable research harness added with pinned canonical StarIntel schema materialization and Git blob verification.
 - Experiment E StarIntel 0.9 Python/Draft-2020-12 smoke matrix TESTED in CI after one recorded FAILED assumption correction; corrected runs pass all 9 smoke checks.
 - D0 narrow synthetic provenance-manifest round trip TESTED in CI.
 - First official GLEIF public-source extract frozen with SHA-256 identity alongside a normalized StarIntel =org= artifact.
 - D1 frozen GLEIF source -> canonical StarIntel validation -> provenance reconstruction TESTED in =ml-starintel-research= run 18; all five D1 checks passed.
+- Official GLEIF current-format JSON sample bundle selected as the preferred deterministic Level 1 + Level 2 fixture source; GLEIF documents its sample files as intended for verification/testing.
 * Active research
-- Freeze a genuine official GLEIF Level 1/Level 2 API or Golden-Copy slice with exact upstream metadata/hashes.
+- Acquire and hash the official GLEIF JSON current-format sample archive/members covering LEI-CDF 3.1, RR-CDF 2.1 and Reporting Exceptions 2.1.
+- Select the smallest relationship-connected Level 1 + RR-CDF subset and normalize it through the narrow StarIntel adapter.
 - Execute the full public-source provenance Experiment D.
 - Predeclare deterministic entity/time/duplicate grouping rules, then execute leakage Experiments A--C with real outputs/plots.
 - Verify broader upstream/cross-language StarIntel conformance separately from the Book 1 Python smoke matrix.
 * Unverified claims
-- Final Level 1/Level 2 public fixture, full public-data provenance Experiment D, leakage measurements, cross-language conformance equivalence, and the final dependency lock remain UNTESTED unless separately recorded as executed.
+- Final frozen official Level 1/Level 2 sample bytes/hashes, RR-CDF -> StarIntel relation mapping, full public-data provenance Experiment D, leakage measurements, cross-language conformance equivalence, and the final dependency lock remain UNTESTED unless separately recorded as executed.
 * Technical/editorial/visual review
 Not started.
 * Blockers
-A genuine reproducible Level 1/Level 2 public fixture plus full Experiment D and leakage Experiments A--C must run before Chapters 2--5 or Project 1 move beyond RESEARCH/DRAFT.
+The official GLEIF JSON sample archive still needs to be acquired through a binary-capable fetch path, frozen, hashed and mapped. Full Experiment D and leakage Experiments A--C must run before Chapters 2--5 or Project 1 move beyond RESEARCH/DRAFT.
