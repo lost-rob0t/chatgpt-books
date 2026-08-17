@@ -6,23 +6,24 @@
 Phase 1 -- foundational research.
 * Completed
 - Curriculum and project map initialized.
-- Foundational research passes 01--06 completed as research records; the foundational phase itself remains open.
+- Foundational research passes 01--07 completed as research records; the foundational phase itself remains open.
 - Project 1 executable research harness added with pinned canonical StarIntel schema materialization and Git blob verification.
 - Experiment E StarIntel 0.9 Python/Draft-2020-12 smoke matrix TESTED in CI after one recorded FAILED assumption correction; corrected runs pass all 9 smoke checks.
 - D0 narrow synthetic provenance-manifest round trip TESTED in CI.
-- First official GLEIF public-source extract frozen with SHA-256 identity alongside a normalized StarIntel =org= artifact.
-- D1 frozen GLEIF source -> canonical StarIntel validation -> provenance reconstruction TESTED in =ml-starintel-research= run 18; all five D1 checks passed.
-- Official GLEIF current-format JSON sample bundle selected as the preferred deterministic Level 1 + Level 2 fixture source; GLEIF documents its sample files as intended for verification/testing.
-- GLEIF fixture trust boundary documented: the official API example is illustrative and may not reflect real-world facts, so it is suitable for adapter-shape coverage but not factual ownership claims; full Experiment D still requires frozen Level 1 + Level 2 source bytes.
+- D1 frozen GLEIF source -> canonical StarIntel validation -> provenance reconstruction TESTED.
+- Official GLEIF current-format JSON sample ZIP and canonical members acquired/hashes observed in CI; Tier A sample relationship mapping D2A TESTED.
+- The selected Tier A feeder sample is explicitly not entity-closed: its master-fund and fund-manager LEI endpoints are absent from the same Level 1 sample member. Canonical StarIntel unresolved endpoints are used rather than fabricated entities.
+- Primary GLEIF API Tier B factual as-of snapshot acquired for feeder =6354009BJOFO62XYIX17=, its master fund =635400VZ8GQJUZ3L3H12=, fund manager =635400Z5LRZZSML7CV16=, and both relationship-record resources.
+- Full public-source Experiment D TESTED in =ml-starintel-research= run 50: three =org= + two =relation= documents were entity-closed, provenance/hash reconstruction passed, JSON round trip passed, and all five documents validated against canonical StarIntel schema 0.9.0.
+- Tier A/Tier B/Tier C fixture policy established: illustrative format fixtures, factual frozen as-of observations, and deterministic synthetic controls are kept distinct.
 * Active research
-- Acquire and hash the official GLEIF JSON current-format sample archive/members covering LEI-CDF 3.1, RR-CDF 2.1 and Reporting Exceptions 2.1 through a binary-capable path.
-- Select the smallest relationship-connected Level 1 + RR-CDF subset and normalize it through the narrow StarIntel adapter.
-- Execute the full public-source provenance Experiment D.
-- Predeclare deterministic entity/time/duplicate grouping rules, then execute leakage Experiments A--C with real outputs/plots.
+- Predeclare deterministic entity-group/time precedence and exact/near-duplicate clustering rules.
+- Execute leakage Experiments A--C with deterministic synthetic controls and real measured outputs/plots.
 - Verify broader upstream/cross-language StarIntel conformance separately from the Book 1 Python smoke matrix.
+- Finish a deliberate transitive dependency lock/reproducibility policy for Project 1 before implementation chapters harden their environment contract.
 * Unverified claims
-- Final frozen official Level 1/Level 2 sample bytes/hashes, RR-CDF -> StarIntel relation mapping, full public-data provenance Experiment D, leakage measurements, cross-language conformance equivalence, and the final dependency lock remain UNTESTED unless separately recorded as executed.
+- Leakage measurements, the final near-duplicate threshold/algorithm, cross-language conformance equivalence, broader public-dataset scaling behavior, and the final dependency lock remain UNTESTED unless separately recorded as executed.
 * Technical/editorial/visual review
 Not started.
 * Blockers
-The official GLEIF JSON sample archive still needs to be acquired through a binary-capable fetch path, frozen, hashed and mapped. This execution environment could resolve the official ZIP URL but could not retrieve its binary payload; that acquisition attempt is recorded as FAILED, not as evidence that the upstream archive is unavailable. Full Experiment D and leakage Experiments A--C must run before Chapters 2--5 or Project 1 move beyond RESEARCH/DRAFT.
+The prior GLEIF binary/provenance blocker is closed. The next blocker is experimental design: split/group/duplicate policies must be fixed before running Experiments A--C so the evaluation rules are not tuned after observing results. Chapters 2--5 and Project 1 remain RESEARCH/DRAFT until those leakage experiments and their reproducible plots/results are executed and reviewed.
