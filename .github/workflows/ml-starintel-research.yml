@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install pinned research dependency
+      - name: Install pinned research dependencies
         shell: bash
         run: |
           set -euo pipefail
@@ -29,7 +29,8 @@ jobs:
             test_gleif_sample_acquisition.py \
             test_gleif_relation_adapter.py \
             test_gleif_live_snapshot.py \
-            test_full_provenance_experiment.py
+            test_full_provenance_experiment.py \
+            test_leakage_experiments.py
 
       - name: Acquire and inventory official GLEIF JSON samples
         shell: bash
@@ -45,6 +46,7 @@ jobs:
           python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_fixture_experiment.py
           python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_gleif_relation_experiment.py
           python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_full_provenance_experiment.py
+          python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_leakage_experiments.py
 
       - name: Acquire factual GLEIF API snapshot
         shell: bash
@@ -64,4 +66,6 @@ jobs:
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/full-provenance-experiment.json
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-selected-members/**
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-live-snapshot/**
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/leakage/results.json
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/leakage/*.svg
           if-no-files-found: warn
