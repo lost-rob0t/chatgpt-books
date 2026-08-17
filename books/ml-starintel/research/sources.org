@@ -195,27 +195,68 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 ** Pass 05 -- GLEIF Supporting Documents / current-format samples
 - URL: https://www.gleif.org/en/lei-data/access-and-use-lei-data/supporting-documents
 - Authority: official GLEIF technical documentation and sample distribution page.
-- Retrieved: 2026-08-16.
+- Retrieved: 2026-08-16 and re-inspected 2026-08-17.
 - Observed: GLEIF explicitly publishes sample XML, JSON and CSV files plus a sample API response for verifying/testing current LEI formats. The current matrix lists LEI-CDF 3.1, RR-CDF 2.1 and Reporting Exceptions 2.1. The JSON sample archive is =2021-11-23_lei-cdf-3.1-and-rr-cdf-2.1-and-repex-cdf-2.1-json-samples_v1.1-final.zip=.
-- Relevant to: Chapter 2; Project 1 deterministic public fixture and full Experiment D.
+- Relevant to: Chapter 2; Project 1 deterministic Tier A fixture and D2A.
 
 ** Pass 05 -- GLEIF RR-CDF 2.1
 - URL: https://www.gleif.org/en/lei-data/access-and-use-lei-data/level-2-data-relationship-record-rr-cdf-2-1-format
 - Authority: official GLEIF format documentation.
-- Retrieved: 2026-08-16.
-- Observed: RR-CDF 2.1 is the current Level 2 relationship-record format; relationship records identify involved entities, relationship type/characteristics and dates, and validation/reporting information.
+- Retrieved: 2026-08-16 and re-inspected 2026-08-17.
+- Observed: RR-CDF relationship records identify involved legal entities, relationship type/characteristics such as dates, and relationship validation/reporting information.
 - Relevant to: Project 1 relation normalization; later graph chapters/projects.
 
 ** Pass 05 -- GLEIF API relationship endpoints
 - URL: https://documenter.getpostman.com/view/7679680/SVYrrxuU
 - Authority: GLEIF-linked official API documentation collection.
 - Retrieved: 2026-08-16.
-- Observed: =/lei-records/:id/direct-parent-relationship=, =/direct-parent=, =/ultimate-parent= and child relationship/record endpoints are documented; direct/ultimate semantics are defined by accounting consolidation.
-- Relevant to: Project 1 refresh/integration path and interpretation of Level 2 relationships.
+- Observed: relationship and related LEI-record endpoints are exposed from LEI resources where corresponding relationships exist.
+- Relevant to: Project 1 refresh/integration path.
 
 ** Pass 05 -- GLEIF Golden Copy download behavior
 - URL: https://www.gleif.org/en/lei-data/gleif-golden-copy/download-the-golden-copy
 - Authority: official GLEIF distribution documentation.
-- Retrieved: 2026-08-16.
-- Observed: GLEIF publishes Level 1, Level 2 RR and reporting-exception Golden Copy data and updates Golden Copy sets multiple times daily; deterministic book fixtures therefore must be frozen explicitly rather than track latest implicitly.
+- Retrieved: 2026-08-16; re-inspected 2026-08-17.
+- Observed: Golden Copy provides Level 1/Level 2 data and is updated multiple times daily, so deterministic fixtures must be explicit snapshots rather than implicit latest data.
 - Relevant to: Project 1 snapshot/refresh policy.
+
+** Pass 07 -- GLEIF API production service
+- URL: https://www.gleif.org/en/lei-data/gleif-api/
+- Authority: official GLEIF API documentation page.
+- Retrieved: 2026-08-17.
+- Observed: GLEIF's production API exposes legal-entity and ownership data and is based on GLEIF Golden Copy data.
+- Relevant to: Project 1 Tier B factual snapshot acquisition and refresh boundary.
+
+** Pass 07 -- GLEIF API Changes / RR Fund Relationships
+- URL: https://www.gleif.org/content/4_lei-data/1_access-and-use-lei-data/6_supporting-documents/GLEIF-API-Changes-Documentation.html
+- Authority: official GLEIF API change documentation.
+- Retrieved: 2026-08-17.
+- Observed: =IS_FUND-MANAGED_BY= is exposed through =relationships.fund-manager.links.lei-record= and =relationship-record=; =IS_FEEDER_TO= through =relationships.master-fund.links.lei-record= and =relationship-record=. GLEIF states these links are present only when the corresponding relationship is declared.
+- Relevant to: selecting and following primary relationship resources for full Experiment D.
+
+** Pass 07 -- RR-CDF 2.1 detailed documentation
+- URL: https://www.gleif.org/content/4_lei-data/1_access-and-use-lei-data/4_level-2-data-relationship-record-rr-cdf-2-1-format/rr-cdf_version_2.1-documentation.html
+- Authority: official GLEIF technical documentation.
+- Documentation last updated: 2021-03-04.
+- Retrieved: 2026-08-17.
+- Observed: each relationship record identifies related entities and carries relationship type/date characteristics plus reporting/validation information; fund relationship types include =IS_FUND-MANAGED_BY=, =IS_SUBFUND_OF= and =IS_FEEDER_TO=.
+- Relevant to: preserving relationship semantics and provenance in the StarIntel adapter.
+
+** Pass 07 -- locked StarIntel relation endpoint/spec implementation
+- URL: https://github.com/lost-rob0t/starintel-gpt-auto-dig/blob/ff814ff63868286d68e21502122832802cd5e361/starintel_doc/spec.py
+- Authority: immutable canonical StarIntel spec-construction implementation used alongside the locked schema.
+- Retrieved: 2026-08-17.
+- Observed: StarIntel 0.9 =relation= data requires =subject=, =predicate= and =object=; endpoint objects support =external_id=, =dtype=, =document_id=, =unresolved= and =external_ids=. This allowed Tier A missing GLEIF entities to remain explicitly unresolved without schema invention.
+- Relevant to: Project 1 D2A and full D relation adapter.
+
+** Pass 07 -- primary GLEIF API as-of resources
+- URLs inspected/fetched through CI:
+  - https://api.gleif.org/api/v1/lei-records/6354009BJOFO62XYIX17
+  - https://api.gleif.org/api/v1/lei-records/6354009BJOFO62XYIX17/fund-manager
+  - https://api.gleif.org/api/v1/lei-records/6354009BJOFO62XYIX17/fund-manager-relationship
+  - https://api.gleif.org/api/v1/lei-records/6354009BJOFO62XYIX17/master-fund
+  - https://api.gleif.org/api/v1/lei-records/6354009BJOFO62XYIX17/master-fund-relationship
+- Authority: primary GLEIF production API resources.
+- Retrieved: 2026-08-17 during CI runs 41 and 50.
+- Observed: feeder =6354009BJOFO62XYIX17=, fund manager =635400Z5LRZZSML7CV16=, master fund =635400VZ8GQJUZ3L3H12=, =IS_FUND-MANAGED_BY= and =IS_FEEDER_TO= relationship resources. Selected responses reported Golden Copy publication time =2026-08-17T08:00:00Z=. Exact raw/canonical hashes are recorded in [[file:foundations-pass-07.org][foundations-pass-07.org]] and =research-harness/fixtures/gleif-live-2026-08-17/manifest.json=.
+- Relevant to: Project 1 full factual public-source provenance Experiment D.
