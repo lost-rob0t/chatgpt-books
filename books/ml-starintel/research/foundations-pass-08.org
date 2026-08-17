@@ -2,7 +2,7 @@
 #+date: 2026-08-17
 
 * Status
-RESEARCH. Experiments A--C are UNTESTED at the time this protocol is committed. The protocol below is deliberately frozen before experiment outputs are observed.
+RESEARCH. Experiments A--C were UNTESTED at the time this protocol was committed. The protocol below was deliberately frozen before experiment outputs were observed. The executed-results section was appended only after CI completed.
 
 * Scope
 Turn the leakage taxonomy from earlier passes into deterministic executable controls for Project 1. This pass is synthetic by design: factual Tier B GLEIF observations remain provenance/integration fixtures, while leakage ground truth belongs to Tier C where entity identity, time of feature availability, duplicates, and labels are known exactly.
@@ -46,7 +46,7 @@ Splits:
 
 Predeclared invariant: =entity_group= must have zero entity IDs shared between train and test. =row_random= contamination is measured, not assumed.
 
-Hypothesis: =row_random= will be substantially overoptimistic because the same entity signatures can occur in both partitions, while the grouped split requires generalization to unseen entity signatures. Status: UNTESTED until CI executes the experiment.
+Hypothesis: =row_random= will be substantially overoptimistic because the same entity signatures can occur in both partitions, while the grouped split requires generalization to unseen entity signatures. Status at protocol freeze: UNTESTED.
 
 ** Experiment B -- temporal and future-information leakage
 Synthetic corpus:
@@ -63,7 +63,7 @@ Evaluations:
 
 Predeclared temporal invariant: =max(train.observed_at) < min(test.observed_at)=. The point-in-time feature builder must never emit =future_resolution= for these records.
 
-Hypothesis: both finalized-table conditions can remain implausibly strong because chronological splitting alone cannot undo a feature that already contains future knowledge; the point-in-time condition should reveal the weaker true signal. Status: UNTESTED until execution.
+Hypothesis: both finalized-table conditions can remain implausibly strong because chronological splitting alone cannot undo a feature that already contains future knowledge; the point-in-time condition should reveal the weaker true signal. Status at protocol freeze: UNTESTED.
 
 ** Experiment C -- exact and near-duplicate leakage
 Synthetic corpus:
@@ -86,10 +86,10 @@ Splits:
 
 Predeclared invariants: the cluster split must have zero exact hashes and zero near-duplicate component IDs shared between train/test. Row-random exact/near contamination rates are measured.
 
-Hypothesis: row-random evaluation will be inflated by cross-split copies/near-copies; cluster-group evaluation will require generalization to unseen base records and score materially lower. Status: UNTESTED until execution.
+Hypothesis: row-random evaluation will be inflated by cross-split copies/near-copies; cluster-group evaluation will require generalization to unseen base records and score materially lower. Status at protocol freeze: UNTESTED.
 
 * TDD gate before measurement
-Tests must be added before the experiment implementation and cover at least:
+Tests were committed before the experiment implementation and cover:
 - deterministic synthetic generation;
 - class balance;
 - entity-group disjointness;
@@ -102,10 +102,10 @@ Tests must be added before the experiment implementation and cover at least:
 - training-only vectorizer/model fitting boundary;
 - deterministic JSON result schema and plot path generation.
 
-Tests must assert protocol/invariants rather than force the hypotheses to be true. Experimental score differences are results, not pass criteria.
+Tests assert protocol/invariants rather than force the hypotheses to be true. Experimental score differences are results, not pass criteria.
 
 * Claim-status before execution
-| Claim | Status |
+| Claim | Status at protocol freeze |
 | grouped splitting can enforce non-overlapping caller-provided groups | DOCUMENTED |
 | time-ordered evaluation prevents ordinary future-to-past fold ordering | DOCUMENTED |
 | prediction-time-unavailable information is leakage | DOCUMENTED |
@@ -114,11 +114,83 @@ Tests must assert protocol/invariants rather than force the hypotheses to be tru
 | C row-random score exceeds duplicate-cluster score on this fixture | UNTESTED |
 | 0.80 Jaccard is universally optimal for deduplication | NOT CLAIMED |
 
-* Remaining uncertainty
-- Actual A--C score deltas and contamination rates.
-- Whether the deliberately simple Tier C controls are pedagogically strong enough without becoming cartoonishly trivial.
-- Whether later real datasets need MinHash/LSH or embedding-assisted candidate generation; this small fixture intentionally uses exact O(n^2) comparison for inspectability.
-- Broader cross-language StarIntel conformance and final dependency locking remain separate work.
+* Executed results
+Execution: =ml-starintel-research= run 63, workflow run =32056584238=, =project1-foundations= job =95468029873=, 2026-08-17.
 
-* Next execution step
-Add the protocol tests first, implement the deterministic generators/splits/metrics/plots without changing the frozen rules above, execute them in =ml-starintel-research= CI, inspect the logs and generated machine-readable artifact, then append the observed results to this research pass without rewriting the predeclared protocol.
+Environment observed in the inspected job log:
+- Ubuntu GitHub-hosted runner.
+- Python 3.12.
+- =scikit-learn= 1.9.0.
+- Matplotlib 3.11.1.
+- =jsonschema= 4.26.0.
+- seed =1729=.
+
+The complete research-harness suite reported =Ran 28 tests= and =OK= before experiments executed. Experiment results were emitted as machine-readable JSON and SVG plots under =artifacts/leakage/=. The workflow completed successfully.
+
+** Experiment A -- TESTED
+| Split | Balanced accuracy | Accuracy | Test rows | Entity overlap | Test-row entity contamination |
+| row random | 0.975 | 0.975 | 160 | 134 entities | 0.95 |
+| entity group | 0.500 | 0.500 | 160 | 0 entities | 0.00 |
+
+Observed delta in balanced accuracy: =+0.475= for row-random evaluation relative to the entity-group split on this deterministic control.
+
+Interpretation: the row-random condition overwhelmingly placed test observations from already-seen entities into training. The classifier could exploit the stable entity signatures. The grouped split removed that path and performance fell to chance on this deliberately no-cross-entity-signal corpus. This confirms the predeclared hypothesis for this fixture only; it is not a production StarIntel performance estimate.
+
+** Experiment B -- TESTED
+| Evaluation | Balanced accuracy | Accuracy | Temporal ordering |
+| random finalized | 1.000 | 1.000 | not the controlled temporal split |
+| temporal finalized | 1.000 | 1.000 | train strictly before test |
+| temporal point-in-time | 0.750 | 0.750 | train strictly before test |
+
+The temporal invariant passed: all training observations preceded all test observations. The point-in-time builder emitted zero =future_resolution= features. Yet the =temporal_finalized= condition still scored 1.000 because the finalized table already contained the target-equivalent future field.
+
+Interpretation: strict chronological splitting is necessary but not sufficient when feature construction itself violates point-in-time availability. On this control, removing the future-only field exposed the deliberately 75%-accurate stable signal exactly as designed.
+
+** Experiment C -- TESTED
+The frozen Jaccard threshold remained =0.80=; no threshold search occurred after results were observed. The deterministic fixture produced 160 near-duplicate components for 160 base records.
+
+| Split | Balanced accuracy | Accuracy | Exact test contamination | Near-component test contamination | Exact hash overlap | Near-component overlap |
+| row random | 0.9583333333 | 0.9583333333 | 0.50 | 0.925 | 50 | 111 |
+| duplicate cluster | 0.500 | 0.500 | 0.00 | 0.00 | 0 | 0 |
+
+Observed balanced-accuracy delta: approximately =+0.4583= for row-random evaluation relative to the duplicate-cluster split.
+
+Interpretation: copies and near-copies crossed the naive split at very high rates and allowed a model with no intended cross-base predictive signal to appear strong. Grouping the frozen duplicate components removed both exact and near contamination and returned performance to chance on this controlled corpus.
+
+* Generated assets
+The successful run generated deterministic SVG summaries:
+- =leakage-a-entity-split.svg=
+- =leakage-b-temporal-availability.svg=
+- =leakage-c-duplicates.svg=
+
+The plots are generated from the machine-readable result values; no score is hand-entered into an image.
+
+* Claim status after execution
+| Claim | Status |
+| grouped splitting can enforce non-overlapping caller-provided groups | DOCUMENTED + TESTED on fixture |
+| strict temporal ordering was achieved by the Experiment B split | TESTED |
+| point-in-time builder withheld the future-only field | TESTED |
+| A row-random evaluation exceeded entity-group evaluation on the frozen fixture | TESTED |
+| B finalized-table evaluations exceeded point-in-time evaluation on the frozen fixture | TESTED |
+| chronological splitting alone did not remove the deliberately leaked finalized feature | TESTED on fixture |
+| C row-random evaluation exceeded duplicate-cluster evaluation on the frozen fixture | TESTED |
+| clean C split had zero exact/near component overlap | TESTED |
+| 0.80 Jaccard is universally optimal for deduplication | NOT CLAIMED |
+| these score deltas estimate production StarIntel model quality | NOT CLAIMED |
+
+* Implementation implications
+1. Project 1 must make the split unit explicit. Row-level random splitting is not an acceptable default when multiple rows can represent the same real entity.
+2. Every feature needs an availability-time contract for temporal evaluation. A chronological split cannot rescue a finalized/enriched table containing future knowledge.
+3. Exact and near-duplicate grouping must occur before train/test assignment when duplicated source material can cross records.
+4. Duplicate-cluster construction and thresholds belong in the dataset-build manifest/provenance so evaluation can be reproduced.
+5. Learned preprocessing remains train-only. No vocabulary/statistic fitting may see test records.
+6. Tier C controls are teaching/verification fixtures. Tier B factual data remains separate and should not be given synthetic ground-truth semantics.
+
+* Remaining uncertainty
+- Whether real Book 1 datasets need MinHash/LSH or embedding-assisted candidate generation for near-duplicate candidate search; the O(n^2) Tier C fixture is intentionally inspectable, not scalable.
+- How entity grouping, duplicate grouping, source lineage and time should compose when several constraints apply simultaneously to real records.
+- Which real-data task should be the first non-synthetic evaluation after the deterministic controls.
+- Broader cross-language StarIntel conformance and the final transitive dependency lock remain separate work.
+
+* Next research slice
+The basic leakage hypotheses are no longer blockers. The next highest-value question is how to compile multiple leakage constraints into one deterministic split policy for real StarIntel-style datasets: entity identity, duplicate component, source/document lineage, graph-connected groups when appropriate, and temporal cutoff/feature availability. Research and specify that composite split planner before Project 1 implementation hardens its dataset manifest format. Then add a non-synthetic dry run that diagnoses contamination without pretending the tiny factual GLEIF fixture is large enough for meaningful model evaluation.
