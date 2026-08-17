@@ -1,0 +1,124 @@
+#+title: Machine Learning for StarIntel -- Foundational Research Pass 08
+#+date: 2026-08-17
+
+* Status
+RESEARCH. Experiments A--C are UNTESTED at the time this protocol is committed. The protocol below is deliberately frozen before experiment outputs are observed.
+
+* Scope
+Turn the leakage taxonomy from earlier passes into deterministic executable controls for Project 1. This pass is synthetic by design: factual Tier B GLEIF observations remain provenance/integration fixtures, while leakage ground truth belongs to Tier C where entity identity, time of feature availability, duplicates, and labels are known exactly.
+
+* Research questions
+1. How much can row-random splitting overstate performance when repeated observations from the same entity cross train/test boundaries?
+2. Does a strict chronological split alone prevent future-information leakage, or must feature availability also be enforced at prediction time?
+3. How much can exact and near-duplicate cross-split contamination inflate a text classifier's evaluation?
+4. Which split and near-duplicate rules can be declared before measurement so the evaluation protocol is not tuned after seeing results?
+
+* Primary/authoritative sources inspected
+- scikit-learn 1.9 =GroupShuffleSplit=: randomized splits over caller-provided groups; =test_size= is a proportion/count of groups, not rows; integer =random_state= provides reproducibility.
+- scikit-learn 1.9 =TimeSeriesSplit=: time-ordered evaluation exists specifically because ordinary CV can otherwise train on future data and evaluate on past data.
+- scikit-learn common-pitfalls guidance: information unavailable at prediction time is leakage and produces overly optimistic estimates; splitting should happen before learned preprocessing and test rows must not participate in fitting.
+- Kapoor and Narayanan, =Leakage and the Reproducibility Crisis in ML-based Science= / =Patterns= 2023: taxonomy and documented prevalence of leakage-induced reproducibility failures.
+- Matplotlib 3.11 release documentation / PyPI record for deterministic plot generation in this research harness.
+
+* Frozen experiment protocol
+** Common model and metrics
+- seed: =1729=.
+- text model: =TfidfVectorizer(lowercase=True, ngram_range=(1, 2), min_df=1)= followed by =LogisticRegression(C=1.0, max_iter=1000, solver="liblinear", random_state=1729)=.
+- primary metric: balanced accuracy.
+- secondary measurements: ordinary accuracy, train/test sizes, class balance, and the relevant contamination invariant for each experiment.
+- all vectorizer fitting happens only on the training texts for the evaluated split.
+- scikit-learn version for this research run: =1.9.0=.
+- plots: Matplotlib =3.11.1=; SVG output with no hand-edited numbers.
+
+These choices are pedagogical controls, not a claim that TF-IDF/logistic regression is the eventual optimal StarIntel model.
+
+** Experiment A -- repeated-entity leakage
+Synthetic corpus:
+- 160 entities;
+- 4 observations per entity;
+- entity labels alternate deterministically between the two classes;
+- each observation contains a stable entity-specific signature token plus neutral per-observation noise;
+- no cross-entity predictive feature is intentionally supplied.
+
+Splits:
+1. =row_random=: =train_test_split(test_size=0.25, random_state=1729, stratify=y)=.
+2. =entity_group=: =GroupShuffleSplit(n_splits=1, test_size=0.25, random_state=1729)= with =entity_id= as the group.
+
+Predeclared invariant: =entity_group= must have zero entity IDs shared between train and test. =row_random= contamination is measured, not assumed.
+
+Hypothesis: =row_random= will be substantially overoptimistic because the same entity signatures can occur in both partitions, while the grouped split requires generalization to unseen entity signatures. Status: UNTESTED until CI executes the experiment.
+
+** Experiment B -- temporal and future-information leakage
+Synthetic corpus:
+- 24 monthly periods;
+- 24 records per period;
+- balanced binary labels;
+- a deliberately imperfect stable signal is generated deterministically and is correct for 75% of records;
+- =future_resolution= equals the target but has =available_at = observed_at + 7 days=.
+
+Evaluations:
+1. =random_finalized=: row-random split over the fully enriched/finalized table, including =future_resolution=.
+2. =temporal_finalized=: strict cutoff after month 18; train months 1--18/test months 19--24, still incorrectly including =future_resolution=.
+3. =temporal_point_in_time=: the identical temporal train/test indices, but feature extraction drops any field whose =available_at > prediction_at=, so =future_resolution= is unavailable.
+
+Predeclared temporal invariant: =max(train.observed_at) < min(test.observed_at)=. The point-in-time feature builder must never emit =future_resolution= for these records.
+
+Hypothesis: both finalized-table conditions can remain implausibly strong because chronological splitting alone cannot undo a feature that already contains future knowledge; the point-in-time condition should reveal the weaker true signal. Status: UNTESTED until execution.
+
+** Experiment C -- exact and near-duplicate leakage
+Synthetic corpus:
+- 160 base records, balanced labels;
+- each base record has three rows: original, exact duplicate, and deterministic near-duplicate;
+- variants share a base-specific token and semantic content; the near-duplicate changes one low-information token.
+
+Predeclared duplicate algorithm:
+1. normalize text by Unicode case-folding, replacing non-alphanumeric runs with one space, collapsing whitespace, and trimming;
+2. exact duplicate identity is SHA-256 of normalized UTF-8 text;
+3. near-duplicate similarity is Jaccard similarity over the set of normalized whitespace tokens;
+4. create an undirected edge for similarity >= =0.80=;
+5. near-duplicate clusters are deterministic connected components of this threshold graph; component IDs are the lexicographically smallest record ID in the component.
+
+No threshold search, model-based embedding similarity, or post-result tuning is allowed in this pass.
+
+Splits:
+1. =row_random=: =train_test_split(test_size=0.25, random_state=1729, stratify=y)=.
+2. =duplicate_cluster=: =GroupShuffleSplit(n_splits=1, test_size=0.25, random_state=1729)= using the frozen near-duplicate component ID as group.
+
+Predeclared invariants: the cluster split must have zero exact hashes and zero near-duplicate component IDs shared between train/test. Row-random exact/near contamination rates are measured.
+
+Hypothesis: row-random evaluation will be inflated by cross-split copies/near-copies; cluster-group evaluation will require generalization to unseen base records and score materially lower. Status: UNTESTED until execution.
+
+* TDD gate before measurement
+Tests must be added before the experiment implementation and cover at least:
+- deterministic synthetic generation;
+- class balance;
+- entity-group disjointness;
+- temporal train-before-test ordering;
+- point-in-time field availability;
+- exact normalization/hash stability;
+- Jaccard threshold boundary behavior;
+- deterministic connected-component clustering;
+- zero exact/near cluster contamination in the clean split;
+- training-only vectorizer/model fitting boundary;
+- deterministic JSON result schema and plot path generation.
+
+Tests must assert protocol/invariants rather than force the hypotheses to be true. Experimental score differences are results, not pass criteria.
+
+* Claim-status before execution
+| Claim | Status |
+| grouped splitting can enforce non-overlapping caller-provided groups | DOCUMENTED |
+| time-ordered evaluation prevents ordinary future-to-past fold ordering | DOCUMENTED |
+| prediction-time-unavailable information is leakage | DOCUMENTED |
+| A row-random score exceeds entity-group score on this fixture | UNTESTED |
+| B finalized-table scores exceed point-in-time score on this fixture | UNTESTED |
+| C row-random score exceeds duplicate-cluster score on this fixture | UNTESTED |
+| 0.80 Jaccard is universally optimal for deduplication | NOT CLAIMED |
+
+* Remaining uncertainty
+- Actual A--C score deltas and contamination rates.
+- Whether the deliberately simple Tier C controls are pedagogically strong enough without becoming cartoonishly trivial.
+- Whether later real datasets need MinHash/LSH or embedding-assisted candidate generation; this small fixture intentionally uses exact O(n^2) comparison for inspectability.
+- Broader cross-language StarIntel conformance and final dependency locking remain separate work.
+
+* Next execution step
+Add the protocol tests first, implement the deterministic generators/splits/metrics/plots without changing the frozen rules above, execute them in =ml-starintel-research= CI, inspect the logs and generated machine-readable artifact, then append the observed results to this research pass without rewriting the predeclared protocol.
