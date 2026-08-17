@@ -28,7 +28,7 @@ def sha256_path(path: Path) -> str:
 
 
 def scalar(value: Any) -> Any:
-    if isinstance(value, dict) and set(value) == {"$"}:
+    if isinstance(value, dict) and "$" in value:
         return value["$"]
     return value
 
