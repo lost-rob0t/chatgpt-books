@@ -27,7 +27,8 @@ jobs:
           set -euo pipefail
           python3 -m unittest -v \
             test_gleif_sample_acquisition.py \
-            test_gleif_relation_adapter.py
+            test_gleif_relation_adapter.py \
+            test_gleif_live_snapshot.py
 
       - name: Acquire and inventory official GLEIF JSON samples
         shell: bash
@@ -43,6 +44,12 @@ jobs:
           python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_fixture_experiment.py
           python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_gleif_relation_experiment.py
 
+      - name: Acquire factual GLEIF API snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/acquire_gleif_live_snapshot.py
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -53,4 +60,5 @@ jobs:
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-sample-acquisition.json
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-relation-adapter-experiment.json
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-selected-members/**
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-live-snapshot/**
           if-no-files-found: warn
