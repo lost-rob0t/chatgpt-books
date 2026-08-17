@@ -6,7 +6,7 @@
 Phase 1 -- foundational research.
 * Completed
 - Curriculum and project map initialized.
-- Foundational research passes 01--07 completed as research records; the foundational phase itself remains open.
+- Foundational research passes 01--08 completed as research records; the foundational phase itself remains open.
 - Project 1 executable research harness added with pinned canonical StarIntel schema materialization and Git blob verification.
 - Experiment E StarIntel 0.9 Python/Draft-2020-12 smoke matrix TESTED in CI after one recorded FAILED assumption correction; corrected runs pass all 9 smoke checks.
 - D0 narrow synthetic provenance-manifest round trip TESTED in CI.
@@ -16,14 +16,19 @@ Phase 1 -- foundational research.
 - Primary GLEIF API Tier B factual as-of snapshot acquired for feeder =6354009BJOFO62XYIX17=, its master fund =635400VZ8GQJUZ3L3H12=, fund manager =635400Z5LRZZSML7CV16=, and both relationship-record resources.
 - Full public-source Experiment D TESTED in =ml-starintel-research= run 50: three =org= + two =relation= documents were entity-closed, provenance/hash reconstruction passed, JSON round trip passed, and all five documents validated against canonical StarIntel schema 0.9.0.
 - Tier A/Tier B/Tier C fixture policy established: illustrative format fixtures, factual frozen as-of observations, and deterministic synthetic controls are kept distinct.
+- Leakage evaluation protocol frozen before measurement and tests committed before implementation.
+- Experiments A--C TESTED in =ml-starintel-research= run 63 with 28 passing harness tests and generated JSON/SVG artifacts:
+  - A repeated-entity control: row-random balanced accuracy 0.975 versus entity-group 0.500; row-random test-row entity contamination 0.95; grouped overlap zero.
+  - B future-information control: random-finalized and temporal-finalized balanced accuracy 1.000, temporal point-in-time 0.750; strict temporal ordering held and the point-in-time builder emitted no future-only field.
+  - C duplicate control: row-random balanced accuracy 0.9583333333 versus duplicate-cluster 0.500; random exact test contamination 0.50 and near-component contamination 0.925; clean cluster split zero for both.
 * Active research
-- Predeclare deterministic entity-group/time precedence and exact/near-duplicate clustering rules.
-- Execute leakage Experiments A--C with deterministic synthetic controls and real measured outputs/plots.
+- Specify a deterministic composite split planner that composes entity identity, duplicate components, source/document lineage, graph-connected grouping where justified, temporal cutoff, and point-in-time feature availability.
+- Run that planner as a contamination diagnostic on a non-synthetic public fixture without pretending the tiny GLEIF sample supports meaningful model-performance estimation.
 - Verify broader upstream/cross-language StarIntel conformance separately from the Book 1 Python smoke matrix.
 - Finish a deliberate transitive dependency lock/reproducibility policy for Project 1 before implementation chapters harden their environment contract.
 * Unverified claims
-- Leakage measurements, the final near-duplicate threshold/algorithm, cross-language conformance equivalence, broader public-dataset scaling behavior, and the final dependency lock remain UNTESTED unless separately recorded as executed.
+- Composite real-data split behavior, scalable near-duplicate candidate generation, cross-language conformance equivalence, broader public-dataset scaling behavior, and the final dependency lock remain UNTESTED unless separately recorded as executed.
 * Technical/editorial/visual review
 Not started.
 * Blockers
-The prior GLEIF binary/provenance blocker is closed. The next blocker is experimental design: split/group/duplicate policies must be fixed before running Experiments A--C so the evaluation rules are not tuned after observing results. Chapters 2--5 and Project 1 remain RESEARCH/DRAFT until those leakage experiments and their reproducible plots/results are executed and reviewed.
+The GLEIF provenance blocker and basic A--C leakage-measurement blocker are closed. The next design gate is composition: multiple leakage constraints must be compiled into one deterministic split policy before Project 1 hardens its dataset-manifest format or evaluates larger public corpora. Chapters 2--5 and Project 1 remain RESEARCH/DRAFT until that composite policy and reproducibility contract are reviewed.
