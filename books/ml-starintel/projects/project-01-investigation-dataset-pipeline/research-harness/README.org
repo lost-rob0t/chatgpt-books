@@ -7,8 +7,10 @@ It currently exercises:
 - Experiment E: a pinned StarIntel 0.9 conformance smoke matrix.
 - Experiment D0: a narrow synthetic provenance-manifest round trip used to verify the harness shape.
 - Experiment D1: a frozen official GLEIF public-source extract mapped into a canonical StarIntel =org= record with byte hashes and provenance reconstruction checks.
+- D2A: official GLEIF current-format sample =org= + =relation= adapter-shape coverage, including honest unresolved endpoints where the sample bundle lacks matching Level 1 records.
+- Experiment D: a frozen factual as-of primary GLEIF API snapshot mapped offline into three entity-closed =org= documents and two =relation= documents with source/hash provenance reconstruction.
 
-Experiments A--C and the final genuine Level 1/Level 2 public-data Experiment D remain UNTESTED.
+Experiments A--C remain UNTESTED.
 
 * Canonical boundary
 The harness materializes the canonical schema from:
@@ -20,29 +22,61 @@ The harness materializes the canonical schema from:
 
 The fetched bytes are rejected unless their Git blob identity matches exactly. This avoids silently following a moving branch while also avoiding a second hand-maintained StarIntel schema in this book.
 
-* Frozen GLEIF fixture
-The first public fixture is intentionally narrow: GLEIF's own official self-record as published on its contact page. It is a deterministic curated source extract, not a raw API/Golden-Copy response.
+StarIntel remains =schema_version: "0.9.0"=. The separate top-level document =version= is integer =1= in the research fixtures. Nothing in this harness promotes the StarIntel specification to 1.0.
 
-- source extract: =fixtures/gleif-public-self-record-v1.raw.json=
-- source SHA-256: =3785689e0d5e768d0adfa4838540646b815b5df4e32c2619abc51b1419584c4f=
-- normalized StarIntel record: =fixtures/gleif-public-self-record-v1.starintel.json=
-- normalized SHA-256: =0e433da6b856a48378b011786dd49f4edc1d771eddca936d681bae703ebf85b2=
-- LEI: =506700GE1G29325QX363=
-- source licence: CC0-1.0 under GLEIF LEI Data Terms of Use.
+* Fixture tiers
+** Tier A -- illustrative/format fixtures
+The official GLEIF current-format JSON sample archive is used for parser/adapter-shape coverage. It is not promoted into factual ownership claims.
 
-The fixture exists so ordinary tests remain stable when upstream GLEIF data changes. Refreshing public source data must be an explicit operation that updates the frozen bytes, hashes, provenance, and research record.
+Observed archive SHA-256:
+=7b49ee2c8fbe8e2a10f60165dd12ab3bf212eb95418c229218ea24d425b15237=
+
+For the selected feeder sample, =IS_FEEDER_TO= and =IS_FUND-MANAGED_BY= target LEIs are absent from the same Level 1 sample member. D2A therefore uses canonical StarIntel unresolved relation endpoints instead of inventing entity records.
+
+** Tier B -- factual frozen as-of observations
+The full Experiment D fixture lives under:
+=fixtures/gleif-live-2026-08-17/=
+
+It freezes canonical parsed responses acquired from the primary GLEIF API for:
+- feeder =6354009BJOFO62XYIX17=;
+- fund manager =635400Z5LRZZSML7CV16=;
+- master fund =635400VZ8GQJUZ3L3H12=;
+- =IS_FUND-MANAGED_BY= relationship record;
+- =IS_FEEDER_TO= relationship record.
+
+The fixture manifest records each source URL, retrieval time, raw-response SHA-256, deterministic canonical-JSON SHA-256, resource ID/type and the Golden Copy publication time. Exact raw bytes remain in the acquisition CI artifact; ordinary Experiment D runs use only committed canonical snapshots and the cached pinned StarIntel schema.
+
+** Tier C -- synthetic controls
+Reserved for deterministic ML ground truth and leakage Experiments A--C. Synthetic truth must not be confused with Tier B factual source observations.
+
+* Earlier frozen GLEIF self fixture
+D1 retains the earlier narrow source extract:
+- =fixtures/gleif-public-self-record-v1.raw.json= SHA-256 =3785689e0d5e768d0adfa4838540646b815b5df4e32c2619abc51b1419584c4f=
+- normalized =gleif-public-self-record-v1.starintel.json= SHA-256 =0e433da6b856a48378b011786dd49f4edc1d771eddca936d681bae703ebf85b2=
+- LEI =506700GE1G29325QX363=
+
+D1 is retained as a simpler provenance teaching slice even though full D now exists.
 
 * Run
 #+begin_src sh
 python3 -m pip install -r requirements.txt
+python3 -m unittest -v \
+  test_gleif_sample_acquisition.py \
+  test_gleif_relation_adapter.py \
+  test_gleif_live_snapshot.py \
+  test_full_provenance_experiment.py
 python3 run_experiments.py
 python3 run_fixture_experiment.py
+python3 run_gleif_relation_experiment.py
+python3 run_full_provenance_experiment.py
 #+end_src
 
-After the first successful schema materialization, the canonical-schema smoke matrix can be exercised without network access:
+The full provenance experiment is offline with respect to GLEIF. It expects the canonical StarIntel schema cache to have been materialized first by =run_experiments.py=.
 
+Live/source-refresh probes are separate:
 #+begin_src sh
-python3 run_experiments.py --offline
+python3 acquire_gleif_samples.py
+python3 acquire_gleif_live_snapshot.py
 #+end_src
 
 Machine-readable results are written under =artifacts/= and uploaded by the =ml-starintel-research= GitHub Actions workflow.
@@ -51,8 +85,14 @@ Machine-readable results are written under =artifacts/= and uploaded by the =ml-
 - A CI invocation that actually executes a case may be recorded as TESTED.
 - A failing invocation is FAILED and remains part of the research record.
 - D0 does not prove public-source provenance.
-- D1 proves only the frozen official contact-page extract path after its CI run is observed; it does not substitute for the final Level 1/Level 2 API/Golden-Copy fixture.
+- D1 proves only the earlier frozen contact-page extract path.
+- D2A proves the Tier A adapter shape and unresolved-endpoint semantics, not current factual relationships.
+- Full D proves reproducibility and canonical validation for the frozen Tier B as-of observation; it does not claim those relationships persist forever.
 - Cross-language Python/Nim/Common Lisp conformance remains UNTESTED here.
+- Experiments A--C remain UNTESTED until their split rules are predeclared and actual measurements run.
 
 * First observed failure
 The first CI execution on 2026-08-14 rejected the supposed-valid fixture because top-level StarIntel =version= is an integer with minimum 1, not the schema-version string. The harness was corrected to =version: 1= and retains the original mistake as a negative regression case. This is exactly why implementation claims stay UNTESTED until exercised against the canonical schema.
+
+* Latest verified run
+=ml-starintel-research= run 50 on 2026-08-17 executed 16 unit tests plus E, D0, D1, D2A and full D. Full D generated 3 =org= + 2 =relation= documents; entity closure, source/provenance hashes, JSON round trip and all five StarIntel 0.9 validations passed. The same workflow then successfully refreshed the primary GLEIF API probe without changing the selected raw/canonical response hashes during that observation window.
