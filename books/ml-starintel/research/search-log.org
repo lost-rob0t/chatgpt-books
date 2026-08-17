@@ -71,3 +71,14 @@
 - Failure/blocker: the available web fetch path resolved the official ZIP link but rejected the binary =application/zip= response. No archive/member hash was guessed and nothing was marked frozen.
 - Follow-up: acquire the official archive through a binary-capable path, hash the archive/members, select the smallest self-contained ownership subset, normalize entity+relation records through the narrow StarIntel adapter, then execute full Experiment D offline.
 - Record: [[file:foundations-pass-05.org][foundations-pass-05.org]].
+
+** 2026-08-17 -- foundational pass 06 / fixture trust boundary
+- Exact questions: Is GLEIF's API example factual or illustrative; which RR-CDF semantics must survive the StarIntel adapter; and can this environment finally retrieve the official JSON ZIP bytes?
+- Primary sources inspected: GLEIF =Supporting Documents=, the official =GLEIF-API-example.json=, and =Level 2 Data: Relationship Record (RR) CDF Format 2.1=.
+- Retrieval date: 2026-08-17.
+- Result: GLEIF explicitly warns that its API example primarily showcases fields/relationships and may not correspond to a real-world case. Therefore the API example is suitable for deterministic adapter-shape coverage but not factual ownership claims. RR-CDF requires preserving involved-entity identity, relationship type/characteristics such as dates, and relationship validation/reporting information.
+- Acquisition attempts: official ZIP URL resolved; web fetch rejected =application/zip=; dedicated container download failed; direct Python download in the container failed because external DNS was unavailable. Status =FAILED= for acquisition in this execution environment only. No hash/member filename was invented.
+- Research decision: Project 1 now distinguishes Tier A illustrative format fixtures, Tier B frozen real public observations, and Tier C deterministic synthetic controls. Full Experiment D requires frozen Level 1 + Level 2 bytes and remains UNTESTED.
+- Remaining uncertainty: exact archive member names/hashes, smallest self-contained ownership subset, exact RR-CDF qualifier/period mapping, reporting-exception placement, grouped+temporal precedence and near-duplicate clustering.
+- Follow-up: acquire exact official sample members through a binary-capable path and execute the narrow =org= + =relation= adapter/provenance round trip offline.
+- Record: [[file:foundations-pass-06.org][foundations-pass-06.org]].
