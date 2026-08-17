@@ -28,7 +28,8 @@ jobs:
           python3 -m unittest -v \
             test_gleif_sample_acquisition.py \
             test_gleif_relation_adapter.py \
-            test_gleif_live_snapshot.py
+            test_gleif_live_snapshot.py \
+            test_full_provenance_experiment.py
 
       - name: Acquire and inventory official GLEIF JSON samples
         shell: bash
@@ -43,6 +44,7 @@ jobs:
           python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_experiments.py
           python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_fixture_experiment.py
           python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_gleif_relation_experiment.py
+          python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_full_provenance_experiment.py
 
       - name: Acquire factual GLEIF API snapshot
         shell: bash
@@ -59,6 +61,7 @@ jobs:
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/fixture-experiment.json
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-sample-acquisition.json
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-relation-adapter-experiment.json
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/full-provenance-experiment.json
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-selected-members/**
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-live-snapshot/**
           if-no-files-found: warn
