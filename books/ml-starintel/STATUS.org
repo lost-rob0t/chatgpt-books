@@ -6,7 +6,7 @@
 Phase 1 -- foundational research.
 * Completed
 - Curriculum and project map initialized.
-- Foundational research passes 01--08 completed as research records; the foundational phase itself remains open.
+- Foundational research passes 01--09 completed as research records; the foundational phase itself remains open.
 - Project 1 executable research harness added with pinned canonical StarIntel schema materialization and Git blob verification.
 - Experiment E StarIntel 0.9 Python/Draft-2020-12 smoke matrix TESTED in CI after one recorded FAILED assumption correction; corrected runs pass all 9 smoke checks.
 - D0 narrow synthetic provenance-manifest round trip TESTED in CI.
@@ -21,14 +21,17 @@ Phase 1 -- foundational research.
   - A repeated-entity control: row-random balanced accuracy 0.975 versus entity-group 0.500; row-random test-row entity contamination 0.95; grouped overlap zero.
   - B future-information control: random-finalized and temporal-finalized balanced accuracy 1.000, temporal point-in-time 0.750; strict temporal ordering held and the point-in-time builder emitted no future-only field.
   - C duplicate control: row-random balanced accuracy 0.9583333333 versus duplicate-cluster 0.500; random exact test contamination 0.50 and near-component contamination 0.925; clean cluster split zero for both.
+- Composite split planner architecture DOCUMENTED in pass 09: hard must-link constraints compose by deterministic transitive closure into one =composite_group_id=; temporal cutoff and feature availability remain separate admissibility rules; graph grouping is opt-in and task-specific; the proposed first cutoff-straddling policy fails closed rather than silently changing the evaluation window.
+- Current =starintel-server= runtime boundary re-inspected at =master= commit =7df7fce9b95146a72c7b1e9c6ed7655e9f4b0bae=; Project 1 keeps persistence, routing, actor/runtime and storage semantics behind the StarIntel adapter rather than duplicating them.
 * Active research
-- Specify a deterministic composite split planner that composes entity identity, duplicate components, source/document lineage, graph-connected grouping where justified, temporal cutoff, and point-in-time feature availability.
-- Run that planner as a contamination diagnostic on a non-synthetic public fixture without pretending the tiny GLEIF sample supports meaningful model-performance estimation.
+- Implement and test the pass-09 composite planner contract behind a small pure dataset-build API.
+- Run the planner as a contamination diagnostic on a non-synthetic public fixture, recording component construction, cutoff-straddling behavior and overlap diagnostics without pretending a tiny fixture supports meaningful model-performance estimation.
+- Resolve scalable near-duplicate candidate generation for larger public corpora.
 - Verify broader upstream/cross-language StarIntel conformance separately from the Book 1 Python smoke matrix.
 - Finish a deliberate transitive dependency lock/reproducibility policy for Project 1 before implementation chapters harden their environment contract.
 * Unverified claims
-- Composite real-data split behavior, scalable near-duplicate candidate generation, cross-language conformance equivalence, broader public-dataset scaling behavior, and the final dependency lock remain UNTESTED unless separately recorded as executed.
+- Composite real-data planner behavior, the proposed cutoff-straddling fail-closed policy on factual public data, scalable near-duplicate candidate generation, cross-language conformance equivalence, broader public-dataset scaling behavior, and the final dependency lock remain UNTESTED unless separately recorded as executed.
 * Technical/editorial/visual review
 Not started.
 * Blockers
-The GLEIF provenance blocker and basic A--C leakage-measurement blocker are closed. The next design gate is composition: multiple leakage constraints must be compiled into one deterministic split policy before Project 1 hardens its dataset-manifest format or evaluates larger public corpora. Chapters 2--5 and Project 1 remain RESEARCH/DRAFT until that composite policy and reproducibility contract are reviewed.
+The composition semantics are now specified, so the blocker has moved from architecture to execution. The next gate is a TDD implementation of the composite planner plus a contamination-only dry run on non-synthetic public data. Chapters 2--5 and Project 1 remain RESEARCH/DRAFT until that planner behavior and the reproducibility contract are reviewed.
