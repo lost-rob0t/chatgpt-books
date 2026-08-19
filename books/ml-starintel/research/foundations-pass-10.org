@@ -53,7 +53,9 @@ The exact module/test pair was executed before repository publication with:
 python -m unittest -v test_composite_split_planner.py
 #+end_src
 
-Result: 6 tests ran and passed. This is an isolated execution of the exact new files, not a claim that the repository-wide CI had already completed at that moment.
+Result: 6 tests ran and passed.
+
+Repository validation then completed in =ml-starintel-research= run 72 / workflow =32266363088= / job =96111726639= on 2026-08-19. The full selected harness ran 34 tests and reported =OK=. The workflow also completed sample acquisition, Project 1 foundational experiments, the new factual composite-planner diagnostic, live GLEIF snapshot acquisition, and artifact upload successfully. Observed runner environment: Ubuntu 24.04.4 and Python 3.12.3; direct research dependencies resolved as =jsonschema= 4.26.0, =scikit-learn= 1.9.0, and =matplotlib= 3.11.1. Transitive versions observed in that run are not promoted to the final dependency-lock contract.
 
 * Factual GLEIF contamination diagnostic
 Added =run_composite_planner_diagnostic.py=. It reads the three frozen factual LEI records:
@@ -63,30 +65,32 @@ Added =run_composite_planner_diagnostic.py=. It reads the three frozen factual L
 
 The declared research cutoff is =2026-07-01T00:00:00Z=.
 
-Two policies are exercised:
-- default Project 1 policy: no blanket graph union. Entity IDs are unique, so the strict-time diagnostic should place feeder/master before the cutoff and fund manager after it with no hard-group contamination;
-- explicit opt-in graph grouping: union feeder -> master and feeder -> fund manager under =selected_gleif_fund_relation=. The resulting three-record component spans both sides of the cutoff and therefore must be rejected by =reject_straddling_component=.
+Two policies were executed in run 72:
+- default Project 1 policy: no blanket graph union. Feeder and master fund landed in train; fund manager landed in test. Record overlap, composite-group overlap, entity-ID overlap, future-feature violations, and cutoff-straddling components were all zero;
+- explicit opt-in graph grouping: feeder -> master and feeder -> fund manager were unioned under =selected_gleif_fund_relation=. The resulting three-record component crossed the cutoff, yielding one straddling component with ID =6354009BJOFO62XYIX17=; the planner returned =infeasible_as_expected=.
 
 This is intentionally a contamination/policy diagnostic only. Three factual entities are far too small to support a meaningful model-performance estimate, and no score is produced.
 
 * Claim status
 | Claim | Status |
-| deterministic transitive hard-constraint closure is implemented in the new pure planner | TESTED in isolated six-test execution; repository CI pending/inspect separately |
-| lexical component IDs are independent of input edge/record order for tested cases | TESTED |
-| unknown hard-constraint endpoints fail closed | TESTED |
-| strict cutoff-straddling components are rejected | TESTED on unit fixture; factual GLEIF CI dry run pending/inspect separately |
-| features available after prediction time are rejected | TESTED |
-| clean enabled hard constraints can produce zero train/test overlap diagnostics | TESTED |
+| deterministic transitive hard-constraint closure is implemented in the new pure planner | TESTED in run 72 |
+| lexical component IDs are independent of input edge/record order for tested cases | TESTED in run 72 |
+| unknown hard-constraint endpoints fail closed | TESTED in run 72 |
+| strict cutoff-straddling components are rejected | TESTED in unit fixture and factual GLEIF dry run 72 |
+| features available after prediction time are rejected | TESTED in run 72 |
+| clean enabled hard constraints can produce zero train/test overlap diagnostics | TESTED in run 72 |
+| default no-blanket-graph policy is feasible on the frozen three-entity GLEIF diagnostic at the declared cutoff | TESTED in run 72 |
+| opt-in selected GLEIF fund-relation grouping creates the predicted cutoff-straddling component on this fixture | TESTED in run 72 |
 | blanket StarIntel graph connectivity should be the default grouping policy | REJECTED / NOT CLAIMED |
 | the factual three-entity GLEIF diagnostic measures production model quality | NOT CLAIMED |
 | Book 1 should own StarIntel persistence/runtime/storage semantics | REJECTED / NOT CLAIMED |
 
 * Remaining uncertainty
-- Repository CI must confirm the factual GLEIF diagnostic and integration with the existing harness.
 - The planner currently exposes policy compilation/auditing, but the final Project 1 API still needs the explicit upstream =GroupShuffleSplit=/=GroupKFold= handoff after admissibility constraints are satisfied.
 - Scalable near-duplicate candidate generation remains unresolved; the current small control still uses pairwise comparison.
 - The final dependency-lock/reproducibility contract remains unresolved.
 - Cross-language StarIntel conformance equivalence remains a separate upstream concern.
+- The refreshed live GLEIF API snapshot from run 72 is a new as-of observation; it must not silently replace the committed frozen fixture used for the reproducible diagnostic without a deliberate refresh/provenance decision.
 
 * Next research question
 What scalable, deterministic near-duplicate candidate-generation strategy should Project 1 teach and implement before exact pairwise Jaccard becomes unusable: MinHash/LSH, blocking/sorted-neighborhood methods, an embedding-assisted candidate stage, or a deliberately layered combination? The next pass should compare primary algorithm papers and current maintained implementations, define recall/complexity/provenance requirements, and benchmark only after the protocol is frozen.
