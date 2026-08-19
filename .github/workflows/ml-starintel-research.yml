@@ -30,7 +30,8 @@ jobs:
             test_gleif_relation_adapter.py \
             test_gleif_live_snapshot.py \
             test_full_provenance_experiment.py \
-            test_leakage_experiments.py
+            test_leakage_experiments.py \
+            test_composite_split_planner.py
 
       - name: Acquire and inventory official GLEIF JSON samples
         shell: bash
@@ -47,6 +48,7 @@ jobs:
           python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_gleif_relation_experiment.py
           python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_full_provenance_experiment.py
           python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_leakage_experiments.py
+          python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_composite_planner_diagnostic.py
 
       - name: Acquire factual GLEIF API snapshot
         shell: bash
@@ -68,4 +70,5 @@ jobs:
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-live-snapshot/**
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/leakage/results.json
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/leakage/*.svg
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/composite-planner-gleif.json
           if-no-files-found: warn
