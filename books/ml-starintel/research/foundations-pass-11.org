@@ -1,0 +1,99 @@
+#+title: Machine Learning for StarIntel -- Foundational Research Pass 11
+#+date: 2026-08-20
+
+* Status
+RESEARCH / DOCUMENTED. This pass freezes the scalable near-duplicate candidate-generation contract before any new benchmark or corpus measurement. No runtime/storage behavior is added to StarIntel and no candidate-generation performance claim is marked TESTED.
+
+* Exact research questions
+1. Which primary algorithms are appropriate for reducing an all-pairs token-Jaccard near-duplicate search without changing the exact duplicate predicate already frozen by Experiment C?
+2. Should MinHash/LSH, deterministic blocking/sorted-neighborhood, or a layered combination produce candidate pairs for Project 1?
+3. Which parts of a candidate stage may be approximate, and which decisions must remain exact so leakage grouping does not silently depend on probabilistic index output?
+4. Which parameters must be frozen for deterministic/reproducible research runs?
+5. Which maintained implementation can support the selected MinHash/LSH stage in the current Python harness?
+6. Does the design preserve StarIntel as the canonical runtime/storage boundary rather than moving persistence, search, routing, actors, or schema ownership into the book project?
+
+* Retrieval date
+2026-08-20.
+
+* Sources inspected
+** Primary algorithm sources
+- Andrei Z. Broder, =On the Resemblance and Containment of Documents=, SEQUENCES 1997, pp. 21--29, DOI 10.1109/SEQUEN.1997.666900. The paper defines resemblance using set intersection/union and gives the min-wise sampling basis used to estimate resemblance without comparing every element of every document.
+- Piotr Indyk and Rajeev Motwani, =Approximate Nearest Neighbors: Towards Removing the Curse of Dimensionality=, STOC 1998, pp. 604--613, DOI 10.1145/276698.276876. This is the primary locality-sensitive hashing framework source used here to justify an approximate candidate index rather than exact all-pairs search.
+- Mauricio A. Hernández and Salvatore J. Stolfo, =The Merge/Purge Problem for Large Databases=, SIGMOD 1995, pp. 127--138, DOI 10.1145/223784.223807. The paper presents sorted-neighborhood and multi-pass matching as a way to reduce candidate comparisons while recovering matches under alternate keys.
+
+** Current maintained implementation documentation
+- =datasketch= 2.0.0 official documentation and project source. Current release observed on PyPI: 2.0.0, published 2026-07-05; Python >=3.9. =MinHashLSH= provides threshold-oriented Jaccard candidate queries. The documentation explicitly describes results as approximate and documents the banding probability curve.
+- =datasketch= 2.0.0 MinHash documentation. Version 2.0.0 changed the default permutation scheme to =affine32=; persisted signatures/indexes therefore need an explicit scheme/version contract instead of relying on historical defaults. =num_perm= controls signature size/accuracy tradeoffs and =seed= is part of MinHash state.
+- scikit-learn 1.9 =GroupShuffleSplit= and =GroupKFold= documentation. Both consume caller-provided groups; candidate generation therefore belongs before the existing composite-group handoff, not inside the upstream splitters.
+
+** Current StarIntel repository sources
+- =lost-rob0t/starintel-server= current =master= head re-inspected on 2026-08-20: =7df7fce9b95146a72c7b1e9c6ed7655e9f4b0bae=. The server remains the runtime owner; Book 1 does not implement persistence, queues, routing, search, actor lifecycle, or storage semantics.
+- =lost-rob0t/starintel-gpt-auto-dig= current repository inspected on 2026-08-20. The canonical 0.9 schema path remains =schemas/starintel-doc-v0.9.0.schema.json= on current main; the research harness continues to pin the previously verified immutable schema revision rather than silently following current main.
+- Existing Book 1 Experiment C implementation re-inspected. The frozen duplicate predicate remains normalized token-set Jaccard >= 0.80, with exact SHA-256 normalized-text equality handled separately.
+
+* Comparison
+** Exact all-pairs Jaccard
+- Semantics: exact for the frozen predicate.
+- Scaling: pair count grows quadratically with record count.
+- Role: verifier/oracle for small fixtures and for candidate pairs, not the scalable candidate enumerator.
+
+** Sorted neighborhood / deterministic blocking
+- Strength: deterministic, explainable, cheap candidate production when useful keys exist.
+- Weakness: a blocking key can miss a true pair when the corruption lies in that key; multi-pass keys mitigate but do not remove this risk.
+- Project 1 role: deterministic recall aid using source/domain fields or normalized lexical keys when such keys are available. Blocking output is candidate-only.
+
+** MinHash + LSH
+- Strength: directly targets set resemblance/Jaccard and reduces candidate search without exact all-pairs comparison.
+- Weakness: probabilistic candidate recall near the threshold; results cannot be treated as the duplicate predicate itself.
+- Project 1 role: general token-set candidate generator. Every returned pair is rechecked with exact normalized token Jaccard before an edge enters duplicate-component closure.
+
+** Embedding-assisted candidates
+Deferred. Embeddings introduce model/version/vector-distance semantics that are unnecessary for the current exact token-Jaccard leakage contract and belong later in the curriculum. They may become an additional candidate source, but cannot silently redefine Project 1 duplicate identity.
+
+* Frozen candidate-generation contract
+1. =normalize_text= and =token_set= from the tested Experiment C remain canonical for this Project 1 slice.
+2. Exact normalized-text hashes are unioned first and never depend on an approximate index.
+3. Near-duplicate truth remains =token_jaccard(left, right) >= 0.80=. Candidate algorithms never change this predicate.
+4. Candidate output is an unordered lexical pair of stable record IDs. Pairs are canonicalized as =(min_id, max_id)= and deduplicated before verification.
+5. Candidate sources are provenance-tagged. Initial supported source kinds are =exact-hash=, =block=, and =minhash-lsh=.
+6. The initial scalable policy is the union of deterministic blocking candidates and MinHash/LSH candidates. A later benchmark may remove a redundant source only after recall behavior is measured on frozen controls/public corpora.
+7. The MinHash implementation candidate is =datasketch==2.0.0=. The implementation must explicitly set =scheme="affine32"= and a fixed integer =seed= rather than inheriting mutable defaults. =num_perm= and LSH threshold/banding parameters must be emitted into the dataset/split manifest.
+8. The LSH query threshold for the first implementation is the already-frozen exact near-duplicate threshold, 0.80. This is a candidate-index operating point, not a guarantee that every exact >=0.80 pair will be returned.
+9. Exact Jaccard verification happens after candidate union and before transitive duplicate-component closure. False-positive candidates are harmless after exact verification; false-negative candidates are the primary research risk and must be measured explicitly.
+10. Candidate generation is a pure dataset-preparation concern. No Book 1 index may become a StarIntel persistence/search service. Persistent runtime/storage/index ownership stays behind the StarIntel adapter.
+
+* Predeclared evaluation protocol for the next execution pass
+No results are claimed in this pass. Before measuring a larger corpus, the implementation pass must record:
+- candidate-pair count versus exact all-pairs pair count;
+- exact qualifying pair count from the small oracle corpus;
+- candidate recall = qualifying pairs proposed / exact qualifying pairs;
+- false-positive candidate count before exact verification;
+- deterministic equality of canonical pair output across input order permutations;
+- exact equality of final verified duplicate components versus the all-pairs oracle on the frozen Tier C fixture;
+- wall-clock/runtime only when actually executed and with environment/corpus size recorded;
+- all MinHash/LSH parameters, implementation version, normalization/tokenization version, seed, and source provenance in the artifact.
+
+No minimum recall/runtime threshold is asserted as already achieved. The first benchmark may fail; a failed result is research output, not permission to tune the protocol after observing it.
+
+* Claim status
+| Claim | Status |
+| Broder min-wise sampling supports resemblance estimation over sets | DOCUMENTED |
+| Indyk/Motwani LSH provides an approximate near-neighbor framework | DOCUMENTED |
+| Hernández/Stolfo sorted-neighborhood reduces comparison candidates and supports multi-pass keys | DOCUMENTED |
+| datasketch 2.0.0 exposes threshold-oriented MinHashLSH and affine32 as the current default MinHash scheme | DOCUMENTED from current official docs |
+| candidate generation must be separated from exact duplicate verification in Project 1 | FROZEN DESIGN DECISION |
+| Project 1 will initially union deterministic blocking and MinHash/LSH candidates | FROZEN DESIGN DECISION |
+| datasketch 2.0.0 achieves sufficient recall/runtime on StarIntel-style public data | UNTESTED |
+| the frozen 0.80 LSH operating threshold guarantees retrieval of every exact >=0.80 pair | NOT CLAIMED |
+| scalable candidate generation preserves exact all-pairs components on the frozen Tier C fixture | UNTESTED until implementation pass |
+| Book 1 owns StarIntel runtime/storage/search semantics | REJECTED / NOT CLAIMED |
+
+* Remaining uncertainty
+- Exact deterministic blocking keys for heterogeneous StarIntel-style records need to be selected without using labels or future information.
+- =num_perm= and, if explicitly overridden, LSH band/row parameters need a predeclared benchmark grid rather than post-hoc tuning.
+- Larger non-synthetic public corpus selection is still open; it must have redistribution/provenance semantics strong enough for reproducible evaluation.
+- Final upstream =GroupShuffleSplit=/=GroupKFold= handoff remains to be wired after verified duplicate components become hard grouping constraints.
+- Final transitive dependency lock and cross-language StarIntel conformance equivalence remain open.
+
+* Next research question
+Can the frozen layered candidate contract be implemented tests-first so that its final exact duplicate components are identical to the existing all-pairs oracle on Tier C, while the candidate set is deterministic and materially smaller than all pairs; and what predeclared =num_perm= grid should then be evaluated on a larger frozen public corpus without post-hoc tuning?
