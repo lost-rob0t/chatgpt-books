@@ -20,7 +20,7 @@ DOCUMENTED BOUNDARY: Korf states shortest-length and asymptotic optimality resul
 
 The course planner is not that theorem's implementation. It is a graph-shaped forward planner over canonical ground symbolic states and uses path-local cycle pruning. Therefore this book cites Korf for the depth-limited/iterative-deepening mechanism and historical analysis, but does not claim the paper's asymptotic theorem, memory bound, or general shortest-path theorem for arbitrary course domains.
 
-A bounded repository regression may establish that iterative deepening finds the known depth-3 solution on the synthetic field-service fixture. That evidence remains fixture-specific.
+A bounded repository regression establishes that iterative deepening finds the known depth-3 solution on the synthetic field-service fixture. That evidence remains fixture-specific.
 
 * Question 3 -- Why is cutoff a first-class result?
 Project-defined semantics:
@@ -50,11 +50,11 @@ DOCUMENTED:
 - the paper's explicit tree-search theorem scope and arbitrary-graph caveat;
 - verified article metadata and DOI.
 
-UNTESTED until the new branch head executes:
-- =depth_limited_plan/6= typed cutoff/exhaustion semantics;
-- =iterative_deepening_plan/6= iteration and maximum-depth semantics;
-- path-local cycle-pruning regressions;
-- combined book Project 1/2 suite and publication/Nix gates after adding this slice.
+TESTED at implementation head =3e6967f02c6f9189ebd7bc7793f621f5e6837c7d=:
+- =symbolic-ai-prolog-book= run =35160005325= used SWI-Prolog 10.0.2 and passed Project 1 25/25, explicit-search 9/9, relational-planner 10/10, cost-search 16/16, and bounded-search 9/9 regressions;
+- the same focused run passed =make book BOOK=symbolic-ai-prolog= and =make check BOOK=symbolic-ai-prolog= with EPUBCheck 5.3.0 reporting 0 fatals / 0 errors / 0 warnings / 0 infos;
+- focused Nix job =105008329303= passed =nix flake check -L=;
+- generic =books-ci= run =35160005329= passed structure, Pandoc Org-reader validation, deterministic assets/fixture, EPUBCheck, publication/citation regressions, ERT, real Org-roam synchronization, and artifact upload.
 
 NOT CLAIMED:
 - Korf's asymptotic optimality theorem for this graph planner;

@@ -69,11 +69,11 @@ Korf's shortest-length and asymptotic results are stated for the tree-search mod
 
 The executable claim here is narrower:
 
-- on the synthetic field-service fixture, limit 2 is expected to return =cutoff([restored(node7)],2)= because the known repair needs three actions;
-- limit 3 is expected to return the concrete three-action repair;
-- a finite two-state cycle with no goal is expected to return =exhausted/1= once every non-cycle continuation is actually explored.
+- on the synthetic field-service fixture, limit 2 returns =cutoff([restored(node7)],2)= because the known repair needs three actions;
+- limit 3 returns the concrete three-action repair;
+- a finite two-state cycle with no goal returns =exhausted/1= once every non-cycle continuation is actually explored.
 
-Those remain UNTESTED claims on this new branch revision until the exact SWI-Prolog suite executes them.
+These bounded claims are TESTED at implementation head =3e6967f02c6f9189ebd7bc7793f621f5e6837c7d= by =symbolic-ai-prolog-book= run =35160005325= under SWI-Prolog 10.0.2. They remain fixture-level repository evidence, not a transfer of Korf's tree-search theorem to arbitrary planning graphs.
 
 ** 9.24 Iterative Deepening Is Repeated Evidence, Not One Infinite Promise
 :PROPERTIES:
@@ -96,7 +96,7 @@ There are three stopping rules:
 - =exhausted=: stop early because that iteration encountered no hidden deeper live branch under the same transition/cycle semantics;
 - =cutoff= at =MaxDepth=: return =cutoff(Goals,MaxDepth)=, preserving the fact that the caller stopped before search had semantic evidence of exhaustion.
 
-On the bundled field-service fixture the expected iteration summary is:
+On the bundled field-service fixture the tested iteration summary is:
 
 #+begin_example
 0 -> cutoff
