@@ -204,7 +204,7 @@ The proof tree therefore contains repeated use of =r_reach_step=:
 
 #+CAPTION: One successful proof of =reachable(gateway,database)=. Rule labels are provenance identifiers; edges show the conjunction/body structure required by the selected rules.
 #+ATTR_HTML: :alt A proof tree for gateway to database reachability. The root uses r_reach_step, proves link gateway router, recurses with r_reach_step through cache, then uses r_reach_direct and the link cache database fact.
-[[file:../assets/proof-tree.svg]]
+[[file:assets/proof-tree.svg]]
 
 The ordered provenance projection for that proof is:
 
