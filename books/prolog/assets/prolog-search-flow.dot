@@ -1,0 +1,26 @@
+digraph prolog_search_flow {
+  graph [rankdir=LR, labelloc="t", label="Project 1: relation, search, and cycle-safe recursion", fontsize=18];
+  node [shape=box, fontname="sans", fontsize=11];
+  edge [fontname="sans", fontsize=10];
+
+  query [label="query\nconnection_path(ada, ben, Path)"];
+  choice [label="choice point\nfollows(ada, Next)"];
+  lina [label="Next = lina\nrecursive branch"];
+  noor [label="Next = noor\nredo branch"];
+  seen_lina [label="Seen = [lina, ada]\nreject revisits with dif/2"];
+  seen_noor [label="Seen = [noor, ada]\nreject revisits with dif/2"];
+  goal1 [label="Path = [ada, lina, ben]\nfirst proof"];
+  goal2 [label="Path = [ada, noor, ben]\nlater proof"];
+  cycle [label="noor -> ada\nrejected: ada already Seen", shape=note];
+  once [label="first_connection_path/3\nonce/1 keeps only first proof", shape=component];
+
+  query -> choice;
+  choice -> lina [label="first alternative"];
+  choice -> noor [label="backtracking / redo"];
+  lina -> seen_lina;
+  seen_lina -> goal1;
+  noor -> seen_noor;
+  seen_noor -> cycle [label="candidate revisit"];
+  seen_noor -> goal2 [label="other edge"];
+  goal1 -> once [style=dashed, label="explicit commitment"];
+}

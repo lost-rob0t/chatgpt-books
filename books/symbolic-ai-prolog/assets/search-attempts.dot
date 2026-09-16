@@ -1,0 +1,22 @@
+digraph search_attempts {
+  rankdir=TB;
+  graph [fontname="DejaVu Sans", bgcolor="transparent", pad="0.2", nodesep="0.35", ranksep="0.45"];
+  node [shape=box, fontname="DejaVu Sans", fontsize=11];
+  edge [fontname="DejaVu Sans", fontsize=10];
+
+  goal [label="query\nreachable(gateway, database)"];
+  direct [label="attempt r_reach_direct\nhead unifies"];
+  direct_body [label="body\nlink(gateway, database)"];
+  failed [label="FAILED ATTEMPT\nno matching derivation", shape=octagon];
+  recursive [label="attempt r_reach_step\nhead unifies"];
+  recursive_body [label="body\nlink(gateway, Via),\nreachable(Via, database)"];
+  proved [label="PROVED\nproof tree retained", shape=doubleoctagon];
+
+  goal -> direct [label="first matching rule"];
+  direct -> direct_body;
+  direct_body -> failed;
+  failed -> recursive [label="backtrack / next attempt", style=dashed];
+  goal -> recursive [label="same query, later rule", style=dotted];
+  recursive -> recursive_body;
+  recursive_body -> proved;
+}

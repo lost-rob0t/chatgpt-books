@@ -1,0 +1,247 @@
+* Chapter 6 -- Choice Points You Can See
+:PROPERTIES:
+:ID:       e2dc4dc3-19f7-4455-97ae-1e011e9adf5a
+:END:
+
+Project 1 can already prove a goal in more than one way, but the choice itself is still mostly implicit. The host Prolog engine walks the =rule/3= list, tries a rule whose head unifies, proves its body, and returns to later alternatives when the caller asks for another solution. That is exactly the behavior we wanted for milestone A. It is also the next thing worth making visible.
+
+This chapter adds two mechanisms, and it is important not to confuse them. First, the *object language* gains one explicit choice form, =either(Left,Right)=. Second, the debugging API gains a bounded report of top-level rule attempts for a ground goal. The first changes what object programs can express. The second observes how one ordinary object goal can be attempted. Neither mechanism opens the door to arbitrary host Prolog execution.
+
+** 6.1 A successful proof hides useful failures
+Return to:
+
+#+begin_src prolog
+reachable(From, To) :-
+    link(From, To).
+reachable(From, To) :-
+    link(From, Via),
+    reachable(Via, To).
+#+end_src
+
+Our object program stores equivalent teaching rules with stable IDs. For =reachable(gateway,database)=, the direct rule's head unifies with the query. Its body then asks for =link(gateway,database)=, which fails. Prolog backtracks, selects the recursive rule, and eventually finds the route through =router= and =cache=.
+
+The successful proof tree is correct to omit the first failed rule. A justification should not claim that a failed derivation supports the conclusion. But when debugging rule order or asking why search took a surprising path, the failed attempt matters.
+
+That gives us two different questions:
+
+- *Why is the answer justified?* Read the proof tree.
+- *Which top-level matching rules were attempted, and what happened to them?* Read the search-attempt report.
+
+The second artifact is still not SWI-Prolog's debugger trace. SWI's current debugger is built around the four traditional ports =call=, =redo=, =exit=, and =fail=, plus SWI-specific =unify= and =exception= ports [cite:@swi-debugger]. Our report is deliberately smaller: it observes only this teaching interpreter's stored top-level rules and guarded body outcomes.
+
+#+CAPTION: The proof retains only the successful recursive derivation, while the bounded search-attempt diagnostic also records that the earlier direct rule's body failed. The dashed edge denotes backtracking to a later alternative, not a proof dependency.
+#+ATTR_HTML: :alt A query for gateway-to-database reachability first attempts the direct rule, whose link body fails, then backtracks to the recursive rule, whose body succeeds and yields the retained proof tree.
+[[file:assets/search-attempts.svg]]
+
+** 6.2 Derive choice before adding a control form
+Ordinary Prolog disjunction is =;/2=. SWI-Prolog documents it as succeeding when either side succeeds, but the same control section also has to explain its interaction with cut and if-then-else [cite:@swi-control]. If Project 1 simply passed =;/2= to the host, the tiny object language would suddenly inherit control behavior we have not specified or tested.
+
+So we give the object language a smaller operator in data:
+
+#+begin_src prolog
+either(Left, Right)
+#+end_src
+
+Its contract is intentionally boring:
+
+1. enumerate proofs of =Left= in normal search order;
+2. when the caller backtracks, continue enumerating left proofs;
+3. after the left branch is exhausted, enumerate proofs of =Right=;
+4. record which branch produced each successful proof.
+
+That is enough to teach explicit choice without pretending we have implemented all of Prolog's control language.
+
+The unguarded interpreter recognizes the reserved form before ordinary rule selection:
+
+#+begin_src prolog
+prove_goal(Program, either(Left, Right), Proof) :-
+    !,
+    (   prove_goal(Program, Left, LeftProof),
+        Proof = choice(left, LeftProof)
+    ;   prove_goal(Program, Right, RightProof),
+        Proof = choice(right, RightProof)
+    ).
+#+end_src
+
+The cut is in the *meta-program*, after recognizing that this term is a reserved object control form. It prevents =either/2= from falling through and being mistaken for an ordinary object predicate. It does not discard the disjunction created after it, so both object branches remain available on backtracking.
+
+That distinction is worth tracing on paper. “The interpreter contains a cut” and “the object language exposes cut” are completely different statements.
+
+** 6.3 Why the proof gets a =choice/2= node
+Suppose the object query is:
+
+#+begin_src prolog
+either(powered(gateway), imaginary(gateway))
+#+end_src
+
+The left branch can succeed and the right branch cannot. A successful proof becomes:
+
+#+begin_example
+choice(left,
+       fact(f_power_gateway, powered(gateway)))
+#+end_example
+
+=choice/2= is structure, not provenance. No object rule called =left= justified the fact, so =proof_rule_ids/2= descends through the choice node and returns only:
+
+#+begin_example
+[f_power_gateway]
+#+end_example
+
+This is the same discipline we used for =and/2=. Proof syntax may contain nodes needed to describe composition, but provenance IDs correspond only to selected object rules.
+
+** 6.4 Budgets belong to branches, not to yesterday's failed branch
+The guarded interpreter makes one unit of budget mean one object rule selection. =either/2= itself selects no rule, so it consumes no unit.
+
+More subtly, both alternatives begin from the same incoming budget. Imagine:
+
+#+begin_src prolog
+either(unstable(sensor), powered(gateway))
+#+end_src
+
+where the left branch immediately runs into the diagnostic cycle and the right branch is a fact. When the caller backtracks from the left outcome to the right alternative, the right branch should receive the same budget that the choice point originally received. Otherwise we would be charging the right branch for work performed in an alternative universe of the search tree.
+
+This is a project-defined resource policy, not a claim about SWI-Prolog stack depth or inference counts. The regression makes the policy executable: a =cycle(unstable(sensor))= outcome must remain observable, and backtracking must still reach the right-hand proof.
+
+** 6.5 Do not “fix” multiplicity with =once/1=
+Current SWI-Prolog documentation defines =once/1= as making a possibly nondeterministic goal semideterministic and presents it in terms of =call(Goal), != [cite:@swi-once]. That is useful when an application explicitly wants the first solution. It is a semantic change when inserted into an inference engine that promises alternatives.
+
+If you wrap =select_rule/4= in =once/1=, =risk(alpha)= no longer exposes both the temperature and stopped-fan derivations. If you wrap =either/2= in =once/1=, the right branch may disappear entirely after a left success. The resulting program may look pleasantly deterministic while being a worse reasoner.
+
+The rule is simple: *commit only when the API says commitment is the point*. The deeper beginner book covers Prolog control as a language feature. Here we care about what commitment does to an AI mechanism's candidate derivations.
+
+** 6.6 Build the diagnostic from the same semantic pieces
+We could bolt logging calls into every interpreter clause. That would tangle proof semantics, I/O, and debugging. Instead milestone B returns diagnostic data.
+
+The public call is:
+
+#+begin_src prolog
+search_report(Program, Goal, RuleBudget, Report)
+#+end_src
+
+For now, =Goal= must be a ground *ordinary* object goal—not =true=, conjunction, or =either/2=. That restriction is deliberate. The relational proof API may bind variables, but an aggregate diagnostic for a non-ground query needs an additional contract for answer substitutions. We refuse to invent that contract accidentally.
+
+With a positive budget the result is:
+
+#+begin_src prolog
+search(Goal, Attempts)
+#+end_src
+
+The interpreter walks rules in program order. It freshens each stored rule exactly as ordinary proof search does. Rules whose freshened heads do not unify with =Goal= are outside this report. A matching rule becomes:
+
+#+begin_src prolog
+attempt(RuleId, Result)
+#+end_src
+
+If its body produces no guarded outcome, =Result= is =failed=. Otherwise the report contains the branch outcomes:
+
+#+begin_src prolog
+outcomes([proved(Proof), ...])
+#+end_src
+
+or cycle/exhaustion outcomes where appropriate.
+
+This is enough to answer a concrete debugging question without pretending we captured every operational detail.
+
+** 6.7 Worked report -- the failure the proof does not contain
+For the gateway query, the expected shape is:
+
+#+begin_example
+search(reachable(gateway, database),
+       [attempt(r_reach_direct, failed),
+        attempt(r_reach_step,
+                outcomes([proved(...)]))])
+#+end_example
+
+Read it carefully. =r_reach_direct= did not fail to *match* the top-level query. Its head matched. Its body failed to derive =link(gateway,database)=. Then =r_reach_step= matched the same query and found a successful body derivation.
+
+The corresponding successful proof still begins with =r_reach_step=. The failed direct attempt is debugging evidence, not justification evidence.
+
+This distinction becomes increasingly important later. A planner may try actions that lead to dead ends while the final plan contains only the successful action sequence. An abductive engine may reject inconsistent hypotheses while the final explanation contains only accepted assumptions. A rule engine may consider rules whose conditions are false while a firing history contains only rules that actually fired.
+
+** 6.8 Worked report -- two good answers are not a bug
+=risk(alpha)= has two matching derived rules, one supported by high temperature and one by a stopped fan. A search report therefore contains two successful attempts in program order.
+
+That does not mean the system is inconsistent. It means the same conclusion has two derivations. Depending on the later application, that multiplicity might increase confidence, provide alternative explanations, or simply be two proof candidates the caller must keep distinct.
+
+A proof API that returns the first result is not wrong if it is explicitly a “first proof” API. Calling the general relation once and then forgetting alternatives is a caller decision. Changing the interpreter so alternatives cease to exist is a different thing.
+
+** 6.9 Cycles and exhaustion stay diagnostic, not false
+The report reuses the guarded runner's explicit outcomes. For the direct loop:
+
+#+begin_example
+search(unstable(sensor),
+       [attempt(r_loop,
+                outcomes([cycle(unstable(sensor))]))])
+#+end_example
+
+For growing recursion under a too-small budget, the attempt ends in =exhausted(...)=.
+
+Neither is rewritten to =failed=. That would revive the exact category error milestone A worked to remove. “This rule body's search was stopped by policy” is not equivalent to “this rule body is logically false.”
+
+If the caller supplies a zero rule budget, the report is even more explicit:
+
+#+begin_example
+blocked(exhausted(powered(gateway)))
+#+end_example
+
+No rule is listed as attempted because the contract says selecting a rule costs one unit and none was available.
+
+** 6.10 What this report still does not know
+The search report is useful precisely because its boundary is small. It does not record:
+
+- stored rules whose heads did not unify with the top-level goal;
+- a linear chronology of every nested goal event;
+- the host debugger's =call=/=redo=/=exit=/=fail= ports;
+- SWI's =unify= or =exception= ports;
+- wall-clock timing, stack state, clause indexing behavior, or engine internals;
+- arbitrary host predicate calls, because the object language still has no such escape hatch.
+
+If you need runtime debugging, use the runtime debugger. If you need to explain why a successful answer is justified, use the proof. If you need to compare the top-level matching rules this teaching engine attempted under its bounded policy, use the search report.
+
+Three artifacts, three questions. Trying to make one giant “trace” answer all three usually produces a data structure that is bad at all of them.
+
+** 6.11 Failure lab -- accidentally erase the right branch
+Temporarily rewrite the =either/2= interpreter clause so it commits after the first success. Run the choice regression. Then use a left branch that succeeds once and a right branch that also succeeds.
+
+Explain exactly which choice point disappeared. Do not describe the result as a performance optimization. It changed the set of answers.
+
+Restore the nondeterministic implementation.
+
+** 6.12 Failure lab -- confuse =failed= with “head did not match”
+Add a completely unrelated rule to the incident program. Run =search_report/4= for =reachable(gateway,database)=. The unrelated rule should not appear.
+
+Now compare that with =r_reach_direct=. Its head *does* unify with the query, so it appears as an attempted rule even though its body fails.
+
+Write down the three categories:
+
+1. head did not unify -- not a listed attempt;
+2. head unified, body had no guarded outcome -- =failed=;
+3. head unified, body yielded a guarded outcome -- =outcomes(...)=.
+
+Those categories will matter later when we discuss indexing, rule-engine matching, and explanation of non-results.
+
+** 6.13 Failure lab -- ask an underspecified question
+Call:
+
+#+begin_src prolog
+search_report(Program, risk(X), 4, Report)
+#+end_src
+
+Milestone B rejects this query. The proof relation itself can of course answer relational questions. The diagnostic refuses because it would otherwise need to decide how answer bindings for =X= are represented across aggregated attempts.
+
+Design a possible future result type that would make non-ground reports unambiguous. For example, where would you store each answer substitution? Would two proofs that produce the same substitution remain distinct? Do not implement the extension until you can state those semantics precisely.
+
+** 6.14 Exercises
+1. ★ Predict the order of proofs for =either(risk(alpha), powered(gateway))= before running it.
+2. ★ Explain why =choice(left, Proof)= contributes no rule ID of its own.
+3. ★★ Add a third successful =risk/1= rule and predict both the proof enumeration order and =search_report/4= attempt order.
+4. ★★ Reorder =r_reach_step= before =r_reach_direct=. Which artifact changes ordering? Does the successful proof's logical justification change merely because a failed alternative moved?
+5. ★★ Construct an =either/2= whose left branch exhausts its budget and right branch proves a fact. Verify that the right branch begins from the original incoming budget.
+6. ★★★ Extend a private experimental copy of the diagnostic so each successful attempt also reports the remaining object-rule budget. Define what that number means before writing code.
+7. ★★★ Design, but do not yet implement, a nested search-tree report that can preserve failed subgoal attempts without claiming to be the SWI debugger. Which nodes belong in justification, and which belong only in diagnostics?
+8. ★★★ Compare the object search report with one host debugger session. Identify at least three host events that cannot be reconstructed from the report.
+
+** 6.15 Project checkpoint B
+You should now be able to explain why a proof tree, a bounded search-attempt report, and a runtime debugger trace are three different artifacts. You should be able to predict how =either/2= behaves under backtracking, defend the branch-local budget policy, and recognize =once/1= as an explicit commitment rather than a cleanup tool.
+
+Project 1 still does not interpret cut, negation, if-then-else, arithmetic, exceptions, modules, or arbitrary native clauses. That is deliberate. The next extension must earn any new control form by stating its semantics and failure policy first. After this checkpoint, the book is ready to deepen explicit search/planning machinery without losing the provenance and diagnostic discipline established here.
