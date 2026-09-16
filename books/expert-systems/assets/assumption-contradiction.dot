@@ -1,0 +1,30 @@
+digraph assumption_contradiction {
+  graph [rankdir=LR, labelloc=t,
+         label="Milestone E: explicit assumptions, counterevidence, and consistency gate"];
+  node [shape=box, fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  evidence [label="ordinary base evidence\nActiveState=failed\nunit=api, epoch=42"];
+  assumption [label="explicit assumption\nActiveState=active\nunit=api, epoch=42"];
+  derived [label="derived support\n(optional second reason)"];
+
+  tms [shape=box, label="milestone-D support ledger\nexact occurrence grounding"];
+  constraint [shape=diamond,
+              label="contradiction spec\nsame ?unit + ?epoch\nactive vs failed"];
+  report [shape=box, label="contradiction report\nkeeps both occurrence stamps\n+ support kinds + bindings"];
+  gate [shape=diamond, label="execution policy"];
+  halt [label=":halt\nreturn :contradiction\nbefore next firing"];
+  inspect [label=":report-only\ncontinue for inspection\nkeep report visible"];
+  no_winner [shape=note,
+             label="No automatic winner.\nNo implicit retraction.\nNo uncertainty score."];
+
+  evidence -> tms [label="base support"];
+  assumption -> tms [label="assumption/base support"];
+  derived -> tms [label="justification"];
+  tms -> constraint [label="current grounded occurrences"];
+  constraint -> report [label="shared bindings match"];
+  report -> gate;
+  gate -> halt [label=":halt"];
+  gate -> inspect [label=":report-only"];
+  report -> no_winner [style=dotted, arrowhead=none];
+}
