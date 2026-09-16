@@ -14,11 +14,13 @@ Foundational research + first Progressive Inference Engine implementation slice.
 Foundational research remains IN-PROGRESS. Next dependency slice must research/freeze working-memory mutation, production identity, forward chaining, agenda/conflict resolution, and refraction before incremental alpha/beta/RETE implementation.
 * Verified claims
 Verification status is recorded against exact branch/CI evidence; prose does not promote later mechanisms to implemented status.
+
+Milestone A uses ordinary Common Lisp =DEFSTRUCT= facts and does not claim deep immutability. Its tested matcher is designed around a frozen-input discipline: matching does not mutate supplied fact records, and binding extension does not mutate prior binding environments. Exact-head publication/test evidence must be refreshed after integration with current =main= before editorial re-review.
 * Unverified claims
 - No RETE performance benchmark has been run or claimed.
 - Working-memory mutation, agenda/refraction, incremental network, truth maintenance, uncertainty/counterevidence, workbench, persistence, and production deployment remain future work.
 - The synthetic service fixture is not evidence from a real host.
 * Technical/editorial/visual review
-Not started beyond executable milestone checks and the first editable execution diagram.
+Editorial review of the first slice requested a prose/implementation-contract rewrite around =DEFSTRUCT= mutability plus refreshed integration evidence. The contract rewrite is now present; exact-head post-integration verification remains the gate before returning the slice for re-review.
 * Blockers
-No book-internal design blocker for the next dependency slice. Repository-wide structural validation may remain independently affected by the pre-existing book-set mismatch and must not be weakened from this book branch.
+No known book-internal design blocker. The former fixed-book-set structural failure and per-book citeproc defect were repaired on canonical =main=; this branch must reconcile those upstream fixes without widening into shared publishing infrastructure.
