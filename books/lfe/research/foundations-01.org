@@ -1,0 +1,89 @@
+#+title: LFE Foundations Research Pass 01
+:PROPERTIES:
+:ID:       8d38b416-c9dc-4e40-af1f-21cece811bf2
+:END:
+
+* Scope and claim status
+Retrieval date: 2026-09-16.
+
+This pass supports Chapters 1--3 and the first data-first kernel of Project 1. It separates three statuses:
+- DOCUMENTED :: behavior inspected in current primary documentation or implementation source.
+- TESTED :: behavior executed by this repository's LFE-book gate at the exact branch head.
+- UNTESTED :: a plausible or planned statement that this pass does not claim as executed fact.
+
+Before the branch CI runs, every executable claim below remains DOCUMENTED or UNTESTED, not TESTED.
+
+* Current version boundary
+** DOCUMENTED -- LFE
+The upstream LFE project published =v2.2.2= on 2026-08-05. Its release notes explicitly add OTP 28/29 compatibility, including a fix and Common Test coverage for =lfe -eval= on OTP 28+, plus compiler output-directory handling. This book pins its executable foundation gate to that release rather than silently following upstream =develop=.
+
+Source: https://github.com/lfe/lfe/releases/tag/v2.2.2
+
+** DOCUMENTED -- Erlang/OTP
+Current Erlang System Documentation inspected on 2026-09-16 is the 29.x line. The book treats current OTP documentation as semantic authority while recording the actual OTP release used by each executable gate. This matters because a distribution/package runner may execute an older supported OTP release even while the prose discusses newer semantics.
+
+* LFE is Lisp syntax over BEAM semantics, not a private runtime
+** DOCUMENTED
+At LFE v2.2.2, the user guide defines LFE literals, function references, modules/functions, patterns, and Erlang-style data forms. The upstream source examples compile normal LFE modules and use Erlang facilities directly. =examples/messenger.lfe= spawns a process and uses =receive=; =examples/fizzbuzz.lfe= demonstrates function-clause pattern matching, guards, recursion, and direct =lists= calls. The compiler CLI documents =lfec -o ... source.lfe=.
+
+Sources:
+- https://github.com/lfe/lfe/blob/v2.2.2/doc/src/lfe_guide.7.md
+- https://github.com/lfe/lfe/blob/v2.2.2/examples/messenger.lfe
+- https://github.com/lfe/lfe/blob/v2.2.2/examples/fizzbuzz.lfe
+- https://github.com/lfe/lfe/blob/v2.2.2/bin/lfec
+
+Teaching consequence: early code should expose ordinary BEAM terms and module calls. We should not teach a fictional object system or pretend LFE has separate process/message semantics from Erlang.
+
+* Recurring variables in LFE patterns
+** DOCUMENTED
+LFE v2.2.2's own =dev/pattern-test.lfe= explicitly tests recurring variables across function-clause patterns, including tuples and lists. Project 1 uses this facility to express rules such as “the event level must be the same term as the rule level” declaratively in the clause head.
+
+Source: https://github.com/lfe/lfe/blob/v2.2.2/dev/pattern-test.lfe
+
+This is a useful Lisp/BEAM lesson: the source is an S-expression, but the important semantic operation is still structural pattern matching.
+
+* Terms, lists, variables, and matching
+** DOCUMENTED
+Erlang System Documentation v29.0.5/29.0.6 defines values as terms; lists recursively as empty list or head plus tail; tuples and maps as compound data; and variables as single-assignment. Pattern matching binds previously unbound variables, and failed matches fail rather than mutating a previous binding.
+
+Sources:
+- https://www.erlang.org/doc/system/data_types.html
+- https://www.erlang.org/doc/system/expressions.html
+- https://www.erlang.org/doc/system/patterns.html
+
+Teaching consequence: Chapter 1 must distinguish source notation from runtime representation, Chapter 2 must teach matching as control/data validation rather than “assignment with funny syntax”, and Chapter 3 can derive recursion naturally from immutable list structure.
+
+* Processes and mailbox ordering -- important future constraint
+** DOCUMENTED
+Current Erlang process documentation describes communication as asynchronous signals. Ordinary received messages are appended to a process message queue and =receive= selects the first matching message. The language guarantees signal ordering from one sender to one destination, not a single universal order across independent senders. OTP 28 also introduced priority-message reception, which can change queue order relative to signal arrival while preserving the underlying signal-order guarantee.
+
+Source: https://www.erlang.org/doc/system/ref_man_processes.html
+
+This is deliberately recorded before the process chapters so later prose does not teach the common but wrong simplification “an Erlang mailbox is globally FIFO.” Project 2 must make sender/order assumptions explicit and test selective receive and correlation IDs.
+
+* Project 1 semantic kernel
+** DESIGN USED BY THIS SLICE
+The first project stage is an event-routing rule system represented entirely as BEAM terms. The rule list is ordered and first-match wins. Initial forms are =when-level=, =when-service=, and =otherwise=. Invalid event/rule terms return tagged errors.
+
+Why data first:
+1. Chapter 1 can inspect concrete terms.
+2. Chapter 2 can implement routing with patterns rather than nested conditionals.
+3. Chapter 3 can make the recursive base/step cases explicit.
+4. Chapters 6--7 can later add macros and compare macro-expanded output against an already-tested semantic core.
+5. Chapter 8 can show Erlang calling the compiled LFE module with the same tuples/lists, proving the boundary is ordinary BEAM interoperability.
+
+** Acceptance evidence required
+- =lfec= compiles the source and test modules from this repository.
+- The regression module exercises critical/service/fallback/first-match/no-route/bad-event/bad-rule cases.
+- An Erlang =erl -eval= smoke test calls the compiled LFE module directly using ordinary Erlang tuples and lists.
+- =make book BOOK=lfe= succeeds.
+- =make check BOOK=lfe= succeeds with EPUBCheck.
+- Because this slice adds a workflow file, =nix flake check -L= must also execute in CI.
+
+Until those exact-head checks complete, none of the above is labeled TESTED.
+
+* Deferred questions
+- Macro expansion and hygiene behavior need a dedicated primary-source pass before Chapters 6--7 become normative.
+- OTP behaviour callback shapes, supervision strategy semantics, application/release layout, and distribution security belong to later passes.
+- Priority-message APIs are not part of the first project; the ordering caveat is recorded now only to prevent an incorrect foundational mental model.
+- No performance claims are made in this pass.

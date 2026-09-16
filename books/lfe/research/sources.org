@@ -4,3 +4,51 @@
 :END:
 * Policy
 Add only sources actually inspected. Record URL, authority, publication/version date when known, retrieval date, relevant sections, and affected chapters/projects.
+
+* Inspected 2026-09-16
+** LFE v2.2.2 release
+URL: https://github.com/lfe/lfe/releases/tag/v2.2.2
+Authority: official LFE repository/release.
+Version/date: v2.2.2, published 2026-08-05.
+Relevant material: OTP 28/29 compatibility, =lfe -eval= compatibility regression, compiler output-directory behavior.
+Affects: executable baseline, tooling notes, later packaging chapter.
+
+** LFE v2.2.2 user guide source
+URL: https://github.com/lfe/lfe/blob/v2.2.2/doc/src/lfe_guide.7.md
+Authority: official LFE repository; guide attributed to Robert Virding in-file.
+Revision: tag v2.2.2; file header 2008--2020.
+Relevant material: literals, list/binary strings, function references and core language forms.
+Affects: Chapters 1--5.
+
+** LFE v2.2.2 implementation/examples
+URLs:
+- https://github.com/lfe/lfe/blob/v2.2.2/dev/pattern-test.lfe
+- https://github.com/lfe/lfe/blob/v2.2.2/examples/fizzbuzz.lfe
+- https://github.com/lfe/lfe/blob/v2.2.2/examples/messenger.lfe
+- https://github.com/lfe/lfe/blob/v2.2.2/bin/lfec
+Authority: official tagged LFE implementation.
+Relevant material: recurring pattern variables, function-clause matching/guards/recursion, process receive/send example, compiler CLI.
+Affects: Chapters 1--3 now; Chapters 8--10 later.
+
+** Erlang System Documentation -- data types
+URL: https://www.erlang.org/doc/system/data_types.html
+Authority: official Erlang/OTP documentation.
+Version inspected: v29.0.5.
+Relevant material: terms, tuples, maps, proper/improper lists, booleans-as-atoms.
+Affects: Chapters 1 and 5.
+
+** Erlang System Documentation -- expressions and patterns
+URLs:
+- https://www.erlang.org/doc/system/expressions.html
+- https://www.erlang.org/doc/system/patterns.html
+Authority: official Erlang/OTP documentation.
+Version inspected: v29.0.6.
+Relevant material: single-assignment variables, anonymous variable, pattern binding/failure and compound patterns.
+Affects: Chapters 2--4.
+
+** Erlang System Documentation -- processes
+URL: https://www.erlang.org/doc/system/ref_man_processes.html
+Authority: official Erlang/OTP documentation.
+Version inspected: v29.0.6.
+Relevant material: spawn/process termination, asynchronous signals, message queues, same-sender signal ordering, receive selection, OTP 28 priority-message caveat.
+Affects: Chapters 9--12 and Project 2; recorded early to prevent a false global-FIFO mental model.
