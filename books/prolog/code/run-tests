@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+TEST="$ROOT/books/prolog/code/relational-query/test_community.pl"
+
+command -v swipl >/dev/null 2>&1 || {
+  echo "SWI-Prolog (swipl) is required to run the Prolog book tests" >&2
+  exit 127
+}
+
+swipl --version
+exec swipl -q -s "$TEST" -g 'run_tests,halt'
