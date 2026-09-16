@@ -140,39 +140,42 @@ claim that the printed ordering has domain semantics."
 (defun instantiate-applicable-actions (schema state)
   "Enumerate deterministic ground instances of SCHEMA applicable in STATE.
 
-Binding consistency comes from repeated calls to the accepted public UNIFY
-operation with the previously returned substitution.  Effects and action names
-are instantiated only through APPLY-SUBSTITUTION; this code does not inspect or
-mutate the substitution's representation."
-  (let* ((world (canonical-state state))
-         (substitutions
-           (%extend-preconditions (action-schema-preconditions schema)
-                                  world
-                                  '()))
-         (actions
-           (mapcar
-            (lambda (substitution)
-              (make-ground-action
-               :schema-name (action-schema-name schema)
-               :name (%instantiate-action-name schema substitution)
-               :substitution substitution
-               :preconditions (%instantiate-facts
+STATE is part of the public planner boundary and therefore must contain only
+ground world facts.  Binding consistency comes from repeated calls to the
+accepted public UNIFY operation with the previously returned substitution.
+Effects and action names are instantiated only through APPLY-SUBSTITUTION; this
+code does not inspect or mutate the substitution's representation."
+  (let ((world (canonical-state state)))
+    (dolist (fact world)
+      (%ensure-ground-world-fact fact))
+    (let* ((substitutions
+             (%extend-preconditions (action-schema-preconditions schema)
+                                    world
+                                    '()))
+           (actions
+             (mapcar
+              (lambda (substitution)
+                (make-ground-action
+                 :schema-name (action-schema-name schema)
+                 :name (%instantiate-action-name schema substitution)
+                 :substitution substitution
+                 :preconditions (%instantiate-facts
+                                 schema
+                                 (action-schema-preconditions schema)
+                                 substitution)
+                 :add-effects (%instantiate-facts
                                schema
-                               (action-schema-preconditions schema)
+                               (action-schema-add-effects schema)
                                substitution)
-               :add-effects (%instantiate-facts
-                             schema
-                             (action-schema-add-effects schema)
-                             substitution)
-               :delete-effects (%instantiate-facts
-                                schema
-                                (action-schema-delete-effects schema)
-                                substitution)
-               :cost (action-schema-cost schema)))
-            substitutions)))
-    (remove-duplicates actions
-                       :test #'equal
-                       :key #'%ground-action-key)))
+                 :delete-effects (%instantiate-facts
+                                  schema
+                                  (action-schema-delete-effects schema)
+                                  substitution)
+                 :cost (action-schema-cost schema)))
+              substitutions)))
+      (remove-duplicates actions
+                         :test #'equal
+                         :key #'%ground-action-key))))
 
 (defun apply-ground-action (state action)
   "Apply ACTION's delete set and then add set, returning a fresh canonical state."
