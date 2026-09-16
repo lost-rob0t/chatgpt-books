@@ -1,0 +1,91 @@
+** Chapter 3 -- Recursion and Immutable State
+:PROPERTIES:
+:ID:       066e2402-7286-4d60-b257-2ecd90a39f32
+:END:
+
+A loop in Erlang is normally recursion. That statement is easy to memorize and easy to
+misunderstand. The important question is: where does the next state live?
+
+For a pure list function it lives in function arguments. For a long-running process it
+lives in the argument passed to the next recursive receive loop. In both cases, old
+values are not rewritten. A new value is constructed and passed forward.
+
+*** Structural recursion
+
+The classic list decomposition is =[Head | Tail]=. A sum can be written directly:
+
+#+begin_src erlang
+sum([]) ->
+    0;
+sum([Head | Tail]) ->
+    Head + sum(Tail).
+#+end_src
+
+This mirrors the data structure, but the addition happens after the recursive call
+returns. A tail-recursive version carries an accumulator:
+
+#+begin_src erlang
+sum(Values) ->
+    sum(Values, 0).
+
+sum([], Acc) ->
+    Acc;
+sum([Head | Tail], Acc) when is_integer(Head) ->
+    sum(Tail, Acc + Head).
+#+end_src
+
+The second form makes the transition explicit: ={Tail, Acc + Head}= is the next logical
+state. The compiler/runtime can execute tail calls without growing a conventional stack
+frame for each element. Do not mechanically rewrite every function into an accumulator;
+prefer the form whose state transition is easiest to understand unless measurement says
+otherwise.
+
+*** Updating immutable maps
+
+Map update syntax creates a new map value:
+
+#+begin_src erlang
+State0 = #{next_id => 1, messages => #{}},
+State1 = State0#{next_id => 2}.
+#+end_src
+
+=State0= did not change. Both names remain bound to their values. The runtime can share
+unchanged internal structure because the program cannot mutate it through either name.
+That gives functional code a persistent-data-structure flavor without requiring the
+reader to manage copying manually.
+
+*** State transition as a function
+
+Before processes enter the picture, it is worth learning to design state changes as
+ordinary functions:
+
+#+begin_src erlang
+apply_command({publish, Topic, Payload}, State0) ->
+    Id = maps:get(next_id, State0),
+    Messages0 = maps:get(messages, State0),
+    Old = maps:get(Topic, Messages0, []),
+    Message = #{id => Id, payload => Payload},
+    Messages1 = Messages0#{Topic => [Message | Old]},
+    {{ok, Id}, State0#{next_id => Id + 1, messages => Messages1}}.
+#+end_src
+
+The function returns both the reply and next state. Later, a process loop can call this
+kind of pure transition and then recur with the new state. OTP =gen_server= callbacks
+formalize exactly this separation: a callback receives a request and old state, and its
+return value tells the behavior what reply and next state to use. We will reach that in
+Part II. [cite:@erlang-gen-server]
+
+*** Failure boundaries start here
+
+A pure function either returns a value or raises an exception in its current process. It
+does not silently damage another process's local variables. That means we can test state
+transitions without booting a concurrent system, then separately test the process
+protocol that serializes access to the state. Keeping those tests separate is one of the
+book's recurring engineering patterns.
+
+*** Exercises
+
+1. ★ Rewrite a recursive list length function using an accumulator.
+2. ★★ Implement =apply_command/2= for history reads without changing state.
+3. ★★★ Property-thinking exercise: state three invariants of the publish transition that
+   should hold for every accepted command (for example, monotonic IDs).

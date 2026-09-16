@@ -1,0 +1,138 @@
+** Chapter 1 -- Functional Erlang
+:PROPERTIES:
+:ID:       84336a2f-a5ba-4db3-9f95-4da255fae6bf
+:END:
+
+Erlang looks small when you first meet it. There are functions, atoms, tuples, lists,
+maps, binaries, pattern matching, and a handful of expressions. The language is not
+small because it is weak. It is small because Erlang pushes a lot of system behavior
+into a few explicit mechanisms: values are immutable, function clauses are selected by
+patterns and guards, processes own their state, and processes communicate by signals.
+Those choices are the foundation for everything later in this book.
+
+The examples in this first part target Erlang/OTP 29. Erlang/OTP 29.0 was released on
+2026-05-13, and the research pass for this draft inspected the 29.0.6 documentation and
+patch release current on 2026-09-16. [cite:@otp29-release;@otp29-0-6]
+
+*** Terms are the data model
+
+Erlang calls a value of any data type a /term/. Integers, floats, atoms, lists, tuples,
+maps, binaries, pids, references, and functions are all terms. [cite:@erlang-data-types]
+This matters because messages between Erlang processes are not a second special data
+language. A message is an Erlang term. The same tuple you can return from a function can
+be sent to another process.
+
+#+begin_src erlang
+{publish, <<"ops">>, <<"service started">>}
+#{id => 17, status => queued}
+[one, two, three]
+#+end_src
+
+Atoms such as =publish= or =queued= are often used as protocol tags. Tuples give the tag
+a fixed shape. Maps are useful when a record has named fields or evolves over time.
+Binaries are the normal representation for byte-oriented data. Lists remain central for
+linked-list work, recursive structure, and many library APIs.
+
+Do not read the syntax as "Erlang dynamically guesses what I meant." It does not. A
+term has a concrete runtime type and structure. What is flexible is that functions and
+messages can accept any term unless your code narrows that set with patterns, guards,
+and typespecs.
+
+*** Variables bind once
+
+An Erlang variable starts with an uppercase letter or underscore. Within one function
+clause, a variable can be unbound or bound, but once bound it cannot be rebound to a
+different value.
+
+#+begin_src erlang
+X = 10,
+Y = X + 5.
+#+end_src
+
+The = symbol is therefore not ordinary assignment. It is the match operator. On the
+first line the unbound variable =X= can match =10=, so =X= becomes bound. If =X= is
+already bound, another match must agree with the existing value. The official pattern
+matching reference defines binding this way and states that a failed match raises an
+exception. [cite:@erlang-patterns]
+
+#+begin_src erlang
+X = 10,
+X = 11.   % badmatch
+#+end_src
+
+This can feel restrictive if you come from a language where variables are boxes that
+change contents. It buys a powerful local property: after =X= is bound, every later use
+of =X= in that clause means the same value. You spend less time asking which statement
+last mutated a variable.
+
+*** Functions are clause sets
+
+A function can have multiple clauses. Erlang tries them in source order until a pattern
+matches and its guard, if present, succeeds.
+
+#+begin_src erlang
+classify(N) when is_integer(N), N < 0 ->
+    negative_integer;
+classify(N) when is_integer(N) ->
+    non_negative_integer;
+classify(<<>>) ->
+    empty_binary;
+classify(Bin) when is_binary(Bin) ->
+    binary;
+classify(_) ->
+    other.
+#+end_src
+
+This style does more than remove an =if=. It moves the shape of accepted inputs to the
+function boundary. The reader can scan the clauses and see which cases exist. If no
+clause matches, Erlang raises =function_clause=; the errors reference documents this as
+a runtime error and explains the resulting exit reason. [cite:@erlang-errors]
+
+Guards are intentionally restricted. Treat them as fast predicates that decide whether
+a clause applies, not as a hidden second program. Complex validation belongs in ordinary
+functions whose return values are explicit.
+
+*** Expression-oriented code
+
+Erlang expressions produce values. =case=, =receive=, and =try= are expressions too.
+A useful beginner habit is to make each branch return data and keep side-effecting
+boundaries obvious.
+
+#+begin_src erlang
+normalize_command({publish, Topic, Payload})
+        when is_binary(Topic), is_binary(Payload) ->
+    {ok, {publish, Topic, Payload}};
+normalize_command({history, Topic}) when is_binary(Topic) ->
+    {ok, {history, Topic}};
+normalize_command(Command) ->
+    {error, {invalid_command, Command}}.
+#+end_src
+
+The last clause does not crash on bad input. It turns rejected input into a tagged value.
+That is a domain choice, not a universal rule. Later we will deliberately choose between
+"return an error" and "let this process fail" based on who owns recovery.
+
+*** Why this helps concurrent systems
+
+Immutability by itself does not make a program fault tolerant. It removes one broad
+class of coordination problem: two Erlang processes do not share a mutable language-level
+heap object that either can edit behind the other's back. At the language level a process
+operates on its own state and receives values through signals. The runtime may optimize
+representation -- for example, the efficiency guide documents that reference-counted
+binaries and literals can avoid ordinary copying on the same node -- but the program
+still sees immutable values. [cite:@erlang-process-efficiency]
+
+That separation becomes important once there are thousands of processes. If arbitrary
+processes could mutate each other's data directly, a crash-recovery design would also
+need to reconstruct the history of shared writes. Erlang instead nudges you toward state
+ownership: one process owns a piece of mutable-in-time state, and everyone else asks that
+process to change it.
+
+*** Exercises
+
+1. ★ Add clauses to =classify/1= for maps and tuples. Put the more specific clauses before
+   a catch-all and explain why source order matters.
+2. ★★ Write =normalize_command/1= clauses for ={delete, Topic, Id}=. Reject negative IDs
+   with a tagged error rather than an exception.
+3. ★★★ Intentionally remove the catch-all clause and call the function with a float. Read
+   the =function_clause= report and identify the module, function, arity, and failing input.

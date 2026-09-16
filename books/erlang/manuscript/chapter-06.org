@@ -1,0 +1,161 @@
+** Chapter 6 -- Message Protocols: Correlation, Failure, and Honest Timeouts
+:PROPERTIES:
+:ID:       daec8c33-529b-4f9a-b524-5cef5547dace
+:END:
+
+Once messages cross process boundaries, tuple shapes become an API. A useful protocol
+names the parties and the failure semantics explicitly.
+
+The Project 1 request shape is:
+
+#+begin_src erlang
+{request, CallerPid, Ref, Command}
+#+end_src
+
+and a successful protocol reply is:
+
+#+begin_src erlang
+{reply, Ref, Result}
+#+end_src
+
+=Ref = make_ref()= gives the request a unique correlation token for the running system.
+The caller matches only a reply carrying that token. A monitor reference separately tracks
+the liveness of the server process.
+
+#+caption: A correlated request has separate reply, timeout, and server-death paths. A local timeout does not cancel work already accepted by the server.
+#+attr_html: :alt "Diagram showing a caller process sending a request with a reference to a server mailbox, receiving a correlated reply or monitor DOWN message, while a timeout path can still leave a late server reply."
+[[file:assets/process-request-flow.svg]]
+
+The editable Graphviz source is =../assets/process-request-flow.dot=.
+
+*** A minimal monitored call
+
+The project seed implements the following shape:
+
+#+begin_src erlang
+call(Pid, Request, Timeout) ->
+    Ref = make_ref(),
+    Mon = erlang:monitor(process, Pid),
+    Pid ! {request, self(), Ref, Request},
+    receive
+        {reply, Ref, Reply} ->
+            erlang:demonitor(Mon, [flush]),
+            Reply;
+        {'DOWN', Mon, process, Pid, Reason} ->
+            {error, {server_down, Reason}}
+    after Timeout ->
+        erlang:demonitor(Mon, [flush]),
+        {error, timeout}
+    end.
+#+end_src
+
+The monitor semantics are defined by the process reference: monitors are unidirectional,
+multiple monitors are independent, and process termination produces a ={'DOWN', Ref,
+process, Pid, Reason}= message. [cite:@erlang-processes]
+
+Notice what this helper guarantees and what it does not.
+
+It /does/ guarantee:
+- replies are correlated by a fresh request reference;
+- server termination while waiting is observable;
+- the caller has a bounded local wait;
+- the monitor is removed and a pending DOWN is flushed on reply/timeout paths.
+
+It /does not/ guarantee:
+- the server started handling the request;
+- the server finished before the timeout;
+- timed-out work was cancelled;
+- a retry is safe;
+- a side effect is exactly-once;
+- the mailbox can never grow without bound.
+
+Those missing properties are not defects in Erlang. They are application protocol choices.
+OTP behaviors later give us battle-tested conventions for common request/server patterns,
+but even =gen_server:call/3= cannot turn an arbitrary external side effect into an
+exactly-once transaction.
+
+*** Deliberate crash as a teaching tool
+
+The server accepts an explicit test-only request ={crash, Reason}= and calls
+=exit(Reason)=. The caller is monitoring the server, so the crash becomes data at the
+caller boundary.
+
+The errors reference distinguishes runtime errors from generated =exit= and =throw=
+exceptions, and the process reference explains that every process terminates with an exit
+reason. [cite:@erlang-errors;@erlang-processes]
+
+This is our first controlled failure injection. Later projects will inject failures at
+more realistic boundaries: worker crashes under supervisors, persistence errors,
+distribution disconnects, overload, restart storms, and stale requests after recovery.
+
+*** Why OTP exists
+
+Our manual server is intentionally small enough to understand. That is its teaching value.
+It is not an argument for rebuilding OTP in every application.
+
+The official =gen_server= behavior provides a standardized client/server loop, system
+message handling, tracing/error-reporting integration, and direct compatibility with OTP
+supervision trees. [cite:@erlang-gen-server] The point of writing one manual loop first is
+to expose the mechanics that =gen_server= organizes: receive, correlation, state
+transition, reply, and failure. Once those mechanics are concrete, the behavior stops
+looking magical.
+
+*** Project 1 -- Process-Based Messaging System, checkpoint A
+:PROPERTIES:
+:ID:       ddf324d3-7d7d-4a68-bc60-06c7e4515cf5
+:END:
+
+This checkpoint lives in =books/erlang/code/foundations/=. It is a deliberately small
+in-memory topic/message service. It owns a map of topic histories and a monotonically
+increasing message ID.
+
+The server supports:
+- ={publish, Topic, Payload}= -> ={ok, Id}=;
+- ={history, Topic}= -> ordered message history;
+- ={delay, Millis, Value}= -> controlled slow handling for timeout demonstrations;
+- ={crash, Reason}= -> controlled process failure;
+- =stop= -> normal shutdown;
+- unknown requests -> tagged error data rather than an accidental crash.
+
+The test suite checks pure pattern/recursion examples and concurrent protocol properties:
+normal publish/history behavior, preservation of unrelated mailbox messages during
+selective receive, same-sender request ordering, timeout-not-cancellation, monitor-based
+crash observation, and unknown-request handling.
+
+Run it from the repository root with:
+
+#+begin_src sh
+./books/erlang/code/foundations/run-tests.sh
+#+end_src
+
+The important artifact is not only a green test suite. Read the test names as a list of
+claims about the protocol. When a later chapter changes the server, those claims become a
+regression boundary.
+
+*** Failure notebook
+
+When debugging this project, ask these questions in order:
+
+1. /Is the server alive?/ Use =is_process_alive/1= for a local observation, but remember
+   that liveness can change immediately after the check.
+2. /Is the server mailbox growing?/ =process_info(Pid, message_queue_len)= is a useful
+   observation, not a substitute for an admission-control design.
+3. /Did the caller time out or did the server die?/ Those are different outcomes in the
+   call helper.
+4. /Could a late reply still arrive?/ A timeout alone says yes.
+5. /Was the request safe to retry?/ Nothing in the basic protocol says so.
+6. /Did our test accidentally consume an unrelated message?/ Correlation patterns should
+   prevent that.
+
+These questions are more useful than "Erlang is fault tolerant." Erlang gives you strong
+primitives for isolating failure and observing process relationships. The system becomes
+fault tolerant only when its protocols, supervisors, persistence boundaries, and recovery
+rules use those primitives coherently.
+
+*** Exercises
+
+1. ★ Add a =count= request that returns the total number of stored messages.
+2. ★★ Add an explicit request deadline field and reject work that is already expired when
+   the server dequeues it. Explain why this still is not cancellation.
+3. ★★★ Design, but do not yet implement, an idempotency key for publish. State where the
+   deduplication state would live and what happens after the server process restarts.
