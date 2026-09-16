@@ -13,4 +13,5 @@
    #:check-result-visited
    #:check-result-complete-p
    #:check-result-reason
-   #:check-invariant))
+   #:check-invariant
+   #:run-formal-tests))
