@@ -33,7 +33,7 @@ erl -pa "$BUILD" -noshell -eval '
   {ok, pager} = gen_server:call('\''otp-router'\'', {route, Event}, 1000),
   Rules = sys:get_state('\''otp-router'\''),
   ok = sys:suspend('\''otp-router'\''),
-  TimeoutResult = catch gen_server:call('\''otp-router'\'', get-rules, 20),
+  TimeoutResult = catch gen_server:call('\''otp-router'\'', '\''get-rules'\'', 20),
   case TimeoutResult of
     {'\''EXIT'\'', {timeout, _}} -> ok;
     Other -> io:format("unexpected gen_server timeout result: ~p~n", [Other]), halt(1)
