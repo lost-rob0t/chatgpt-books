@@ -1,0 +1,348 @@
+* Chapter 7 -- Search Trees as Data
+:PROPERTIES:
+:ID:       332f17b4-0c8c-4f52-8aa6-ab63094594ec
+:END:
+
+Project 1 let Prolog do what Prolog is exceptionally good at: choose a rule, unify it with a goal, and backtrack into alternatives. We made that behavior inspectable without pretending the resulting proof tree was a complete execution trace. That was the right abstraction for a small backward reasoner.
+
+A planner needs a different kind of control. If the question is “which state should I explore next?”, clause order is no longer an incidental implementation detail. It *is the search policy*. Breadth-first search, depth-first search, later cost-aware search, and later heuristic search differ chiefly in what they keep in the frontier and which frontier element they select next.
+
+So Project 2 begins by taking search away from the host control stack and turning it into ordinary data.
+
+This chapter does not build a planner yet. There are no preconditions, effects, heuristics, costs, or constraint solvers. We first derive the smaller mechanism a planner will depend on: explicit graph search over a closed transition relation. The result is intentionally inspectable. You can print the frontier, assert its invariants, inject cycles, reorder transitions, and explain exactly why DFS and BFS return different first paths.
+
+** 7.1 The smallest useful search problem
+Use a synthetic service-recovery state graph. It is not a model of any particular production deployment. It exists because it has the failure shapes we need:
+
+- two routes from an open incident to a healthy service;
+- one route is longer but appears first in transition order;
+- two transitions initially point to the same =broker_down= state;
+- cycles point back toward states that may already have been explored;
+- some requested goals are unreachable.
+
+The transition relation is data:
+
+#+begin_src prolog
+edge(Action, From, To)
+#+end_src
+
+A small fragment looks like this:
+
+#+begin_src prolog
+edge(inspect_app,
+     incident_open,
+     app_down).
+edge(inspect_broker,
+     incident_open,
+     broker_down).
+edge(restart_app_early,
+     app_down,
+     app_waiting_for_broker).
+edge(check_broker_after_app,
+     app_waiting_for_broker,
+     broker_down).
+edge(start_broker,
+     broker_down,
+     broker_up).
+edge(restart_app,
+     broker_up,
+     healthy).
+#+end_src
+
+The actual fixture is a list of these terms. The search kernel does not receive a callback and does not =call/1= an arbitrary successor predicate. That restriction is deliberate. Project 1 taught us to be suspicious of interfaces that quietly turn data into executable host code. For this milestone, transitions remain inspectable terms.
+
+Our first question is therefore concrete:
+
+#+begin_example
+Start = incident_open
+Goal  = healthy
+#+end_example
+
+The answer should not merely say “yes.” A useful search result includes the actions and states that got there.
+
+** 7.2 A path is not a frontier
+Suppose we only carried the current state and recursively followed an edge:
+
+#+begin_src prolog
+walk(Graph, State, Goal, Path) :-
+    member(edge(Action, State, Next), Graph),
+    ...
+#+end_src
+
+That can find paths, but the control policy remains hidden inside recursive clause execution. To choose among DFS and BFS using one search engine, we need to reify the pending work.
+
+The frontier stores nodes:
+
+#+begin_src prolog
+node(State, ReverseActions, ReverseStates, Depth)
+#+end_src
+
+Each field has one job:
+
+- =State= is the state represented by this pending node;
+- =ReverseActions= is the action sequence used to reach it, stored backwards so extension is constant-time list construction;
+- =ReverseStates= records the corresponding state path, also backwards;
+- =Depth= is the number of transitions from the start.
+
+The reversal is an implementation choice at the boundary between expansion and returned result. Readers often make path construction accidentally quadratic by repeatedly appending at the end of a list. Prepending during search and reversing once on success keeps the mechanism simple.
+
+The initial frontier contains exactly one node:
+
+#+begin_src prolog
+node(incident_open, [], [incident_open], 0)
+#+end_src
+
+At this point the search algorithm is no longer “mysterious recursion.” It is a loop over a list of pending nodes plus a set of states already expanded.
+
+** 7.3 Derive the search loop
+The loop has four cases.
+
+First, an empty frontier means the finite reachable graph has been exhausted without finding the requested state:
+
+#+begin_src prolog
+exhausted(Goal)
+#+end_src
+
+That result is intentionally explicit. It is not an exception, and it is not a proof that some larger universe cannot contain the state. It says this search exhausted the transition graph supplied to this run.
+
+Second, if the next frontier node names a state already in the closed set, skip it. A duplicate may have been queued before another copy of the same state was expanded.
+
+Third, otherwise record the expansion:
+
+#+begin_src prolog
+expanded(State, Depth)
+#+end_src
+
+If =State == Goal=, reverse the accumulated actions and states and return:
+
+#+begin_src prolog
+found(path(Actions, States))
+#+end_src
+
+Fourth, if this is not the goal, add =State= to the closed set, generate its children, and place those children into the frontier according to the selected strategy.
+
+The important design point is that *goal testing, duplicate handling, successor generation, and frontier policy are separate decisions*. Later planning chapters will change some of them. If they were fused into one clever recursive predicate, every extension would risk changing several semantics at once.
+
+** 7.4 DFS and BFS differ by one frontier operation
+Given generated =Children= and the unprocessed =Rest= of the frontier, our DFS policy is:
+
+#+begin_src prolog
+append(Children, Rest, Frontier)
+#+end_src
+
+The first generated child becomes the next state explored. The remainder of the old frontier waits.
+
+BFS uses:
+
+#+begin_src prolog
+append(Rest, Children, Frontier)
+#+end_src
+
+Existing frontier entries remain ahead of newly generated children. With unit-depth transitions, this keeps nodes from earlier depths ahead of later-depth nodes.
+
+That is the mechanism. There is no separate magical “BFS engine.” One data-structure policy changes the order in which the same state graph is expanded.
+
+#+CAPTION: DFS and BFS operate on the same transition graph but update the explicit frontier differently. The closed set is updated when a state is expanded, so an already-queued duplicate may remain temporarily and is skipped when popped later.
+#+ATTR_HTML: :alt Two side-by-side frontier traces. Depth-first search places children before pending nodes and follows the app-first branch to healthy at depth five. Breadth-first search places children after pending nodes and reaches healthy through the broker-first branch at depth three. A note explains that queued duplicates are skipped after a state enters the closed set.
+[[file:assets/frontier-evolution.svg]]
+
+The diagram is more useful if you read it as mutable *algorithm state*, even though our Prolog implementation constructs new lists rather than mutating an object. At each row, the frontier answers: “what work remains, and in what order will we try it?”
+
+** 7.5 Transition order is observable policy
+Our fixture intentionally lists =inspect_app= before =inspect_broker=. DFS therefore enters =app_down= first and keeps following that branch until it reaches a terminal result or a closed state blocks a cycle.
+
+The first successful DFS path is:
+
+#+begin_example
+incident_open
+  --inspect_app--> app_down
+  --restart_app_early--> app_waiting_for_broker
+  --check_broker_after_app--> broker_down
+  --start_broker--> broker_up
+  --restart_app--> healthy
+#+end_example
+
+Now reorder only the first two transitions so =inspect_broker= appears first. The graph still contains the same relevant states and edges, but the *first DFS result changes* to the shorter broker-first route.
+
+That is not a bug. It is exactly what ordered depth-first expansion means.
+
+This is also why “it found a plan” will not be a sufficient planner specification later. If a caller cares about minimum steps, cost, risk, or another objective, that policy must exist explicitly rather than being an accidental consequence of transition order.
+
+** 7.6 Why BFS reaches the three-edge route first here
+For this milestone every transition has one unit of depth. A generated child has =Depth + 1=. BFS leaves already-queued nodes ahead of new children, so on this finite fixture it removes frontier nodes in nondecreasing depth order.
+
+The broker-first route is:
+
+#+begin_example
+incident_open
+  --inspect_broker--> broker_down
+  --start_broker--> broker_up
+  --restart_app--> healthy
+#+end_example
+
+It has three edges. The app-first route above has five. The regression requires BFS to return the three-edge route.
+
+Keep the claim narrow. We have *not* implemented weighted costs. Three edges are not necessarily cheaper, safer, or faster in a real system. We have *not* implemented A*. We have *not* established performance on a huge graph. We have shown an executable invariant of this finite unit-edge search kernel: the BFS frontier policy reaches the shallow goal before the deeper one.
+
+Later, when cost enters the model, “fewest transitions” and “lowest cost” will become different questions.
+
+** 7.7 Closing states turns tree search into graph search
+Without a closed set, this fixture can loop:
+
+#+begin_example
+app_down
+ -> app_waiting_for_broker
+ -> app_down
+ -> ...
+#+end_example
+
+Another edge can route from =broker_up= back to =app_down=. A search tree can therefore contain infinitely many path prefixes even though the underlying state graph is finite.
+
+The simplest graph-search repair is to remember states already expanded. This implementation uses SWI-Prolog's =library(ordsets)=. Current SWI documentation describes ordered-set representation and =ord_memberchk/2= membership using term identity, while the term-comparison documentation defines the underlying identity/order operations [cite:@swi-ordsets;@swi-compare].
+
+That implementation choice imposes a useful teaching restriction: every state and transition endpoint in this milestone must be ground. We reject a non-ground start or goal rather than pretending ordered-set identity is logical unification.
+
+This matters. Imagine a state term with unbound variables standing for “some configuration.” Two such terms may be related by unification without being the same search state. Duplicate detection then needs a domain-specific equivalence policy. We are not going to smuggle that problem into Chapter 7.
+
+** 7.8 Closed on expansion, not on generation
+There is a subtle detail worth making executable.
+
+The fixture contains two actions from =incident_open= to =broker_down=:
+
+#+begin_src prolog
+edge(inspect_broker, incident_open, broker_down).
+edge(probe_broker_again, incident_open, broker_down).
+#+end_src
+
+When =incident_open= expands, both child nodes can enter the frontier because =broker_down= is not closed yet. The search implementation does *not* promise that duplicate frontier entries are eliminated at insertion time.
+
+It promises something narrower: after the first =broker_down= node is expanded and =broker_down= enters the closed set, later queued copies are skipped. The expansion trace must therefore contain exactly one =expanded(broker_down, Depth)= event.
+
+Why choose this version first? Because it separates two ideas:
+
+1. frontier generation can contain duplicates;
+2. graph expansion can still avoid repeating already-closed states.
+
+A later optimization may deduplicate earlier. If we change that policy, we should change it because measurements or semantics justify it—not because “sets are probably faster.”
+
+** 7.9 The closed set is not automatically sound
+A global closed set says: once a state has been expanded, revisiting the same state through a different path cannot reveal behavior we still care about.
+
+That is safe only if the state term contains everything relevant to future transitions and the objective does not depend on omitted path history.
+
+For this teaching graph, a state such as =broker_down= is complete enough: outgoing transitions depend only on that state. But consider a later planner where the cost paid so far matters, or where an action may be used only once, or where the same physical configuration reached with different permissions produces different legal successors. If that information is not represented in the state, global duplicate pruning can erase valid alternatives.
+
+The lesson is bigger than DFS/BFS: *state identity is a modeling decision*. A closed-set implementation cannot rescue an underspecified state representation.
+
+Chapter 8 will make this concrete when planning states become collections of domain facts rather than single atoms.
+
+** 7.10 Result data and trace data answer different questions
+Project 1 separated successful proof from search-attempt diagnostics. Keep that discipline here.
+
+The successful path answers:
+
+- which actions form the selected route?
+- which states does that route visit?
+
+The expansion trace answers:
+
+- which unique states were actually expanded before the result?
+- in what order did the frontier policy expand them?
+- at what search depth was each expansion made?
+
+For DFS on the default fixture, the trace is expected to follow the long branch:
+
+#+begin_example
+expanded(incident_open, 0)
+expanded(app_down, 1)
+expanded(app_waiting_for_broker, 2)
+expanded(broker_down, 3)
+expanded(broker_up, 4)
+expanded(healthy, 5)
+#+end_example
+
+BFS exposes a different history:
+
+#+begin_example
+expanded(incident_open, 0)
+expanded(app_down, 1)
+expanded(broker_down, 1)
+expanded(app_waiting_for_broker, 2)
+expanded(broker_up, 2)
+expanded(healthy, 3)
+#+end_example
+
+Neither list is an SWI-Prolog debugger trace. Neither is proof provenance. The data is deliberately scoped to this search algorithm's state expansions.
+
+This separation will matter later when a planner's final plan is short but the search considered hundreds of states. Returning one giant “trace” object that mixes selected actions, rejected alternatives, runtime ports, and source provenance would make every consumer guess what its nodes mean.
+
+** 7.11 Failure lab -- remove the closed set
+Make a private experimental copy of the search loop and remove both closed-set checks. Search the recovery graph for an unreachable goal such as =database_restored=.
+
+Do not merely observe “it hangs.” Explain the state cycle that creates an unbounded search tree. Then restore the closed set and run the same unreachable query. The correct bounded result for the finite fixture is:
+
+#+begin_src prolog
+exhausted(database_restored)
+#+end_src
+
+The important distinction is semantic: the first version failed to finish because the algorithm revisited equivalent search states forever. The repaired version can say it exhausted the finite reachable state graph under the declared identity policy.
+
+** 7.12 Failure lab -- close too much
+Now imagine changing every state to the atom =service=. The closed set becomes extremely efficient: after one expansion, every later node appears to be the same state.
+
+It also destroys the search problem.
+
+This absurd example is useful because real versions are more subtle. If you omit the broker status from a compound planning state, two configurations that permit different actions may collapse into one closed-set identity. A duplicate policy is only as correct as the state abstraction it receives.
+
+Write down which facts a later planning state must contain so that “same state” implies “same legal future actions” for your domain.
+
+** 7.13 Failure lab -- claim weighted optimality without weights
+Attach imaginary durations to the actions on paper:
+
+#+begin_example
+inspect_broker    20
+start_broker     300
+restart_app      120
+
+inspect_app        5
+restart_app_early 10
+check_broker      10
+start_broker      20
+restart_app       20
+#+end_example
+
+The three-edge route can now cost more than the five-edge route. Our BFS code has nowhere to store or compare those costs.
+
+If you still write “BFS returns the cheapest recovery,” the prose is false even though every test is green.
+
+The correct milestone-A statement is “BFS returns the first goal at minimum edge depth on this finite unit-edge fixture under the implemented queue and duplicate-state policy.” Chapter 9 will earn stronger claims by adding an explicit cost model and the tests that go with it.
+
+** 7.14 Failure lab -- hide frontier policy inside a callback
+A tempting generalization is:
+
+#+begin_src prolog
+search(SuccessorPredicate, Start, Goal, ...)
+#+end_src
+
+followed by arbitrary =call/3= or =call/N=. That can be a reasonable library API in a trusted program. It is not automatically the right teaching boundary here.
+
+This book is building symbolic systems whose executable and data boundaries should stay visible. Keeping =edge/3= terms closed in this milestone lets us inspect, test, serialize, reorder, and explain the transition graph directly. Later abstractions can become more general after their trust boundary is stated explicitly.
+
+The same principle appeared in Project 1: a little duplication in a closed teaching language is often preferable to a “generic” interface that silently exposes the whole host runtime.
+
+** 7.15 Exercises
+1. ★ Predict the exact DFS and BFS expansion order on the bundled recovery graph before running the tests.
+2. ★ Reorder the first two outgoing =incident_open= transitions. Explain why the first DFS path changes while the graph's reachable-state set does not.
+3. ★★ Add a second route to =healthy= at depth four. Predict whether the current BFS result changes and justify your answer from frontier order rather than intuition.
+4. ★★ Add three distinct actions that all reach the same intermediate state. Verify that the state is expanded only once. Then explain why this implementation may still temporarily queue duplicates.
+5. ★★ Replace one ground state with a term containing an unbound variable and observe the input gate. Design a state representation that keeps the intended uncertainty as *data* while remaining ground.
+6. ★★ Add an unreachable state and compare =exhausted(Goal)= with Project 1's =failed=, =cycle(...)=, and =exhausted(...)= outcomes. Which meanings are shared and which are mechanism-specific?
+7. ★★★ Change the implementation to mark a state discovered when generated rather than when expanded. Specify the new invariant first, then add a regression showing whether the returned BFS path and trace change on a graph with duplicate frontier entries.
+8. ★★★ Design a cost-carrying frontier node for Chapter 9. Identify which existing fields remain useful and which invariants must change before you implement a priority policy.
+
+** 7.16 Project 2 checkpoint A
+You should now be able to derive DFS and BFS from the same explicit search loop, not memorize two unrelated predicates. You should be able to point to the one frontier operation that changes their expansion order, explain why transition order is observable for DFS, and state exactly what the closed set assumes about state identity.
+
+You should also be able to read a returned path and an expansion trace as two different artifacts. The path is the selected route. The trace is evidence about what this algorithm expanded on the way there.
+
+Project 2 is not yet a planner. Chapter 8 will replace the simple recovery graph's hand-written edges with relational action schemas, preconditions, effects, and explicit state transitions. That next step is safer because the search policy is already visible, independently tested, and small enough to reason about.

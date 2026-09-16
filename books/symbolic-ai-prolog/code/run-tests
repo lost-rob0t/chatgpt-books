@@ -2,7 +2,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
-TEST="$ROOT/books/symbolic-ai-prolog/code/meta-interpreter/test_meta_interpreter.pl"
+TESTS=(
+  "$ROOT/books/symbolic-ai-prolog/code/meta-interpreter/test_meta_interpreter.pl"
+  "$ROOT/books/symbolic-ai-prolog/code/explicit-search/test_search.pl"
+)
 
 swipl --version
-swipl -q -s "$TEST" -g "run_tests,halt(0)" -t "halt(1)"
+for test_file in "${TESTS[@]}"; do
+  swipl -q -s "$test_file" -g "run_tests,halt(0)" -t "halt(1)"
+done
