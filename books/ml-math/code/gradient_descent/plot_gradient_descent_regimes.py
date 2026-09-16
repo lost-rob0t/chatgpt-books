@@ -33,7 +33,7 @@ def plane_x(x: float) -> float:
 
 
 def plane_y(y: float) -> float:
-    return BOTTOM - ((y + 5.0) / 10.0) * (BOTTOM - TOP)
+    return BOTTOM - ((y + 9.0) / 18.0) * (BOTTOM - TOP)
 
 
 def polyline(points: list[tuple[float, float]], *, dash: str = "") -> str:
@@ -109,7 +109,7 @@ def main() -> None:
         initial_x=4.0,
         initial_y=4.0,
         learning_rate=0.22,
-        steps=6,
+        steps=4,
     )
     stable_points = [(plane_x(point.x), plane_y(point.y)) for point in stable]
     unstable_points = [(plane_x(point.x), plane_y(point.y)) for point in unstable]
@@ -126,7 +126,7 @@ def main() -> None:
 
     svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" viewBox="0 0 {WIDTH} {HEIGHT}">
 <title>Gradient descent stability regimes on scalar and axis-aligned quadratic objectives</title>
-<desc>The left panel plots normalized scalar parameter error for three fixed learning rates on the same positive-curvature quadratic. A solid line with filled circles approaches zero without crossing it, a long-dashed line with open squares crosses zero while shrinking, and a short-dashed line with cross markers grows while alternating. The right panel shows elliptical level curves of an axis-aligned quadratic. A solid path zigzags toward the minimum when both coordinate multipliers have magnitude below one, while a dashed path escapes because the high-curvature coordinate multiplier has magnitude above one.</desc>
+<desc>The left panel plots normalized scalar parameter error for three fixed learning rates on the same positive-curvature quadratic. A solid line with filled circles approaches zero without crossing it, a long-dashed line with open squares crosses zero while shrinking, and a short-dashed line with cross markers grows while alternating. The right panel shows elliptical level curves of an axis-aligned quadratic. A solid path zigzags toward the minimum when both coordinate multipliers have magnitude below one, while a dashed path grows away because the high-curvature coordinate multiplier has magnitude above one.</desc>
 <rect width="100%" height="100%" fill="white"/>
 
 <text x="{(LEFT_X0+LEFT_X1)/2:.2f}" y="27" text-anchor="middle" font-size="18" font-weight="bold">one-dimensional error recurrence</text>
