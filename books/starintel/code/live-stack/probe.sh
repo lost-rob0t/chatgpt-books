@@ -43,6 +43,24 @@ run_adapter() {
     python3 "$adapter" --wait-persisted 20 --poll-interval 0.25 "$document" > "$output"
 }
 
+wait_for_rabbitmq() {
+  local container_id health
+  container_id="$(docker compose ps --all --quiet rabbitmq)"
+  if [[ -z "$container_id" ]]; then
+    printf 'service trace: RabbitMQ container is missing during recovery\n' >&2
+    return 1
+  fi
+  for _ in $(seq 1 120); do
+    health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{if .State.Running}}healthy{{else}}stopped{{end}}{{end}}' "$container_id")"
+    if [[ "$health" == "healthy" ]]; then
+      return 0
+    fi
+    sleep 1
+  done
+  printf 'service trace: RabbitMQ did not become healthy during recovery\n' >&2
+  return 1
+}
+
 happy_fixture="$trace_tmp/happy.json"
 fault_fixture="$trace_tmp/fault.json"
 recovery_fixture="$trace_tmp/recovery.json"
@@ -85,8 +103,10 @@ else
 fi
 
 # Recovery is deliberately operator-driven. This experiment does not claim the
-# deployment transparently reconnects without a service restart.
+# deployment transparently reconnects without a service restart. Wait for the
+# broker itself first so the server restart is not racing RabbitMQ startup.
 docker compose start rabbitmq >/dev/null
+wait_for_rabbitmq
 docker compose restart star-server >/dev/null
 wait_for_healthy_stack
 run_adapter "$recovery_fixture" "$trace_tmp/recovery-result.json"
