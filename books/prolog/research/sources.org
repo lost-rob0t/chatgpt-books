@@ -40,6 +40,13 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Relevant to :: Chapter 3.
 - Used for :: =(/2)=, implicit unification, =unify_with_occurs_check/2=, cyclic-term caveat, and portability boundary.
 
+* SWI-Prolog Reference Manual -- Coroutining / =dif/2=
+- URL :: https://www.swi-prolog.org/pldoc/man?section=coroutining
+- Authority :: Official SWI-Prolog documentation.
+- Retrieved :: 2026-09-16.
+- Relevant to :: Chapter 1; Project 1.
+- Used for :: =dif/2= as a sound disequality constraint. The advanced attributed-variable/coroutining machinery is intentionally deferred; the first project only needs the relation-level meaning that the two terms must remain different.
+
 * SWI-Prolog Reference Manual -- Prolog flags
 - URL :: https://www.swi-prolog.org/pldoc/man?section=flags
 - Authority :: Official SWI-Prolog documentation.
