@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+server_root="${1:?usage: run-pinned-tests PATH-TO-PINNED-STARINTEL-SERVER}"
+pin="1ac298b797bd4bc0e71cfde083c6a59af55ccc6f"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+actual="$(git -C "$server_root" rev-parse HEAD)"
+if [[ "$actual" != "$pin" ]]; then
+  printf 'expected StarIntel Server %s, got %s\n' "$pin" "$actual" >&2
+  exit 2
+fi
+
+python3 "$script_dir/inject_upstream_test.py" "$server_root"
+(
+  cd "$server_root"
+  nix run .#star-unit-tests
+)
