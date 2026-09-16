@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'books/prolog/**'
+      - 'tools/build-book'
+      - 'tools/check-book-citations'
       - '.github/workflows/prolog-book.yml'
   workflow_dispatch:
 
@@ -36,6 +38,13 @@ jobs:
 
       - name: Build Prolog book
         run: make book BOOK=prolog
+
+      - name: Check rendered citations
+        run: |
+          python3 ./tools/check-book-citations \
+            books/prolog/dist/prolog.epub \
+            swi-stable-download \
+            'SWI-Prolog stable downloads'
 
       - name: Validate Prolog book
         env:
