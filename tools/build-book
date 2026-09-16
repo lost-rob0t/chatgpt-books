@@ -15,6 +15,7 @@ pandoc "$PREPARED" \
   --to=epub3 \
   --standalone \
   --mathml \
+  --citeproc \
   --resource-path="$ROOT/books/$BOOK:$ROOT" \
   --css="$ROOT/assets/styles/epub.css" \
   --metadata-file="$ROOT/books/$BOOK/metadata.yaml" \
