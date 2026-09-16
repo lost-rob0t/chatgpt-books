@@ -17,7 +17,15 @@
    #:unification-result-right
    #:unification-result-status
    #:unification-result-substitution
+   #:unification-step
+   #:unification-step-action
+   #:unification-step-left
+   #:unification-step-pending-count
+   #:unification-step-reason
+   #:unification-step-right
+   #:unification-step-substitution
    #:unify
+   #:unify-equations
    #:variable-name
    #:variable-p))
 
