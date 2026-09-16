@@ -9,6 +9,13 @@
              (action-schema-name (ungrounded-action-schema condition))
              (ungrounded-action-term condition)))))
 
+(define-condition ungrounded-world-fact (error)
+  ((fact :initarg :fact :reader ungrounded-world-fact-fact))
+  (:report
+   (lambda (condition stream)
+     (format stream "Planning states and goals must contain ground facts; got ~S"
+             (ungrounded-world-fact-fact condition)))))
+
 (defstruct (action-schema
              (:constructor %make-action-schema
                  (name parameters preconditions add-effects delete-effects cost)))
@@ -77,6 +84,11 @@ claim that the printed ordering has domain semantics."
   (unless (%ground-term-p term)
     (error 'ungrounded-action :schema schema :term term))
   term)
+
+(defun %ensure-ground-world-fact (fact)
+  (unless (%ground-term-p fact)
+    (error 'ungrounded-world-fact :fact fact))
+  fact)
 
 (defun goal-satisfied-p (state goals)
   "True when every ground GOAL fact is present in STATE under EQUAL."
@@ -198,8 +210,7 @@ successor paths that produce the same world state meet at one graph-search key."
         (goal-set (canonical-state goals))
         (schema-set (copy-list schemas)))
     (dolist (fact (append initial goal-set))
-      (unless (%ground-term-p fact)
-        (error 'type-error :datum fact :expected-type 'ground-symbolic-fact)))
+      (%ensure-ground-world-fact fact))
     (dolist (schema schema-set)
       (unless (typep schema 'action-schema)
         (error 'type-error :datum schema :expected-type 'action-schema)))
