@@ -1,0 +1,45 @@
+#+title: Prolog + LLMs: Neuro-Symbolic Systems from First Principles
+:PROPERTIES:
+:ID:       a9ba742b-d4e2-511e-9fef-c28ad5137bcc
+:END:
+
+* Reader contract
+This book is standalone. It will teach enough Prolog to build, inspect, test, and debug the symbolic side of every later integration rather than asking the reader to treat Prolog as an opaque verifier. The deeper sibling volume, [[file:../../prolog/README.org][Prolog for Beginners]], remains the place for the broadest pure-Prolog treatment.
+
+The second contract is stricter: language-model output is untrusted external input. A model can propose terms, facts, queries, plans, or explanations only through an explicit interface that can reject malformed, unsupported, contradictory, stale, or over-budget work. Fluency is not evidence and code-shaped text is not automatically executable code.
+
+The third contract is empirical. Version-sensitive claims about SWI-Prolog, model providers, structured generation, tool calling, or named neuro-symbolic systems require current primary-source research. Model quality, latency, cost, and benchmark claims require actual recorded runs. Until then they remain DOCUMENTED, UNTESTED, or EXPERIMENTAL as appropriate.
+
+* Course trajectory
+The course grows one family of systems rather than resetting for every chapter:
+
+1. a deterministic relational task solver establishes Prolog semantics, testing, and explanation;
+2. a typed gateway introduces an LLM behind a closed acceptance boundary;
+3. a retrieval + verification pipeline turns candidate evidence into provenance-aware symbolic claims;
+4. a bounded repair loop feeds structured verifier failures back to the model;
+5. an evaluation harness compares simpler and more agentic variants honestly;
+6. the capstone studies a concrete Prolog-RLM architecture with recursive model calls under explicit budgets and Prolog-owned verification contracts.
+
+* Part I -- Deterministic foundations
+The first authored slice will replace this scaffold with real chapters on relations, terms, unification, recursion, lists, backtracking, modules, testing, debugging, DCGs, constraints, and meta-programming. Every substantial mechanism must have runnable SWI-Prolog examples and deliberate failure exercises before the model-integration chapters depend on it.
+
+* Part II -- Typed model boundaries
+The second authored stage introduces external model calls only after the symbolic baseline exists. The core question is not “how do we get the LLM to write Prolog?” but “what exact typed information is the model allowed to contribute, and what must be true before the symbolic system accepts it?”
+
+* Part III -- Retrieval and verification
+Candidate evidence, extracted facts, source provenance, contradictions, missing evidence, and proof results become separate data types/concepts. Retrieval ranking and model confidence are never silently promoted into logical entailment.
+
+* Part IV -- Bounded repair and recursion
+Generate/verify/repair loops introduce budgets, request identity, duplicate detection, cancellation, stale-result rejection, replay, and failure classification. Recursive language-model calls are taught as distributed/agentic control flow with explicit invariants, not as a mystical reasoning upgrade.
+
+* Part V -- Neuro-symbolic research
+Named architectures and research claims enter only with primary sources and reproductions where practical. The book compares what neural and symbolic components each architecture actually own: generation, retrieval, ranking, parsing, search, constraint checking, proof, execution, memory, and explanation.
+
+* Part VI -- Evaluation and production debugging
+Readers build a harness that can tell apart parser failures, schema failures, hallucinated relations, verifier rejection, retrieval mistakes, model mistakes, orchestration bugs, timeouts, stale completions, and benchmark defects. The goal is to make failure diagnosable instead of summarizing every problem as “the AI got confused.”
+
+* Capstone -- Prolog-RLM Study System
+The final system uses Prolog to own task/subtask representation, recursion budgets, verification, experiment state, and acceptance while model providers remain replaceable external capabilities. The capstone compares itself against simpler baselines on a frozen task set and preserves negative results. It is a concrete study system, not proof that one orchestration pattern is universally superior.
+
+* Current state
+This manuscript is a scaffold, not authored course material. No chapter, project, benchmark, or model behavior is marked DONE here. See [[file:../OUTLINE.org][OUTLINE.org]], [[file:../PROJECTS.org][PROJECTS.org]], and [[file:../STATUS.org][STATUS.org]] for the dependency plan and evidence state.
