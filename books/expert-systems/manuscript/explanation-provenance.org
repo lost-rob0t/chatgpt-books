@@ -168,7 +168,7 @@ justification  --uses-----------> support fact occurrence
 contradiction  --counterevidence-> contradictory fact occurrence
 #+end_example
 
-Figure [[fig:expert-explanation-graph]] shows the shape.
+The following figure shows the shape.
 
 #+name: fig:expert-explanation-graph
 #+caption: Current explanation is a typed read model over exact support identities. Historical firing records are not used as proof edges.
