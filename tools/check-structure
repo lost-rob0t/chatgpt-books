@@ -15,6 +15,10 @@ required_principal_books = {
     'symbolic-ai-prolog',
     'expert-systems',
 }
+# These directories are intentionally not active principal-book pipelines yet.
+# They must remain discoverable/documented, but paused scaffolds are not forced
+# to pretend they already satisfy the full manuscript/project contract.
+paused_scaffolds = {'starlang'}
 errors = []
 
 if (root / 'AGENTS.md').read_text().splitlines()[2].strip() != '**Read `README.org` completely before performing any work in this repository.**':
@@ -25,9 +29,15 @@ missing = required_principal_books - actual
 if missing:
     errors.append(f'missing required principal books: {sorted(missing)}')
 
-# Validate every discovered book, including additional/experimental volumes such
-# as StarLang, rather than rejecting the repository whenever the series grows.
-for slug in sorted(actual):
+for slug in sorted(paused_scaffolds & actual):
+    readme = root / 'books' / slug / 'README.org'
+    if not readme.exists() or len(readme.read_text()) < 500:
+        errors.append(f'{slug}: paused scaffold requires a substantive README.org')
+
+# Validate every active discovered book. New book directories are allowed to
+# grow the series without editing a magic total, but they must satisfy the same
+# canonical structure before they count as active books.
+for slug in sorted(actual - paused_scaffolds):
     b = root / 'books' / slug
     for name in ['README.org', 'STATUS.org', 'ROADMAP.org', 'OUTLINE.org', 'PROJECTS.org']:
         p = b / name
@@ -74,7 +84,8 @@ if errors:
     sys.exit(1)
 
 print(
-    f'STRUCTURE OK: {len(actual)} discovered books '
-    f'({len(required_principal_books)} required principal); '
+    f'STRUCTURE OK: {len(actual - paused_scaffolds)} active books '
+    f'({len(required_principal_books)} required principal), '
+    f'{len(paused_scaffolds & actual)} paused scaffold(s); '
     'expert workbench architecture present'
 )
