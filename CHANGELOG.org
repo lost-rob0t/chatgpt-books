@@ -9,6 +9,7 @@
 - A Pandoc Org-reader contract test that detects upstream AST changes affecting =:ID:=, =:CUSTOM_ID:=, and Figure-level alt normalization.
 - =tools/prepare-org-for-pandoc=, which creates an export-only temporary Org copy containing deterministic =org-id-<ID>= aliases and rewritten same-document =id:= links while leaving canonical Org untouched.
 - Issue #27: initial standalone =books/prolog-llms= curriculum scaffold, project sequence, research architecture, manuscript contract, and publication metadata.
+- Editorially approved foundational manuscript/project milestones for =prolog= (Chapters 1--3 + Relational Query System milestone 1, PR #20), =erlang= (Chapters 1--6 + Process-Based Messaging checkpoint A, PR #21), and =lfe= (Chapters 1--3 + Event Routing DSL foundation milestone, PR #23). These are bounded course milestones, not completed books.
 
 ** Changed
 - =elisp/chatgpt-books-roam.el= now forward-declares Org-roam variables (=org-roam-directory=, =org-roam-db-location=, =org-roam-capture-templates=, =org-roam-db-autosync-mode=) so the project package and its ERT suite behave correctly before =(require 'org-roam)= executes. =chatgpt-books-roam-restore= now reads =org-roam-db-autosync-mode= with =boundp=, fixing a =void-variable= failure exposed by the minimal Nix devShell.
@@ -18,6 +19,7 @@
 - The publishing fixture now includes deterministic JPEG coverage in addition to SVG and PNG.
 - Issue #27: structural validation no longer rejects the repository merely because the book set grew beyond the original nine. Required principal books are enforced, additional active books receive the same structural checks, and the explicitly paused StarLang scaffold remains discoverable without pretending it is an active manuscript pipeline.
 - Root book inventory now records ten principal books plus the paused in-tree StarLang scaffold and documents Prolog-family editorial boundaries.
+- Issue #31 reconciles root and book STATUS records after the Prolog/Erlang/LFE foundation merges and removes the now-stale shared structural-gate blocker text without promoting any full book to DONE.
 
 ** Fixed
 - ERT =chatgpt-books-roam-state-roundtrip= no longer depends on Org-roam being pre-loaded; the alphabetical test run order still lets CI's real Org-roam sync test load the package first, but the roundtrip test is now robust on hosts without Org-roam installed.

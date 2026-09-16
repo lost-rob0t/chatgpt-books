@@ -7,19 +7,21 @@ Foundational research + progressive chapter/project drafting.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
 - Foundational primary-source pass 01 documents OTP 29 terms, pattern matching, process/signal/mailbox semantics, monitor behavior, selective-receive cost, and the OTP 28+ priority-message caveat.
-- Chapters 1--6 have a first substantial draft tied to Project 1 checkpoint A.
+- Chapters 1--6 contain a substantial first draft tied to Project 1 checkpoint A.
 - Project 1 checkpoint A includes runnable Erlang source, EUnit regressions, deliberate timeout/crash injection, and an editable request/failure-flow diagram.
-- Exact-head verification at =c33951f24feafaf7a9d7623169041ab321e8c580= exercised Erlang/OTP 29.0.6: all 9 EUnit tests passed; =make book BOOK=erlang= passed; =make check BOOK=erlang= passed with EPUBCheck 5.3.0 reporting 0 fatals/errors/warnings/infos; =nix flake check -L= passed.
+- The editorial transition out of the foundation slice explicitly separates runtime ordering from application order, timeout from cancellation, monitoring from restart policy, and supervision from persistence before OTP is introduced.
+- PR #21 was editorially APPROVED for this bounded milestone and merged to canonical main as =1ca38e64492d163ddaa63fa9aa9ac5477f370679=.
 * Active research
-Foundational research is not complete. Links/exit semantics, OTP behaviors/supervision, releases, distribution, persistence boundaries, testing/tracing/observability, and production debugging remain queued.
+Foundational research is not complete. Links/exit semantics, OTP behaviours/supervision, releases, distribution, persistence boundaries, testing/tracing/observability, and production debugging remain queued.
 * Verification status
 - DOCUMENTED: foundational pass 01 primary-source claims.
-- VERIFIED on Erlang/OTP 29.0.6: Project 1 checkpoint A compilation and EUnit behavior at the recorded exact head.
-- VERIFIED: production book build and EPUBCheck path at the recorded exact head.
-- VERIFIED: repository Nix evaluation at the recorded exact head.
-- INHERITED REPOSITORY BLOCKER: the general =books-ci= structural gate fails on canonical main as well as this branch because =tools/check-structure= omits the already-present =books/starlang= directory from its exact expected-book set. This Erlang branch does not change that validator.
-- No performance benchmark claims.
+- Final reviewed PR head =bbb2b1bb9eb2c21735b25b1f561dba78effb84a0= passed =erlang-book= run =35094332998= and generic =books-ci= run =35094332993= before merge.
+- The focused gate re-executed the Erlang foundations tests, production book build/check, and Nix evaluation successfully. The earlier exact-runtime record for the same implementation used Erlang/OTP 29.0.6 and observed all 9 EUnit tests passing with zero skips.
+- EPUBCheck 5.3.0 reported zero findings on the accepted foundation slice.
+- The previous repository-wide fixed-book-set structural failure is RESOLVED by issue #27 / PR #29; it is no longer an Erlang blocker.
+- No performance benchmark claims are made by this milestone.
 * Technical/editorial/visual review
-Not started.
+- Chapters 1--6 / Project 1 checkpoint A: editorially APPROVED as a bounded slice.
+- Whole book: not DONE and not in final technical/editorial/visual review.
 * Blockers
-Dependency-aware backlog must continue through the later OTP/distribution/persistence/debugging phases before the manuscript can be promoted to DONE. The inherited repository-wide structural-validator mismatch remains external to this Erlang-only slice.
+No repository-wide CI blocker for the next Erlang slice. Dependency-aware work continues with links, exit signals, trapping exits, monitor/link races and failure propagation, followed by =gen_server=, supervision, applications/releases, distribution, persistence boundaries, tracing/observability and production debugging.
