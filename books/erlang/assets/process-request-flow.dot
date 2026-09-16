@@ -1,0 +1,20 @@
+digraph request_flow {
+  graph [rankdir=LR, bgcolor="transparent", pad="0.2", nodesep="0.55", ranksep="0.8"];
+  node [shape=box, style="rounded", fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  caller [label="caller process\nprivate mailbox"];
+  server [label="server process\nprivate mailbox + state"];
+  monitor [label="monitor reference\nDOWN if server exits", shape=note];
+  timeout [label="caller timeout\nlocal waiting stops", shape=diamond];
+  late [label="late reply can still arrive\nunless protocol cancels/drops it", shape=note];
+
+  caller -> server [label="{request, Caller, Ref, Command}"];
+  server -> caller [label="{reply, Ref, Result}"];
+  caller -> monitor [label="monitor(server)", style=dashed];
+  server -> monitor [label="termination", style=dashed];
+  monitor -> caller [label="{'DOWN', Mon, process, Pid, Reason}", style=dashed];
+  caller -> timeout [label="after T", style=dotted];
+  timeout -> late [label="does not retract request", style=dotted];
+  server -> late [label="work may complete later", style=dotted];
+}

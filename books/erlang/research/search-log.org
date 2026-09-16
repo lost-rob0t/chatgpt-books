@@ -3,4 +3,12 @@
 :ID:       5c4985ee-bed7-522c-a155-e60fbd066396
 :END:
 * Entries
-No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.
+
+** 2026-09-16 -- foundational pass 01: current release and language/process semantics
+- Questions :: What is the current Erlang/OTP major/patch level? What do the current reference manuals actually guarantee about variable binding, match failure, process creation/termination, signal ordering, mailbox insertion, monitors, selective receive, and message copying? Which beginner statements became version-sensitive after priority messages?
+- Queries :: Official erlang.org OTP 29 release/patch pages; Erlang System Documentation pages for Data Types, Pattern Matching, Processes, Errors and Error Handling, Efficiency Guide Processes, and stdlib gen_server.
+- Sources inspected :: See [[file:sources.org][sources.org]], foundational pass 01.
+- Result :: OTP 29.0 released 2026-05-13; OTP 29.0.6 published 2026-09-01. The process reference guarantees ordering for multiple signals from the same sender entity to the same destination, not a global order across senders. Messages are normally appended to the queue in received-signal order, but OTP 28+ priority-message reception can change queue insertion order for participating processes. Monitors are unidirectional and produce correlated DOWN messages. Local receive timeouts do not retract messages already sent. The efficiency guide documents message copying with exceptions for reference-counted binaries/literals and warns that selective receive may scan the queue.
+- Claim classification :: DOCUMENTED from primary sources. EXECUTION VERIFIED for Project 1 checkpoint A at =c33951f24feafaf7a9d7623169041ab321e8c580=: exact OTP 29.0.6, 9/9 EUnit PASS, production book build PASS, EPUBCheck 5.3.0 PASS with zero messages, and =nix flake check -L= PASS.
+- Repository-gate note :: General =books-ci= still fails at structural validation, but the same failure is present on canonical main =2094825dcbb29608386132a75555effdbd69a12e=: =tools/check-structure= hard-codes nine expected books while =books/starlang= is already present. The Erlang slice does not modify or weaken that validator.
+- Remaining uncertainty :: Exact runtime behavior/performance under mailbox overload is intentionally not inferred from documentation; later project phases require measured failure demonstrations. Links, supervisor restart intensity, application/release semantics, distribution/TLS, persistence, tracing, and production debugging remain future research passes.

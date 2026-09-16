@@ -4,5 +4,239 @@
 :END:
 #+bibliography: ../references.bib
 
-* Manuscript bootstrap
-This is the canonical manuscript entry point. Long-form drafting begins only after the publishing/research bootstrap and the relevant research issue are ready. See [[file:../OUTLINE.org][OUTLINE.org]].
+* How to use this book
+LFE is easiest to misunderstand in two opposite ways. One mistake is to see parentheses and assume “Common Lisp, but on another VM.” The other is to see Erlang underneath and assume “Erlang with the punctuation rearranged.” Both shortcuts erase the useful part.
+
+LFE gives you Lisp's programmable syntax and expression-oriented style while running in the Erlang/OTP world of immutable terms, pattern matching, lightweight processes, asynchronous signals, supervision trees, applications, releases, and the BEAM. This book therefore teaches two ways of thinking at once: *Lisp thinking* about code as structured data and abstraction, and *BEAM thinking* about explicit state transitions, message protocols, failure, and isolation.
+
+Every major project is cumulative. We begin with a small event-routing language whose rules are plain data. Later we give that language a macro surface, embed it in processes, expose it through OTP behaviours, supervise it, distribute it, and package it as an application. The point is not to collect syntax tricks. The point is to watch abstractions grow without hiding the runtime they depend on.
+
+The exact executable baseline for the first project slice is LFE v2.2.2. [cite:@lfe-v2-2-2] The build records the actual Erlang/OTP release used for each run. Version-sensitive statements stay tied to primary sources and executable gates; later chapters must re-check their own OTP/LFE surfaces rather than inheriting this pass by folklore.
+
+* Part I -- Foundations
+** Chapter 1 -- S-Expressions on the BEAM
+:PROPERTIES:
+:ID:       d18609d0-8c54-4e1c-9a56-9883de9e9f55
+:END:
+
+*** Two layers, one program
+Consider this LFE form:
+
+#+begin_src lfe
+(tuple 'event 'critical 'edge '#"disk full")
+#+end_src
+
+Its surface is Lisp: the outer parentheses form a list-like source expression whose first position names an operation. Its result is not an LFE-only object, though. It is a BEAM term: a four-element tuple containing atoms and a binary. An Erlang module can receive the same value as:
+
+#+begin_src erlang
+{event, critical, edge, <<"disk full">>}
+#+end_src
+
+That distinction is the foundation for everything later. *Source form* is how we write a computation. *Runtime term* is the value that processes, libraries, ETS tables, OTP behaviours, and Erlang modules actually exchange.
+
+LFE v2.2.2's guide documents Erlang-family data with Lisp syntax, including integers, floats, list strings, binary strings, lists, tuples, and function references. The upstream compiler produces modules that participate in the same VM ecosystem as Erlang modules. [cite:@lfe-guide-v2-2-2] We will exploit that rather than building a second universe on top of it.
+
+*** Atoms, symbols, strings, and binaries
+A beginner coming from another Lisp has to resist mapping names mechanically.
+
+#+begin_src lfe
+'critical
+'#"disk full"
+"disk full"
+#+end_src
+
+The first form quotes the atom-like name we want as data. The second is a binary string literal in current LFE syntax. The third is a list string: conceptually a list of integer character/codepoint values. List strings and binaries may print similarly in tiny examples while having different runtime representations and performance properties. [cite:@lfe-guide-v2-2-2;@erlang-data-types-29]
+
+That is not a cosmetic distinction. Protocols should normally decide deliberately whether text crosses a boundary as a binary or a list. Later networking and OTP chapters will use binaries heavily because external byte-oriented protocols naturally map to them. For now, the event project chooses a binary payload to make representation visible early.
+
+*** Lists are structure, not generic bags
+The BEAM list model is recursive. A proper list is either empty or a head paired with another list as its tail. [cite:@erlang-data-types-29] LFE makes that visible with =cons=:
+
+#+begin_src lfe
+(cons 'critical
+      (cons 'warning
+            (cons 'info ())))
+#+end_src
+
+For ordinary source, =(list 'critical 'warning 'info)= is clearer. But the explicit =cons= form explains why recursive list processing has exactly two natural cases:
+
+1. the empty list, where there is nothing left to process;
+2. a non-empty list, where we handle the head and recurse on the tail.
+
+That structure will become executable in Chapter 3.
+
+*** Functions are values too
+LFE documents function-reference forms such as: [cite:@lfe-guide-v2-2-2]
+
+#+begin_src lfe
+(function lists reverse 1)
+#+end_src
+
+A function reference can be passed as data and invoked. Higher-order programming is therefore not a layer bolted on by LFE; it operates in the same BEAM runtime as Erlang functions. Later we will compare an explicit recursive router with higher-order collection functions and discuss when each version communicates the protocol more clearly.
+
+*** Project 1, stage 0: rules as terms
+Our first major project is an Event Routing DSL. The temptation is to begin with a macro because “DSL” and “Lisp” appear in the same sentence. We will not do that yet.
+
+The semantic kernel starts with ordinary data:
+
+#+begin_src lfe
+(list
+ (tuple 'when-level 'critical 'pager)
+ (tuple 'when-service 'billing 'billing-queue)
+ (tuple 'otherwise 'archive))
+#+end_src
+
+This gives us an inspectable contract before we invent syntax. A later macro will only be successful if its expansion preserves a semantic model that we already understand and test.
+
+#+caption: The first Event Routing DSL stage keeps source rules as explicit BEAM data and routes one event to one result before macros or processes are introduced.
+#+attr_html: :alt An event tuple enters an ordered rule list. The first matching rule produces an ok destination result; exhausted or malformed input produces a tagged error.
+[[file:assets/event-routing.svg]]
+
+*** Failure lab: list string versus binary
+Change the sample payload from =#"disk full"= to ="disk full"=. The router in this chapter does not inspect payload bytes, so routing still ought to work. Then add a clause that calls a binary-only operation on the payload. The representation difference suddenly becomes operational.
+
+The lesson is not “always use binaries.” The lesson is that a Lisp reader can make two textual literals look pleasantly similar while the BEAM still cares about their actual term type. Boundary code should make that choice consciously.
+
+*** Exercises
+1. ★ Rewrite the sample rule list using nested =cons= forms. Identify the exact empty-list terminator.
+2. ★ Explain why =#(event critical edge #"disk full")= is a protocol-shaped value while the LFE source form that creates it is not itself a network protocol.
+3. ★★ Add a =when-service= rule before the fallback and predict which events it catches without running the code.
+4. ★★★ Design a representation for a route result that distinguishes “no rule matched” from “the rule list itself was malformed.” Compare it with the project's tagged tuples before reading Chapter 2.
+
+** Chapter 2 -- Pattern Matching as Executable Shape
+:PROPERTIES:
+:ID:       39f541d4-ae51-4434-b771-5e72b099bd31
+:END:
+
+*** Matching is not assignment
+Erlang variables are single-assignment within their scope. Pattern matching either proves that a term has the required shape and binds previously unbound variables, or it fails. [cite:@erlang-patterns-29] LFE retains that model even though the source syntax is Lisp.
+
+The project's most compact rule is a good example:
+
+#+begin_src lfe
+([(tuple 'event level _service _payload)
+  (cons (tuple 'when-level level destination) _rest)]
+ (tuple 'ok destination))
+#+end_src
+
+This is a function clause with two argument patterns. The variable =level= occurs in the event pattern and in the rule pattern. LFE v2.2.2's own pattern tests explicitly exercise recurring variables across tuple/list patterns. [cite:@lfe-pattern-test-v2-2-2] The clause succeeds only when those positions contain the same term. There is no mutation and no hidden lookup table; structural equality is expressed by the repeated variable in the pattern.
+
+That is a deeply Lisp-friendly feature for a BEAM language: a small symbolic structure can *be* the control flow.
+
+*** Clause order is policy
+The router is ordered. Its first matching clause/rule wins. With these rules:
+
+#+begin_src lfe
+(list
+ (tuple 'otherwise 'sink)
+ (tuple 'when-level 'critical 'pager))
+#+end_src
+
+all valid events route to =sink=. The later critical rule is unreachable because =otherwise= matches first.
+
+This is not merely an implementation detail. It is part of the DSL semantics and therefore belongs in tests. Whenever source order changes meaning, reviewers should be able to point to an acceptance test that freezes that fact.
+
+*** Validation through destructuring
+A protocol boundary has two common bad habits: trusting every term, or accepting malformed terms by silently treating them as “no match.” The project does neither.
+
+The public =route/2= entry point first validates the event shape with an alias pattern. A non-event becomes:
+
+#+begin_example
+#(error #(bad-event ...))
+#+end_example
+
+The recursive rule walker recognizes the known rule shapes. If it encounters an unknown shape, it returns:
+
+#+begin_example
+#(error #(bad-rule ...))
+#+end_example
+
+This is deliberately boring. Boring boundaries are easy to test. Later, when macros generate rules, a bug in macro expansion should surface as a malformed explicit term rather than disappear behind magical dispatch.
+
+*** Matching as an interoperability contract
+Because the data is ordinary BEAM data, the same contract can be written from Erlang:
+
+#+begin_src erlang
+Event = {event, critical, edge, <<"disk full">>},
+Rules = [{'when-level', critical, pager}].
+#+end_src
+
+The book's executable gate compiles the LFE module and then invokes it from an Erlang =erl -eval= process. That test is more valuable than a mock “interop adapter”: it proves the actual module boundary accepts the actual runtime terms.
+
+*** Failure lab: malformed rule versus absent match
+Replace a valid rule with:
+
+#+begin_src lfe
+(tuple 'wat 'nope)
+#+end_src
+
+A weak router might skip that term and eventually return =no-route=. That loses information: “valid configuration, no match” and “invalid configuration” become indistinguishable. The project intentionally returns =bad-rule=.
+
+Now move the malformed rule *after* a matching rule. First-match semantics mean it is never inspected. Is that acceptable? In this stage, yes: =route/2= is an evaluator, not a whole-configuration validator. A later DSL compiler can choose to validate the entire rule set before execution. Keeping those responsibilities distinct will matter when macros arrive.
+
+*** Exercises
+1. ★ Trace the =critical= sample event through each rule and clause without executing it.
+2. ★★ Add a =when-service= test that proves a nonmatching level rule is skipped before the service rule matches.
+3. ★★ Explain why a malformed rule after an already-matching rule is unobserved. Would you validate at construction time, evaluation time, or both?
+4. ★★★ Write a proposed =validate-rules= return contract using only ordinary BEAM terms. Do not implement it yet; identify what later macro expansion would gain from the separate validation pass.
+
+** Chapter 3 -- Recursion is Protocol Progress
+:PROPERTIES:
+:ID:       c6aa9885-acde-4cf0-941a-96be966bb281
+:END:
+
+*** Base case and progress case
+The rule walker is a small recursive state machine. Its state consists of the event term plus the remaining ordered rules.
+
+The base case is explicit:
+
+#+begin_src lfe
+([_event ()]
+ (tuple 'error 'no-route))
+#+end_src
+
+The progress cases inspect the head. A matching head terminates with an =ok= result. A known but nonmatching head recurses on =rest=. An unknown head terminates with =bad-rule=.
+
+This gives us a simple termination argument: every recursive step receives the tail of a finite proper list, so the number of remaining rules decreases by one. Eventually a rule matches, invalid input is detected, or the empty-list base case is reached.
+
+That style of reasoning scales. Later process loops also recur, but their “next state” is not the tail of a list; it is the next process state after a received message. OTP behaviours formalize that pattern further. Learning to name state and progress now pays off when the state becomes concurrent.
+
+*** Do not worship tail recursion
+BEAM programmers often learn “tail recursion is good” and accidentally turn it into a law that every recursive function should be accumulator-shaped. The important question is whether the recursive structure matches the problem and whether stack/resource behavior is acceptable.
+
+Our router's recursive call is already in tail position: once =(route-event event rest)= returns, the caller has no more work. There is no need to add an accumulator just to look more Erlang-ish.
+
+For transformations that build an output list, an accumulator plus a final reverse can be useful. LFE's upstream =fizzbuzz.lfe= example demonstrates both simple recursion and an accumulator/reverse style. [cite:@lfe-fizzbuzz-v2-2-2] We will revisit the tradeoff with measurements only when a later chapter has a workload worth measuring; this book will not manufacture benchmark numbers for pedagogical decoration.
+
+*** Failure lab: remove the base case
+Delete the empty-rule clause and re-run the regression suite. A request with =()= no longer produces a tagged =no-route= value; instead no function clause matches. That is a different failure class.
+
+This is one of the book's recurring debugging techniques: intentionally remove an invariant-maintaining clause, run the smallest regression that depends on it, and inspect the failure boundary. “Let it crash” is not permission to omit domain errors at random. Crashes are useful when a process cannot or should not recover locally; tagged errors are useful when failure is part of the normal protocol. Later OTP chapters will make that distinction concrete.
+
+*** Project checkpoint
+At the end of Chapter 3, Project 1 has a small but real vertical slice:
+- source data model for events and rules;
+- pattern-based matching;
+- ordered first-match semantics;
+- explicit recursive progress and base case;
+- tagged malformed-input errors;
+- executable LFE regressions;
+- an Erlang-to-LFE module-call smoke test.
+
+What it intentionally does *not* have yet is just as important: no macro surface, no process server, no OTP behaviour, no persistence, no supervision, no distributed node, and no release. We add each only after the corresponding concept can be explained and tested.
+
+*** Exercises
+1. ★ Identify every branch in =route-event= that terminates and every branch that recurses.
+2. ★★ Add a new rule *on paper* for =when-level-and-service=. Specify the tuple shape and the exact clause ordering it would require.
+3. ★★★ Suppose the rules arrive as an improper list. Predict where the current function-clause structure fails. Decide whether the DSL compiler, the evaluator, or both should own that validation and justify the boundary.
+4. ★★★ Compare the recursive implementation with a hypothetical =lists:foldl= version. Which one makes first-match early termination and malformed-rule behavior easier to see?
+
+* Project 1 -- Event Routing DSL, Foundation Milestone
+The runnable implementation for this milestone lives in =books/lfe/code/event-rules/=. Treat it as curriculum material: read the module, run the regressions, break the failure labs, then repair them.
+
+The macro chapters will build syntax *on top of* this kernel. That sequencing is deliberate. If a future macro makes the routing semantics harder to explain than these plain terms, the macro is not automatically an improvement just because Lisp can express it.
+
+* Source checkpoints for this slice
+The first slice is grounded in the official LFE v2.2.2 release and guide, the upstream recurring-pattern and recursion examples, and current Erlang term/pattern documentation. [cite:@lfe-v2-2-2;@lfe-guide-v2-2-2;@lfe-pattern-test-v2-2-2;@lfe-fizzbuzz-v2-2-2;@erlang-data-types-29;@erlang-expressions-29;@erlang-patterns-29]
+
+The detailed retrieval record, exact source URLs, and claim status live in =books/lfe/research/foundations-01.org=. The executable workflow records the actual OTP runtime used for each test run separately from the current-documentation baseline.
