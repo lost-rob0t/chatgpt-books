@@ -8,7 +8,7 @@ response(Json, Response) :-
 
 valid_json(RequestId, Capability, ArgumentsJson, Json) :-
     format(string(Json),
-           '{"schema":"task_capability_v1","request_id":"~w","capability":"~w","arguments":~s}',
+           '{"schema":"task_capability_v1","request_id":"~s","capability":"~s","arguments":~s}',
            [RequestId, Capability, ArgumentsJson]).
 
 test(decodes_without_execution) :-
