@@ -1,0 +1,166 @@
+#+title: Prolog + LLMs -- DCG Task-Language Research Pass
+:PROPERTIES:
+:ID:       8d3eae2f-4d5b-4ed8-89aa-4a2707600b52
+:END:
+
+* Scope
+Retrieval date: 2026-09-16.
+
+This pass supports Chapter 6 and Project 1 milestone C.  It is deliberately
+bounded to DCGs and a closed token-to-data parser.  CLP(FD), general
+meta-programming, provider APIs, live model execution, and Prolog-RLM runtime
+experiments remain later work.
+
+Claim-status vocabulary follows repository policy:
+- DOCUMENTED :: supported by an inspected current official SWI-Prolog source;
+- TESTED :: reproduced by executable code/tests in this book after CI runs;
+- UNTESTED :: not reproduced by this book yet;
+- EXPERIMENTAL :: proposed design or exercise rather than established behavior;
+- FAILED :: an attempted executable check failed and the failure is retained;
+- UPSTREAM-REPORTED :: reported elsewhere but not reproduced here.
+
+No model call, benchmark, provider request, or Prolog-RLM execution was
+performed in this research pass.
+
+* Questions
+** What does a DCG actually add to ordinary Prolog?
+DOCUMENTED: the current SWI-Prolog reference manual describes DCG grammar rules
+as an interface to difference lists.  A grammar rule uses =-->/2= rather than
+=:-/2=, and =expand_term/2= expands nonterminals by adding two arguments that
+represent the input/output list difference.
+
+The current manual describes three important forms in a DCG body:
+- a callable term denotes another grammar rule/nonterminal;
+- a list denotes terminal symbols to consume or produce;
+- a goal inside ={...}= is ordinary Prolog code.
+
+Source:
+- https://www.swi-prolog.org/pldoc/man?section=DCG
+
+Teaching consequence: Chapter 6 does not describe DCGs as parser magic.  The
+reader first traces an input list and its unconsumed suffix, then sees the DCG
+notation as a compact way to thread that state.  The implementation still uses
+=phrase/[2,3]= instead of depending on generated predicate arities.
+
+** What is the complete-parse versus prefix-parse contract?
+DOCUMENTED: SWI documents =phrase(DCGBody, List)= as equivalent to
+=phrase(DCGBody, List, [])=.  Therefore a =phrase/2= call succeeds only when
+the grammar consumes the complete list.  =phrase/3= exposes the remainder.
+
+Source:
+- https://www.swi-prolog.org/pldoc/man?section=DCG
+
+Project decision:
+- =parse_task_command/2= is the normal command boundary and uses =phrase/2=;
+- =parse_task_command_prefix/3= exists specifically to teach remainder
+  semantics and uses =phrase/3=;
+- external callers do not silently accept a valid command followed by garbage.
+
+TESTED only after CI: a regression must require =parse_task_command/2= to reject
+an otherwise valid command with trailing tokens while
+=parse_task_command_prefix/3= returns those tokens as =Rest=.
+
+** What input types does SWI phrase/3 accept?
+DOCUMENTED, SWI-SPECIFIC: current SWI =phrase/3= checks that its list and rest
+arguments are variables, =[]=, or list cells; other values raise a type error.
+The manual notes that the list tail is not fully checked for performance.  It
+also provides =call_dcg/3= for threading arbitrary non-list state.
+
+Source:
+- https://www.swi-prolog.org/pldoc/man?section=DCG
+
+Teaching consequence: this project deliberately parses a list of atom tokens.
+It does not use =call_dcg/3= and does not imply that DCGs are restricted to
+natural-language character parsing.  The parser wrapper separately validates
+that its top-level input is a list whose members are atoms so malformed API
+input fails at a visible boundary before grammar matching.
+
+** How should the book explain strings, code lists, and token lists?
+DOCUMENTED, SWI-SPECIFIC: the current manual records the SWI-Prolog 7 text
+representation change.  A version-7-style string value is not a valid direct
+=phrase/3= list argument; code-list literals inside DCG rules are translated by
+the DCG compiler.  The official DCG utilities package provides common parsers
+for code-based text, including blanks, digits, integer, number, and remainder
+helpers.
+
+Sources:
+- https://www.swi-prolog.org/pldoc/man?section=DCG
+- https://www.swi-prolog.org/pldoc/doc/_SWI_/library/dcg/index.html
+
+Teaching decision: Project 1 milestone C uses *already-tokenized atoms* such as
+=[tasks, owned, by, ada]=.  That keeps the first DCG lesson focused on relational
+sequence structure and closed AST construction instead of mixing Unicode/text
+lexing into the same milestone.  The deeper =books/prolog= DCG project retains
+ownership of a broader text/parser treatment.
+
+** Does a DCG create a safety boundary?
+DOCUMENTED premise: SWI explicitly documents ={Goal}= in a grammar body as an
+ordinary Prolog call, and =phrase/[2,3]= accepts any term that is valid as a DCG
+body.  These are execution mechanisms, not authorization primitives.
+
+REPOSITORY-LOCAL SAFETY DESIGN:
+- the grammar itself is trusted source code maintained in the repository;
+- external tokens can only match fixed command productions;
+- the grammar constructs one of four closed AST shapes:
+  =tasks(owner(Owner))=, =tasks(status(Status))=, =tasks(tag(Tag))=, or
+  =dependency_path(Task, Dependency)=;
+- atom values occupy data positions only;
+- =execute_task_command/2= dispatches those shapes through explicit clauses;
+- unknown AST constructors fail;
+- no parser token becomes a predicate name, module qualifier, source fragment,
+  or argument to =call/1=.
+
+Teaching consequence: Chapter 6 can make the future LLM boundary concrete
+without involving an LLM yet.  Parsing proves only that input fits a syntax.
+The AST remains data until a separate permissioned symbolic dispatcher accepts
+its constructor and argument contract.
+
+TESTED only after CI: regressions must reject =[call, halt]= as command syntax
+and =call(halt)= as an executable AST while demonstrating that a valid parsed
+AST can be passed explicitly to the allowlisted dispatcher.
+
+* Why this mini-language belongs in this book
+The command language is intentionally small:
+- =tasks owned by OWNER=
+- =tasks with status STATUS=
+- =tasks tagged TAG=
+- =dependency path from TASK to DEPENDENCY=
+
+The goal is not natural-language understanding.  It is to expose a boundary
+that a later model adapter can target safely.  A model may eventually propose a
+structured command, but it must still cross the same parser/schema/permission
+boundary.  The model never earns arbitrary Prolog execution by producing text
+that resembles a term or predicate call.
+
+* Cross-book boundary
+REPOSITORY-LOCAL DESIGN:
+- =books/prolog= owns the deeper pure-Prolog DCG course and its substantial DCG
+  Parser major project, including broader text representation and grammar
+  engineering.
+- =books/prolog-llms= uses one compact but real DCG project milestone to build
+  the typed boundary needed for later neuro-symbolic integration.
+- =books/symbolic-ai-prolog= owns meta-interpreters, planning, search/control,
+  abduction, and classical symbolic-AI mechanisms rather than this integration
+  parser boundary.
+
+This pass therefore does not introduce a general meta-interpreter, planner,
+reflection API, or provider-specific structured-output mechanism.
+
+* Verification state before CI
+DOCUMENTED: the claims above were checked against the current official
+SWI-Prolog DCG manual and official DCG-library index on 2026-09-16.  The manual
+page observed during retrieval is served by the current documentation site,
+which identifies its live documentation runtime as SWI-Prolog 10.1.14; the book
+continues to record the exact interpreter used by CI separately.
+
+UNTESTED at authoring time: the new =task_language.pl= module and its PL-Unit
+suite until the branch workflows execute them.
+
+* Next questions
+- Research =library(clpfd)= constraints, propagation, labeling/search, and
+  reification for a scheduling problem that genuinely benefits from CLP(FD).
+- Only after the parser and constraint baseline are accepted, research
+  =call/N=, predicate indicators, term decomposition, reflection, and the
+  difference between safe closed dispatch and arbitrary meta-call.
+- Keep provider structured-output/tool-call research deferred until the typed
+  gateway milestone; no vendor API is required for this DCG slice.

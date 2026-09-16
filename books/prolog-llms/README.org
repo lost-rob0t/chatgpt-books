@@ -32,7 +32,7 @@ Every major idea enters through a system that currently fails in an understandab
 - [[id:26e34055-8f6f-52f6-9415-bc6ebef3aff2][Capstone: Prolog-RLM Study System]] -- a concrete research-grade recursive language-model architecture in which Prolog owns orchestration/verification contracts and model calls remain replaceable external capabilities.
 
 * Current implementation slice
-Project 1 currently carries the standalone foundation through relations/unification, recursion and cycle-safe dependency traversal, explicit multi-answer backtracking versus a named first-answer =once/1= boundary, module/API composition, PL-Unit contracts, and provenance-bearing explanations. Chapters 4--5 add the operational/control and debugging model needed before the later parser/constraint/gateway work. The project remains intentionally model-free.
+Project 1 now carries the standalone foundation through relations/unification, recursion and cycle-safe dependency traversal, explicit multi-answer backtracking versus a named first-answer =once/1= boundary, module/API composition, PL-Unit contracts, provenance-bearing explanations, and a small closed DCG task-command language. The Chapter 6 milestone separates full-input parsing from prefix/remainder parsing, constructs only four typed AST shapes, and routes those data terms through an explicit allowlisted dispatcher rather than arbitrary =call/1=. The project remains intentionally model-free; CLP(FD), bounded meta-programming, and provider/model integration are later dependency-ordered slices.
 
 * Research and evidence
 Current behavior of SWI-Prolog, model APIs, structured-output facilities, tool protocols, and any named neuro-symbolic system must be verified against primary sources/current implementations before version-sensitive prose is promoted. Record queries and retrieval dates in =research/search-log.org= and verified source metadata in =research/sources.org= / =references.bib=. Never fabricate model output, benchmark numbers, or execution results.
@@ -46,4 +46,4 @@ make book BOOK=prolog-llms
 make check BOOK=prolog-llms
 #+end_src
 
-Exact TESTED status belongs to recorded CI/runtime evidence for the current head. Passing one Project 1 milestone does not imply that later DCG, CLP(FD), model-provider, neuro-symbolic, or RLM claims have been executed.
+Exact TESTED status belongs to recorded CI/runtime evidence for the current head. Passing one Project 1 milestone does not imply that later CLP(FD), meta-programming, model-provider, neuro-symbolic, or RLM claims have been executed.
