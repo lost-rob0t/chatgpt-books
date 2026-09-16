@@ -62,6 +62,20 @@ jobs:
           dot -Tsvg books/symbolic-ai-common-lisp/assets/search-frontier.dot >/dev/null
           dot -Tsvg books/symbolic-ai-common-lisp/assets/formal-verification-flow.dot >/dev/null
 
+      - name: Validate formal-methods draft citations and Org parsing
+        shell: bash
+        run: |
+          set -euo pipefail
+          pandoc books/symbolic-ai-common-lisp/manuscript/formal-methods.org \
+            --from=org \
+            --to=html5 \
+            --standalone \
+            --citeproc \
+            --bibliography=books/symbolic-ai-common-lisp/references.bib \
+            --resource-path=books/symbolic-ai-common-lisp:. \
+            -o /tmp/formal-methods.html
+          test -s /tmp/formal-methods.html
+
       - name: Build and validate Symbolic AI in Common Lisp
         env:
           EPUBCHECK_JAR: .cache/epubcheck-5.3.0/epubcheck.jar
