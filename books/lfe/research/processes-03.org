@@ -1,0 +1,94 @@
+#+title: LFE Processes and Message Protocols Research Pass 03
+:PROPERTIES:
+:ID:       5b0d8fb0-e06a-49ee-b01c-cd1a16d8efc0
+:END:
+
+* Scope and claim status
+Retrieval date: 2026-09-16.
+
+This pass supports Chapters 8--10 and Project 2 checkpoint A. It intentionally stops before OTP behaviours and supervision.
+
+- DOCUMENTED :: inspected in current official Erlang/OTP documentation or tagged LFE source/examples.
+- TESTED :: executed by this repository at an exact recorded branch head.
+- UNTESTED :: planned behavior or an implementation claim that has not yet passed its executable gate.
+
+* DOCUMENTED -- LFE process syntax is a front end to ordinary BEAM processes
+The tagged LFE v2.2.2 =examples/messenger.lfe= spawns a module/function process, sends with =!=, receives with =receive=, and recurs to continue serving messages. Nothing in that example creates an LFE-only actor runtime. The process is an ordinary BEAM process and compiled LFE modules are callable from Erlang.
+
+Source: https://github.com/lfe/lfe/blob/v2.2.2/examples/messenger.lfe
+
+Teaching consequence: Project 2 should begin with raw process/message primitives so readers can see what later OTP behaviours standardize rather than attributing process semantics to Lisp syntax.
+
+* DOCUMENTED -- sending is asynchronous signaling
+Current Erlang System Documentation v29.0.6 describes process communication in terms of asynchronous signals. A message signal that is accepted becomes a message in the receiver's message queue; a =receive= expression then selects a matching message. Signal arrival is not tied to the receiver currently executing =receive=.
+
+Source: https://www.erlang.org/doc/system/ref_man_processes.html
+
+Teaching consequence: a request/reply helper is a protocol built from asynchronous operations. Calling it “synchronous” describes the caller's waiting behavior, not a synchronous transport primitive.
+
+* DOCUMENTED -- ordering is scoped, not global FIFO
+The current process documentation guarantees ordering for multiple signals sent from one sending entity to the same destination entity: a later signal from that sender will not arrive before an earlier one. It does not provide one universal ordering across independent senders. The same documentation also records OTP 28+ priority-message behavior, which can affect queue order while preserving the underlying signal-order guarantee.
+
+Source: https://www.erlang.org/doc/system/ref_man_processes.html
+
+Project consequence: the executable checkpoint may safely assert a state-replacement message is processed before a later route request when both are sent by the same caller to the same actor. It must not encode a deterministic race winner for requests from independent senders.
+
+* DOCUMENTED -- selective receive is protocol power with queue-scan cost
+A =receive= selects the first queued message that matches its clauses. Erlang's official Efficiency Guide notes that receiving a specific shape may require searching the queue until a matching message is found, whereas receiving the first message is cheap.
+
+Source: https://www.erlang.org/doc/system/eff_guide_processes.html
+
+Project consequence: correlation references make request/reply protocols robust, but selective receive is not free. The book demonstrates a stale look-alike reply remaining in the caller mailbox while a fresh correlated reply is selected. It does not make a performance claim from that tiny regression.
+
+* DOCUMENTED -- timeout does not mean cancellation
+The process documentation distinguishes asynchronous delivery from later message selection, and delivery time is unspecified. A local =receive ... after= timeout only tells the caller that its matching receive branch did not complete before the timeout. It does not establish that the destination process terminated, that the request was never delivered, or that a future reply cannot still arrive.
+
+Sources:
+- https://www.erlang.org/doc/system/ref_man_processes.html
+- https://github.com/lfe/lfe/blob/v2.2.2/doc/src/lfe_guide.7.md
+
+Teaching consequence: Project 2 returns =#(error timeout)= as a caller observation. The manuscript explicitly refuses to rename that result =cancelled= or =server-dead=.
+
+* DOCUMENTED -- monitors observe failure without creating a link
+Current Erlang documentation defines process monitors as unidirectional. Monitoring a process yields a reference and later a ={'DOWN', Ref, process, Pid, Reason}= message when that process terminates; monitoring does not create the bidirectional failure coupling of a link.
+
+Source: https://www.erlang.org/doc/system/ref_man_processes.html
+
+Project consequence: the cross-language gate monitors an intentionally crashing LFE actor from Erlang. This checks the real BEAM boundary and gives Chapter 10 a concrete failure-observation trace without prematurely teaching supervision policy.
+
+* Design used by Project 2 checkpoint A
+The Actor Router wraps Project 1's pure =event-rules:route/2= kernel in a single process that owns the current rule-list term.
+
+Request envelope:
+
+#+begin_example
+#(call CallerPid Ref Request)
+#+end_example
+
+Reply envelope:
+
+#+begin_example
+#(reply Ref Result)
+#+end_example
+
+Supported requests are =#(route Event)=, =#(replace-rules Rules)=, =get-rules=, and =stop=. Unknown request terms receive a tagged protocol error. Unknown non-call messages are ignored. An explicit crash cast exists only as a failure-injection hook for the teaching gate.
+
+State transition is represented by recursive process-loop arguments: after =replace-rules= the process calls =loop= with a new immutable rule-list term. No mutable object, process dictionary, ETS table, registry, or persistence layer is introduced.
+
+* UNTESTED -- checkpoint acceptance plan
+The authored implementation is not TESTED until the focused LFE workflow executes it. The gate must prove:
+1. Project 1 routing semantics survive the process boundary.
+2. a fresh correlation ref prevents a stale reply from satisfying a new call;
+3. rule replacement becomes the next loop state;
+4. same-sender request order is observed by the actor;
+5. caller timeout can occur while the target process remains alive;
+6. clean stop returns an acknowledgement;
+7. Erlang can start/call/stop the compiled LFE actor directly;
+8. an Erlang monitor observes the intentional LFE actor crash and its reason.
+
+No latency, mailbox-throughput, scheduler, memory, or scalability benchmark is claimed by this pass.
+
+* Deferred questions
+- Links, =trap_exit=, restart policy, and supervisor strategies belong to the OTP/supervision pass.
+- Process aliases and priority messages are current OTP features but are not required by this checkpoint; introducing them requires a dedicated compatibility/test decision.
+- Application packaging, release assembly, distribution security, persistence, tracing, and production observability remain later slices.
