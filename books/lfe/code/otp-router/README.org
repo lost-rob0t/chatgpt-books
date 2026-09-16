@@ -24,8 +24,15 @@ The gate compiles the LFE callback modules and then checks:
 - one-for-one replacement after an intentional callback crash;
 - the replacement starts from the supervisor's original child-spec arguments,
   proving restart is not state recovery;
+- clean supervisor shutdown through the project helper, including child
+  termination and name cleanup on the observed OTP runner;
 - restart-intensity escalation shuts the supervisor down after the configured
   budget is exceeded.
+
+The supervisor helper deliberately uses =gen_server:stop/1=. Current OTP 29
+adds =supervisor:stop/1= as a convenience API, but the executable book gate
+still runs on OTP 25; this checkpoint tests the compatibility helper it actually
+ships instead of presenting an OTP-29-only call as though the runner had it.
 
 The crash calls exist only for failure injection. This checkpoint intentionally
 does not add application packaging, releases, distribution, persistence, or a
