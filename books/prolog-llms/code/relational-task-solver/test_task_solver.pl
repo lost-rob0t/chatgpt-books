@@ -51,16 +51,17 @@ test(first_ready_task_commits_to_current_program_order) :-
     assertion(Task-Owner == collect_sources-ada).
 
 test(consumer_module_composes_only_exported_project_api) :-
-    ready_report(normalize_terms, Owner, Explanation),
-    assertion(Owner == ben),
-    assertion(Explanation ==
-              explanation(task(normalize_terms),
-                          supports([
-                              fact(task(normalize_terms, ben, ready,
-                                        [prolog, validation]),
-                                   source(book_fixture,
-                                          task_normalize_terms))
-                          ]))).
+    findall(Owner-Explanation,
+            ready_report(normalize_terms, Owner, Explanation),
+            Reports),
+    assertion(Reports ==
+              [ben-explanation(task(normalize_terms),
+                               supports([
+                                   fact(task(normalize_terms, ben, ready,
+                                             [prolog, validation]),
+                                        source(book_fixture,
+                                               task_normalize_terms))
+                               ]))]).
 
 test(direct_dependency_path_is_unique_in_fixture) :-
     findall(Path,
