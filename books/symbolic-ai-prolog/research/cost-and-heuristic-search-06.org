@@ -15,12 +15,12 @@ DOCUMENTED, PRIMARY SOURCE: Dijkstra's 1959 paper explicitly poses the problem o
 
 Chapter 8's FIFO queue optimizes action count on the finite unit-step teaching model. It cannot be relabeled an optimal-cost planner when one remote action costs 12 and a two-action on-site plan costs 11. Project 2 milestone C therefore makes accumulated cost =g= explicit and gives the frontier a minimum-priority queue.
 
-Course-specific extension: the implementation accepts *non-negative integer* costs, including zero. Dijkstra's original article states positive lengths. Zero-cost behavior is therefore TESTED repository behavior, not a historical claim attributed to the 1959 paper. Integer costs are a deliberate teaching restriction that keeps comparisons exact; arbitrary real-valued, negative, stochastic, temporal, or vector costs are out of scope.
+Course-specific extension: the implementation accepts *non-negative integer* costs, including zero. Dijkstra's original article states positive lengths. Zero-cost behavior is therefore TESTED repository behavior only after an exact-head regression run, not a historical claim attributed to the 1959 paper. Integer costs are a deliberate teaching restriction that keeps comparisons exact; arbitrary real-valued, negative, stochastic, temporal, or vector costs are out of scope.
 
 * Question 2 -- What does A* add, and what theorem conditions must stay visible?
 DOCUMENTED, PRIMARY SOURCE: Hart, Nilsson, and Raphael's 1968 paper gives a formal treatment of heuristic information for minimum-cost graph search and defines the A* family around an evaluation formed from cost-so-far plus a heuristic estimate [cite:@hart-nilsson-raphael-astar-1968]. The original authors' 1972 correction is part of the provenance trail and explicitly restates the distinction between a lower-bound heuristic condition for admissibility and a stronger consistency condition used for the paper's optimal-efficiency comparison [cite:@hart-nilsson-raphael-astar-correction-1972].
 
-Teaching consequence: this book must not compress those statements into “A* is always optimal.” The executable kernel consumes heuristic values but does not prove that a caller's table is admissible, consistent, informative, or even useful. The synthetic fixture ships with a complete hand-audited finite table, and the tests compare its returned plan cost with uniform-cost search on that bounded fixture. That is TESTED evidence once the suite runs; it is not a general proof checker for heuristic conditions.
+Teaching consequence: this book must not compress those statements into “A* is always optimal.” The executable kernel consumes heuristic values but does not prove that a caller's table is admissible, consistent, informative, or even useful. The synthetic fixture ships with a complete hand-audited finite table, and the tests compare its returned plan cost with uniform-cost search on that bounded fixture. That is TESTED evidence only once the exact-head suite runs; it is not a general proof checker for heuristic conditions.
 
 The implementation also keeps the older Chapter 8 state-transition semantics unchanged. A* changes how generated states are prioritized, not what a schema means.
 
@@ -52,6 +52,15 @@ The planner deliberately does *not* accept =call(Heuristic,State,H)= or a caller
 
 The =zero= heuristic is important pedagogically. With the same deterministic tie policy it should reduce A* to the same cost ordering as uniform-cost search on the controlled fixture. That relation is executable regression evidence, not a benchmark.
 
+* Question 6 -- What does heuristic validation not prove?
+DOCUMENTED THEOREM BOUNDARY: the historical A* results depend on properties of the heuristic, not merely on whether the heuristic is represented by well-formed data [cite:@hart-nilsson-raphael-astar-1968;@hart-nilsson-raphael-astar-correction-1972]. Therefore this project's input validation and its search-quality claims must remain separate.
+
+The adapter can establish representation facts: every entry has the =estimate(State,H)= shape; states canonicalize to unique ground keys; =H= is a non-negative integer; generated states have entries; and no arbitrary heuristic callback is executed. None of those checks establish that =H= is a lower bound on remaining optimal cost or that neighboring estimates obey a consistency condition.
+
+UNTESTED DESIGN COUNTEREXAMPLE until the exact branch suite runs: keep the same finite weighted-recovery graph, but give the failed/on-site state an estimate of 100 while the remote restored goal has estimate 0. After expanding the start, the remote goal has =f=12 while the cheaper on-site route is delayed behind =f=101=. This implementation stops when a goal node is selected from the frontier, so that syntactically valid overestimating table should return the cost-12 remote plan even though UCS still finds the cost-11 on-site plan. The regression is intentional: it prevents “validated heuristic data” from silently turning into “validated heuristic quality.”
+
+A second boundary regression supplies a callable-looking term such as =throw(marker)= as the heuristic argument. The expected behavior is a =type_error(planning_heuristic,...)= from the closed-data adapter; the term must never be meta-called. This checks authority separation, not search optimality.
+
 * Synthetic weighted-recovery fixture
 The fixture is synthetic teaching data. It starts with one failed node, one technician at a depot, a route to the hosting site, a remote-access fact, and an incident ticket that must survive unrelated transitions.
 
@@ -77,9 +86,9 @@ DOCUMENTED:
 - current official SWI-Prolog =library(heaps)= min-priority API and key-order contract;
 - current official SWI-Prolog =library(assoc)= ground-key association contract.
 
-UNTESTED at authoring time:
-- the new cost-aware search implementation and PL-Unit regressions;
-- the claimed controlled-fixture BFS/UCS/A* outcomes;
+UNTESTED at this revision until the new exact branch head runs:
+- the hardened cost-aware search PL-Unit suite, including the deliberately suboptimal overestimating-heuristic counterexample, duplicate-after-canonicalization rejection, non-integer heuristic rejection, and callable-term rejection;
+- the claimed controlled-fixture BFS/UCS/A* outcomes on the new head;
 - the combined Project 1 + Project 2 runner after this change;
 - book build/check, EPUBCheck, Nix, and generic repository publication gates on this branch.
 
