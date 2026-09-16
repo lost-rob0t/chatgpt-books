@@ -21,7 +21,7 @@ Foundational research + progressive Projects 1--2 implementation. Project 1 mile
 - A closed, ground transition relation uses =edge(Action,From,To)= terms; the search API does not accept an arbitrary callable successor predicate.
 - One explicit frontier loop supports deterministic first-solution DFS and BFS by changing only child/frontier ordering.
 - Frontier nodes retain state, reverse action path, reverse state path, and depth; successful results return ordered =found(path(Actions,States))= data and unreachable finite searches return =exhausted(Goal)=.
-- Ground state identity is explicit. The closed set uses current SWI =library(ordsets)= behavior; the worker research record distinguishes = ==/2 = term identity/order from logical unification.
+- Ground state identity is explicit. The closed set uses current SWI =library(ordsets)= behavior; the worker research record distinguishes term identity, written =Term1 == Term2=, from logical unification.
 - The duplicate policy closes a state on expansion. Duplicate nodes may already be queued, but later copies are skipped after the state enters the closed set; a regression requires one expansion of the duplicated =broker_down= state.
 - A synthetic service-recovery fixture contains a longer app-first DFS branch, a shorter broker-first route, duplicate frontier entries, cycles, and an unreachable-goal case. It is teaching data, not a claim about a real deployment.
 - Chapter 7 derives frontier semantics, graph-vs-tree search, the state-identity modeling obligation, DFS transition-order dependence, the bounded finite/unit-edge BFS claim, failure labs, and exercises.
