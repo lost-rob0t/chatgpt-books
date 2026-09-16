@@ -91,8 +91,10 @@ Result:
 - DOCUMENTED: SWI documents meta-calling as opaque to cut and gives separate transparency/opacity rules for compound control constructs. Chapter 8 therefore avoids the vague claim that cut “stops backtracking everywhere”;
 - DOCUMENTED: =once/1= limits a goal to at most its first solution; the chapter compares it with raw cut only in a deliberately simple wrapper and does not claim arbitrary source rewrites are equivalent across control scopes;
 - REPOSITORY-LOCAL DESIGN: =first_connection_within_hops/5= qualifies through the existing multi-answer relation before reaching =!=. A test-local deliberately broken helper cuts after candidate generation but before =Hops =< Limit=;
-- REPOSITORY-LOCAL EXPECTATION, UNTESTED UNTIL CI: current fixture order generates a four-hop =ada -> sam= path before two three-hop alternatives. At limit 3, qualify-before-cut should reach a later valid three-hop path, while cut-before-qualification should fail after pruning those later alternatives;
-- REPOSITORY-LOCAL EXPECTATION, UNTESTED UNTIL CI: at limit 4 the committed wrapper should return the first four-hop proof even though a later three-hop proof exists, making the non-optimal/search-order boundary executable;
+- REPOSITORY-LOCAL TESTED: current fixture order generates a four-hop =ada -> sam= path before two three-hop alternatives. At limit 3, qualify-before-cut reaches a later valid three-hop path, while cut-before-qualification fails after pruning those later alternatives;
+- REPOSITORY-LOCAL TESTED: at limit 4 the committed wrapper returns the first four-hop proof even though a later three-hop proof exists, making the non-optimal/search-order boundary executable;
+- corrected implementation head =906a261f01c7265c5953084183e97f6850f3e157= passed focused =prolog-book= run =35141507499= on SWI-Prolog 9.0.4, and generic =books-ci= run =35141507453= also completed SUCCESS;
+- the first workflow attempt exposed a test-unit source-loading warning/error and is SUPERSEDED; the corrected suite uses the already-loaded =user:= predicates and is the accepted test evidence;
 - the bounded source and evidence record is [[file:cut-control.org][cut-control.org]].
 
 Remaining uncertainty:
