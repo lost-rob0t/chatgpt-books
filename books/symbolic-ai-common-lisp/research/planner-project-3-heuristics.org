@@ -65,6 +65,8 @@ Milestone B therefore derives explanation by replay:
 
 The failure-on-ambiguity rule is deliberate.  It is better to say “the current trace does not contain enough provenance” than to manufacture a plausible explanation.
 
+A zero-match replay is equally important: if the schema set has changed since search ran, or a result is paired with the wrong domain, the explanation layer must reject the stale/mismatched trace instead of narrating surviving action labels as though their provenance still held.
+
 Relaxed supports and plan explanations are separate evidence.  A relaxed support says why a heuristic fact received a particular estimated cost.  It does not say that the action occurs in the returned real plan.  A plan-step explanation is checked against the real before/after states.
 
 * Executable evidence plan
@@ -75,7 +77,8 @@ The exact-head suite must cover:
 - a finite relaxed fixpoint missing the goal is =:UNREACHABLE=;
 - a term-growing schema hits the configured bound and returns =:BOUNDED=, not =:UNREACHABLE=;
 - every step of the warehouse result can be uniquely replayed into a grounded explanation;
-- deliberately duplicated indistinguishable schemas cause explanation to fail with =AMBIGUOUS-PLAN-STEP= instead of choosing one arbitrarily.
+- deliberately duplicated indistinguishable schemas cause explanation to fail with =AMBIGUOUS-PLAN-STEP= instead of choosing one arbitrarily;
+- replaying a valid result against a schema set that can no longer justify its first transition fails with =INVALID-PLAN-TRACE= instead of producing stale provenance.
 
 Passing those tests is bounded TESTED evidence.  It is not a general proof of admissibility, completeness, termination, scaling, or explanation uniqueness for arbitrary schema sets.
 
