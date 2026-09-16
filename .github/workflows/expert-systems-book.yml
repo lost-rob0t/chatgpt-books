@@ -42,6 +42,7 @@ jobs:
           dot -Tsvg books/expert-systems/assets/matcher-join.dot -o /tmp/matcher-join.svg
           dot -Tsvg books/expert-systems/assets/agenda-cycle.dot -o /tmp/agenda-cycle.svg
           dot -Tsvg books/expert-systems/assets/rete-positive.dot -o /tmp/rete-positive.svg
+          dot -Tsvg books/expert-systems/assets/truth-maintenance.dot -o /tmp/truth-maintenance.svg
 
       - name: Build Expert Systems book
         run: make book BOOK=expert-systems

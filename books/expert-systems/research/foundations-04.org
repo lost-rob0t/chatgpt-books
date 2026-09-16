@@ -1,0 +1,101 @@
+#+title: Expert Systems Research -- Justification-Based Truth Maintenance
+:PROPERTIES:
+:ID:       d1886dfb-b13a-4a24-a6de-4f715f0a5041
+:END:
+
+* Scope
+This record supports Project 1 milestone D only: explicit reasons for derived facts, multiple support groups, exact support occurrence identity, mixed base/derived support, cascading removal after lost grounding, grounding/cycle handling, and explanation-facing dependency queries.
+
+It does *not* establish an assumption-based TMS/ATMS, contradiction resolution policy, uncertainty semantics, negative/existential conditional elements, persistence guarantees, transactional external actions, or performance claims.
+
+* Primary lineage: Doyle 1979
+Source: Jon Doyle, “A Truth Maintenance System,” /Artificial Intelligence/ 12(3), 1979, pp. 231--272, DOI =10.1016/0004-3702(79)90008-0= [cite:@doyle1979tms].
+
+Primary artifact inspected: MIT AI Laboratory report AIM-521, issued 1979-06-01, whose abstract describes the TMS as a problem-solver subsystem that records and maintains reasons for program beliefs. The same abstract explicitly connects recorded reasons to belief revision, explanations, and control of reasoning. MIT DSpace currently hosts the primary report artifact and metadata.
+
+DOCUMENTED claims used in this milestone:
+- truth maintenance is a distinct reasoning subsystem concerned with reasons/dependencies for beliefs rather than merely pattern-match caching;
+- recorded reasons support revision when assumptions/evidence change;
+- recorded reasons are useful for explanation.
+
+Boundary: Doyle's paper covers substantially richer nonmonotonic belief revision and assumption management than this milestone implements. The course does not label its small support ledger “Doyle's TMS implemented.” It uses the paper for lineage and for the architectural separation between a problem solver and reason-maintenance machinery.
+
+* Maintained implementation reference: CLIPS 6.4.2 logical CE
+Source: /CLIPS Reference Manual, Volume I: Basic Programming Guide/, Version 6.4.2, January 16 2025, Section 5.4.8 “Logical Conditional Element” [cite:@clips642bpg].
+
+Official documentation page inspected: =https://www.clipsrules.net/= currently links the 6.4.2 Basic Programming Guide as the maintained guide. The PDF identifies Version 6.4.2 and date January 16 2025.
+
+Section 5.4.8 documents that:
+- pattern entities matching patterns inside a logical conditional element can provide logical support to RHS-created facts/instances;
+- one pattern entity can receive logical support from more than one support group, including groups originating from different rules;
+- losing a member of one support group invalidates that group, but the entity remains while another support group exists;
+- pattern entities created without logical support have unconditional support;
+- CLIPS exposes dependency-oriented behavior around logically supported entities.
+
+DOCUMENTED comparison used by the chapter: support is AND-like within one support group and OR-like across independent support groups. This is used as a concrete maintained-system comparison, not as evidence that the course implementation shares CLIPS's internal representation or every logical-CE rule.
+
+Important difference kept explicit: CLIPS documents unconditional-support semantics that remove/ignore logical support for an unconditionally supported entity. Milestone D instead classifies exact working-memory occurrences present when =make-truth-maintained-network= is constructed (and occurrences asserted through =truth-maintained-assert-base-fact=) as base support while retaining its historical justification ledger. A course occurrence may therefore be both base-supported and have current derived justifications. That course-local choice is made for inspectability and later explanation exercises; it is not claimed to be CLIPS behavior.
+
+* Derived implementation contract
+** Matcher cache versus belief support
+Milestone C's alpha/beta memories answer whether current working-memory occurrences satisfy rule conditions. They do not answer whether a conclusion already stored in working memory still has a reason to remain there.
+
+Milestone D therefore layers a separate =truth-maintained-network= over the accepted =incremental-network=. The incremental network remains the matcher/index. The new layer owns:
+- exact base-support occurrence stamps;
+- append-only historical =justification= records;
+- current-grounding checks;
+- dependency queries;
+- support-driven cascading retraction.
+
+This separation is repository semantics under test, not a claim about RETE or CLIPS implementation internals.
+
+** Exact occurrence identity on both sides
+A justification records:
+- deterministic justification identity;
+- conclusion stable fact ID;
+- conclusion occurrence stamp;
+- production ID;
+- activation/refraction key;
+- bindings;
+- ordered support occurrence stamps.
+
+Recording a conclusion occurrence stamp prevents a historical reason for an old =fact-id= occurrence from silently attaching to a later reassertion that reuses the same stable ID. Recording exact support stamps similarly prevents retract/reassert of a premise from reviving an old reason.
+
+** Multiple reasons without duplicate facts
+The milestone-B working-memory contract forbids two current facts with the same stable ID. A truth-maintained firing therefore distinguishes:
+1. new conclusion ID: validate and assert one new occurrence;
+2. same ID + same relation/arguments: keep the existing occurrence and record another justification, including when that occurrence is already base-supported;
+3. same ID + different relation/arguments: fail with =fact-id-content-conflict= before normal state mutation.
+
+Base support and derived justification are independent support sources in this course model. A base-supported occurrence may acquire a current derived reason without changing its working-memory identity. If its base-support stamp is later removed while the derived reason remains grounded, the exact occurrence stays current and becomes non-base. Only when its final grounding path is lost does the occurrence leave working memory.
+
+Provenance embedded in the existing =fact= remains the materialization-time provenance of that object. Independent derivations are represented by separate justification records rather than by mutating one fact's provenance field.
+
+** Grounding and unsupported cycles
+A naive rule “a fact is supported when any current justification points to current facts” is insufficient. Two derived conclusions could point to each other after the only path to base evidence disappears.
+
+Milestone D defines a current fact as *grounded* when either:
+- its exact current occurrence is recorded as base support; or
+- at least one justification for its exact current occurrence has every exact support occurrence current *and* every support fact is itself recursively grounded.
+
+The recursive check carries a visiting set of exact conclusion stamps. Re-entering the same occurrence through the current candidate path makes that path fail. An alternative justification can still succeed. This gives the teaching engine an explicit “no unsupported self-grounding cycle” invariant without claiming a full assumption-based TMS.
+
+** Cascading removal
+Base-support removal first deletes only the exact base-support stamp. The requested working-memory occurrence is then re-evaluated for grounding. If another current justification still grounds that same occurrence, the occurrence is retained with the same stamp; no matcher delta or downstream cascade is generated because no working-memory evidence disappeared.
+
+If the requested occurrence is no longer grounded, it is retracted through the accepted incremental API. Its exact removed occurrence stamp becomes the dependency delta, and current conclusions whose recorded reasons directly mention that stamp are queued. Each candidate is re-evaluated for grounding. An ungrounded non-base conclusion is retracted, its removed conclusion stamp becomes the next dependency delta, and the process repeats.
+
+The retraction report separates =base-support-removed-p= from =requested-occurrence-removed-p= and lists only actual working-memory removals in =removed-occurrence-stamps=. This prevents a mixed-support base demotion from being misreported as a fact retraction.
+
+Historical firing records and justifications remain available. They no longer ground current conclusions when their support or conclusion occurrence stamps are stale.
+
+* Claim-state ledger
+- DOCUMENTED: Doyle 1979 frames truth maintenance around recording/maintaining reasons for beliefs and connects those reasons to revision/explanation.
+- DOCUMENTED: current CLIPS 6.4.2 Section 5.4.8 provides logical support, multiple support groups, removal after loss of the final support group, and unconditional support behavior.
+- COURSE-LOCAL / pending exact-head verification: base support and derived justifications are independent support sources; removal of base support retains the same occurrence when another grounded reason remains; report fields distinguish support demotion from working-memory retraction.
+- TESTED only after repository checks pass: milestone-D exact support/conclusion stamps, multiple reasons for one current fact, mixed base+derived support retention and later cascade, cascading removal, unsupported-cycle collapse, same-ID reassertion behavior, conflict-before-mutation behavior, support reports, and preservation of milestone-C cache invariants.
+- NOT IMPLEMENTED: ATMS labels/environments, contradiction selection, negative/existential CEs, uncertainty, persistent justification stores, concurrent mutation, external side-effect rollback, TREAT, or performance optimization.
+- NO BENCHMARK CLAIM: no timing, allocation, throughput, or scaling result is inferred from either source.
+
+* Verification plan
+Run the complete existing engine suite plus dedicated milestone-D regressions. The regressions must exercise the accepted Linux/service teaching chain as a transitive cascade, independent alternative reasons, mixed base+derived support where base removal retains the exact occurrence and its dependents until the derived reason later disappears, an unsupported cycle, stable-ID reassertion with fresh occurrence identity, same-ID/different-content failure before state mutation, and support-report distinctions. Then run editable diagram validation, =make book BOOK=expert-systems=, =make check BOOK=expert-systems=, focused CI, generic books CI, and the repository Nix gate configured for this book workflow.

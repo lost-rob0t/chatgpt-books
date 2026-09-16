@@ -108,6 +108,50 @@
            #:run-incremental-engine
            #:incremental-cache-references-current-p
            #:incremental-network-snapshot
+           #:fact-id-content-conflict
+           #:fact-id-content-conflict-id
+           #:fact-id-content-conflict-current
+           #:fact-id-content-conflict-proposed
+           #:justification
+           #:justification-id
+           #:justification-conclusion-fact-id
+           #:justification-conclusion-stamp
+           #:justification-production-id
+           #:justification-activation-key
+           #:justification-bindings
+           #:justification-support-stamps
+           #:support-report
+           #:support-report-fact-id
+           #:support-report-status
+           #:support-report-present-p
+           #:support-report-base-supported-p
+           #:support-report-grounded-p
+           #:support-report-current-justification-ids
+           #:support-report-current-dependent-fact-ids
+           #:retraction-report
+           #:retraction-report-requested-fact-id
+           #:retraction-report-base-support-removed-p
+           #:retraction-report-requested-occurrence-removed-p
+           #:retraction-report-requested-stamp
+           #:retraction-report-cascaded-fact-ids
+           #:retraction-report-removed-occurrence-stamps
+           #:truth-maintained-network
+           #:truth-maintained-network-incremental-network
+           #:truth-maintained-network-base-support-stamps
+           #:truth-maintained-network-justifications
+           #:make-truth-maintained-network
+           #:truth-maintained-engine
+           #:truth-maintained-base-supported-p
+           #:truth-maintained-justifications-for
+           #:justification-supports-current-p
+           #:truth-maintained-fact-grounded-p
+           #:truth-maintained-current-dependents
+           #:truth-maintained-support-report
+           #:truth-maintained-assert-base-fact
+           #:truth-maintained-fire-activation
+           #:truth-maintained-run-engine
+           #:truth-maintained-retract-base-fact
+           #:truth-maintained-network-snapshot
            #:*service-diagnosis-facts*
            #:make-service-diagnosis-productions))
 
