@@ -3,26 +3,29 @@
 :ID:       810b5809-da3a-57bd-9b33-8776012c7c45
 :END:
 * Phase
-Foundational research + first Progressive Inference Engine implementation slice are in editorial review. The full book remains far from release-ready.
+Foundational research + Project 1 progressive inference-engine implementation. Project 1 milestones A and B are editorially approved and merged. The full book remains far from release-ready and is not DONE.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
-- Foundation research record added for production-system semantics, literal matching, variables/bindings, multi-condition joins, and the technical-diagnosis fixture boundary.
-- Chapters 1--7 drafted around Project 1 milestone A.
-- Project 1 milestone A source/tests added: stable provenance-bearing facts, literal matching, variable consistency, deterministic naive joins, and support fact identities.
-- Editable matcher/join Graphviz diagram added with an accessible manuscript caption/alt description.
-- The earlier editorial contract defect was repaired: ordinary Common Lisp =DEFSTRUCT= facts are no longer described as deeply immutable. The manuscript and research record now state the actual frozen-input discipline used by milestone A.
-* Active research
-Foundational research remains IN-PROGRESS. The next dependency slice must research/freeze working-memory mutation, production identity, forward chaining, agenda/conflict resolution, and refraction before incremental alpha/beta/RETE implementation.
-* Verified claims
-- TESTED at reviewed implementation head =1ae0c35e84c99f202213945e5b7b009a570aa37a=: focused =expert-systems-book= run =35098597052= completed successfully, and generic =books-ci= run =35098596993= completed successfully.
-- The bounded matcher implementation is the semantic baseline for literal matching -> variables/bindings -> deterministic multi-condition joins with support identities; later engine mechanisms are not promoted to implemented status.
-- Milestone A uses ordinary Common Lisp =DEFSTRUCT= facts and does not claim deep immutability. Its matcher is designed around a frozen-input discipline: matching does not mutate supplied fact records, and binding extension does not mutate prior binding environments.
-- Editorial status was reconciled after those runs; therefore earlier green results remain evidence for the implementation they tested, not a substitute for the current merge gate.
-* Unverified claims
+- Foundation research record A added for production-system semantics, literal matching, variables/bindings, multi-condition joins, and the technical-diagnosis fixture boundary.
+- Chapters 1--7 / Project 1 milestone A merged through PR #28: stable provenance-bearing facts, literal matching, variable consistency, deterministic naive joins, support fact identities, and an editable matcher/join diagram.
+- The earlier Common Lisp =DEFSTRUCT= immutability wording was corrected: milestone A uses ordinary writable structures under a frozen-input discipline while matching.
+- Foundation research record B derives mutable working-memory identity/occurrences, stable productions/activations, complete-rematch forward chaining, deterministic agenda policy, explicit refraction, and the boundary before incremental alpha/beta/RETE machinery.
+- Chapters 8--10 / Project 1 milestone B derive working-memory history, activation/support identity, conflict-set versus agenda semantics, the course-local deterministic conflict policy, bounded recognize/act execution, failure-before-engine-mutation validation, occurrence-aware refraction, and quiescence-versus-limit results.
+- Project 1 milestone B merged through PR #50 as =8afcb31f82494336353fde123f1d57798361f476=. The complete-rematch engine remains the transparent semantic oracle for the next incremental-matching work; it is not presented as a RETE implementation or performance result.
+* Verification status
+- Milestone A remains the merged semantic baseline for literal matching -> variables/bindings -> deterministic multi-condition joins with support identities.
+- Milestone B final reviewed head =2efa5df7d3d1de9c319b3187a19c4760af3d0917= passed focused =expert-systems-book= run =35124448371=: the Common Lisp inference-engine suite reported 64 checks passing, both editable engine diagrams validated, =make book BOOK=expert-systems= and =make check BOOK=expert-systems= succeeded, EPUBCheck 5.3.0 reported 0 fatals / 0 errors / 0 warnings / 0 infos, and the dedicated =nix flake check -L= job succeeded. Generic =books-ci= run =35124448377= also completed SUCCESS on that exact head through structure, Pandoc Org-reader, deterministic assets/fixture, EPUB/publication/citation regressions, ERT, real Org-roam synchronization, and artifact upload.
+- The Editor-in-Chief reviewed the actual milestone-B chapters, engine/tests, research record, outline, and agenda diagram and marked the bounded content APPROVED before the final current-main gate and merge.
+* Unverified / deliberately deferred
 - No RETE performance benchmark has been run or claimed.
-- Working-memory mutation, agenda/refraction, incremental network, truth maintenance, uncertainty/counterevidence, workbench, persistence, and production deployment remain future work.
-- The synthetic service fixture is not evidence from a real host.
+- Incremental alpha/beta matching, RETE/TREAT, truth maintenance, uncertainty/counterevidence, the real sourced troubleshooting KB, workbench, persistence, and production deployment remain future work.
+- Milestone B's technical fixture/rules are synthetic teaching material, not evidence from a real host and not production troubleshooting doctrine.
+- External action transaction/idempotency semantics are not implemented; milestone B actions are constrained to propose in-memory facts.
 * Technical/editorial/visual review
-The earlier NEEDS_REWRITE finding is resolved. The Chapters 1--7 / Project 1 milestone A slice is in EDITORIAL_REVIEW pending fresh exact-head integration checks. Whole-book technical/editorial/visual review has not started.
+- Project 1 milestone A: editorially APPROVED and merged as a bounded semantic baseline.
+- Project 1 milestone B: editorially APPROVED and merged as a bounded working-memory/agenda/forward-chaining milestone.
+- Whole-book technical/editorial/visual review has not started; the book remains in progress.
+* Next dependency-ready slice
+Project 1 should now derive incremental matching from the accepted complete-rematch oracle: alpha memories -> beta memories -> joins/tokens/production nodes -> RETE-like propagation, with exact semantic equivalence regressions against the oracle before any performance claim. Truth maintenance follows the incremental engine and must preserve explicit support/provenance identity.
 * Blockers
-No known book-internal design blocker remains in milestone A. Canonical =main= advanced through the approved StarIntel foundation at =a9885e5347ebd681c0a4dfc212fdbc47c0689b89=; merge is gated on fresh exact-head =expert-systems-book= and generic =books-ci= results produced after this reconciliation so the PR is exercised against that current integration state.
+No known book-internal design blocker. The next work is dependency-ordered implementation/research and is not waiting on StarLang or any other paused campaign.

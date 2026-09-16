@@ -34,7 +34,7 @@ This pass supports Chapters 7--9 and Project 1 checkpoint B. The contract taught
 Execution evidence for the final reviewed checkpoint-B head is recorded in =STATUS.org= and the merged PR #40 discussion. No performance benchmark is inferred from these semantics.
 
 ** OTP pass 03 -- behaviours, =gen_server= calls, and supervisor policy
-Status: DOCUMENTED + EXECUTION VERIFIED for Project 2 checkpoint A implementation; bounded Chapters 10--12 content is editorially APPROVED, with current-main objective gates tracked separately in =STATUS.org=.
+Status: DOCUMENTED + EXECUTION VERIFIED for merged Project 2 checkpoint A; bounded Chapters 10--12 content is editorially APPROVED and merged through PR #54.
 
 Primary-source scope: official Erlang/OTP =OTP-29.0.6= tagged source documentation for OTP Design Principles, =gen_server=, and =supervisor=, plus official 29.0.6 release metadata. See [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
 
@@ -48,7 +48,7 @@ This pass supports Chapters 10--12 and Project 2 checkpoint A. It records these 
 - a =permanent= child is always restarted while the supervisor remains able to restart it, but replacement process state comes from fresh initialization/recovery code rather than from the supervisor;
 - OTP 29.0 introduced =supervisor:stop/1,3= style synchronous supervisor stop APIs; the Project 2 cleanup code is therefore explicitly version-pinned rather than advertised as historical-OTP portable.
 
-Execution evidence: exact implementation head =22cc298a506e45638490393e5f1ca59b3a98835a= passed focused =erlang-book= run =35110915006= on the workflow's strict Erlang/OTP 29.0.6 setup. Both the existing Project 1 foundations step and the new Project 2 OTP-worker EUnit step succeeded, as did production book build/check and the separate Nix flake evaluation. Generic =books-ci= run =35110915008= also succeeded on that exact head. The six Project 2 regressions cover behavior/state, modern call-timeout mailbox isolation, =sys= state introspection, supervised replacement with fresh process-local state, and restart-budget escalation. This is execution evidence for those bounded mechanisms, not a performance or availability benchmark.
+Execution evidence: the final merged PR head =275863a4798941683718a649f6ff7fb51842da52= passed focused =erlang-book= run =35122123282= on strict Erlang/OTP 29.0.6 / ERTS 17.0.6 with foundations 14/14 EUnit and Project 2 OTP-worker 6/6 EUnit. =make book BOOK=erlang=, =make check BOOK=erlang=, EPUBCheck 5.3.0 with zero findings, and the separate Nix evaluation succeeded. Generic =books-ci= run =35122123275= also succeeded through structural validation, Pandoc Org-reader validation, deterministic assets/fixture, publication/citation regressions, ERT, real Org-roam DB synchronization, and artifact upload. The six Project 2 regressions cover behavior/state, modern call-timeout mailbox isolation, =sys= state introspection, supervised replacement with fresh process-local state, and restart-budget escalation. This is execution evidence for those bounded mechanisms, not a performance or availability benchmark. PR #54 merged as =c93bc5b2f5077d8fb18b893d37ce5b72581d1c4a=.
 
 Documentation-version caveat: on 2026-09-16 the official downloads page still named 29.0.6 as the latest released OTP, while the unversioned =/doc/apps/stdlib/gen_server.html= route rendered 29.1/stdlib 8.1 material. For exact executable claims this pass therefore cites the immutable official =OTP-29.0.6= Git tag, not the drifting unversioned documentation route.
 
