@@ -3,7 +3,7 @@
 :ID:       a17cabf5-9a39-5f0c-b427-a240f5719522
 :END:
 * Phase
-Foundational research, Project 1 checkpoints A/B, Chapters 9--12 calculus/gradient checking, and Project 2 checkpoint A are merged on canonical =main=. Project 2 was Editor-in-Chief accepted at head =817e2a3df133b2175377bda88376dcbd8c402e57= and merged through PR #103 as =ac5b8978aad21cb3686786d5a6d74df4c5dc45c8= after focused =ml-math-book= run =35160128534= (including the Nix lane) and generic =books-ci= run =35160128560= completed successfully. Project 3 checkpoint A -- the Gradient Descent Visualizer's fixed-step stability mechanisms -- is the active worker slice on issue #118 / branch =book/ml-math-project3-gradient-regimes=. The whole long-form book remains far from release-ready.
+Foundational research, Project 1 checkpoints A/B, Chapters 9--12 calculus/gradient checking, and Project 2 checkpoint A are merged on canonical =main=. Project 2 was Editor-in-Chief accepted at head =817e2a3df133b2175377bda88376dcbd8c402e57= and merged through PR #103 as =ac5b8978aad21cb3686786d5a6d74df4c5dc45c8= after focused =ml-math-book= run =35160128534= (including the Nix lane) and generic =books-ci= run =35160128560= completed successfully. Project 3 checkpoint A -- the Gradient Descent Visualizer's fixed-step stability mechanisms -- is the active worker slice on issue #118 / PR #119 / branch =book/ml-math-project3-gradient-regimes=. The whole long-form book remains far from release-ready.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
 - First source-grounded research pass recorded for the arithmetic-to-vector sequence and current numerical tooling.
@@ -27,9 +27,9 @@ Foundational research, Project 1 checkpoints A/B, Chapters 9--12 calculus/gradie
 - Project 2 checkpoint A derives and implements the one-feature affine-regression derive -> fit -> independently check -> evaluate/failure loop. The teaching implementation uses an explicit full-batch gradient-descent history, an independent centered closed-form solution, pinned NumPy 2.5.0 =linalg.lstsq= only as an external ordinary-finite oracle, held-out evaluation rows, and explicit degenerate-feature / bad-step / exhausted-budget / non-finite failures.
 - The Editor-in-Chief added the missing Project 2 research-search provenance record, accepted exact head =817e2a3df133b2175377bda88376dcbd8c402e57=, verified focused =ml-math-book= =35160128534= plus generic =books-ci= =35160128560=, and merged PR #103 as =ac5b8978aad21cb3686786d5a6d74df4c5dc45c8=.
 * Active slice -- Project 3 checkpoint A: derive the optimizer trace before generalizing it
-WORKER DRAFT / RESEARCH DOCUMENTED / DEVELOPMENT TESTED / REPOSITORY OBJECTIVE GATES PENDING / NOT EDITORIALLY APPROVED.
+WORKER DRAFT / RESEARCH DOCUMENTED / PRE-STATUS-HEAD REPOSITORY TESTED / OBJECTIVE GATES GREEN / FINAL STATUS-HEAD GATE PENDING / NOT EDITORIALLY APPROVED.
 
-Issue #118 tracks a bounded first Gradient Descent Visualizer checkpoint. It begins with
+Issue #118 and PR #119 track a bounded first Gradient Descent Visualizer checkpoint. It begins with
 
 =q(theta) = q_* + (a/2)(theta-theta_*)^2=
 
@@ -43,7 +43,7 @@ The checkpoint then uses the axis-aligned two-dimensional bowl =q(x,y)=0.5*x^2+5
 
 The standard-library trace engine rejects invalid/non-finite inputs and non-finite intermediate results. The deterministic SVG is generated from the same trace implementation, uses line patterns and marker shapes rather than color alone, and is required to regenerate cleanly in focused CI.
 
-Local development before PR creation passed 13/13 new =unittest= cases and completed the SVG generator. Those observations are DEVELOPMENT evidence only; TESTED status requires the repository workflow on the exact PR head.
+Repository CI on pre-status head =7342e80e829d47473c6e2defccaf6cbabc08e8bb= verified the implementation under CPython 3.14.7 and NumPy 2.5.0. Because this STATUS reconciliation changes the exact branch head, the final status-only head must pass the same focused and generic gates before worker handoff.
 * Active research
 Foundational research remains IN-PROGRESS. Project 3 pass E re-inspected Boyd and Vandenberghe's author-maintained /Convex Optimization/ Chapter 9 material and current author-maintained lecture slides for the general descent-direction/step-size/stopping and assumption-bound convergence context. The scalar threshold table itself is not copied from a source: it is derived in the manuscript from the declared quadratic recurrence and checked executably. The already-recorded official Python 3.14.7 floating-point guidance bounds claims about finite execution.
 
@@ -54,8 +54,8 @@ Probability, information theory, multivariate/regularized regression, general He
 - FINAL PR TESTED for checkpoint B at exact head =f9e795f5457fd2fba5ca39f3a7d0fc41894fab6e=: focused =ml-math-book= run =35121033295= and generic =books-ci= run =35121033261= completed successfully before merge.
 - AUTHORITATIVE accepted calculus evidence: exact head =82acd5142fcbfa18a9615a182876a5a6d0d21ae3= with focused =ml-math-book= run =35146043902= and generic =books-ci= run =35146043911=, followed by editor merge =3ed0e6f9d5f36927b1cff143da43f5bc4edf1711=.
 - AUTHORITATIVE accepted Project 2 evidence: exact head =817e2a3df133b2175377bda88376dcbd8c402e57= with focused =ml-math-book= run =35160128534=, including =nix flake check -L=, and generic =books-ci= run =35160128560=, followed by editor merge =ac5b8978aad21cb3686786d5a6d74df4c5dc45c8=.
-- PROJECT 3 DEVELOPMENT evidence: 13/13 new local =unittest= cases passed for the scalar/two-direction trace engine and the deterministic SVG generator completed. This is not the repository acceptance gate.
-- PROJECT 3 EXACT-HEAD REPOSITORY GATE: PENDING until the focused PR workflow and generic =books-ci= run on the final branch head complete.
+- PROJECT 3 PRE-STATUS-HEAD TESTED: exact head =7342e80e829d47473c6e2defccaf6cbabc08e8bb= against canonical =main= =ac5b8978aad21cb3686786d5a6d74df4c5dc45c8= passed focused =ml-math-book= run =35161764841= under CPython 3.14.7 and NumPy 2.5.0: 32/32 Vector/Matrix Toolkit regressions, 17/17 calculus regressions, 12/12 affine-regression regressions, 13/13 Project 3 gradient-descent regressions, deterministic figure regeneration including =gradient_descent_regimes.svg=, teaching-code compilation, structural validation, =make book BOOK=ml-math=, =make check BOOK=ml-math=, EPUBCheck 5.3.0 with 0 fatals / 0 errors / 0 warnings / 0 infos, and the separate =nix flake check -L= job. Generic =books-ci= run =35161764842= also completed SUCCESS through structural validation, the Pandoc Org-reader contract, deterministic assets/fixture, EPUBCheck, publication and citation regressions, ERT, real Org-roam DB synchronization, and artifact upload.
+- PROJECT 3 FINAL STATUS-HEAD GATE: PENDING. This evidence-only STATUS reconciliation creates a new exact branch head; require focused =ml-math-book= plus generic =books-ci= on that head before changing PR #119 from draft to editor-ready.
 * Unverified claims
 - No performance benchmark is claimed.
 - The calculus finite-difference checks do not prove differentiability, optimizer convergence, or correctness outside the tested fixtures/tolerances.
@@ -65,8 +65,8 @@ Probability, information theory, multivariate/regularized regression, general He
 - Line search, momentum, RMSProp, Adam, stochastic/minibatch optimization, neural-network training behavior, and optimizer benchmarks are not claimed by this checkpoint.
 - Solving general linear systems, decompositions, probability/information-theory work, and neural-network project results remain future work.
 * Technical/editorial/visual review
-Chapters 1--5 + Project 1 checkpoint A, Chapters 6--8 + Project 1 checkpoint B, Chapters 9--12 + the calculus/gradient-checking foundation, and Project 2 checkpoint A are editorially APPROVED and merged as bounded milestones. Project 3 checkpoint A is a worker draft. Only the Editor-in-Chief can mark it APPROVED; the whole book remains in development.
+Chapters 1--5 + Project 1 checkpoint A, Chapters 6--8 + Project 1 checkpoint B, Chapters 9--12 + the calculus/gradient-checking foundation, and Project 2 checkpoint A are editorially APPROVED and merged as bounded milestones. Project 3 checkpoint A remains a worker draft until its final status-head verification passes. Only the Editor-in-Chief can mark it APPROVED; the whole book remains in development.
 * Next dependency-ready slice
-Finish Project 3 checkpoint A repository verification and Editor-in-Chief handoff. Do not stack general Hessian/eigenvalue optimization theory, line search, adaptive optimizers, or probability chapters onto this branch.
+Finish the final Project 3 status-head gate and Editor-in-Chief handoff. Do not stack general Hessian/eigenvalue optimization theory, line search, adaptive optimizers, or probability chapters onto this branch.
 * Blockers
-No known book-internal design blocker. The current worker-side dependency is objective verification of the exact Project 3 PR head; Editor-in-Chief review is required after that and before this checkpoint can be treated as accepted.
+No known book-internal design blocker. The current worker-side dependency is objective verification of the final evidence-only STATUS head; after that, Editor-in-Chief review is required before this checkpoint can be treated as accepted.
