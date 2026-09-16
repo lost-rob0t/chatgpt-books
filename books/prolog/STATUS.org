@@ -3,14 +3,21 @@
 :ID:       02e3eb9e-492b-5ae1-a225-e5e34e27df67
 :END:
 * Phase
-Bootstrap curriculum and architecture.
+Foundational research and progressive chapter/project drafting.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
+- Foundation research pass 01 documents current SWI-Prolog behavior needed by Chapters 1--3: basic load/query workflow, default variable syntax, anonymous variables, atom/string boundary, unification/occurs-check boundary, PL-Unit surface, and current release channels.
+- Chapters 1--3 now have real manuscript material with exercises, debugging work, and Project 1 integration rather than only bootstrap prose.
+- Relational Query System milestone 1 has a synthetic knowledge base and PL-Unit regression suite.
 * Active research
-Foundational primary-source research has not yet been declared complete.
-* Unverified claims
-All version-sensitive implementation details remain RESEARCH/UNTESTED until the relevant issue verifies them.
+Foundational primary-source research is still incomplete for recursion, lists, operational control/backtracking, modules, DCGs, search, constraints/CLP(FD), meta-programming, persistence/integration, debugging tooling, advanced testing, and indexing/performance.
+* Verification
+- Source claims in =research/foundations-01.org= are DOCUMENTED from official SWI-Prolog sources retrieved 2026-09-16.
+- Project 1 code/tests remain UNTESTED until the exact branch is executed with an actual =swipl= binary; no transcript is claimed from source inspection alone.
+- Production EPUB build/check evidence must be recorded from the exact branch before this slice is review-ready.
+* Coordination
+The pure-Prolog book retains the complete language/runtime foundation. A separate =prolog-llms= volume is expected to build toward LLM/neuro-symbolic applications; no canonical target exists on current repository main yet, so no broken file link is added here.
 * Technical/editorial/visual review
-Not started.
+Not started as a whole-book phase. Individual drafted slices still require technical and editorial review before DONE.
 * Blockers
-Dependency-aware backlog must be executed before chapter prose is promoted to DONE.
+No conceptual blocker for the next foundation slice. Execution evidence for the current slice still requires an environment with SWI-Prolog and the production book toolchain.
