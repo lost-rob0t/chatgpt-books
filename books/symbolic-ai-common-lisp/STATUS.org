@@ -10,15 +10,16 @@ Foundational research plus progressive implementation of the Search Library and 
 - Search/graph-search research records remain under =research/search-project-1.org= and =research/search-project-1-validation.org=; these do not declare the whole Search project DONE.
 * Active implementation
 - Issue #42 / PR #43: Formal Reasoning Workbench milestone A and its manuscript/research slice. The implementation distinguishes =:proved=, =:refuted= with a shortest counterexample, =:bounded=, and =:unknown=; the permanent suite covers safe cycles, exact counterexamples, unreachable bad states, duplicate/cycle termination, bounded exploration, and unknown successor semantics.
-- The formal-methods chapter is now part of the publication-order manuscript and the detailed outline carries the full formal-systems -> invariants -> finite checking -> program logic -> temporal -> SMT -> ACL2 -> verified-components progression.
+- The formal-methods chapter is part of the publication-order manuscript and the detailed outline carries the full formal-systems -> invariants -> finite checking -> program logic -> temporal -> SMT -> ACL2 -> verified-components progression.
+- Publication preparation now expands the repository's supported Org =#+include= subset before Pandoc so canonical split manuscripts cannot silently disappear from rendered books; the shared regression suite covers slicing/minlevel, recursive includes, stable IDs, cycles, and fail-closed option handling.
 * Claim status
 - DOCUMENTED: primary-source foundations recorded for Hoare logic, temporal logic/model checking, TLA+ specification context, ACL2, and SMT-LIB 2.7.
-- TESTED: only executable behavior demonstrated by successful exact-head CI runs. Reconciliation onto current =main= requires a fresh focused run before the current PR head may be described as tested.
+- TESTED: only executable behavior demonstrated by successful exact-head CI runs; the PR records the current focused and generic run IDs used for editorial handoff.
 - UNTESTED/RESEARCH: later proof-obligation generation, temporal checker depth, solver integration, ACL2 CI pin, and implementation-refinement claims.
 - No performance benchmark is claimed for Search or Formal Reasoning Workbench.
 - Later pattern matching, unification, planning, rule, knowledge-representation, truth-maintenance, explanation, constraint, meta-level, and hybrid-interface slices remain RESEARCH/UNTESTED until their own bounded issues verify them.
 * Technical/editorial/visual review
-The Search foundation has landed. The formal-methods slice still requires exact-head CI and Books Editor-in-Chief review; book-wide technical/editorial/visual review has not started.
+The Search foundation has landed. The formal-methods slice is under PR review and requires green exact-head checks plus Books Editor-in-Chief approval before merge; book-wide technical/editorial/visual review has not started.
 * Blockers / next dependencies
 - Do not promote a bounded/model-checking result to a general host-program proof.
 - After the formal milestone is reviewed, the highest-value dependency-ready implementation track remains Pattern Matcher/Unifier -> Planner -> Rule/KR/Explanation, while the later formal stages reuse those components as verification targets.
