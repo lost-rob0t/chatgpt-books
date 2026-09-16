@@ -105,8 +105,11 @@ with_system(Opts, Fun) ->
 stop_supervisor(Sup) ->
     case is_process_alive(Sup) of
         true ->
-            _ = catch supervisor:stop(Sup),
-            ok;
+            try supervisor:stop(Sup) of
+                ok -> ok
+            catch
+                exit:_StopReason -> ok
+            end;
         false ->
             ok
     end,
