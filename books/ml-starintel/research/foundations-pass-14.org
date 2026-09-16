@@ -86,10 +86,29 @@ This capture is evidence for the lock contents.  It is not evidence that the sam
 
 The CI environment is then built *from the lock* using =pip install --no-deps -r requirements.lock=.  =pip check= remains a second, metadata-level dependency-consistency check.
 
+* Lock enforcement -- TESTED
+The first enforcement run was =ml-starintel-research= workflow run =35106787481= / job =104829978841= on 2026-09-16. GitHub tested PR merge ref =24cb076b7b06d6dbb1b333934bd4a40344961a3e=, which merged dependency-lock implementation head =32375ec7abf5ad75cccf0d013ac1b2dc68cd07c2= into then-current base =407eba9857c50a8d6997804550c048cd7b152836=.
+
+Observed results:
+- exact =actions/setup-python v7.0.0= selected CPython 3.12.3 x64;
+- the new virtual environment used pip 24.0;
+- installation came from =requirements.lock= with =--no-deps=;
+- =pip check= reported no broken requirements;
+- the independent verifier reported =4 direct pins; 24 locked distributions; 24 installed distributions=;
+- 50 selected Project 1 tests passed, including the six new dependency-lock regressions;
+- all existing Project 1 experiments reran successfully;
+- the separate factual GLEIF live probe succeeded;
+- =make book BOOK=ml-starintel=: PASS;
+- =make check BOOK=ml-starintel=: PASS;
+- EPUBCheck 5.3.0: 0 fatals / 0 errors / 0 warnings / 0 infos;
+- =actions/upload-artifact v7.0.1= uploaded 26 files as artifact =10450592522= with ZIP SHA-256 =62c29663415597175eac4b979f2b64150b5356baafb7f9c7f42765f9d19722ad=.
+
+This is the TESTED evidence that the version lock can recreate the declared Project 1 Python environment on the specified CI platform without allowing pip to solve a different transitive graph.
+
 * Claim status
 - DOCUMENTED: Python =venv= isolation semantics; pip repeatable-install, =freeze=, requirements, and hash-checking semantics; current GitHub Action release tags checked above.
 - TESTED: the isolated CPython 3.12.3 resolver capture and its 24-distribution snapshot from run =35106255999=.
-- IMPLEMENTED / AWAITING FINAL CI AT TIME OF DRAFT: =requirements.lock=, =verify_dependency_lock.py=, lock-focused unit tests, exact Python setup, =--no-deps= install, =pip check=, and live environment equality verification.
+- IMPLEMENTED / TESTED: =requirements.lock=, =verify_dependency_lock.py=, six lock-focused unit tests, exact Python setup, =--no-deps= installation, =pip check=, and live environment equality verification in run =35106787481=.
 - UNTESTED: this exact dependency contract on another Python version, OS, architecture, or libc; byte-identical artifact recreation.
 - NOT CLAIMED: that version pinning is a cryptographic package-content lock; that =pip freeze= is a solver/lockfile generator; that the book's research environment reproduces production StarIntel dependencies.
 
