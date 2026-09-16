@@ -25,18 +25,19 @@ Current staged implementation: *Event Routing DSL*. The runtime kernel remains o
 :PROPERTIES:
 :ID:       3b068142-3d00-5f2a-abe0-8f321c9817bb
 :END:
-Purpose: Build process/message abstractions while preserving BEAM semantics.
-Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
-Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
-Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
-Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
-Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
-External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
-Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
-Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
-Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
-Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
-Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+Purpose: Build a useful raw-process service around Project 1 while keeping BEAM process/message semantics visible before OTP behaviours abstract them.
+Learning outcomes: design explicit message protocols; distinguish PID identity from protocol vocabulary; correlate request/reply pairs with references; model actor state as recursive loop arguments; reason about selective receive, same-sender ordering, timeout, isolation, and observed failure; prove direct Erlang/LFE process interoperability.
+Prerequisites: Chapters 1--7 and Project 1's pure routing kernel. Chapters 8--10 own the first executable process milestone.
+Relevant chapters: Chapter 8 establishes the ordinary Erlang/LFE BEAM boundary and protocol terms; Chapter 9 derives process state and failure observation from recursive loops; Chapter 10 develops correlation, selective receive, ordering, timeout semantics, and protocol debugging. Later OTP chapters refactor the mechanism rather than redefining its semantics.
+Architecture: one =actor-router= process owns the current immutable rule-list term and delegates routing to the independently tested =event-rules:route/2= kernel. Requests use =#(call CallerPid Ref Request)= and replies use =#(reply Ref Result)=. State changes only when the recursive loop receives a replacement rule term. No registry, process dictionary, ETS state, persistence layer, or hidden actor framework is introduced at this checkpoint.
+Implementation language/tooling: LFE v2.2.2 compiled to BEAM under the same focused executable gate as Project 1, with a direct Erlang runtime smoke at the process boundary.
+External dependencies: Project 1 code plus standard BEAM/LFE runtime facilities; no network service or third-party runtime dependency.
+Tests: routing through the process, stale-reply correlation, rule-state replacement/readback, changed-state routing, tagged bad-request handling, same-sender ordered requests, caller-side timeout against a still-live silent process, clean stop, direct Erlang start/call/stop, and Erlang monitor observation of an intentionally crashed LFE actor.
+Failure scenarios: stale reply, malformed request, wrong state recursion, caller timeout without remote cancellation, intentional actor crash, absent =DOWN= observation, and assumptions of global FIFO ordering across independent senders.
+Visuals: editable actor protocol diagram showing caller/ref correlation, actor-owned state, pure Project 1 kernel delegation, and an independent monitor relationship.
+Research requirements: current tagged LFE process syntax and current official Erlang process/signal/receive/monitor semantics, including selective-receive cost and ordering boundaries. OTP behaviours/supervision require a fresh later research pass.
+Expected deliverable: runnable pre-OTP actor implementation, executable regressions, direct Erlang interoperability/failure smoke, research record, diagram, failure labs, and Chapters 8--10.
+Current staged implementation: *Actor Router checkpoint A*. This is intentionally a raw-process teaching milestone. It does not claim =gen_server= callbacks, supervisor strategy, application layout, persistence, distribution, or release semantics.
 
 ** Project 3 -- OTP Service
 :PROPERTIES:
