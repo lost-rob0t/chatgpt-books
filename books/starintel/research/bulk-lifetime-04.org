@@ -1,0 +1,101 @@
+#+title: Bulk Lifetime Pass 04 -- Terminal Payload Release and Bounded Reachability
+:PROPERTIES:
+:ID:       cab67d0d-081a-42f2-86d9-f793369b98f3
+:END:
+
+* Scope
+Research date: 2026-09-16.
+
+This pass is a current-head delta audit after Runtime Failure Pass 03. While the book PR was open, StarIntel Server advanced from =d48fa939402abf701fa1cc4079dfb8bedfad8d4a= to =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= through issue #189 / PR #190.
+
+The change is directly relevant to Project 2 because it changes the lifetime of asynchronous bulk-ingest request state. It does not change the canonical document contract, authorization policy, Rabbit settlement/outbox semantics already researched, or the book's fail-closed ambiguous-replay rule.
+
+* Claim status
+- *DOCUMENTED:* at current server head =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=, an asynchronous =bulk-ingest-job= stores an original =total= separately, and =execute-bulk-job= clears both =documents= and request-only =service-context= in its terminal cleanup path while retaining status/count/correlation/principal metadata required by job bookkeeping and polling.
+- *UPSTREAM-REPORTED:* issue #189's production heap-exhaustion narrative, the reported backlog/import observations, the RED baseline, and PR #190's unit/integration/doc-coverage/Nix/stack-test results. The book did not execute those product-repository checks or reproduce the incident.
+- *TESTED BY THIS BOOK:* the book-side =code/bulk-job-lifetime/= evidence auditor has synthetic unit coverage for its own fail-closed trace rules. Exact branch CI is required before this status is promoted in =STATUS.org=.
+- *UNTESTED BY THIS BOOK:* actual SBCL heap behavior under sustained StarIntel bulk ingest, live payload reachability, the repaired server under backlog load, and the full service-backed HTTP -> RabbitMQ -> CouchDB failure trace.
+
+* Finding 1 -- bounded queue admission does not bound retained history
+The current source has explicit pending-job limits and a fixed bulk worker count. Those controls bound *concurrent pending work*. They do not by themselves bound memory retained by entries that remain reachable after work completes.
+
+Issue #189 identified a different lifetime problem: =*bulk-ingest-jobs*= is process-wide and intentionally keeps completed job records queryable. Before the repair, each retained terminal job also retained its original =documents= list and request service context, and the status response recomputed =total= from the documents list.
+
+The important systems lesson is:
+
+#+begin_example
+bounded in-flight work
+  != bounded retained history
+
+an object can be logically finished
+while still strongly reachable from a registry
+#+end_example
+
+Garbage collection cannot reclaim an object graph that the application still references. This is a state-lifetime bug, not evidence that garbage collection "failed."
+
+* Finding 2 -- polling needs a summary, not the request payload
+Current =bulk-ingest-job= adds a stable =total= slot initialized from the submitted document count. =bulk-job-info-json= now reads that stored total instead of calling =length= on the retained document list.
+
+That decouples the status contract from request-payload ownership. Once execution is terminal, the server can preserve the useful summary:
+
+- job identity;
+- principal ownership needed by the job table/authorization path;
+- correlation identity;
+- original total;
+- succeeded/failed counts;
+- terminal status and error code;
+
+without retaining the document bodies or request-only service context.
+
+This is a general design move worth naming: *materialize the small durable/status summary before releasing the large ephemeral request state*.
+
+* Finding 3 -- cleanup belongs in terminal control flow, including errors
+At current head, =execute-bulk-job= wraps execution in =unwind-protect=. The cleanup path forces an unexpectedly still-running job to =:failed= and then clears =documents= and =service-context=. The design therefore covers ordinary completion, completion with per-document errors, and outer job failure rather than relying on only the happy path to release memory.
+
+The upstream PR adds a focused regression for all three terminal families. Those upstream test results are not book-TESTED here, but the merged source makes the intended invariant explicit.
+
+A useful review question is:
+
+#+begin_example
+what state must survive terminalization?
+what state exists only to execute the request?
+what code path releases the second set even when execution raises?
+#+end_example
+
+That question belongs beside message settlement and durable outbox reasoning because all three are lifecycle questions.
+
+* Finding 4 -- an availability crash can create an evidence problem without changing persistence semantics
+Issue #189 reports an SBCL heap exhaustion during bulk ingest and an accepted-but-unconfirmed range. That incident does not make an HTTP acceptance equivalent to persistence; it reinforces the earlier evidence ladder.
+
+The correct recovery operation was not blind replay. PR #190 records an upstream reconciliation against CouchDB that found a contiguous durable prefix followed by absence and resumed at the verified boundary. The exact operational offsets are incident evidence, not benchmark data and not a result reproduced by this book.
+
+The book's =ambiguous-bulk= lab remains deliberately more conservative and generic: it receives preclassified evidence and returns a mechanical resume offset only for a contiguous =verified_match= prefix followed solely by verified absence.
+
+* Book implementation -- lifecycle evidence audit
+=books/starintel/code/bulk-job-lifetime/= does not model SBCL allocation or inspect StarIntel internals. It consumes sanitized lifecycle snapshots produced by a trusted test/instrumentation boundary.
+
+Each snapshot contains only evidence needed for the lesson: sequence, job identity, status, stable total/counts, and booleans saying whether request documents and request-only service context were observed retained.
+
+The auditor distinguishes:
+- =proven=: every observed job reaches a terminal snapshot whose request-only retention flags are false and whose terminal counts are coherent;
+- =incomplete=: no contradiction is seen, but at least one job has no terminal release observation;
+- =contradicted=: a terminal snapshot retains request-only state or violates the terminal count contract.
+
+Missing evidence is not converted into green. The tool is an evidence checker for future service-backed instrumentation, not a second bulk-ingest implementation.
+
+* Current source inspected
+At =lost-rob0t/starintel-server= revision =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=:
+- =source/frontends/http-bulk-jobs.lisp=
+- issue #189, =Completed bulk jobs retain payloads until SBCL heap exhaustion=
+- PR #190, =Release terminal bulk job request payloads=
+- merge delta from =d48fa939402abf701fa1cc4079dfb8bedfad8d4a= to =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=
+
+* Historical/current boundary
+Runtime Failure Pass 03 remains the correct source snapshot for the ULID/quarantine repair at =d48fa939...=. Current head =1ac298...= adds the terminal bulk-job lifetime repair. No inspected PR #190 change contradicts the earlier Rabbit settlement, CouchDB outbox, publisher-confirm evidence-gap, or quarantine identity conclusions.
+
+The older top-level server README still contains auth and old document examples that conflict with the loaded current authorization/document paths. Those stale paragraphs are not used to infer current behavior.
+
+* Next executable gate
+The dependency does not change: a disposable authenticated StarIntel stack still needs a book-controlled service-backed trace. That experiment should observe publication and read-back separately and inject at least one downstream/settlement fault.
+
+The new lifetime lesson adds one more observation worth collecting during sustained bulk work: terminal jobs should release request payload/context while status polling retains totals/counts. Until such instrumentation is actually executed by the book, live memory behavior remains UNTESTED here.
