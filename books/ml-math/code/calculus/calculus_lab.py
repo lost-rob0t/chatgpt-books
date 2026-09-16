@@ -48,7 +48,7 @@ def _finite_output(value: Real, *, name: str = "function output") -> float:
 def forward_difference(function: ScalarFunction, x: Real, *, step: Real = 1e-6) -> float:
     x0 = _finite_real(x, name="x")
     h = _step(step)
-    x1 = x0 + h
+    x1 = _finite_real(x0 + h, name="displaced x")
     if x1 == x0:
         raise ValueError("step is too small to change x at this floating-point scale")
     y0 = _finite_output(function(x0))
@@ -59,13 +59,14 @@ def forward_difference(function: ScalarFunction, x: Real, *, step: Real = 1e-6) 
 def central_difference(function: ScalarFunction, x: Real, *, step: Real = 1e-5) -> float:
     x0 = _finite_real(x, name="x")
     h = _step(step)
-    left_x = x0 - h
-    right_x = x0 + h
+    left_x = _finite_real(x0 - h, name="left sample x")
+    right_x = _finite_real(x0 + h, name="right sample x")
     if left_x == x0 or right_x == x0:
         raise ValueError("step is too small to move both sample points")
+    denominator = _finite_output(2.0 * h, name="central-difference denominator")
     left = _finite_output(function(left_x))
     right = _finite_output(function(right_x))
-    return _finite_output((right - left) / (2.0 * h), name="central difference")
+    return _finite_output((right - left) / denominator, name="central difference")
 
 
 def partial_difference(
@@ -84,15 +85,16 @@ def partial_difference(
 
     left = list(base)
     right = list(base)
-    left[axis] -= h
-    right[axis] += h
+    left[axis] = _finite_real(left[axis] - h, name="left sample component")
+    right[axis] = _finite_real(right[axis] + h, name="right sample component")
     if left[axis] == base[axis] or right[axis] == base[axis]:
         raise ValueError("step is too small to move both samples on the selected axis")
+    denominator = _finite_output(2.0 * h, name="partial-difference denominator")
 
     left_value = _finite_output(function(tuple(left)))
     right_value = _finite_output(function(tuple(right)))
     return _finite_output(
-        (right_value - left_value) / (2.0 * h),
+        (right_value - left_value) / denominator,
         name="partial difference",
     )
 
