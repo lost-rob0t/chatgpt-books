@@ -7,25 +7,42 @@ on:
       - '.github/workflows/ml-starintel-research.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   project1-foundations:
     runs-on: ubuntu-latest
+    env:
+      RESEARCH_PYTHON: ${{ github.workspace }}/.venv/bin/python
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
 
-      - name: Install pinned research dependencies
+      - name: Set up pinned Python
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version: '3.12.3'
+          architecture: x64
+
+      - name: Resolve pinned research dependencies in an isolated environment
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m pip install --disable-pip-version-check \
+          python -m venv .venv
+          "$RESEARCH_PYTHON" -m pip install --disable-pip-version-check \
             -r books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/requirements.txt
+          "$RESEARCH_PYTHON" -m pip check
+          echo '--- Project 1 resolver snapshot ---'
+          "$RESEARCH_PYTHON" --version
+          "$RESEARCH_PYTHON" -m pip --version
+          "$RESEARCH_PYTHON" -m pip freeze
 
       - name: Run research-harness unit tests
         shell: bash
         working-directory: books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness
         run: |
           set -euo pipefail
-          python3 -m unittest -v \
+          "$RESEARCH_PYTHON" -m unittest -v \
             test_gleif_sample_acquisition.py \
             test_gleif_relation_adapter.py \
             test_gleif_live_snapshot.py \
@@ -38,25 +55,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/acquire_gleif_samples.py
+          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/acquire_gleif_samples.py
 
       - name: Run Project 1 foundational experiments
         shell: bash
         run: |
           set -euo pipefail
-          python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_experiments.py
-          python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_fixture_experiment.py
-          python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_gleif_relation_experiment.py
-          python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_full_provenance_experiment.py
-          python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_leakage_experiments.py
-          python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_composite_planner_diagnostic.py
-          python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_candidate_experiment.py
+          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_experiments.py
+          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_fixture_experiment.py
+          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_gleif_relation_experiment.py
+          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_full_provenance_experiment.py
+          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_leakage_experiments.py
+          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_composite_planner_diagnostic.py
+          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_candidate_experiment.py
 
       - name: Acquire factual GLEIF API snapshot
         shell: bash
         run: |
           set -euo pipefail
-          python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/acquire_gleif_live_snapshot.py
+          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/acquire_gleif_live_snapshot.py
 
       - name: Install publication tooling
         shell: bash
