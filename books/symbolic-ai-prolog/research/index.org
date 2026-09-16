@@ -7,4 +7,6 @@
 - Which behavior is version-sensitive in the current toolchain?
 - Which claims require reproduction/benchmarking rather than citation alone?
 * Records
-Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
+- [[file:meta-interpreter-foundations-01.org][Research 01 -- Meta-Interpretation, Search, and Trace Semantics]] -- DOCUMENTED primary-source foundation for Project 1 milestone A; executable claims remain separately TESTED/UNTESTED.
+- [[file:sources.org][sources.org]] -- inspected source inventory.
+- [[file:search-log.org][search-log.org]] -- dated research activity and unresolved questions.

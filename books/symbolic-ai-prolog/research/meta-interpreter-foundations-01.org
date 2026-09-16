@@ -1,0 +1,124 @@
+#+title: Symbolic AI in Prolog Research 01 -- Meta-Interpretation, Search, and Trace Semantics
+:PROPERTIES:
+:ID:       e97ccf49-a6cc-4572-81b1-3e912e0f7682
+:END:
+
+* Scope
+This record supports the opening meta-interpretation slice of *Symbolic AI in Prolog* and Project 1. It is intentionally narrower than the whole book: planning, semantic graphs, abduction, production systems, CLP, and external integration remain later work.
+
+Retrieval date: 2026-09-16.
+
+Claim status follows repository policy: DOCUMENTED means supported by an inspected source; TESTED means reproduced by this repository; UNTESTED means not yet reproduced here. This research record does not relabel code as TESTED before an actual SWI-Prolog process executes it.
+
+* Question 1 -- What does it mean for Prolog to execute a goal stored in a term?
+DOCUMENTED: SWI-Prolog exposes meta-calling through =call/1=. The current reference manual describes meta-call predicates as calling terms constructed at run time. A variable in a clause body acts as a meta-call, and =call/1= is ISO-tagged in the manual.
+
+DOCUMENTED, MODULE BOUNDARY: SWI-Prolog's module system makes meta-calls context-sensitive. The =meta_predicate/1= declaration tells the compiler which arguments are goals or otherwise module-sensitive so callers' context can be preserved. This matters for a production meta-program, but the first teaching interpreter should not silently inherit arbitrary caller modules and built-ins.
+
+Teaching consequence: the Project 1 interpreter starts with an explicit object program represented as =rule(Id, Head, Body)= data. The interpreter itself is ordinary Prolog, but the interpreted clauses are not discovered through arbitrary runtime reflection. This keeps the object language inspectable and lets every proof step retain a stable rule identifier.
+
+Sources:
+- https://www.swi-prolog.org/pldoc/man?section=metacall
+- https://www.swi-prolog.org/pldoc/man?section=metapred
+
+* Question 2 -- Why not make the first interpreter just =clause/2= plus recursion?
+DOCUMENTED: =clause/2= can enumerate matching clauses on backtracking. In SWI-Prolog it can inspect static as well as dynamic code unless =iso= or =protect_static_code= forbids this. The manual also warns that the term reconstructed by =clause/2= is decompiled and is promised to be semantically equivalent, not necessarily textually identical to the original source clause.
+
+That is useful later, but it is the wrong first ownership boundary for this project. A =clause/2=-based interpreter immediately inherits questions about modules, built-ins, system predicates, cuts, module qualification, compiler transformations, and what may legally be inspected. Those are important advanced topics, not things to smuggle into the first proof-tree exercise.
+
+Design consequence for this slice: keep the initial object language explicit and closed. The only control forms interpreted by the first engine are =true= and conjunction =(A,B)=; every other goal must be justified by a =rule/3= record in the selected knowledge base. Reflection over native program clauses becomes a later, explicitly SWI-specific extension.
+
+Source:
+- https://www.swi-prolog.org/pldoc/doc_for?object=clause/2
+
+* Question 3 -- What execution events should readers learn before building their own trace?
+DOCUMENTED: SWI-Prolog's debugger presents the traditional =call=, =redo=, =exit=, and =fail= ports and extends the model with at least =unify= and =exception=. The manual explains =redo= as resuming a predicate to seek an alternative solution and =fail= as final failure of a goal. The separate =library(prolog_trace)= can instrument selected predicates and print selected ports.
+
+Teaching consequence: the Project 1 proof artifact is deliberately *not* advertised as a replacement for the SWI debugger. It is a domain-level proof/provenance tree that records which object-language rule justified each successful goal. Chapter prose will compare the two ideas: a proof tree explains one successful derivation; a debugger trace describes operational events, including failed and retried paths.
+
+Sources:
+- https://www.swi-prolog.org/pldoc/man?section=debugoverview
+- https://www.swi-prolog.org/pldoc/man?section=prologtrace
+
+* Question 4 -- How should nontermination be made visible without teaching a fake universal depth metric?
+DOCUMENTED, SWI-SPECIFIC: =call_with_depth_limit/3= can bound recursive depth and reports =depth_limit_exceeded= when the guard is crossed. The manual explicitly cautions that the measured depth reflects SWI-Prolog's internal execution machinery and may differ from a theoretical source-level model; some built-ins are compiled specially, and the manual notes that the predicate can still loop for programs a theoretical model might count differently.
+
+Design consequence: the Project 1 engine owns a separate *object-rule budget*. One unit is consumed when an interpreted =rule/3= is selected; conjunction itself does not consume a rule step. That budget is pedagogical and deterministic with respect to this object language. It is not claimed to equal SWI's internal recursion depth or inference count.
+
+The book can still demonstrate =call_with_depth_limit/3= as an implementation-specific diagnostic around the deliberately naive interpreter, but it must not use that result as the formal semantics of the project's bounded interpreter.
+
+Source:
+- https://www.swi-prolog.org/pldoc/man?section=metacall
+
+* Question 5 -- What cycle notion is appropriate for the first guarded interpreter?
+DOCUMENTED: SWI-Prolog =Term1 =@= Term2= succeeds when the terms are variants: they are structurally equivalent up to variable renaming. The manual describes this as weaker than identity but stronger than unification and notes that SWI's implementation is cycle-safe.
+
+Design consequence: the guarded interpreter may reject a goal when a variant of that goal already appears on the *current proof path*. This is deliberately path-local, not a global closed set. Path-local variant checking blocks direct recursive loops such as =loop(X) -> loop(X)= while allowing the same subgoal to be explored in a different branch after backtracking.
+
+Important limitation: this is a control policy, not a theorem that all recursive Prolog programs terminate under variant checking. Growing terms such as =p(X) -> p(f(X))= are not variants and can still require the explicit rule budget. Conversely, some useful cyclic proofs in coinductive settings would intentionally need different semantics. Those topics remain out of scope for this first engine.
+
+Source:
+- https://www.swi-prolog.org/pldoc/man?section=compare
+
+* Question 6 -- What should tests assert?
+DOCUMENTED, SWI-SPECIFIC: =library(plunit)= provides =begin_tests/1=, =end_tests/1=, =run_tests/0= and related test controls.
+
+Project tests for this slice must assert semantics rather than merely loading files:
+- a fact yields a proof node with the expected rule identifier;
+- conjunction yields both child proofs in order;
+- backtracking can produce distinct successful proof trees;
+- a recursive relation proves a multi-step path;
+- an unsupported goal fails cleanly;
+- a direct cycle is observable in the naive interpreter under an external depth guard;
+- the guarded interpreter reports a cycle without looping;
+- a too-small object-rule budget reports exhaustion rather than silently failing;
+- provenance extraction returns exactly the rule IDs used by one proof.
+
+Source:
+- https://www.swi-prolog.org/pldoc/doc/_SWI_/library/ext/plunit/index.html
+
+* Version-sensitive baseline
+DOCUMENTED as retrieved 2026-09-16:
+- the stable manual index contains SWI-Prolog 10.0.2, dated March 2026;
+- the current online documentation is served from the active SWI documentation system and may include development-version details beyond the stable manual;
+- this book therefore labels implementation-specific behavior and records the exact =swipl --version= exercised by CI rather than assuming documentation version equals runtime version.
+
+Sources:
+- https://www.swi-prolog.org/download/stable/doc/
+- https://www.swi-prolog.org/Download.md
+
+* Project 1 semantic contract for milestone A
+The object program is a set of =rule(Id, Head, Body)= terms. =Id= is a unique provenance atom within the example knowledge base. =Body= is one of:
+- =true= for a fact-like rule;
+- =(A,B)= for conjunction;
+- any other callable term, which is resolved only by selecting another =rule/3=.
+
+The successful proof artifact uses:
+- =fact(Id, Goal)= for a rule whose body is =true=;
+- =step(Id, Goal, Proof)= for a nontrivial rule;
+- =and(LeftProof, RightProof)= inside conjunctions.
+
+The guarded runner additionally returns a status:
+- =proved(Proof)= when a proof is found;
+- =cycle(Goal)= when the current path already contains a variant of =Goal=;
+- =exhausted(Goal)= when no rule budget remains before selecting the next rule.
+
+The implementation must preserve normal Prolog backtracking for alternative =rule/3= choices. A successful first proof is not the same thing as uniqueness.
+
+* Failure/debugging curriculum
+The manuscript must deliberately expose these failures:
+1. Remove the base case from a recursive reachability relation and predict whether the naive interpreter can terminate.
+2. Add =rule(loop, loop(X), loop(X)).= and observe that an external SWI depth guard sees nontermination pressure while the path-guarded interpreter reports the repeated variant.
+3. Reuse a provenance ID for two rules and explain why the proof still executes but provenance becomes ambiguous; tests should protect ID uniqueness for the bundled knowledge base.
+4. Treat a proof tree as if it were a full debugger trace and identify the missing information: failed candidates, =redo= events, exceptions, and engine-level unification ports.
+5. Set a rule budget one step below a known proof and distinguish =exhausted(...)= from logical failure.
+
+* Cross-book boundary
+=books/prolog= owns the strongest pure Prolog foundation: relations, unification, recursion, control/backtracking, modules, DCGs, CLP(FD), meta-programming, testing, performance, persistence/integration, and debugging. This book may recap prerequisites only as needed to derive symbolic-AI mechanisms.
+
+The user has also defined a separate =prolog-llms= direction for explicit LLM/neuro-symbolic/RLM systems. No canonical =books/prolog-llms= target exists on =chatgpt-books/main= at the inspected revision, so this slice records the conceptual boundary without creating a broken repository link. Meta-interpretation, planning, abduction, provenance, explanation, and rule engines remain here because they are general symbolic-AI techniques independent of LLMs.
+
+* Verification state
+DOCUMENTED: the source claims above were checked against official SWI-Prolog documentation on 2026-09-16.
+
+UNTESTED IN THIS RECORD: repository code, generated proof terms, deliberate loop experiments, and book builds until exact branch code executes in CI or another recorded SWI-Prolog environment.
