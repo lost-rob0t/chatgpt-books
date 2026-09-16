@@ -48,4 +48,10 @@ erl -pa "$BUILD" -noshell -eval '
     Other -> io:format("otp_router_interop_tests returned ~p~n", [Other]), halt(1)
   end.'
 
-echo "otp-router: LFE callbacks, EUnit contracts, sys state, Erlang interop, timeout, supervised restart, fresh state, and restart intensity passed"
+# Checkpoint C starts from a clean build and proves the same LFE service can be
+# owned by an OTP application, described by release metadata, and started in a
+# fresh BEAM from the generated boot file.  Keep this separate from the earlier
+# callback tests so release construction cannot accidentally reuse their build.
+bash "$PROJECT/run-release-tests"
+
+echo "otp-router: callbacks, EUnit contracts, sys state, Erlang interop, supervision, application ownership, release construction, and fresh boot passed"
