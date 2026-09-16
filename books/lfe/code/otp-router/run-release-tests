@@ -71,19 +71,29 @@ erl -noshell -boot "$REL_BASE" -pa "$TEST_EBIN" -eval '
   end.'
 
 # Failure lab 1: .rel and .app versions are one contract. Assert the structured
-# failure category rather than brittle human-oriented wording.
+# no_valid_version reason used by both the OTP-25 runner lineage and current
+# OTP 29.1 instead of allowing an unrelated release-construction error to pass.
 BAD_VERSION_BASE="$REL_DIR/bad_version_release"
 sed 's/{otp_router, "0.1.0"}/{otp_router, "9.9.9"}/' \
   "$REL_BASE.rel" > "$BAD_VERSION_BASE.rel"
 erl -noshell -pa "$APP_EBIN" -eval "
   case systools:make_script(\"$BAD_VERSION_BASE\", [{path,[\"$APP_EBIN\"]}, local, no_warn_sasl, silent]) of
-      {error,_,_} -> halt(0);
+      {error,systools_make,Errors} when is_list(Errors) ->
+          case lists:any(
+                 fun({error_reading,{otp_router,{no_valid_version,_}}}) -> true;
+                    (_) -> false
+                 end,
+                 Errors) of
+              true -> halt(0);
+              false -> io:format(\"expected otp_router no_valid_version, got: ~p~n\", [Errors]), halt(1)
+          end;
       Other -> io:format(\"expected version mismatch failure, got: ~p~n\", [Other]), halt(1)
   end."
 
 # Failure lab 2: application dependencies declared by .app must be represented
 # in the release closure. Inject crypto into a disposable app resource while
-# deliberately omitting it from .rel.
+# deliberately omitting it from .rel. Assert that crypto is specifically named
+# by the structured undefined_applications reason.
 MISSING_EBIN="$BUILD/missing-dependency/ebin"
 mkdir -p "$MISSING_EBIN"
 cp "$APP_EBIN"/*.beam "$MISSING_EBIN/"
@@ -93,7 +103,11 @@ MISSING_BASE="$REL_DIR/missing_dependency_release"
 cp "$REL_BASE.rel" "$MISSING_BASE.rel"
 erl -noshell -pa "$MISSING_EBIN" -eval "
   case systools:make_script(\"$MISSING_BASE\", [{path,[\"$MISSING_EBIN\"]}, local, no_warn_sasl, silent]) of
-      {error,_,_} -> halt(0);
+      {error,systools_make,{undefined_applications,Apps}} ->
+          case lists:member(crypto, Apps) of
+              true -> halt(0);
+              false -> io:format(\"expected crypto in undefined applications, got: ~p~n\", [Apps]), halt(1)
+          end;
       Other -> io:format(\"expected missing dependency failure, got: ~p~n\", [Other]), halt(1)
   end."
 
