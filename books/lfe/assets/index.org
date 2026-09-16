@@ -12,5 +12,6 @@
 - =event-routing.dot/svg= -- Project 1 explicit rule-data execution flow.
 - =macro-expansion.dot/svg= -- Project 1 compile-time macro source layer versus runtime routing kernel.
 - =actor-protocol.dot/svg= -- Project 2 caller/reference protocol, actor-owned state boundary, pure routing kernel, and independent monitor relationship.
+- =otp-supervision.dot/svg= -- Project 3 separation of generic =gen_server= mechanics, LFE callbacks, pure routing logic, one-for-one lifecycle policy, and replacement state boundary.
 * Rule
 Do not add decorative assets merely to inflate the book. Every informative figure gets caption + alt text.

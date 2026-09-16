@@ -45,6 +45,9 @@ jobs:
       - name: Run Project 2 actor and message regressions
         run: bash books/lfe/code/actor-router/run-tests
 
+      - name: Run Project 3 OTP service and supervision regressions
+        run: bash books/lfe/code/otp-router/run-tests
+
       - name: Validate LFE teaching diagrams
         shell: bash
         run: |
@@ -52,6 +55,7 @@ jobs:
           dot -Tsvg books/lfe/assets/event-routing.dot >/dev/null
           dot -Tsvg books/lfe/assets/macro-expansion.dot >/dev/null
           dot -Tsvg books/lfe/assets/actor-protocol.dot >/dev/null
+          dot -Tsvg books/lfe/assets/otp-supervision.dot >/dev/null
 
       - name: Build LFE book
         run: make book BOOK=lfe

@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
+PROJECT="$ROOT/books/lfe/code/otp-router"
+EVENT_RULES="$ROOT/books/lfe/code/event-rules/src/event-rules.lfe"
+BUILD="$PROJECT/.build"
+
+command -v lfec >/dev/null || { echo "lfec is required" >&2; exit 2; }
+command -v erl >/dev/null || { echo "erl is required" >&2; exit 2; }
+
+rm -rf "$BUILD"
+mkdir -p "$BUILD"
+
+lfec -o "$BUILD" \
+  "$EVENT_RULES" \
+  "$PROJECT/src/otp-router.lfe" \
+  "$PROJECT/src/otp-router-sup.lfe" \
+  "$PROJECT/test/otp-router-tests.lfe"
+
+erl -pa "$BUILD" -noshell -eval '
+  case '\''otp-router-tests'\'':run() of
+    ok -> halt(0);
+    Other -> io:format("otp-router-tests returned ~p~n", [Other]), halt(1)
+  end.'
+
+# Direct Erlang -> compiled LFE behaviour smoke, including OTP system messages
+# and the different timeout contract of gen_server:call/3.
+erl -pa "$BUILD" -noshell -eval '
+  Rules = [{ '\''when-level'\'', critical, pager }],
+  Event = {event, critical, edge, <<"disk full">>},
+  {ok, Pid} = '\''otp-router'\'':start_link(Rules),
+  {ok, pager} = gen_server:call('\''otp-router'\'', {route, Event}, 1000),
+  Rules = sys:get_state('\''otp-router'\''),
+  ok = sys:suspend('\''otp-router'\''),
+  TimeoutResult = catch gen_server:call('\''otp-router'\'', get-rules, 20),
+  case TimeoutResult of
+    {'\''EXIT'\'', {timeout, _}} -> ok;
+    Other -> io:format("unexpected gen_server timeout result: ~p~n", [Other]), halt(1)
+  end,
+  ok = sys:resume('\''otp-router'\''),
+  true = is_process_alive(Pid),
+  ok = gen_server:stop('\''otp-router'\''),
+  halt(0).'
+
+# A supervised crash replaces only the one_for_one child. The replacement
+# starts from init/1 with the supervisor child-spec arguments, so process-local
+# state is fresh rather than magically recovered.
+erl -pa "$BUILD" -noshell -eval '
+  Rules = [{ '\''when-level'\'', critical, pager }],
+  Event = {event, critical, edge, <<"disk full">>},
+  {ok, Sup} = '\''otp-router-sup'\'':start_link(Rules),
+  unlink(Sup),
+  Old = whereis('\''otp-router'\''),
+  {ok, replaced} = '\''otp-router'\'':replace-rules([{otherwise, sink}], 1000),
+  {ok, sink} = '\''otp-router'\'':route(Event, 1000),
+  DownRef = erlang:monitor(process, Old),
+  ok = '\''otp-router'\'':crash(boom),
+  receive
+    {'\''DOWN'\'', DownRef, process, Old, boom} -> ok
+  after 1000 ->
+    io:format("supervised worker did not crash as expected~n", []),
+    halt(1)
+  end,
+  WaitNew =
+    fun F(_OldPid, 0) ->
+          exit(restart_timeout);
+        F(OldPid, N) ->
+          case whereis('\''otp-router'\'') of
+            P when is_pid(P), P =/= OldPid -> P;
+            _ -> timer:sleep(10), F(OldPid, N - 1)
+          end
+    end,
+  New = WaitNew(Old, 100),
+  true = is_process_alive(New),
+  {ok, pager} = '\''otp-router'\'':route(Event, 1000),
+  ok = supervisor:stop(Sup),
+  halt(0).'
+
+# Restart intensity is itself failure policy. With intensity=1, the first
+# restart is allowed; the second restart request inside the same 60-second
+# window shuts down this supervisor with reason shutdown.
+erl -pa "$BUILD" -noshell -eval '
+  Rules = [{ '\''when-level'\'', critical, pager }],
+  {ok, Sup} = '\''otp-router-sup'\'':start_link(Rules, 1, 60),
+  unlink(Sup),
+  SupRef = erlang:monitor(process, Sup),
+  First = whereis('\''otp-router'\''),
+  FirstRef = erlang:monitor(process, First),
+  ok = '\''otp-router'\'':crash(first_boom),
+  receive
+    {'\''DOWN'\'', FirstRef, process, First, first_boom} -> ok
+  after 1000 ->
+    io:format("first worker crash not observed~n", []),
+    halt(1)
+  end,
+  WaitNew =
+    fun F(_OldPid, 0) ->
+          exit(restart_timeout);
+        F(OldPid, N) ->
+          case whereis('\''otp-router'\'') of
+            P when is_pid(P), P =/= OldPid -> P;
+            _ -> timer:sleep(10), F(OldPid, N - 1)
+          end
+    end,
+  Second = WaitNew(First, 100),
+  SecondRef = erlang:monitor(process, Second),
+  ok = '\''otp-router'\'':crash(second_boom),
+  receive
+    {'\''DOWN'\'', SecondRef, process, Second, second_boom} -> ok
+  after 1000 ->
+    io:format("second worker crash not observed~n", []),
+    halt(1)
+  end,
+  receive
+    {'\''DOWN'\'', SupRef, process, Sup, shutdown} -> halt(0);
+    {'\''DOWN'\'', SupRef, process, Sup, OtherReason} ->
+      io:format("unexpected supervisor shutdown reason: ~p~n", [OtherReason]),
+      halt(1)
+  after 1000 ->
+    io:format("restart intensity did not shut supervisor down~n", []),
+    halt(1)
+  end.'
+
+echo "otp-router: callbacks, sys state, Erlang interop, timeout, supervised restart, fresh state, and restart intensity passed"

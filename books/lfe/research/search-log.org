@@ -44,3 +44,15 @@ Question: Which process/message claims can Chapters 8--10 make from current offi
 Sources inspected: Erlang System Documentation v29.0.6 process reference and the official process Efficiency Guide.
 Result: sends are asynchronous signals; =receive= selects the first matching queued message; signal ordering is guaranteed from one sender to one destination rather than globally across independent senders; selective receive can scan queued messages; monitors are unidirectional and deliver a correlated =DOWN= message; a local receive timeout does not itself specify remote cancellation or target death. Project 2 can turn these documented boundaries into focused regressions without claiming performance numbers.
 Remaining uncertainty: aliases, priority-message APIs, links/=trap_exit=, and supervision are deliberately deferred until their owning slices are designed and tested.
+
+** 2026-09-16 -- LFE as a gen_server callback language
+Question: Does current LFE require an LFE-specific OTP abstraction, or can Project 3 implement the ordinary Erlang =gen_server= contract directly?
+Sources inspected: official LFE v2.2.2 =examples/ping-pong.lfe= plus Erlang/OTP 29.0.6 =gen_server= STDLIB documentation.
+Result: tagged LFE declares =(behaviour gen_server)=, calls =gen_server:start_link=/=call= directly, and implements the standard callbacks. Current OTP maps generic server operations to those callbacks and supplies system-message/=sys= integration. Project 3 should therefore refactor the accepted raw router into a plain LFE callback module rather than inventing a new actor framework.
+Remaining uncertainty: application/release packaging of the callback module remains outside this slice.
+
+** 2026-09-16 -- supervision strategy, restart intensity, and state recovery boundary
+Question: What can the first LFE supervision checkpoint claim about restart behavior without conflating process replacement with persistence?
+Sources inspected: Erlang/OTP 29.0.6 =supervisor= STDLIB documentation and Supervisor Behaviour design-principles chapter.
+Result: =one_for_one= restarts only the affected child; child specs define a start MFA and restart policy; more than =intensity= restarts in =period= seconds causes supervisor shutdown. A replacement is started from the child spec; supervisor semantics do not restore arbitrary volatile callback state.
+Remaining uncertainty: persistence/replay semantics, multi-child strategy choice, application trees, release handling, distribution, and production observability need separate slices and tests.
