@@ -1,0 +1,122 @@
+#+title: Expert Systems Research -- Explanation and Provenance from Exact Supports
+:PROPERTIES:
+:ID:       9438bc15-993e-4a58-a955-a6932284e9bc
+:END:
+
+* Scope
+This record supports Project 1 milestone F and Chapter 20 only: deriving a current explanation graph from the already-accepted exact-occurrence truth-maintenance, assumption, contradiction, and provenance records.
+
+The implementation is deliberately a *read model*. It does not alter matching, agenda order, refraction, truth maintenance, contradiction policy, or rule firing. It does not implement certainty factors, fuzzy inference, automatic diagnosis, why-not search, ATMS environments, persistence, or a W3C PROV interchange format.
+
+Retrieval/inspection date for current web material: 2026-09-16.
+
+* Primary historical source: Clancey 1983
+Source: William J. Clancey, “The Epistemology of a Rule-Based Expert System -- A Framework for Explanation,” /Artificial Intelligence/ 20(3), 1983, pp. 215--251, DOI =10.1016/0004-3702(83)90008-5= [cite:@clancey1983explanation].
+
+Primary material inspected through the author/editor-hosted Chapter 29 reproduction in Buchanan and Shortliffe's /Rule-Based Expert Systems/. The chapter identifies itself as an edited version of the 1983 /Artificial Intelligence/ article. The inspected text documents MYCIN's rule/goal-oriented WHY and HOW facilities and, more importantly for this book, describes their limitations: rule justifications and higher-level strategy could not be fully explained when the corresponding knowledge was not represented explicitly.
+
+DOCUMENTED lesson used here: replaying a chain of rules is not automatically a complete explanation of why the rules are justified or why the system pursued a particular strategy. An explanation interface can expose only distinctions represented in the system.
+
+Course consequence: milestone F does *not* claim that a firing history is a proof. Current support explanations are built from the truth-maintenance ledger, whose justification records already contain exact conclusion/support occurrence stamps, rule identity, bindings, and activation identity. The firing log remains operational history.
+
+* Primary historical source: Aikins 1980
+Source: Janice S. Aikins, “Representation of Control Knowledge in Expert Systems,” /Proceedings of AAAI-80/, 1980, pp. 121--123 [cite:@aikins1980control].
+
+The AAAI proceedings artifact was inspected directly. Aikins argues that implicit control knowledge makes rule bases harder to modify and explanations harder to produce; the paper presents explicit control representation in CENTAUR and states that explicit representation aids explanations of how knowledge is used.
+
+DOCUMENTED lesson used here: if a distinction matters to an explanation, burying it in incidental execution order is a weak foundation. This corroborates the book's decision to expose explicit typed support, justification, assumption, and contradiction identities rather than derive a story from incidental list order.
+
+Boundary: milestone F does not implement CENTAUR, prototype control slots, or a strategic-control model. The source supplies an explanation-design lesson only.
+
+* Existing TMS source: Doyle 1979
+Doyle's primary TMS paper already grounds milestone D and explicitly connects recorded reasons for beliefs with explanation [cite:@doyle1979tms]. Milestone F consumes the course-local reason ledger built under that earlier research boundary.
+
+The important implementation consequence is exact identity. A historical reason for =(fact-id . old-sequence)= must not be rendered as support for =(fact-id . new-sequence)= after retract/reassert merely because the stable ID was reused.
+
+* Current provenance vocabulary: W3C PROV-DM
+Source: W3C Recommendation, /PROV-DM: The PROV Data Model/, 30 April 2013 [cite:@w3c-prov-dm].
+
+The current W3C Recommendation was inspected. PROV-DM defines a domain-neutral provenance model around entities, activities, agents/responsibility, derivation, bundles/provenance of provenance, alternate/specialization relations, and collections. Its introduction emphasizes provenance as a record of entities/activities/people involved in producing or influencing a thing and notes provenance's use in trust and integration decisions.
+
+DOCUMENTED comparison used here: provenance is richer than a free-form source string. It concerns the lineage and responsibility of information-producing processes as well as the produced information.
+
+Critical boundary: the teaching engine's property lists and explanation graph are *not PROV-DM instances*. No PROV identifiers, validity constraints, PROV-N/PROV-O serialization, or conformance tests are implemented. W3C PROV is used as a comparison vocabulary and a design reminder that later Project 2/3 provenance schemas should be explicit and interoperable rather than overloaded strings.
+
+* Derived milestone-F contract
+** Current support proof is not execution history
+The engine now has three distinct historical/current views:
+
+- firing records: what activations the engine executed;
+- justification ledger: why an exact conclusion occurrence was recorded as derived;
+- current grounding: which exact support paths still reach current base support.
+
+An explanation of *current support* must use the latter two and filter them by current exact occurrence identity. A firing record can remain historically true after its conclusion becomes unsupported and is retracted.
+
+** Typed graph nodes
+The read model uses deterministic node identities:
+
+- =:fact= -- one exact current working-memory occurrence, with stable fact ID, occurrence stamp, relation/arguments, fact provenance, and current support classification;
+- =:source= -- the base-support source for one exact occurrence, labeled =:evidence= or =:assumption= according to the accepted milestone-E classification;
+- =:justification= -- one current grounded rule application, including justification ID, production ID/provenance, bindings, activation identity, and exact conclusion stamp;
+- =:contradiction= -- one current exact contradiction pair, including consistency-spec ID/provenance, shared bindings, both exact side stamps, and both support classifications.
+
+These are course-local explanation types, not universal ontology classes.
+
+** Typed edges
+The graph uses a deliberately small edge vocabulary:
+
+- =:grounded-by=: exact fact occurrence -> base/assumption source;
+- =:supported-by=: exact derived/current occurrence -> justification;
+- =:uses=: justification -> exact support occurrence;
+- =:counterevidence=: contradiction report -> each current contradictory occurrence.
+
+The direction is chosen for reader traversal from the asked-about result toward its reasons. It does not claim correspondence to PROV-DM relation direction.
+
+** Alternatives must remain alternatives
+A fact may have multiple independent current justifications. Explanation must expose every grounded current reason rather than choose one convenient narrative. Likewise a mixed base+derived occurrence exposes both the base source and the derived reason.
+
+This mirrors the already-tested TMS support policy: AND within one justification's supports; OR across independent justifications; base support is an additional grounding source.
+
+** Stale identity must fail closed
+Historical justifications remain in the ledger for inspection. They are included in a current explanation only when:
+
+1. their conclusion stamp denotes the exact current occurrence;
+2. every support stamp denotes an exact current occurrence; and
+3. every support occurrence is recursively grounded.
+
+A stale contradiction report similarly cannot be rendered as current counterevidence once either exact side disappears. The reader gets =:stale= rather than a plausible but false graph.
+
+** Absence is not a why-not proof
+=:absent= means only that no current working-memory occurrence exists for the requested stable ID. It does *not* mean the opposite is true, that some rule was considered and failed, or that the system has complete knowledge.
+
+A real why-not explanation requires partial-match information, failed-condition identity, closed/open-world policy, and usually workbench/query semantics. That is a later dependency and is intentionally excluded from milestone F.
+
+** Provenance does not manufacture trust
+The graph preserves provenance already attached to facts, productions, and contradiction specifications. It does not convert source identity into confidence, authority, or probability. Project 2 must define source-specific provenance schemas and counterevidence policy before the technical troubleshooting KB can make stronger operational claims.
+
+* Required regressions
+- ordinary base evidence renders a source node labeled =:evidence=;
+- an explicit assumption renders a source node labeled =:assumption=;
+- the synthetic service scenario renders the two-hop dependency-impact -> investigation support chain;
+- production provenance appears on justification nodes;
+- two independent justifications for one exact conclusion both remain visible;
+- mixed base+derived support exposes both the source and justification;
+- retracting the final support and reasserting the same stable fact ID as a fresh base occurrence does not attach the historical justification to the new occurrence;
+- an absent fact returns =:absent= with no invented nodes or edges;
+- repeated explanation of unchanged state produces the same data-only graph signature;
+- a current contradiction explanation preserves specification provenance and two counterevidence branches;
+- a retained report becomes =:stale= after one exact contradictory side is withdrawn;
+- every earlier matcher, agenda, incremental, TMS, and contradiction regression remains green.
+
+* Claim-state ledger
+- DOCUMENTED: Clancey 1983 documents MYCIN's rule/goal explanation capability and the limitation created by missing explicit rule-justification/strategy knowledge.
+- DOCUMENTED: Aikins 1980 argues for explicit control representation and connects it to better explanation of how knowledge is used.
+- DOCUMENTED: Doyle 1979 connects recorded reasons with explanation and revision.
+- DOCUMENTED: W3C PROV-DM is a domain-neutral provenance data model covering entities/activities, derivation, agents/responsibility, bundles, specialization/alternate concepts, and collections.
+- COURSE-LOCAL: explanation node/edge vocabulary, traversal direction, graph status values, data-only deterministic signature, and read-only API surface.
+- TESTED only after exact-head CI passes: current-support filtering, exact-occurrence stale exclusion, alternative reasons, mixed support, service-chain provenance, contradiction branch preservation, stale contradiction handling, deterministic signatures, and all earlier engine regressions.
+- UNTESTED / NOT IMPLEMENTED: natural-language generation quality, why-not/failed-rule explanations, strategic-control explanations, confidence/uncertainty, PROV serialization/conformance, persistence, concurrency, access control/redaction, graph-size limits, performance, or production deployment.
+- NO BENCHMARK CLAIM: this milestone introduces no timing, allocation, throughput, or scaling result.
+
+* Verification plan
+Run the entire Common Lisp inference-engine suite with the new explanation regressions, validate the editable explanation graph, build and validate the Expert Systems book, then run the focused =expert-systems-book= workflow including its Nix job and generic =books-ci=. Record only observed exact-head results in the issue/PR handoff.
