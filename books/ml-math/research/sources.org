@@ -33,3 +33,10 @@ URL: https://docs.python.org/3/library/math.html
 Version at retrieval: Python 3.14.7 documentation.
 Inspected material: =math.fsum= accurate floating-point summation, =math.hypot= Euclidean norm, =math.dist= Euclidean distance, and finite-value predicates.
 Used by: Chapter 5 numerical-stability notes and the standard-library implementation choices inherited by Project 1's vector and matrix layers.
+
+** Python 3.14.7 floating-point tutorial
+Authority: official Python documentation.
+URL: https://docs.python.org/3.14/tutorial/floatingpoint.html
+Version at retrieval: Python 3.14.7 documentation.
+Inspected material: binary representation error, per-operation rounding, =math.fsum= as a more accurate summation tool, and the statement that almost all current platforms map Python =float= to IEEE 754 binary64 values.
+Used by: the Project 1 matrix numerical-failure lab separating exact real-number associativity from finite-precision execution behavior.
