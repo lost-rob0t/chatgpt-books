@@ -93,13 +93,13 @@ because the constant can be factored out of the difference quotient. Likewise,
 
 because subtraction and division distribute across the two changes.
 
-For integer powers, expanding \((x+h)^n\) shows that after subtracting \(x^n\) and dividing by \(h\), the term that survives as \(h\to0\) is \(nx^{n-1}\). We will use
+For positive integer powers \(n\ge1\), the finite binomial expansion of \((x+h)^n\) shows that after subtracting \(x^n\) and dividing by \(h\), the term that survives as \(h\to0\) is \(nx^{n-1}\). We will use
 
 \[
 \frac{d}{dx}x^n=nx^{n-1}
 \]
 
-without re-expanding the binomial every time, but the rule now has a reason to exist.
+for these powers without re-expanding the binomial every time, but the rule now has a reason to exist. Later extensions to other exponents should be justified from their own domain assumptions rather than silently smuggled into this finite expansion argument.
 
 Do not confuse “a derivative rule applies” with “the derivative exists everywhere.” The absolute-value function is the classic warning. At zero,
 
