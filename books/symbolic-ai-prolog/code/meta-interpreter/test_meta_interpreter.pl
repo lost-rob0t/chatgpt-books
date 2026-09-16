@@ -47,6 +47,15 @@ test(guarded_interpreter_reports_direct_cycle) :-
                        10,
                        cycle(unstable(sensor)))).
 
+test(guarded_cycle_does_not_hide_later_rule) :-
+    Program = [rule(r_loop, stable(X), stable(X)),
+               rule(r_base, stable(ok), true)],
+    findall(Outcome,
+            prove_guarded(Program, stable(ok), 4, Outcome),
+            Outcomes),
+    assertion(Outcomes == [cycle(stable(ok)),
+                           proved(fact(r_base, stable(ok)))]).
+
 test(guarded_interpreter_reports_rule_budget_exhaustion) :-
     diagnostic_program(Program),
     once(prove_guarded(Program,
