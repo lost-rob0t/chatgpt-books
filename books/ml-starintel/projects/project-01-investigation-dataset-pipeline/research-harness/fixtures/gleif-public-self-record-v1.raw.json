@@ -1,0 +1,20 @@
+{
+  "fixture_id": "gleif-public-self-record-v1",
+  "record": {
+    "legal_name": "Global Legal Entity Identifier Foundation (GLEIF)",
+    "lei": "506700GE1G29325QX363",
+    "physical_address": {
+      "city": "Basel",
+      "country": "Switzerland",
+      "postal_code": "4052",
+      "street": "St. Alban-Vorstadt 12"
+    }
+  },
+  "retrieved_at": "2026-08-15",
+  "source": {
+    "license": "CC0-1.0",
+    "publisher": "Global Legal Entity Identifier Foundation (GLEIF)",
+    "terms_url": "https://www.gleif.org/en/meta/lei-data-terms-of-use",
+    "url": "https://www.gleif.org/en/contact/contact-information"
+  }
+}

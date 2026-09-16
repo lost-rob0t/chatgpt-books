@@ -1,0 +1,84 @@
+#+title: Machine Learning for StarIntel -- Foundational Research Pass 04
+#+date: 2026-08-15
+
+* Status
+RESEARCH; foundational phase remains open.
+
+* Scope
+Freeze the first redistribution-safe public GLEIF source fixture, hash both source and normalized artifacts, map it through the narrow StarIntel adapter boundary, and execute an observable provenance check. No chapter prose and no StarIntel storage/runtime duplication.
+
+* Research questions
+- Can Project 1 rerun a public-source provenance experiment without depending on mutable live GLEIF responses?
+- What exact source bytes and normalized bytes should be frozen and hashed?
+- Does the normalized public record validate against the locked StarIntel 0.9 schema?
+- Can the normalized record reconstruct the source URI, licence, source hash, fixture identity, LEI, and legal name?
+- What remains before the final Level 1/Level 2 GLEIF fixture is defensible?
+
+* Primary sources inspected
+- GLEIF =LEI Data: Access & Use= and =LEI Data Terms of Use=: public LEI data access is free; data available through the access service are CC0.
+- GLEIF =Level 1 Data: Who is Who=: Level 1 is the legal-entity identification/reference-data layer; Level 2 is ownership data.
+- GLEIF =GLEIF API=: API uses the Golden Copy and exposes Level 1 plus ownership-related data/search.
+- GLEIF =About the Concatenated Files=: concatenated files are updated daily.
+- GLEIF contact page: official GLEIF legal name, LEI =506700GE1G29325QX363=, and Basel physical address.
+- Locked StarIntel conformance fixture implementation at =lost-rob0t/starintel-gpt-auto-dig@ff814ff63868286d68e21502122832802cd5e361= to preserve the canonical top-level envelope and source-object semantics.
+
+* Findings
+** Freeze policy
+=DOCUMENTED=. Project tests must not mean "whatever GLEIF returns today". GLEIF data is intentionally refreshed; therefore deterministic book tests require committed source bytes, immutable hashes, retrieval metadata, and an explicit refresh procedure. Live API/Golden-Copy retrieval belongs in a maintenance/import step, not ordinary offline tests.
+
+** First frozen public source fixture
+The first fixture is deliberately small and fully attributable: GLEIF's own public self-record as published on its official contact page.
+
+Frozen source extract:
+- =fixtures/gleif-public-self-record-v1.raw.json=
+- SHA-256 =3785689e0d5e768d0adfa4838540646b815b5df4e32c2619abc51b1419584c4f=
+- LEI =506700GE1G29325QX363=
+- legal name =Global Legal Entity Identifier Foundation (GLEIF)=
+- source licence recorded as CC0-1.0 under GLEIF LEI Data Terms of Use.
+
+Normalized StarIntel artifact:
+- =fixtures/gleif-public-self-record-v1.starintel.json=
+- SHA-256 =0e433da6b856a48378b011786dd49f4edc1d771eddca936d681bae703ebf85b2=
+- =dtype= remains canonical =org=;
+- =schema_version= remains =0.9.0=;
+- top-level document =version= remains the separate integer =1=;
+- source provenance carries URI, retrieval/access time, source hash, hash algorithm, licence, and fixture metadata;
+- =extensions.ml_starintel= stores research-only transform/fixture identity without redefining the StarIntel schema.
+
+This fixture is a curated deterministic extract from an official GLEIF page. It is *not* represented as a raw GLEIF API or Golden Copy record.
+
+** Experiment D1 -- TESTED
+Added =run_fixture_experiment.py=. It checks frozen raw and normalized SHA-256 values, validates the normalized record through the existing locked StarIntel schema harness, and verifies reconstruction of source URL/licence/hash plus LEI/legal-name/fixture identity.
+
+GitHub Actions =ml-starintel-research= run 18, job =project1-foundations=, executed on 2026-08-15 and completed successfully. The inspected log records all five D1 checks as true:
+- =raw_sha256_matches_frozen_value=
+- =normalized_sha256_matches_frozen_value=
+- =normalized_starintel_record_valid=
+- =source_and_transform_provenance_reconstructable=
+- =fixture_lei_matches_official_source_extract=
+
+Observed D1 result: =status: TESTED=, =validation_category: null=, =validation_message: null=. The same job re-ran Experiment E with zero failed checks and D0 remained TESTED. Environment recorded by the harness: Ubuntu 24.04.4 runner, Python 3.12.3, =jsonschema= 4.26.0, locked StarIntel schema commit =ff814ff63868286d68e21502122832802cd5e361=.
+
+D1 is deliberately narrower than the final public-source Experiment D. The final Level 1/Level 2 Experiment D remains UNTESTED until an actual official API/Golden-Copy response is frozen with exact upstream retrieval metadata and its provenance round trip is executed.
+
+* Claim-status table
+| Claim | Status |
+| GLEIF LEI access service is free and LEI data is CC0 | DOCUMENTED |
+| GLEIF Level 1 identifies who-is-who; Level 2 describes who-owns-whom | DOCUMENTED |
+| mutable GLEIF upstream must be frozen for deterministic tests | DOCUMENTED + DESIGN DECISION |
+| official GLEIF self LEI/name/address used in fixture | DOCUMENTED |
+| frozen source SHA-256 identity | TESTED |
+| frozen normalized SHA-256 identity | TESTED |
+| D1 normalized StarIntel validation/provenance reconstruction | TESTED in GitHub Actions run 18 |
+| final Level 1/Level 2 API/Golden-Copy fixture | UNTESTED |
+| full public-source Experiment D | UNTESTED |
+| leakage Experiments A--C | UNTESTED |
+
+* Remaining uncertainty
+- Exact official API/Golden-Copy Level 1/Level 2 response(s) to freeze next, including upstream response metadata and content hashes.
+- Whether the final teaching fixture should contain one ownership chain or several intentionally different relationship/reporting-exception cases.
+- Refresh cadence and review policy for deliberately frozen public-source fixtures.
+- Entity+time spanning-group rule and deterministic near-duplicate clustering for Experiments A--C.
+
+* Next research slice
+Freeze a tiny genuine GLEIF Level 1/Level 2 API or Golden-Copy slice with explicit LEI IDs, upstream retrieval metadata, raw hashes and licence provenance. Prefer a small ownership chain or relationship case that materially exercises both entity and relationship records rather than another isolated organization. Once that fixture is immutable, execute the full Experiment D and then predeclare/run leakage Experiments A--C with real measured outputs and plots.

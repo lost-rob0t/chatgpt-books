@@ -1,0 +1,64 @@
+{
+  "_id": "starintel:org:gleif:506700GE1G29325QX363",
+  "data": {
+    "country": "Switzerland",
+    "display_name": "GLEIF",
+    "eid": "506700GE1G29325QX363",
+    "etype": "organization",
+    "external_ids": [
+      {
+        "canonical": true,
+        "confidence": 1.0,
+        "issuer": "GLEIF",
+        "jurisdiction": "global",
+        "scheme": "LEI",
+        "url": "https://www.gleif.org/en/contact/contact-information",
+        "value": "506700GE1G29325QX363"
+      }
+    ],
+    "headquarters": "St. Alban-Vorstadt 12, 4052 Basel, Switzerland",
+    "jurisdiction": "CH",
+    "legal_name": "Global Legal Entity Identifier Foundation (GLEIF)",
+    "lei": "506700GE1G29325QX363",
+    "name": "Global Legal Entity Identifier Foundation (GLEIF)"
+  },
+  "dataset": "book1-project1-gleif-fixture-v1",
+  "date_added": "2026-08-15T14:50:57Z",
+  "date_updated": "2026-08-15T14:50:57Z",
+  "dtype": "org",
+  "evidence": [],
+  "extensions": {
+    "ml_starintel": {
+      "fixture_id": "gleif-public-self-record-v1",
+      "normalization": "gleif-contact-page-v1",
+      "raw_sha256": "3785689e0d5e768d0adfa4838540646b815b5df4e32c2619abc51b1419584c4f",
+      "research_only": true
+    }
+  },
+  "schema_version": "0.9.0",
+  "sources": [
+    {
+      "access_method": "https",
+      "accessed_at": "2026-08-15T14:50:57Z",
+      "content_hash": "3785689e0d5e768d0adfa4838540646b815b5df4e32c2619abc51b1419584c4f",
+      "hash_algorithm": "sha256",
+      "kind": "reference",
+      "language": "en",
+      "license": "CC0-1.0",
+      "medium": "web",
+      "metadata": {
+        "fixture_id": "gleif-public-self-record-v1",
+        "terms_url": "https://www.gleif.org/en/meta/lei-data-terms-of-use"
+      },
+      "name": "GLEIF Contact Information",
+      "organization": "Global Legal Entity Identifier Foundation (GLEIF)",
+      "publisher": "Global Legal Entity Identifier Foundation (GLEIF)",
+      "retrieved_at": "2026-08-15T14:50:57Z",
+      "source_id": "gleif-contact-page-2026-08-15",
+      "type": "web",
+      "uri": "https://www.gleif.org/en/contact/contact-information",
+      "url": "https://www.gleif.org/en/contact/contact-information"
+    }
+  ],
+  "version": 1
+}

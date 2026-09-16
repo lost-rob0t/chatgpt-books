@@ -1,0 +1,269 @@
+** Chapter 4 -- Features and Labels Live in Time
+:PROPERTIES:
+:ID:       b89562be-1a97-4a21-bf60-6e78f7cbe581
+:END:
+
+A feature is not simply "a column we have." A label is not simply "the answer column." Both are claims about what information exists, when it exists, and what question the experiment is trying to answer.
+
+That sounds philosophical until a historical dataset quietly includes a field written three weeks after the event. Then it becomes an engineering problem.
+
+Project 1 therefore treats feature construction as a function of an observation /and/ a prediction time. The same canonical StarIntel document may legitimately produce different feature rows for different historical cutoffs because later enrichment must disappear when we simulate an earlier decision.
+
+*** Start from the prediction contract
+
+Before choosing features, write the prediction contract in plain language. A useful contract answers at least four questions:
+
+1. What unit receives one prediction: document, entity, relationship, investigation, or something else?
+2. At what time is the prediction considered to occur?
+3. What outcome becomes the label, and when can that outcome be observed reliably?
+4. Which information sources are permitted at prediction time?
+
+For example:
+
+#+begin_quote
+Given a newly admitted investigation document at its =prediction_at= time, predict whether it will later receive a particular review outcome, using only source/canonical information and derived features available no later than =prediction_at=.
+#+end_quote
+
+That contract is intentionally generic. This chapter is about the mechanics of honest feature/label construction, not about inventing a production StarIntel classification task that the current repository has not defined or measured.
+
+Without a contract, "use every field" is not a neutral choice. It can mix the target, post-outcome annotations, source identifiers, analyst decisions, or future graph state into the predictor.
+
+*** Features are functions, not stored truth
+:PROPERTIES:
+:ID:       4d14977e-eb5c-4805-842c-c4d441c4e7d5
+:END:
+
+Think of a feature builder as a function:
+
+#+begin_example
+feature_value = f(canonical_records, prediction_at, fitted_training_state)
+#+end_example
+
+The three arguments matter for different reasons.
+
+=canonical_records= are the evidence-bearing inputs. They are not necessarily one row. A feature may be derived from a document, its entity, or a permitted relationship neighborhood.
+
+=prediction_at= tells the builder which information is admissible. If an enrichment or annotation has =available_at > prediction_at=, the historical builder must act as if that information does not yet exist.
+
+=fitted_training_state= contains parameters learned from the training set: a vocabulary, means and variances, category dictionary, dimensionality-reduction basis, or another learned representation. It must not be learned from held-out records.
+
+This decomposition makes two kinds of time travel visible:
+
+- /event-time leakage/: a value did not exist at prediction time;
+- /fit leakage/: a transform learned information from records that belong on the held-out side of the evaluation.
+
+The remedies are different. A pipeline can protect train-only fitting, but it cannot know that an analyst annotation dated next week should disappear from a historical row. That requires domain metadata.
+
+*** Build point-in-time rows before fitting the model
+
+The Project 1 split planner represents derived features with an =available_at= timestamp and rejects rows where a feature would be used before it existed.
+
+A minimal teaching representation is:
+
+#+begin_src python
+row = {
+    "record_id": "doc-17",
+    "prediction_at": "2026-06-01T12:00:00Z",
+    "features": [
+        {
+            "name": "source_type",
+            "value": "public-record",
+            "available_at": "2026-06-01T11:58:00Z",
+        },
+        {
+            "name": "analyst_resolution",
+            "value": "matched-org-42",
+            "available_at": "2026-06-04T09:15:00Z",
+        },
+    ],
+}
+#+end_src
+
+For a June 1 prediction, the first value is admissible and the second is not. The example is illustrative; it is not copied output from the current fixture.
+
+One possible builder interface is therefore:
+
+#+begin_src python
+def visible_features(row):
+    prediction_at = parse_time(row["prediction_at"])
+    return [
+        feature
+        for feature in row["features"]
+        if parse_time(feature["available_at"]) <= prediction_at
+    ]
+#+end_src
+
+The current research harness is stricter at the split-planning boundary: if a proposed evaluation row contains a declared feature later than its prediction time, it fails closed instead of silently dropping the value. That behavior is useful during dataset construction because it forces the builder to explain why forbidden data reached the row at all.
+
+Later, a production-style feature service might expose an explicitly point-in-time query API. This book does not claim StarIntel currently provides one unless the relevant upstream interface is separately verified.
+
+*** Labels also have availability times
+
+Labels are often treated as timeless because we know them when building the dataset. That is exactly why they are dangerous.
+
+Suppose a source document is captured on Monday and a review decision is entered on Friday. If Monday's feature table contains a field directly derived from Friday's decision, the model can learn the answer rather than the evidence available when the prediction would have occurred.
+
+For supervised learning, we need to distinguish at least:
+
+#+begin_example
+prediction_at      -- when the model would act
+label_observed_at  -- when the outcome becomes knowable enough to use as a label
+#+end_example
+
+A label can be perfectly legitimate for training even though it occurs after prediction time; many supervised tasks predict future outcomes. What is not legitimate is allowing the future outcome, or a proxy created by that outcome, back into the features.
+
+This is why Project 1's temporal synthetic control is built with a future resolution that perfectly matches the label. The feature is a trap on purpose. A finalized table makes the task look trivial. A point-in-time table removes the unavailable value and exposes the weaker stable signal that actually existed.
+
+*** Feature meaning belongs in the manifest
+
+A column named =entity_count= is not enough documentation. Count what? At what time? Which entity resolution policy? Which graph edges? Which source snapshot? Was the count computed before or after duplicate collapse?
+
+For important derived features, record semantics such as:
+
+- feature name and version;
+- source fields/documents used;
+- point-in-time rule;
+- normalization/tokenization policy;
+- whether the transform is stateless or fit from training data;
+- missing-value behavior;
+- units or category vocabulary where relevant.
+
+The goal is not to make manifests enormous. The goal is to ensure that a feature name does not hide an algorithm whose semantics can drift independently of the experiment record.
+
+This becomes essential in later chapters. "Embedding" without a model revision and input-normalization policy is not a reproducible feature. "Graph degree" without a graph snapshot and edge policy is not a reproducible feature. "Entity match score" without an entity-resolution model/policy is not a reproducible feature.
+
+*** Fit state only after stable record IDs are split
+:PROPERTIES:
+:ID:       4b9e166c-be2b-4a04-b701-9f72b2a67e49
+:END:
+
+A robust sequence is:
+
+#+begin_example
+canonical documents
+      |
+      v
+admissible point-in-time rows
+      |
+      v
+compile dependence groups + choose evaluation split
+      |
+      +---- train record IDs ----> fit feature transforms ----> fit model
+      |
+      +---- test record IDs -----> transform only -----------> evaluate
+#+end_example
+
+The split planner deliberately returns stable record IDs. It does not receive a TF-IDF matrix, a fitted scaler, or labels merely to decide group membership. This keeps the evaluation boundary upstream from learned preprocessing.
+
+Consider text features. The Project 1 leakage controls use a scikit-learn =Pipeline= containing =TfidfVectorizer= and =LogisticRegression=. In each evaluation, the pipeline is fit on the training texts and then applied to the test texts. Scikit-learn's current guidance recommends this pattern because learned preprocessing must not use test data [cite:@sklearn2026pitfalls].
+
+The general rule is broader than scikit-learn:
+
+#+begin_quote
+Anything whose parameters depend on the sample should be treated as fitted state and placed on the training side of the evaluation boundary unless the research design explicitly justifies otherwise.
+#+end_quote
+
+That includes seemingly harmless operations such as choosing a vocabulary from the complete corpus or computing a global mean before splitting.
+
+*** Labels are not features, but proxies can be
+
+Direct target leakage is easy to recognize. If we predict =is_escalated= and include =is_escalated= as a feature, the problem is obvious.
+
+Proxy leakage is harder. Imagine a post-review field named =final_queue= that is almost completely determined by the escalation decision. It may not share the target's name, but if =final_queue= is written only after the decision, it is still future information for a pre-review prediction.
+
+This is why provenance and time metadata belong next to feature semantics. Statistical correlation alone cannot tell us whether a feature is a leak. A very predictive feature might be legitimate. A moderately predictive one might be forbidden because it encodes a later decision.
+
+The first debugging question for a suspiciously powerful feature should therefore be:
+
+#+begin_quote
+How and when could this value have been known?
+#+end_quote
+
+Only after that do we ask whether the model is overfitting it.
+
+*** Missingness can carry process information
+
+Missing values are not always random blanks. A field may be missing because:
+
+- the source did not publish it;
+- our acquisition failed;
+- the parser could not interpret it;
+- the value did not yet exist at prediction time;
+- an analyst did not investigate this case;
+- the value was deliberately withheld by the evaluation protocol.
+
+Those causes are different. Filling them all with one sentinel can erase useful diagnostic information; turning each cause into a feature can also leak workflow state if that workflow happens after prediction time.
+
+Project 1 should therefore preserve a reason for important missingness at the dataset-building layer where practical, then decide whether that reason is admissible as a model feature under the prediction contract.
+
+Again, representation comes before modeling.
+
+*** Reproducible feature code is more than a seed
+
+A fixed =random_state= is useful, but it does not freeze dependency behavior, source data, or preprocessing semantics. Project 1's research harness now has a transitive version lock for the named Python environment: four direct requirements resolve to 24 locked distributions, and the CI verifier compares the installed set against the lock before running the experiments.
+
+That result is TESTED for CPython 3.12.3 on the recorded Linux environment. It is deliberately weaker than a claim of byte-for-byte reproducibility across operating systems or architectures.
+
+For a model experiment, the build record therefore needs multiple kinds of reproducibility data:
+
+| concern | example evidence |
+|---------+------------------|
+| source | snapshot ID + hashes |
+| canonical contract | schema/profile revision |
+| row construction | transform/feature policy version |
+| split | exact record IDs, groups, cutoff, seed |
+| learned preprocessing | estimator/configuration + fitted-from-train rule |
+| environment | interpreter + dependency lock |
+| result | metrics + evaluation manifest |
+
+No single seed replaces those fields.
+
+*** Failure lab -- fit the vectorizer too early
+
+Take a text classification corpus and perform these two procedures.
+
+Procedure A:
+
+1. Fit a vectorizer on every document.
+2. Split the resulting matrix into train and test.
+3. Fit the classifier on train.
+
+Procedure B:
+
+1. Split stable record IDs into train and test.
+2. Fit the vectorizer only on training text.
+3. Transform training and test text using the fitted training vocabulary/statistics.
+4. Fit and evaluate the classifier.
+
+Procedure A has allowed test documents to influence the learned representation before evaluation. Procedure B preserves the boundary. Your exercise does not need to show a large metric difference for the bug to be real; tests should check the information flow, not demand that leakage always improves a score.
+
+*** Exercises
+:PROPERTIES:
+:ID:       4a251bf9-a76d-4d9c-8ee2-7c92da58cbbb
+:END:
+
+**** ★ Timestamp the information
+
+For a hypothetical document observed at noon, list five candidate features. For each, write an =available_at= rule and state whether the feature is admissible for a prediction made at noon. Include at least one later analyst annotation and one source-native field.
+
+**** ★ Distinguish target and proxy leakage
+
+Invent a supervised task and identify one direct target leak plus two plausible proxy leaks. For each proxy, explain what provenance/time evidence you would need before deciding whether it is actually forbidden.
+
+**** ★★ Implement a point-in-time builder
+
+Write a builder that accepts feature values with =available_at= timestamps and a =prediction_at= timestamp. It should either return only admissible values or fail closed when a forbidden value reaches the proposed row; choose one policy and justify it. Test equality at the timestamp boundary and one timezone-aware example.
+
+**** ★★ Test train-only vocabulary fitting
+
+Construct training and test texts where the test set contains a token never seen in training. Verify that a vectorizer fit only on training does not add that token to its learned vocabulary, while the transform call on the test text still succeeds according to the library's defined behavior. Record the actual library/version used.
+
+**** ★★★ Design a historical label
+
+Choose an outcome that becomes known after the prediction time. Define =prediction_at=, =label_observed_at=, censoring/incomplete-outcome behavior, and which post-prediction records must be forbidden from feature construction. Explain how you would build a training cohort without silently treating "not observed yet" as a negative label.
+
+*** Project 1 checkpoint -- features follow the experiment
+
+Project 1 now has the pieces to build a point-in-time feature table honestly: canonical source evidence, explicit feature availability, stable record IDs, a separation between grouping and learned transforms, and a version-locked research environment.
+
+The remaining question is how records should be partitioned when dependence is transitive, duplicates are expensive to compare exhaustively, and historical rules can conflict with grouping. Chapter 5 turns that question into an explicit split specification.
