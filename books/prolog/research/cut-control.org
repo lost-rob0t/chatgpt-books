@@ -1,0 +1,107 @@
+#+title: Chapter 8 Research -- Cut, Scope, and Explicit Commitment
+:PROPERTIES:
+:ID:       59524f0a-7039-42b1-8c43-03343ef24e09
+:END:
+
+* Scope
+Bounded primary-source pass for Chapter 8 / Project 1 milestone 4. This record covers raw cut semantics, scope needed for the teaching examples, the relationship to =once/1=, and the exact repository-local claims tested by the new cut suite.
+
+It does not complete research for negation-as-failure, conditionals/soft-cut in depth, modules, meta-programming, search/optimization, tabling, or constraints.
+
+* Sources inspected
+** SWI-Prolog Reference Manual -- Control Predicates
+- URL :: https://www.swi-prolog.org/pldoc/man?section=control
+- Authority :: official current SWI-Prolog reference documentation.
+- Retrieved :: 2026-09-16.
+- Relevant entries :: =!/0= and surrounding control-predicate scope notes.
+
+DOCUMENTED claims used in Chapter 8:
+- =!/0= is an ISO control predicate.
+- Cut discards choice points created since entering the predicate in which the cut appears; equivalently it commits to the current clause and choices made by goals to the left of the cut in the current clause.
+- Meta-calling is opaque to cut; the manual documents separate transparency/opacity behavior for compound control constructs and their condition positions.
+- These scope rules are why the manuscript avoids the slogan “cut stops backtracking” unless it immediately identifies which alternatives and scope are meant.
+
+** SWI-Prolog Reference Manual -- =once/1=
+- URL :: https://www.swi-prolog.org/pldoc/doc_for?object=once/1
+- Authority :: official current SWI-Prolog documentation.
+- Retrieved :: 2026-09-16.
+- Relevant to :: comparison between the accepted =first_connection_path/3= wrapper and the new direct-cut teaching wrapper.
+
+DOCUMENTED claim used in Chapter 8:
+- =once/1= limits a goal to at most its first solution and packages the commitment inside the meta-predicate boundary. The chapter does not claim that arbitrary raw-cut rewrites are context-free equivalents; surrounding scope matters.
+
+* Repository-local derivation
+The accepted Project 1 graph currently contains:
+
+#+begin_src prolog
+follows(ada, lina).
+follows(ada, noor).
+follows(lina, noor).
+follows(lina, ben).
+follows(noor, ada).
+follows(noor, ben).
+follows(ben, sam).
+#+end_src
+
+The already-tested =connection_path/3= relation enumerates simple directed paths using explicit branch-local visited state. Chapter 7 then derives =connection_with_hops/4= and =connection_within_hops/5= without changing the path generator.
+
+For =ada -> sam=, current depth-first clause/fact order produces these path proofs:
+
+#+begin_example
+[ada,lina,noor,ben,sam]  % 4 hops
+[ada,lina,ben,sam]       % 3 hops
+[ada,noor,ben,sam]       % 3 hops
+#+end_example
+
+The Chapter 8 implementation uses that fixture to distinguish two control placements:
+
+#+begin_src prolog
+first_connection_within_hops(Start, Goal, Limit, Path, Hops) :-
+    connection_within_hops(Start, Goal, Limit, Path, Hops),
+    !.
+#+end_src
+
+versus the deliberately broken test-local helper:
+
+#+begin_src prolog
+premature_cut_connection_within_hops(Start, Goal, Limit, Path, Hops) :-
+    connection_with_hops(Start, Goal, Path, Hops),
+    !,
+    Hops =< Limit.
+#+end_src
+
+With limit =3=, the first form can reject the initial four-hop candidate before commitment and reach a later three-hop path. The second form commits to the four-hop candidate before the arithmetic test; when the test fails, the later valid paths have already been pruned.
+
+This is a repository-local TESTED behavior target, not a general benchmark or performance result.
+
+* Claim status
+** DOCUMENTED
+- current SWI =!/0= cut semantics and scope description;
+- current SWI =once/1= first-solution commitment behavior;
+- SWI's documented warning that scope differs through meta/control contexts, which is why the book avoids universal textual cut-rewrite rules.
+
+** TESTED once exact-head CI is green
+- direct =first_connection_path_cut/3= and the accepted =once/1=-based wrapper return the same first path on the fixed synthetic fixture;
+- =connection_within_hops/5= retains all acceptable =ada -> sam= answers at limit 3;
+- =first_connection_within_hops/5= commits only after qualification and returns exactly one accepted answer;
+- the test-local premature-cut helper fails on =ada -> sam= limit 3 despite later acceptable paths;
+- first-acceptable at limit 4 is the four-hop first proof even though later three-hop proofs exist, proving that the wrapper is not shortest-path search;
+- a cut inside the called wrapper does not remove a caller's later clause.
+
+Until CI executes the new suite, these implementation items remain UNTESTED draft expectations rather than results.
+
+** UNTESTED / OUT OF SCOPE
+- portability of all raw-cut scope details to non-SWI implementations beyond the ISO-level fact that =!/0= is standardized;
+- performance claims for cut versus =once/1=;
+- optimizer/indexing effects;
+- semantics of complex nested cut through every control construct;
+- negation-as-failure, soft-cut design, tabling interaction, or meta-interpreter handling;
+- shortest-path or optimal-search guarantees.
+
+* Teaching consequences
+1. Introduce cut only after the reader already understands multiple proofs and choice points.
+2. Keep the base path/filter relation nondeterministic; place commitment in visibly named wrappers.
+3. Derive “qualify, then cut” from a real failure case rather than presenting a style slogan.
+4. Test the complete relation and committed view separately.
+5. Make search-order dependence explicit. A first result is not automatically a best result.
+6. Defer negation and deeper conditional control to their own chapters so cut is not bundled with unrelated operational tricks.
