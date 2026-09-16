@@ -1,0 +1,527 @@
+** Chapter 13 -- Testing Concurrent Lisp Without Lying to Yourself
+:PROPERTIES:
+:ID:       59b0d688-78cb-4867-b6fa-3fae13560c82
+:END:
+
+By now our router has crossed four different boundaries.
+
+1. Project 1 is a pure function over explicit BEAM terms.
+2. Project 2 puts that function behind a raw process and a home-grown message
+   protocol.
+3. Project 3 moves the generic server loop into =gen_server= callbacks.
+4. Chapter 12 gives the server a supervisor and an explicit restart policy.
+
+A weak testing chapter would now introduce a test framework, show three macros,
+and declare victory. That would miss the hard part.
+
+The hard part is deciding *what kind of fact each test is allowed to establish*.
+A pure routing test can establish a deterministic mapping from an event and rule
+list to a result. A server test can establish a request/state transition. A
+supervision test can establish that a particular failure causes a particular
+replacement policy. None of those facts, by itself, establishes production
+availability, durable recovery, distributed correctness, or useful performance.
+
+So this chapter is about test architecture before it is about syntax.
+
+*** Start with the semantic boundary, not the framework
+
+The Event Routing project has a useful property: its domain semantics do not
+need a process.
+
+#+begin_example
+Event + Rules
+    |
+    v
+ event-rules:route/2
+    |
+    v
+Result
+#+end_example
+
+That means the cheapest, most deterministic tests belong at that layer. If a
+=critical= event with a matching =when-level= rule returns the wrong
+destination, starting an OTP application to discover the bug only adds noise.
+
+Once the pure kernel is trusted, process tests should ask process-shaped
+questions:
+
+- Is state owned by the intended process?
+- Does replacing state affect the next request?
+- Is a bad domain request rejected without killing the server?
+- Does a timeout have the documented caller-side failure shape?
+
+Supervision tests should then ask lifecycle-shaped questions:
+
+- Did the old worker actually die?
+- Did a distinct replacement process appear?
+- Which state did the replacement receive?
+- What happens after the restart budget is exhausted?
+
+This gives us a rule for the whole book:
+
+#+begin_quote
+Test the smallest boundary that owns the claim.
+#+end_quote
+
+That rule keeps a concurrency bug from being hidden inside a giant end-to-end
+scenario, and it keeps a pure function from being tested through five layers of
+process plumbing for no reason.
+
+*** EUnit can test LFE because the VM boundary is ordinary BEAM
+
+EUnit is Erlang/OTP's lightweight unit-testing framework. Its current guide
+describes test functions, test generators, test objects represented as data,
+fixtures, assertions, and separate =*_tests= modules. [cite:@erlang-eunit-29]
+
+Notice what that description does *not* require: it does not require the code
+under test to have been written in Erlang source syntax.
+
+Our =otp-router= module is written in LFE, but after compilation the public
+boundary is a BEAM module exporting ordinary functions. An Erlang test can call:
+
+#+begin_src erlang
+{ok, pager} = 'otp-router':route(Event, 1000).
+#+end_src
+
+That is the same reason an Erlang module could call our LFE code in Chapter 8.
+Testing does not need a language-specific adapter when the runtime contract is
+already shared.
+
+Tagged LFE v2.2.2 goes further: its own test sources import
+=eunit/include/eunit.hrl= with LFE's =include-lib= form and define helper macros
+that expand to EUnit assertions. [cite:@lfe-ltest-macros-v2-2-2] So writing the
+tests themselves in LFE is also a valid choice.
+
+For this checkpoint we intentionally put the new EUnit contract suite in a
+separate Erlang module. That choice makes the interop boundary visible and keeps
+the lesson focused on *testing the LFE service as a BEAM service*. It is not an
+argument that Erlang is a superior testing language.
+
+*** A test that merely runs is not yet an oracle
+
+EUnit treats a simple test as successful when it returns normally and as failed
+when it raises. The current guide explicitly warns that merely computing a
+value does not make EUnit guess whether the value is right. [cite:@erlang-eunit-29]
+
+This is a bad test:
+
+#+begin_src erlang
+route_test() ->
+    'otp-router':route(Event, 1000).
+#+end_src
+
+It proves little more than “this call did not crash.” If the router returned
+={ok, toaster}=, the test would still return normally.
+
+The contract needs an oracle:
+
+#+begin_src erlang
+?assertEqual({ok, pager},
+             'otp-router':route(Event, 1000)).
+#+end_src
+
+The same principle applies to failure tests. Printing an exit reason and asking
+a human to recognize it is a debugging aid. Pattern-matching the intended exit
+reason is a regression oracle.
+
+We used that distinction before this chapter without naming it. The direct
+Erlang failure harness from Chapter 12 does not print “worker probably died.” It
+monitors the worker and requires the corresponding =DOWN= reason. It does not
+print “maybe the supervisor restarted it.” It waits for a different PID.
+
+Tests become useful when the observation is precise enough to fail.
+
+*** The hidden state in a test suite is often the test suite itself
+
+Our OTP Router is locally registered as ='otp-router'=. That is convenient for
+client examples, but it creates a testing hazard.
+
+Imagine three tests executed in sequence:
+
+1. test A starts the router, changes its rules, and fails before cleanup;
+2. test B tries to start a router and gets =already_started=;
+3. test C accidentally talks to A's leaked process and observes A's mutated
+   rules.
+
+At that point the test suite has become a stateful distributed system whose
+protocol nobody designed.
+
+EUnit fixtures exist to control exactly this kind of setup and teardown. The
+current EUnit test representation supports =setup= and =foreach= forms; a
+=foreach= fixture repeats setup and cleanup for each contained test set.
+[cite:@erlang-eunit-29]
+
+Project 3 checkpoint B uses that structure conceptually like this:
+
+#+begin_src erlang
+router_contracts_test_() ->
+    {foreach,
+     fun setup_router/0,
+     fun cleanup_router/1,
+     [fun(State) -> ?_test(route_contract(State)) end,
+      fun(State) -> ?_test(state_transition_contract(State)) end,
+      fun(State) -> ?_test(domain_error_contract(State)) end]}.
+#+end_src
+
+Each contract gets a new server. Cleanup runs after the contract and removes the
+registered process before the next case begins.
+
+This is more important than the assertion macro syntax. A correct assertion
+against contaminated state is still a bad test.
+
+*** Why the fixture unlinks the server
+
+=otp-router:start_link/1= does what its name says: it links the new server to
+the caller. During normal application startup, that relationship is part of the
+lifecycle design.
+
+A test fixture has a different job. We want the fixture to own cleanup, but we
+do not want an unexpected server exit to kill the fixture controller before it
+can report the assertion context. The setup therefore removes that test-only
+link after a successful start:
+
+#+begin_src erlang
+{ok, Pid} = 'otp-router':start_link(Rules),
+unlink(Pid).
+#+end_src
+
+That does *not* change the production module. It changes the test harness's
+relationship to the process it created.
+
+The distinction is worth making explicit because test harnesses often create
+accidental semantics. If you trap exits, unlink processes, replace clocks, or
+inject fake dependencies in a test, write down which production relationship
+you have changed and why the test is still valid.
+
+*** Contract 1: behavior and visible state agree
+
+The first EUnit contract asks two related questions:
+
+#+begin_src erlang
+?assertEqual({ok, pager},
+             'otp-router':route(Event, 1000)),
+?assertEqual(Rules,
+             sys:get_state('otp-router')).
+#+end_src
+
+The first assertion observes the public domain API. The second observes the
+callback state through OTP's system-message/debugging boundary.
+
+Current =sys= documentation describes state inspection and other debugging
+operations for behaviour processes. [cite:@erlang-sys-29] The two observations
+are useful together:
+
+- if routing is wrong but state is right, inspect the callback/kernel path;
+- if state is wrong before routing, inspect initialization or a prior
+  transition;
+- if both are wrong in the same way, inspect the fixture/input assumptions.
+
+Do not read more into =sys:get_state/1=. Chapter 12 already established that
+seeing process-local state does not make that state durable.
+
+*** Contract 2: test the transition, not an implementation detail
+
+The state-transition contract replaces the rule set and then asks what the
+service does:
+
+#+begin_src erlang
+NewRules = [{otherwise, sink}],
+?assertEqual({ok, replaced},
+             'otp-router':'replace-rules'(NewRules, 1000)),
+?assertEqual({ok, NewRules},
+             'otp-router':'get-rules'(1000)),
+?assertEqual({ok, sink},
+             'otp-router':route(Event, 1000)).
+#+end_src
+
+There are three claims here:
+
+1. the command was acknowledged;
+2. the service reports the new state;
+3. the new state changes subsequent domain behavior.
+
+We do *not* assert which receive-loop function is on the stack, which internal
+message tag =gen_server= used, or how many scheduler reductions occurred.
+Those facts are not part of the Project 3 contract.
+
+A regression test should freeze behavior you intend to preserve. Freezing an
+incidental implementation detail turns refactoring into archaeological work.
+
+*** Contract 3: domain rejection is not process failure
+
+The final EUnit contract keeps one distinction from Chapter 11 executable:
+
+#+begin_src erlang
+?assertEqual({error, {'bad-request', wat}},
+             'otp-router':request(wat, 1000)).
+#+end_src
+
+An unknown *representable* request is a domain/protocol rejection. The callback
+returns a tagged value and keeps running. A callback invariant violation or our
+explicit crash injection belongs to a different failure class.
+
+This test matters because “let it crash” can become an excuse to erase useful
+error semantics. Testing the tagged rejection protects the intended boundary.
+
+*** Deterministic failure injection beats scheduler astrology
+
+Concurrent code tempts people into tests that look like this:
+
+#+begin_example
+send message
+sleep 50 ms
+hope something happened
+peek at state
+#+end_example
+
+Sometimes a sleep is unavoidable at an external boundary. It should not be the
+first design tool.
+
+Project 3 already contains a better example. To test =gen_server:call/3=
+timeout behavior, the direct Erlang harness uses =sys:suspend/1=. Current =sys=
+documentation states that a suspended behaviour process continues handling
+system messages while ordinary message processing is suspended.
+[cite:@erlang-sys-29]
+
+That lets the test create the condition it needs:
+
+#+begin_example
+server running
+    |
+    v
+sys:suspend
+    |
+    v
+ordinary call cannot be handled
+    |
+    v
+bounded call times out
+    |
+    v
+sys:resume
+    |
+    v
+same process remains alive
+#+end_example
+
+The test is about a timeout contract, not about guessing whether the scheduler
+will delay a process for 20 milliseconds on a particular CI host.
+
+The timeout value is deliberately small because the condition is controlled.
+It is *not* a production timeout recommendation.
+
+*** Supervision needs scenario tests because lifecycle is the behavior
+
+The EUnit contracts stop at the server boundary. The existing direct Erlang
+harness keeps the more stateful supervision scenarios explicit.
+
+That is intentional.
+
+For the restart-versus-recovery lab, the harness:
+
+1. starts the supervisor with =critical -> pager= rules;
+2. mutates the live worker to =otherwise -> sink=;
+3. proves the mutation affects routing;
+4. monitors the current worker;
+5. injects a controlled crash;
+6. requires a =DOWN= message with the chosen reason;
+7. waits for a different registered PID;
+8. proves the replacement again routes =critical -> pager=.
+
+The scenario is larger than a unit assertion because the lifecycle *is* the
+thing under test. Hiding it behind enough helper macros to make it look like a
+one-line unit test would make the chapter worse.
+
+The restart-intensity scenario is similar. It deliberately exceeds a tiny
+configured budget and requires the supervisor itself to terminate with
+=shutdown=. We keep the budget tiny because it is a deterministic teaching
+fixture, not because production systems should all use that number.
+
+*** Test logs are evidence, but only for the run that produced them
+
+A green CI line is useful evidence. It is not a transferable property of every
+future commit.
+
+Suppose branch head =A= passed all tests. Then you reconcile with a changed
+=main= and produce head =B=. The old run proves something about =A=, not =B=.
+Even if the LFE files did not visibly change, dependency or publishing changes
+can alter the integrated result.
+
+That is why this repository records exact branch heads and reruns focused gates
+before editorial handoff. The habit generalizes beyond books:
+
+#+begin_example
+claim
+  + exact source revision
+  + exact environment/dependency boundary
+  + exact executable observation
+  = reproducible evidence
+#+end_example
+
+Without those qualifiers, “tested” turns into folklore surprisingly quickly.
+
+*** Unit, integration, system: use the names to communicate scope
+
+The current EUnit guide distinguishes unit, regression, integration, and system
+testing. [cite:@erlang-eunit-29] The labels are useful if we use them to tell a
+reader what environment a failure implicates.
+
+For this project:
+
+| Layer | Current example | Main claim |
+|-------+-----------------+------------|
+| Pure regression | =event-rules= suite | rule semantics |
+| Service contract | LFE harness + EUnit fixture | callback/API state transitions |
+| Interop | direct Erlang client | compiled LFE is an ordinary BEAM boundary |
+| Failure scenario | timeout/restart/intensity harness | lifecycle semantics |
+| Publication gate | Org/Pandoc/EPUB/Nix checks | teaching artifact remains buildable |
+
+A single framework does not need to own every row.
+
+That last sentence matters. Test-framework maximalism is not architecture.
+
+#+caption: Chapter 13 tests the smallest boundary that owns each claim. Pure routing semantics sit below the OTP service contract; EUnit isolates service cases; direct failure scenarios exercise lifecycle semantics; publication gates validate the book artifact without pretending to test production availability.
+#+attr_html: :alt A layered diagram with pure event-rules at the bottom, the LFE OTP router above it, EUnit fixture contracts and direct Erlang failure scenarios beside the service boundary, supervision above the worker, and separate book publication gates. Arrows label which claims each test layer observes.
+[[file:assets/testing-layers.svg]]
+
+*** Where Common Test belongs
+
+EUnit can represent surprisingly sophisticated test sets, but that does not mean
+we should make it the only tool in the book.
+
+Current Common Test documentation provides suite callbacks, per-suite and
+per-testcase lifecycle hooks, configuration, logging, protocol helpers, and
+support for larger system/distributed test runs. [cite:@erlang-common-test-29]
+OTP 29 also includes =ct_doctest= for checking documentation examples.
+[cite:@erlang-common-test-api-29]
+
+Project 3 still has one local supervisor and one worker. Adding a Common Test
+suite *right now* would mostly duplicate existing coverage while teaching more
+framework vocabulary than system design.
+
+Project 4 is different. A supervised distributed workflow will have:
+
+- multiple nodes;
+- node startup/shutdown configuration;
+- cross-node failure cases;
+- eventually release/application boundaries;
+- logs that need to survive a failed testcase.
+
+That is a real reason to introduce Common Test. We defer it until the system has
+the shape the framework is good at managing.
+
+The lesson is not “EUnit first, Common Test later” as a universal law. The
+lesson is to choose tooling after naming the boundary you need to control.
+
+*** =sys= and tracing are debugging tools, not replacement specifications
+
+A failing assertion tells you *that* the contract was violated. It may not tell
+you why.
+
+For OTP behaviours, =sys= gives us a standard debugging boundary. Current
+documentation includes state inspection, suspend/resume, statistics, and trace
+operations for system events. [cite:@erlang-sys-29]
+
+OTP also exposes lower-level runtime trace points for calls, sends/receives,
+garbage collection, and scheduling; current trace documentation recommends
+higher-level tooling such as =dbg= for debugging and =tprof= for profiling.
+[cite:@erlang-trace-29]
+
+That suggests a disciplined debugging sequence:
+
+1. reproduce the smallest failing contract;
+2. inspect the process identity and relevant state;
+3. add =sys= or trace observation around the failing boundary;
+4. identify which assumption became false;
+5. repair the implementation or the specification;
+6. keep the smallest regression that would catch the bug again;
+7. remove diagnostic noise that is not part of the permanent oracle.
+
+Do not reverse the sequence and start with a firehose of scheduler traces.
+Observability is useful when it answers a question.
+
+*** Failure lab: make the suite contaminate itself
+
+This lab is intentionally local; do it on a throwaway working tree.
+
+1. Remove the EUnit fixture cleanup.
+2. Add a deliberate assertion failure after =replace-rules=.
+3. Run the EUnit suite.
+4. Run it again without restarting the VM if your harness permits it, or add a
+   second test in the same VM that tries to start the registered router.
+5. Observe which failure is the original bug and which failure is test-state
+   contamination.
+6. Restore cleanup and rerun.
+
+The point is not that EUnit is dangerous. The point is that a process registry
+is global mutable state from the test suite's point of view. Fixtures make that
+ownership visible.
+
+*** Failure lab: write an assertion about the wrong layer
+
+Add a test that asserts the worker PID is identical before and after an
+intentional supervised crash.
+
+It should fail, because replacement is the supervisor contract.
+
+Now ask why the assertion seemed tempting. Perhaps the code used a registered
+name and the name made the service *look* stable. The stable name is a lookup
+boundary; the PID is process identity. Chapter 12 separated those concepts.
+A good test should preserve the separation, not erase it.
+
+*** Project 3 checkpoint B: the test architecture
+
+The executable Project 3 directory now has three complementary gates:
+
+- =otp-router-tests.lfe= checks the callback/service API from LFE;
+- =otp_router_eunit_tests.erl= uses standard EUnit fixtures/assertions against
+  the compiled LFE service;
+- =otp_router_interop_tests.erl= keeps cross-language timeout and supervision
+  failure scenarios explicit.
+
+The shell runner compiles the same LFE callback modules once, compiles the
+Erlang test modules, then runs all three gates in the same project checkpoint.
+The repository workflow additionally reruns Projects 1 and 2, validates the
+teaching diagrams, builds/checks the EPUB, and runs its Nix gate.
+
+This does not make the project “production tested.” It makes the current
+teaching contracts reproducibly testable at their declared boundaries.
+
+*** Exercises
+
+1. ★ Classify each existing Project 3 check as pure regression, service
+   contract, interoperability, failure scenario, or publication gate. Explain
+   one claim that each check *cannot* establish.
+2. ★ Explain why an EUnit test that returns ={ok, toaster}= without an assertion
+   can still pass.
+3. ★★ Add a new EUnit contract for a read-only =get-rules= request. Use the
+   existing fixture; do not add sleeps.
+4. ★★ Modify the fixture so cleanup verifies the registered name is gone before
+   returning. Explain why cleanup itself deserves a bounded wait rather than an
+   unbounded receive.
+5. ★★ Write the smallest regression for “bad request does not mutate state.”
+   Decide whether the pure kernel, service layer, or supervisor owns the claim.
+6. ★★★ Design a test for two concurrent callers that does *not* assume a global
+   mailbox FIFO order. State the ordering guarantee you actually need.
+7. ★★★ Design a Common Test boundary for Project 4 with two distributed nodes.
+   List what belongs in =init_per_suite=, =init_per_testcase=, and cleanup. Do
+   not implement distribution yet.
+8. ★★★ Take one deliberate failure from Chapters 9--12 and write a debugging
+   plan that starts from a failing oracle, adds one =sys= or trace observation,
+   and ends with a smaller permanent regression.
+
+*** What we still have not tested
+
+The next chapters cross boundaries that this checkpoint intentionally does not.
+We still have no =.app= resource, application callback, release assembly, boot
+script, distributed-node topology, persistent state store, upgrade procedure, or
+production tracing/telemetry policy.
+
+Those are not omissions to hide. They are the next dependency boundaries.
+Chapter 14 will package the code as an actual application/release and test that
+artifact. Chapter 15 will finally give Project 4 enough distributed shape to
+justify system-level tooling and failure injection across nodes.
+
+For now, the important result is smaller and more useful: we know how to state a
+claim, choose the boundary that owns it, create deterministic conditions, and
+make the test fail when the contract stops being true.
