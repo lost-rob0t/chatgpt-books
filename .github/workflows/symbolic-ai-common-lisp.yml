@@ -43,10 +43,10 @@ jobs:
             --eval '(asdf:load-asd (truename "books/symbolic-ai-common-lisp/code/search/symbolic-ai-search.asd"))' \
             --eval '(asdf:test-system "symbolic-ai-search/tests")'
 
-      - name: Repository structural validation
-        run: ./tools/check-structure
-
       - name: Build and validate Symbolic AI in Common Lisp
         env:
           EPUBCHECK_JAR: .cache/epubcheck-5.3.0/epubcheck.jar
         run: make check BOOK=symbolic-ai-common-lisp
+
+      - name: Repository structural validation
+        run: ./tools/check-structure
