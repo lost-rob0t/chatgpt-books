@@ -93,7 +93,7 @@ test(field_service_plan_has_concrete_provenance_steps) :-
             ],
             States)),
         Trace),
-    assertion(States = [_, _, _, Final]),
+    States = [_, _, _, Final],
     assertion(memberchk(restored(node7), Final)),
     assertion(memberchk(installed(node7, psu42), Final)),
     assertion(\+ memberchk(failed(node7), Final)),
