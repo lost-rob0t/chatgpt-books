@@ -19,10 +19,11 @@ Every research pass records:
 - [[file:foundation-and-rlm-baseline.org][Foundation and RLM baseline research pass]] -- current SWI stable/source semantics required by Chapters 1--3, primary RLM paper boundary, and read-only =prolog-rlm= source snapshot =51d2530f0e18c84cff860b7c0bf3afcc3c488057=.
 - [[file:control-modules-debugging.org][Control, modules, debugging, and testing research pass]] -- current SWI control semantics, module/import boundary, debugger trace vocabulary, and PL-Unit multi-answer assertions for Chapters 4--5 / Project 1 milestone B.
 - [[file:dcg-task-language.org][DCG task-language research pass]] -- current SWI DCG expansion model, =phrase/[2,3]= complete/prefix parsing contracts, token-list representation, DCG escape-goal boundary, and the closed AST/dispatcher design for Chapter 6 / Project 1 milestone C.
+- [[file:clpfd-scheduling.org][CLP(FD) scheduling research pass]] -- current SWI finite-domain membership, constraint-posting versus labeling/search boundary, objective ordering, reification, and a derived single-resource Project 1 scheduling worksheet for milestone D.  The accompanying 2012 solver paper is historical/implementation context; its performance results remain UPSTREAM-REPORTED here.
 
 * Priority queues
 ** Prolog foundation
-CLP(FD), bounded meta-call/reflection, resource limits, and safe term parsing/serialization remain open after the Chapter 6 DCG pass. The DCG pass is DOCUMENTED from current official sources; its Project 1 behavior becomes TESTED only after the authored branch suite actually executes.
+Milestone D now covers the Project 1 CLP(FD) scheduling subproblem at the research/design level.  Bounded meta-call/reflection, resource limits, and safe term parsing/serialization remain open after it.  Project-specific scheduling behavior becomes TESTED only after the exact authored branch suite executes.
 
 ** LLM integration boundary
 Current structured-output/schema mechanisms, tool/function calling, streaming/partial result behavior, cancellation/timeouts, deterministic fixture strategies, provider/version identification, and safe treatment of model output as untrusted data.
@@ -39,4 +40,4 @@ Methods for comparing direct generation, retrieval augmentation, symbolic verifi
 - =../references.bib= -- bibliographic metadata promoted only after verification.
 
 * Current state
-DOCUMENTED research now supports the standalone Chapters 1--6 semantics through the DCG parser boundary and records the exact =prolog-rlm= source snapshot used as future capstone context. Project-specific TESTED status is recorded only after the SWI-Prolog suite runs on the authored branch. Provider behavior, neuro-symbolic benchmark claims, live RLM results, CLP(FD), and later meta-programming remain untested in this book.
+DOCUMENTED research now supports the standalone Chapters 1--6 semantics through the DCG parser boundary and the CLP(FD) scheduling/search/reification teaching slice, while retaining the exact =prolog-rlm= source snapshot as future capstone context. Project-specific TESTED status is recorded only after the SWI-Prolog suite runs on the authored branch. Provider behavior, neuro-symbolic benchmark claims, live RLM results, and later meta-programming remain untested in this book.
