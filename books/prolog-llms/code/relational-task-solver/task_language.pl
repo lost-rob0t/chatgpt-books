@@ -39,7 +39,12 @@ parse_task_command_prefix(Tokens, Command, Rest) :-
 
 token_list(Tokens) :-
     must_be(list, Tokens),
-    maplist(must_be(atom), Tokens).
+    atom_tokens(Tokens).
+
+atom_tokens([]).
+atom_tokens([Token|Rest]) :-
+    must_be(atom, Token),
+    atom_tokens(Rest).
 
 % Closed grammar.  The output is data, not a callable goal.
 task_command(tasks(owner(Owner))) -->
