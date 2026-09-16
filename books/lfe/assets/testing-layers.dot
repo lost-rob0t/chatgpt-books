@@ -1,0 +1,27 @@
+digraph lfe_testing_layers {
+  graph [rankdir=BT, bgcolor="transparent", pad="0.2", nodesep="0.45", ranksep="0.65"];
+  node [shape=box, fontname="sans-serif", fontsize=11];
+  edge [fontname="sans-serif", fontsize=10];
+
+  kernel [label="Project 1\nevent-rules:route/2\npure semantics", shape=component];
+  service [label="Project 3\notp-router gen_server\ncallback + process state", shape=box3d];
+  supervisor [label="otp-router-sup\nlifecycle policy", shape=folder];
+  eunit [label="EUnit fixture contracts\nfresh server per case"];
+  scenario [label="direct Erlang failure scenarios\ntimeout / restart / intensity"];
+  publication [label="book gates\nOrg / diagrams / EPUB / Nix", shape=note];
+
+  kernel -> service [label="domain result used by callback"];
+  service -> supervisor [label="worker lifecycle"];
+  eunit -> service [label="assert API + state transitions", dir=back];
+  scenario -> service [label="control / observe failures", dir=back];
+  scenario -> supervisor [label="observe replacement / escalation", dir=back];
+  publication -> kernel [label="separate artifact gate", style=dashed, dir=none];
+  publication -> service [style=dashed, dir=none];
+
+  claim1 [label="claim: rule semantics", shape=plaintext];
+  claim2 [label="claim: service contract", shape=plaintext];
+  claim3 [label="claim: lifecycle semantics", shape=plaintext];
+  kernel -> claim1 [style=dotted, dir=none];
+  eunit -> claim2 [style=dotted, dir=none];
+  scenario -> claim3 [style=dotted, dir=none];
+}
