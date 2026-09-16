@@ -10,6 +10,10 @@ BAD_LOG="$PROJECT/.bad-rules.log"
 command -v lfec >/dev/null || { echo "lfec is required" >&2; exit 2; }
 command -v erl >/dev/null || { echo "erl is required" >&2; exit 2; }
 
+LFE_BIN="$(dirname "$(command -v lfec)")"
+LFE_EBIN="$(cd "$LFE_BIN/../ebin" && pwd)"
+[[ -d "$LFE_EBIN" ]] || { echo "unable to locate LFE ebin beside lfec" >&2; exit 2; }
+
 rm -rf "$BUILD" "$BAD_BUILD" "$BAD_LOG"
 mkdir -p "$BUILD" "$BAD_BUILD"
 trap 'rm -rf "$BAD_BUILD" "$BAD_LOG"' EXIT
@@ -23,7 +27,11 @@ lfec -pa "$BUILD" -o "$BUILD" \
   "$PROJECT/src/event-rules-example.lfe" \
   "$PROJECT/test/event-rules-tests.lfe"
 
-erl -pa "$BUILD" -noshell -eval '
+# The regression module invokes lfe_macro directly to inspect one expansion
+# step, so the pinned LFE runtime modules must be present alongside the project
+# beams. The production router itself has no LFE-runtime dependency beyond its
+# normally compiled BEAM code.
+erl -pa "$LFE_EBIN" -pa "$BUILD" -noshell -eval '
   case '\''event-rules-tests'\'':run() of
     ok -> halt(0);
     Other -> io:format("LFE test module returned ~p~n", [Other]), halt(1)
