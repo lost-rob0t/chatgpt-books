@@ -274,11 +274,19 @@ fixed for the lifetime of this milestone-C network."
           (values fact present-p)))))
 
 (defun incremental-fire-activation (network activation)
-  "Fire ACTIVATION through ENGINE, then propagate only its newly asserted entries."
-  (multiple-value-bind (record new-entries)
-      (fire-activation (incremental-network-engine network) activation)
-    (dolist (entry new-entries)
-      (incremental-network-propagate-entry network entry))
+  "Fire ACTIVATION through ENGINE and propagate only entries created by the firing.
+
+FIRE-ACTIVATION remains the single mutation/refraction/firing-record authority.
+The wrapper observes the monotonic working-memory sequence before the call and
+propagates entries whose sequence is newer afterwards, avoiding a second firing
+implementation."
+  (let* ((engine (incremental-network-engine network))
+         (memory (engine-working-memory engine))
+         (before (working-memory-next-sequence memory))
+         (record (fire-activation engine activation)))
+    (dolist (entry (working-memory-entries memory))
+      (when (> (wm-entry-sequence entry) before)
+        (incremental-network-propagate-entry network entry)))
     record))
 
 (defun run-incremental-engine (network &key (firing-limit 100))
