@@ -74,6 +74,19 @@ jobs:
             --eval '(asdf:load-asd (truename "books/symbolic-ai-common-lisp/code/planner/symbolic-ai-planner.asd"))' \
             --eval '(asdf:test-system "symbolic-ai-planner/tests")'
 
+      - name: Production Rule System executable tests
+        run: sbcl --script books/symbolic-ai-common-lisp/code/rules/run-tests.lisp
+
+      - name: Production Rule System ASDF test operation
+        shell: bash
+        run: |
+          set -euo pipefail
+          sbcl --noinform --non-interactive \
+            --eval '(require :asdf)' \
+            --eval '(asdf:load-asd (truename "books/symbolic-ai-common-lisp/code/pattern-unify/symbolic-ai-pattern.asd"))' \
+            --eval '(asdf:load-asd (truename "books/symbolic-ai-common-lisp/code/rules/symbolic-ai-rules.asd"))' \
+            --eval '(asdf:test-system "symbolic-ai-rules/tests")'
+
       - name: Formal Reasoning Workbench executable tests
         run: sbcl --script books/symbolic-ai-common-lisp/code/formal/run-tests.lisp
 
@@ -95,13 +108,14 @@ jobs:
           dot -Tsvg books/symbolic-ai-common-lisp/assets/unification-worklist.dot >/dev/null
           dot -Tsvg books/symbolic-ai-common-lisp/assets/planner-state-space.dot >/dev/null
           dot -Tsvg books/symbolic-ai-common-lisp/assets/planner-heuristic-explanation.dot >/dev/null
+          dot -Tsvg books/symbolic-ai-common-lisp/assets/rule-match-agenda-cycle.dot >/dev/null
           dot -Tsvg books/symbolic-ai-common-lisp/assets/formal-verification-flow.dot >/dev/null
 
       - name: Validate focused draft citations and Org parsing
         shell: bash
         run: |
           set -euo pipefail
-          for draft in formal-methods pattern-unification unification-validation planning heuristics; do
+          for draft in formal-methods pattern-unification unification-validation planning heuristics production-systems; do
             pandoc "books/symbolic-ai-common-lisp/manuscript/${draft}.org" \
               --from=org \
               --to=html5 \
@@ -116,7 +130,7 @@ jobs:
       - name: Build Symbolic AI in Common Lisp
         run: make book BOOK=symbolic-ai-common-lisp
 
-      - name: Verify formal, planner, and heuristic chapters are in the EPUB
+      - name: Verify formal, planner, heuristic, and rule chapters are in the EPUB
         shell: bash
         run: |
           set -euo pipefail
@@ -134,6 +148,7 @@ jobs:
               "A formal system is language plus rules",
               "Planning Is Search over Meaningful Actions",
               "Planning Heuristics and Checked Explanation",
+              "Production Systems: Working Memory, Joins, and Agenda",
           ):
               if needle not in rendered:
                   raise SystemExit(f"published EPUB is missing included content: {needle!r}")
