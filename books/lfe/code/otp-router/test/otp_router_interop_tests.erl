@@ -31,7 +31,7 @@ supervised_restart() ->
     {ok, Sup} = 'otp-router-sup':start_link(Rules),
     unlink(Sup),
     Old = whereis('otp-router'),
-    {ok, replaced} = 'otp-router':replace-rules([{otherwise, sink}], 1000),
+    {ok, replaced} = 'otp-router':'replace-rules'([{otherwise, sink}], 1000),
     {ok, sink} = 'otp-router':route(Event, 1000),
     DownRef = erlang:monitor(process, Old),
     ok = 'otp-router':crash(boom),
