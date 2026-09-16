@@ -18,20 +18,21 @@ Foundational research + progressive chapter/project drafting. Project 1 checkpoi
 * Active research and drafting
 - OTP pass 03 is DOCUMENTED from official Erlang/OTP =OTP-29.0.6= tagged sources for design principles, =gen_server=, and =supervisor= plus the official 29.0.6 patch metadata.
 - Chapters 10--12 draft the generic-behaviour/callback split, =call=/=cast= semantics, OTP 24+ late-reply alias behavior, system-message introspection, supervisor child specs/strategies/restart intensity, and restart-versus-state-recovery boundaries.
-- Project 2 checkpoint A adds an =otp_worker= =gen_server=, one-child =one_for_one= supervisor, deliberate slow/crash paths, standard =sys= introspection, and focused EUnit regressions. Until exact-head CI completes, this implementation is UNTESTED by repository automation and must not be described as TESTED.
+- Project 2 checkpoint A adds an =otp_worker= =gen_server=, one-child =one_for_one= supervisor, deliberate slow/crash paths, standard =sys= introspection, and focused EUnit regressions. The implementation has now passed its focused exact-revision automation; editorial acceptance remains separate.
 - The checkpoint intentionally stops before Chapter 13 application packaging; a worker + supervisor tree is not yet claimed to be the completed OTP application project.
 * Verification status
 - DOCUMENTED: foundational pass 01, failure-semantics pass 02, and OTP pass 03 primary-source claims.
 - Project 1 checkpoint A final reviewed head =bbb2b1bb9eb2c21735b25b1f561dba78effb84a0= passed =erlang-book= run =35094332998= and generic =books-ci= run =35094332993= before merge. The earlier exact-runtime record for the same implementation used Erlang/OTP 29.0.6 and observed all 9 EUnit tests passing with zero skips; EPUBCheck 5.3.0 reported zero findings.
 - Project 1 checkpoint B exact reviewed head =ee6579e8c90d6504ae28cdefe229775cac9f5056= passed focused =erlang-book= run =35103630408= on Erlang/OTP 29.0.6 / ERTS 17.0.6 with all 14 EUnit tests passing; book build/check, EPUBCheck 5.3.0, Nix evaluation, and the corresponding generic repository gate were green before merge.
-- Project 2 checkpoint A: UNTESTED until its exact branch/PR head has run the new OTP-worker EUnit suite plus =make book BOOK=erlang=, =make check BOOK=erlang=, and applicable repository/Nix gates.
+- Project 2 checkpoint A implementation head =22cc298a506e45638490393e5f1ca59b3a98835a= is TESTED by focused =erlang-book= run =35110915006=: strict Erlang/OTP 29.0.6 setup succeeded; the existing foundations test step and new OTP-worker test step both succeeded; =make book BOOK=erlang= and =make check BOOK=erlang= succeeded; and the separate =nix flake check -L= job succeeded. Generic =books-ci= run =35110915008= also succeeded on that exact head, including structural validation, Pandoc Org-reader validation, deterministic assets/fixture, EPUBCheck 5.3.0, publication regressions, per-book citation rendering, and ERT with real Org-roam DB synchronization.
+- The Project 2 EUnit module contains six focused regressions covering publish/history, same-sender cast-then-call ordering, timed-out call late-reply isolation, =sys:get_state/1= introspection, supervised restart with fresh state, and restart-intensity escalation. The workflow step executing that module succeeded; no benchmark result is inferred from those tests.
 - No performance, throughput, latency, or availability benchmark claim is made by these checkpoints.
 * Technical/editorial/visual review
 - Chapters 1--6 / Project 1 checkpoint A: editorially APPROVED and merged as a bounded slice.
 - Chapters 7--9 / Project 1 checkpoint B: editorially APPROVED and merged as a bounded slice.
-- Chapters 10--12 / Project 2 checkpoint A: DRAFT; not editorially approved and not yet exact-head verified.
+- Chapters 10--12 / Project 2 checkpoint A: REVIEW_READY after worker verification; awaiting Books Editor-in-Chief review and not self-certified APPROVED or DONE.
 - Whole book: not DONE and not in final technical/editorial/visual review.
 * Next dependency-ready slice
-Finish exact-head verification and editorial review of the OTP worker/supervision checkpoint. After it lands, Chapter 13 should package the tree as an OTP application. Releases, distribution, persistence boundaries, Common Test, tracing/observability, mailbox/backpressure measurement, networking, and production debugging remain later dependency-ready work.
+After editorial acceptance and merge of the OTP worker/supervision checkpoint, Chapter 13 should package the tree as an OTP application. Releases, distribution, persistence boundaries, Common Test, tracing/observability, mailbox/backpressure measurement, networking, and production debugging remain later dependency-ready work.
 * Blockers
-No known content blocker. Current gate is objective: Project 2 checkpoint A requires actual OTP 29.0.6 compilation/EUnit execution and production book/repository checks before review-ready TESTED status.
+No known technical/content blocker remains for Project 2 checkpoint A. The remaining gate is editorial review plus fresh objective checks on the final PR head; no merge or auto-merge is authorized for this worker.
