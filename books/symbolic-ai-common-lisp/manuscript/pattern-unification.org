@@ -290,8 +290,10 @@ Likewise, this Common Lisp unifier is not an imitation Prolog runtime.  /Symboli
 7. *Metamorphic oracle.* For every successful controlled unification in a fixture set, require that applying the substitution to both original inputs yields =EQUAL= terms.  Add a failing fixture first to prove the oracle catches a deliberately broken substitution.
 8. *Boundary design.* Sketch the API a later planner should receive.  Should it depend directly on the alist representation, or only on operations such as unify/apply/lookup?  Defend the choice.
 
-* Next step
+* Project 2 milestone B: stress-testing the contract
 
-The next Project 2 slice should strengthen the substitution contract with generated/metamorphic checks and then connect matching/unification to one *real* symbolic consumer, preferably planner action schemas.  Only after the semantics are stable should we benchmark environment representations or introduce indexing.  Fast wrong unification is still wrong, just with better throughput.
+Milestone A established the recursive finite-term matching/unification contract and its explicit substitution boundary.  The following milestone B now stress-tests that contract with an independently structured equation-worklist unifier plus bounded metamorphic and differential oracles.  The included validation chapter derives that second presentation, shows where agreement is useful debugging evidence rather than proof, and keeps failure traces inspectable without turning partial bindings into solutions.
+
+After the validation chapter, Project 3 is the next dependency-ready consumer: planner action schemas and state transitions should use the public unification/substitution operations rather than depend on the underlying alist representation.  Performance experiments or indexing come later, after the planner-facing semantics stay stable.
 
 #+include: "unification-validation.org" :lines "6-" :minlevel 1
