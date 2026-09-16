@@ -1,0 +1,107 @@
+#+title: Project 2 — Disposable Service-Backed StarIntel Trace
+:PROPERTIES:
+:ID:       d6c0cc61-bc62-46be-93ba-c3eb0401df0b
+:END:
+
+* Purpose
+This lab closes one evidence gap left by the hermetic ingest-adapter tests.  It
+runs the *real pinned StarIntel Server stack* long enough to ask three separate
+questions:
+
+1. Can a synthetic canonical document cross the current HTTP ingest boundary
+   and later be observed through the authorized read route?
+2. What does the current HTTP boundary actually report when RabbitMQ is
+   deliberately stopped?
+3. After an explicit operator recovery (start RabbitMQ, restart StarIntel), can
+   a new synthetic document again cross the full path and be read back?
+
+The test does not copy StarIntel's server, RabbitMQ, CouchDB, authorization, or
+Compose implementation into this book.  It fetches exact upstream revision
+=1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= and reuses that revision's own
+=scripts/stack-test.sh= disposable deployment.  =inject_probe.py= fails closed
+unless the audited upstream script still contains the exact expected hook
+point.
+
+* Architecture
+The upstream script owns service startup, one-time bootstrap credentials,
+health checks, restart checks, diagnostics, teardown, and all product-owned
+configuration.  Immediately before its normal final success message, the book
+sources =probe.sh= while the disposable stack and credential still exist.
+
+#+begin_example
+pinned upstream stack-test
+        |
+        +-- starts Nix-built StarIntel/RabbitMQ/CouchDB/Valkey stack
+        +-- runs upstream auth/search/restart checks
+        |
+        +-- book probe (small observation hook)
+        |     |
+        |     +-- existing book ingest adapter -> POST -> Rabbit -> consumer -> Couch
+        |     |                                      |
+        |     |                                      +-> authorized GET observes record
+        |     |
+        |     +-- stop RabbitMQ -> make one fresh submission -> classify evidence
+        |     |
+        |     +-- start RabbitMQ + restart StarIntel -> fresh POST/read-back
+        |
+        +-- upstream teardown
+#+end_example
+
+The hook writes only =book-service-trace.json=.  The disposable API key, bearer
+header, raw response bodies, Compose project name, container IDs, and raw fault
+stderr are not retained in that artifact.
+
+* Why the fault result is not hard-coded
+The lesson is evidence collection, not a test that forces the current product
+to match a guessed status code.  While RabbitMQ is verified stopped, the
+existing adapter may observe either:
+
+- an HTTP admission failure;
+- an HTTP transport failure; or
+- an HTTP success return followed by no persistence observation before the
+  bounded read-back deadline.
+
+=summarize_trace.py= records whichever of those actually occurs.  An unknown
+adapter failure fails closed.  A unique fault document becoming durably
+observable while RabbitMQ is verified stopped is treated as contradictory
+probe evidence and also fails closed.
+
+* Honest boundary
+Even a successful run proves only the bounded observations made at the pinned
+revision.  It does *not* prove publisher-confirm acceptance, settlement-failure
+redelivery, the CouchDB outbox crash window, transparent reconnect without an
+operator restart, production latency, or production availability.
+
+Those distinctions matter because the server's current source still does not
+evidence a publisher-confirm wait in the inspected publish path.  A successful
+HTTP return and a later authorized durable read-back remain separate facts.
+
+* Hermetic tests
+The evidence classifier and injection guard are independently unit-tested:
+
+#+begin_src sh
+bash books/starintel/code/live-stack/run-tests
+#+end_src
+
+These tests do not start external services.
+
+* Service-backed run
+The service-backed trace requires Docker/Compose, Nix with flakes, Git, jq,
+Python, and enough resources to build/load the pinned upstream images.  From the
+repository root:
+
+#+begin_src sh
+bash books/starintel/code/live-stack/run-service-trace
+#+end_src
+
+On success the sanitized evidence is copied to
+=.cache/starintel-service-trace.json=.  CI publishes that JSON as a private
+workflow artifact; it is not committed as if one run were timeless source.
+
+* Status
+- DOCUMENTED :: method and exact upstream pin described above; the upstream
+  stack harness is current primary source at the recorded revision.
+- TESTED :: hermetic classifier/injector behavior only after the focused tests
+  execute successfully.
+- UNTESTED :: service-backed observations until a workflow run actually
+  executes this lab.  Do not promote them from this README alone.
