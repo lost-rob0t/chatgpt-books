@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 TESTS=(
   "$ROOT/books/symbolic-ai-prolog/code/meta-interpreter/test_meta_interpreter.pl"
   "$ROOT/books/symbolic-ai-prolog/code/explicit-search/test_search.pl"
+  "$ROOT/books/symbolic-ai-prolog/code/relational-planner/test_planner.pl"
 )
 
 swipl --version
