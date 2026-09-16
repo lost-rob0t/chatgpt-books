@@ -11,7 +11,8 @@
 
 (defun receive-stale-reply (ref)
   (receive
-    ((tuple 'reply ref 'stale)
+    ((tuple 'reply reply-ref 'stale)
+     (when (=:= reply-ref ref))
      'ok)
     (after 0
       (erlang:error 'expected-stale-reply))))
@@ -29,7 +30,8 @@
             (tuple 'ok 'pager)
             (actor-router:route pid event 1000))
 
-    ;; A request waits only for the reply carrying its fresh correlation ref.
+    ;; Receive-clause pattern variables are fresh bindings in LFE. Correlation
+    ;; against the outer request ref therefore belongs in an explicit guard.
     ;; A stale look-alike reply must remain in the caller mailbox.
     (let ((stale-ref (erlang:make_ref)))
       (! (self) (tuple 'reply stale-ref 'stale))
@@ -64,12 +66,14 @@
       (! pid (tuple 'call (self) route-ref
                     (tuple 'route event)))
       (receive
-        ((tuple 'reply replace-ref (tuple 'ok 'replaced))
+        ((tuple 'reply reply-ref (tuple 'ok 'replaced))
+         (when (=:= reply-ref replace-ref))
          'ok)
         (after 1000
           (erlang:error 'replace-reply-timeout)))
       (receive
-        ((tuple 'reply route-ref result)
+        ((tuple 'reply reply-ref result)
+         (when (=:= reply-ref route-ref))
          (expect 'same-sender-order
                  (tuple 'ok 'ordered)
                  result))
