@@ -1,0 +1,113 @@
+#+title: Expert Systems Project 2 Research -- systemd Dependency Diagnosis
+:PROPERTIES:
+:ID:       72cb6d23-2d6f-4c79-b5ab-a340b7d22fb5
+:END:
+
+* Scope
+This record supports Project 2 milestone A only: a source-backed teaching knowledge base for reasoning about one narrow class of systemd service-start failures. It verifies the semantics needed to distinguish requirement dependencies from ordering dependencies and to keep modeled activation attempts/configuration generations separate.
+
+The observations used by the executable fixture are synthetic. No source below is presented as evidence that the fictional =frontend= or =api= units existed, failed, or were observed on a real host.
+
+Retrieval/inspection date: 2026-09-16.
+
+* Current authoritative sources
+** DOCUMENTED -- requirement dependencies and ordering dependencies are orthogonal
+Source: current upstream =systemd.unit= documentation, systemd project [cite:@systemd-unit].
+
+The current manual documents =Wants== as a weak requirement dependency. Units named by =Wants== are started when the configuring unit is started, but failure to start them or add them to the transaction does not invalidate the transaction as a whole. The same section explicitly states that requirement dependencies do not determine start/stop order; ordering must be configured separately with =After== or =Before==.
+
+The =Requires== section documents a stronger requirement dependency. When the configuring unit is activated, the listed units are activated too. Crucially for this milestone, the manual states that if a required unit fails to activate *and* an =After== ordering dependency on that failing unit is set, the requiring unit will not be started.
+
+The ordering section documents =Before== and =After== independently and says these settings are independent of and orthogonal to requirement dependencies such as =Requires== and =Wants==.
+
+DOCUMENTED consequences used by the teaching model:
+- =Requires== is not silently equivalent to =Requires= + After==;
+- =After== is not a requirement and does not by itself pull another unit into a transaction;
+- =Wants== is not silently promoted to =Requires== behavior when a wanted unit fails;
+- the bounded source-backed rule in this milestone requires the explicit conjunction =Requires== + =After== + observed required-unit activation failure.
+
+** DOCUMENTED -- runtime inspection and historical logs are distinct interfaces
+Source: current upstream =systemctl= documentation, systemd project [cite:@systemctl].
+
+The current =systemctl status= documentation describes human-readable runtime status and recent journal data. It explicitly recommends =systemctl show= for computer-parsable output. It also distinguishes current/most-recent runtime state retained by the manager from earlier invocations obtainable through =journalctl --unit==.
+
+Course consequence: Project 2 does not scrape the pretty =status= output. This milestone uses typed synthetic facts representing observations that a future collector could obtain from machine-oriented interfaces. Collector implementation and journal parsing remain separate work.
+
+** DOCUMENTED -- ActiveState is a high-level unit state
+Source: current systemd D-Bus Unit API documentation [cite:@systemd-dbus-unit].
+
+The existing Chapter 18 research already verified =ActiveState= as a high-level unit activation-state property and =SubState= as finer-grained unit-type-specific state. Project 2 reuses only that documented vocabulary for its synthetic =unit-activation= observations.
+
+* Derived Project 2 milestone-A model
+** Keep four kinds of evidence separate
+The executable model uses four explicit relations:
+
+#+begin_example
+(unit-start-request SERVICE ATTEMPT CONFIG-GENERATION)
+(unit-requirement SERVICE DEPENDENCY KIND CONFIG-GENERATION)
+(unit-ordering SERVICE DEPENDENCY RELATION CONFIG-GENERATION)
+(unit-activation UNIT STATE ATTEMPT CONFIG-GENERATION)
+#+end_example
+
+The distinction is deliberate.
+
+- =unit-start-request= is course-local modeled context. It prevents an old dependency failure from being joined into a different activation attempt.
+- =unit-requirement= records either =requires= or =wants= without collapsing their documented semantics.
+- =unit-ordering= records =after= or =before= independently of requirement edges.
+- =unit-activation= records a synthetic high-level state observation tied to one attempt/configuration generation.
+
+No claim is made that systemd itself stores these four course records in this representation.
+
+** One bounded source-backed rule
+The milestone adds exactly one production:
+
+#+begin_example
+start request for SERVICE / ATTEMPT / CONFIG
++ Requires= SERVICE -> DEPENDENCY in CONFIG
++ After=    SERVICE -> DEPENDENCY in CONFIG
++ DEPENDENCY observed failed in ATTEMPT / CONFIG
+-------------------------------------------------
+startup-blocked-by-required-dependency
+  SERVICE DEPENDENCY ATTEMPT CONFIG
+#+end_example
+
+The conclusion is a *derived diagnostic hypothesis* in the book's KB. It represents the documented =Requires== + =After== failure condition for the modeled attempt; it is not a universal causal explanation for why an arbitrary real service failed.
+
+The production has a stable rule ID and structured provenance naming the inspected =systemd.unit= source. Its conclusion also stores the exact support fact IDs. The accepted truth-maintenance/explanation layers then record exact occurrence stamps and preserve production provenance in the explanation graph.
+
+** Near misses are first-class tests
+The following cases must *not* activate this production:
+- =Requires== without =After==;
+- =After== without =Requires==;
+- =Wants== + =After== when the wanted unit fails;
+- failure observed in a different modeled activation attempt;
+- failure observed under a different configuration generation.
+
+Those are not proofs that “nothing is wrong.” They prove only that this specific rule has insufficient support. A future why-not workbench can expose which condition failed; milestone A keeps the near misses executable without inventing closed-world semantics.
+
+* Provenance contract
+Configuration and state observations are marked =:synthetic-fixture=. Source URLs identify the documentation that defines the represented field/directive, not the origin of the fictional observation.
+
+The source-backed production carries:
+- stable rule ID;
+- source ID;
+- exact source URL;
+- retrieval date;
+- a symbolic documented-claim identifier;
+- course scope =:modeled-start-attempt=.
+
+The derived diagnostic fact carries the rule/source identity and support fact IDs. The explanation graph must preserve the production provenance plus all four base support source nodes.
+
+No confidence score is inferred from provenance. No authority ranking is attached to =systemd= documentation versus other future sources. Counterevidence and source preference require explicit domain policy later.
+
+* Claim-state ledger
+- DOCUMENTED: current =systemd.unit= separates requirement dependencies from ordering dependencies; =Wants== failure does not invalidate the transaction as a whole; =Requires== plus =After== on a required unit that fails activation prevents the requiring unit from being started; =Before=/After== are orthogonal to requirement dependencies.
+- DOCUMENTED: current =systemctl= describes =status= as human-readable and points to =show= for computer-parsable output; older invocations may require journal queries.
+- DOCUMENTED: current systemd D-Bus Unit documentation exposes high-level =ActiveState= vocabulary.
+- COURSE-LOCAL: the four fact relations, activation-attempt/config-generation join keys, stable Project 2 rule ID, derived-hypothesis relation, and provenance plist schema.
+- TESTED only after exact-head CI passes: positive four-support derivation, all near misses above, deterministic explanation, production/source provenance retention, constructor vocabulary rejection, and all Project 1 regressions.
+- UNTESTED / NOT IMPLEMENTED: real-host collectors, =Result== interpretation, journal parsing, dependency graph discovery, implicit/default dependencies, =BindsTo==, =Requisite==, =PartOf==, drop-in precedence, transaction reconstruction, concurrency, persistence, uncertainty, source ranking, benchmark, or production deployment.
+- NO BENCHMARK CLAIM: this slice introduces no timing, allocation, throughput, memory, or scaling result.
+
+* Next research dependency
+After this source-backed skeleton is accepted, Project 2 can widen by one sourced behavior at a time: collector contracts, service result/exit semantics, restart behavior, dependency graph acquisition, journal evidence, resource-pressure observations, and counterevidence. Each addition must preserve source identity and add adversarial tests rather than turning system administration folklore into rules.
