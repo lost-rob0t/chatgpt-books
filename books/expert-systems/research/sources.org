@@ -4,3 +4,37 @@
 :END:
 * Policy
 Add only sources actually inspected. Record URL, authority, publication/version date when known, retrieval date, relevant sections, and affected chapters/projects.
+
+* Inspected 2026-09-16
+** Forgy 1981 -- OPS5: A Rule-Based Programming System
+Authority: original OPS5 author / Carnegie-Mellon University primary material.
+URL: https://iiif.library.cmu.edu/file/Newell_box00033_fld02251_doc0001/Newell_box00033_fld02251_doc0001.pdf
+Date: February 1981.
+Inspected material: title/abstract/table of contents covering production-system architecture, working-memory elements, productions, control, pattern matching, conflict resolution, interpreter efficiency, and debugging environment.
+Used by: Chapters 1--7; Project 1 architecture.
+
+** Forgy 1982 -- RETE
+Authority: original algorithm paper.
+URL: https://doi.org/10.1016/0004-3702(82)90020-0
+Bibliographic verification: /Artificial Intelligence/ 19(1), 17--37, 1982; DOI 10.1016/0004-3702(82)90020-0.
+Used by: foundation rationale and later incremental matching/RETE chapters.
+
+** CLIPS 6.4.2 Basic Programming Guide
+Authority: current official CLIPS documentation.
+URL: https://www.clipsrules.net/documentation/v642/bpg642.pdf
+Version/date: 6.4.2, January 16 2025.
+Inspected material: facts/data abstraction; rules; basic rule-execution cycle; conflict-resolution strategies; LHS/pattern conditional elements; guidance that fact/instance changes participate in pattern matching.
+Used by: Chapters 3--10 and later comparison notes. CLIPS-specific behavior is not silently copied into the teaching engine.
+
+** systemd.service manual
+Authority: official systemd documentation.
+URL: https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html
+Retrieved: 2026-09-16.
+Used by: synthetic service-diagnosis fixture provenance and later technical KB research.
+
+** Linux kernel /proc documentation
+Authority: official Linux kernel documentation.
+URL: https://docs.kernel.org/filesystems/proc.html
+Retrieved: 2026-09-16.
+Inspected material: documented =/proc= interfaces, including load-average field meaning.
+Used by: later technical KB research. No load threshold is inferred from the source.
