@@ -1,0 +1,182 @@
+#+title: Prolog + LLMs -- Meta-Programming and Capability-Boundary Research
+:PROPERTIES:
+:ID:       2f6342d9-c2e7-4195-8020-3276061adbf6
+:END:
+
+* Scope
+This pass supports Project 1 milestone E and the final standalone-Prolog portion
+of Chapter 6.  The question is deliberately narrower than “how much
+meta-programming can Prolog do?”:
+
+1. what does current SWI-Prolog document for =call/N= and runtime-constructed
+   goals;
+2. what term-analysis operations are portable/ISO concepts and which convenient
+   operations are SWI-specific;
+3. what can =current_predicate/1= and =predicate_property/2= tell a program;
+4. how can the book use these mechanisms without turning external data into
+   execution authority?
+
+Provider APIs, model output, generated Prolog source, dynamic assertion, clause
+reflection, and the later Prolog-RLM runtime are out of scope.  The implementation
+for this pass is intentionally model-free.
+
+* Sources inspected -- 2026-09-16
+** SWI-Prolog Reference Manual: Meta-Call Predicates
+URL: =https://www.swi-prolog.org/pldoc/man?section=metacall=
+
+DOCUMENTED:
+- =call/1= calls a goal that is not necessarily known at compile time.  The
+  manual describes meta-call predicates as operating on terms constructed at
+  runtime.
+- =call(Goal, ExtraArg1, ...)= appends extra arguments to =Goal= and invokes the
+  resulting goal.  This is the mechanism the milestone uses after selecting a
+  repository-authored closure.
+- current SWI documentation exposes concrete =call/[2..8]= predicates for
+  inspection and handles higher arities through compiler/runtime machinery.
+- =once/1= is itself specified in terms of a meta-call plus commitment, which
+  connects this pass to the control material already accepted in Chapter 4.
+
+TEACHING DECISION:
+The fact that a term *can* be called is precisely why parsing or validating its
+syntax is insufficient as an authorization boundary.  The Project 1 capability
+module never executes the request term.  It first resolves a closed tag to a
+trusted handler and only then applies validated data arguments with =call/N=.
+This “closed mapping before meta-call” rule is repository design, not a claim
+that SWI-Prolog provides a security sandbox.
+
+No performance statement from the manual is promoted into this book.  The
+manual discusses meta-call overhead, but this milestone neither benchmarks nor
+optimizes it.
+
+** SWI-Prolog Reference Manual: Analysing and Constructing Terms
+URL: =https://www.swi-prolog.org/pldoc/man?section=manipterm=
+
+DOCUMENTED:
+- =functor/3= is ISO and relates a term to its name/arity, with documented
+  construction behavior when the term is a variable.
+- =arg/3= is ISO; with an unbound argument index SWI can enumerate successive
+  arguments.  The manual marks that mode as an extension to standard Prolog.
+- ==../2= (“Univ”) is ISO and relates a non-zero-arity term to a list containing
+  its functor followed by arguments.  Either side may be a variable, but not
+  both.
+- SWI supports zero-arity compound terms.  The classic =functor/3= and ==../2=
+  interfaces have compatibility limitations for those terms.
+- =compound_name_arguments/3= is the SWI interface used here to decompose or
+  compose compound terms consistently, including zero-arity compounds.
+
+TEACHING DECISION:
+The milestone uses =compound_name_arguments/3= only in =describe_term/2= to
+turn an already-present compound term into descriptive data.  The chapter also
+shows =functor/3=, =arg/3=, and ==../2= because readers need to understand how
+terms can be inspected and constructed.  None of those operations is treated
+as permission to execute the resulting term.
+
+The code deliberately does not build a goal with ==../2= from a request tag.
+That pattern would collapse the distinction the chapter is trying to teach.
+
+** SWI-Prolog Reference Manual: Examining the program
+URL: =https://www.swi-prolog.org/pldoc/man?section=examineprog=
+
+DOCUMENTED:
+- =current_predicate/1= reports predicates currently defined/visible according
+  to the documented module/import rules.  With an insufficiently instantiated
+  indicator, it enumerates predicates defined or already imported into the
+  target module.
+- =predicate_property/2= reports runtime properties of a predicate and has
+  documented SWI behavior around modules and autoloading.
+- the manual's older =current_predicate/2= interface is explicitly described as
+  useful for “check then call” patterns, demonstrating that introspection can
+  feed execution if a program chooses to do so.
+
+TEACHING DECISION:
+Project 1 does *not* use runtime predicate discovery as its capability list.
+“Defined in this process” and “permitted to an external request” are different
+relations.  =capability/2= therefore enumerates four authored facts backed by a
+private tag-to-handler table.  This is easy to audit, deterministic for the
+fixture, and independent of unrelated predicates loaded into the runtime.
+
+The reflection APIs remain useful for development tools, debuggers, test
+utilities, documentation, and later controlled introspection.  The book does
+not label them unsafe in themselves; it rejects using runtime visibility as an
+authorization policy.
+
+* Portable versus SWI-specific boundary
+For this chapter:
+- =call/1=, =functor/3=, =arg/3=, and ==../2= are presented as ISO predicates as
+  marked by the inspected SWI manual;
+- =call/N= with appended closure arguments is presented using SWI's current
+  documented surface while noting the standardized lower arities in the source
+  notes rather than pretending every implementation has identical limits;
+- =compound_name_arguments/3= and details of current predicate/autoload
+  reflection are explicitly SWI-specific examples;
+- the *capability discipline* is application architecture, not a language
+  standard feature.
+
+* Derived Project 1 contract
+The implementation extends the accepted closed DCG/dispatcher boundary rather
+than replacing it.
+
+External-ish data has exactly this shape:
+
+#+begin_src prolog
+request(CapabilityTag, Arguments)
+#+end_src
+
+A request is accepted only when:
+1. =CapabilityTag= is an atom present in the explicit capability table;
+2. =Arguments= is a proper list containing only atoms for this synthetic
+   fixture;
+3. the list length matches the authored capability arity;
+4. the capability table selects a trusted in-module handler;
+5. =call/N= applies the validated arguments to that trusted handler.
+
+The request term itself is never passed to =call/1=.  Neither the tag nor an
+argument is converted into a predicate name.  The trusted handler calls the
+already-accepted =execute_task_command/2= dispatcher, so milestone E layers a
+meta-programming teaching boundary on top of the prior explicit boundary.
+
+The public capability vocabulary is:
+
+#+begin_example
+tasks_by_owner/1
+tasks_by_status/1
+tasks_by_tag/1
+dependency_path/2
+#+end_example
+
+This list is Project 1 policy, not a dump of =current_predicate/1=.
+
+* Failure cases required by the implementation
+- =request(halt, [now])= -- unknown capability tag; reject before any meta-call.
+- =request(tasks_by_owner, [ada, extra])= -- known tag, wrong arity; reject.
+- =request(tasks_by_owner, [call(halt)])= -- argument shape is not an atom;
+  reject.
+- =request(tasks_by_owner, [halt])= -- =halt= is merely owner data here; the
+  trusted owner-query handler runs and returns an empty result list.  It is not
+  executed.
+- =call(halt)= can be decomposed by =describe_term/2= into a name/arity and
+  argument list, but that descriptive success does not make the term a
+  capability.
+
+* Evidence labels
+DOCUMENTED:
+- the current SWI meta-call, term-analysis, and program-reflection semantics
+  summarized above, from official documentation inspected 2026-09-16.
+
+UNTESTED until the authored branch executes:
+- the four-capability vocabulary and exact dispatch behavior;
+- all rejection cases;
+- preservation of milestones A--D regressions;
+- the production book build/check and Nix gates.
+
+TESTED status may be promoted only after exact-head CI executes those cases.
+No model/provider behavior, benchmark, Prolog-RLM runtime behavior, or security
+sandbox claim is tested or implied by this pass.
+
+* Downstream boundary
+The next phase can introduce a typed LLM-to-Prolog gateway only after this
+mechanism is accepted.  That gateway will need transport/schema parsing,
+provider-specific research, provenance, deadlines/cancellation, deterministic
+test fixtures, and a policy for model proposals.  Milestone E provides only one
+building block: a model-independent demonstration that *reflection and
+callability do not equal authority*.

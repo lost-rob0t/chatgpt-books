@@ -4,7 +4,7 @@
 :END:
 
 * Phase
-Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / milestone A are editorially APPROVED and merged via PR #39. Chapters 4--5 / milestone B were editorially accepted and merged via PR #49 at merge commit =747f7f4713a4afa41dc5aee6ea3f9bd99ade8e80=. Chapter 6 / milestone C was editorially APPROVED and merged via PR #61 at merge commit =1e3d0bb1cc4ff8dc8ef57cb3d78d56defacb79d1=. Project 1 milestone D was editorially APPROVED and merged via PR #69 at merge commit =f3a3b339c5642c7a1007c7cef23c6290f258f31d=. The complete long-form book remains in progress and is not DONE.
+Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / milestone A are editorially APPROVED and merged via PR #39. Chapters 4--5 / milestone B were editorially accepted and merged via PR #49 at merge commit =747f7f4713a4afa41dc5aee6ea3f9bd99ade8e80=. Chapter 6 / milestone C was editorially APPROVED and merged via PR #61 at merge commit =1e3d0bb1cc4ff8dc8ef57cb3d78d56defacb79d1=. Project 1 milestone D was editorially APPROVED and merged via PR #69 at merge commit =f3a3b339c5642c7a1007c7cef23c6290f258f31d=. Project 1 milestone E bounded meta-programming content is editorially APPROVED in PR #96 but remains unmerged pending current-main reconciliation and fresh exact-head objective gates. The complete long-form book remains in progress and is not DONE.
 
 * Accepted baseline
 - Standalone audience and teaching contract defined.
@@ -39,6 +39,15 @@ Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / m
 - No provider API, model output, generated callable Prolog, benchmark, or Prolog-RLM runtime execution is introduced by milestone D.
 - The Books Editor-in-Chief reviewed the actual CLP(FD) manuscript, code/tests, curriculum boundaries, and source evidence in PR #69 and marked the bounded milestone D content APPROVED before merging the exact tested head as =f3a3b339c5642c7a1007c7cef23c6290f258f31d=. This is milestone acceptance, not a whole-book DONE claim.
 
+* Milestone E -- editorially approved content, merge pending
+- Issue #92 / PR #96 owns the final model-free Chapter 6 dependency before provider integration: bounded meta-programming with a closed capability vocabulary.
+- =task_capability.pl= maps four authored request tags to trusted in-module closures, validates request shape/arguments/arity, and crosses =call/N= only after that mapping. External request tags and callable-looking terms remain data; =current_predicate/1= visibility and term decomposability are explicitly not treated as authorization.
+- =describe_term/2= is reflection for description/debugging only. The manuscript derives the meta-call boundary from the already-accepted explicit dispatcher rather than presenting =call/N= as magic or as a general security sandbox.
+- Nine new PL-Unit regressions cover the complete capability vocabulary, one- and two-argument dispatch, unknown tags, wrong arity/shape, callable-looking atoms/compounds, and reflection-without-authority. The fail-closed Project 1 runner retains milestones A--D.
+- Current official SWI-Prolog documentation for meta-call, term analysis, and program reflection is DOCUMENTED separately from executable evidence. Provider/model behavior, live Prolog-RLM behavior, benchmarks, and any claim that this mechanism is a general sandbox remain UNTESTED / NOT CLAIMED.
+- Exact pre-current-main worker head =aacb4c9d0d8a8268d8f6be82aa0fb31f06cacd36= is TESTED by focused =prolog-llms-book= run =35147399364=: SWI-Prolog 9.0.4 passed 45/45 Project 1 cases (16 foundation/control + 14 DCG/dispatcher + 6 CLP(FD) + 9 capability/meta-programming), =make book BOOK=prolog-llms= and =make check BOOK=prolog-llms= passed, EPUBCheck 5.3.0 reported 0 findings, and Nix job =104966845014= passed =nix flake check -L=. Generic =books-ci= run =35147399381= also completed SUCCESS.
+- The Editor-in-Chief reviewed the actual Chapter 6 manuscript, capability implementation/tests, curriculum and sibling-book boundaries, and current SWI primary documentation and marked the bounded milestone-E content APPROVED. This approval is subject to the hard merge gate: normal reconciliation with current =main= plus fresh exact-head focused and generic CI are still required before merge.
+
 * Verification
 Milestone C was first verified on PR #61 head =fd00800ebccd3f39add365080fdf906ed099cdca= against main =09d329e93cd2b7472d7e5ae77a0f24e41b114512= through merge ref =ece67fef5d4028e14232e37923c967dcfb70bb5f=.
 
@@ -59,11 +68,11 @@ The Editor-in-Chief rechecked the exact head, current primary SWI CLP(FD) docume
 The scheduling implementation/publication behavior is TESTED on the exact accepted merge-gate head. Current official SWI CLP(FD) semantics are separately DOCUMENTED from primary sources retrieved 2026-09-16. The FLOPS 2012 performance discussion remains UPSTREAM-REPORTED. No provider/model behavior, neuro-symbolic benchmark, or Prolog-RLM runtime result is promoted to TESTED by these checks. The =lost-rob0t/prolog-rlm= read-only source snapshot recorded by this book remains current main =51d2530f0e18c84cff860b7c0bf3afcc3c488057= as rechecked 2026-09-16.
 
 * Editorial state
-Milestones A--D are editorially accepted and merged. Project 1 and the complete book remain in progress; neither is DONE. The next reviewable dependency is bounded meta-programming that preserves the established data-versus-authority boundary before any live model/provider integration.
+Milestones A--D are editorially accepted and merged. Milestone E bounded meta-programming content is editorially APPROVED but remains unmerged until the exact current-main merge gate is refreshed. Project 1 and the complete book remain in progress; neither is DONE.
 
 * Next dependency-ready slice
-Research and implement carefully bounded meta-programming that makes the contrast between closed dispatch and arbitrary meta-call explicit: =call/N=, predicate indicators, term decomposition/reflection, a closed capability vocabulary, and tests that prove data cannot silently become authority. Keep live model/provider work behind the later typed gateway boundary.
+After milestone E lands, Project 2 may begin the typed LLM-to-Prolog gateway: model output must cross an explicit schema/parser/validation/provenance boundary and remain data until a repository-authored capability authorizes an operation. Generated text must never become an arbitrary callable Prolog goal. Do not stack provider integration on the unmerged milestone-E branch.
 
 * Blockers
-- No known book-local content, research, or executable blocker remains from milestone D.
+- Milestone E has no known content/research blocker. It requires normal reconciliation with current =main= and fresh exact-head focused =prolog-llms-book= plus generic =books-ci= success before the Editor-in-Chief may merge it.
 - Version-sensitive LLM/provider examples remain intentionally deferred until a focused typed-gateway research slice chooses current primary-source-backed interfaces and records exact tested versions.

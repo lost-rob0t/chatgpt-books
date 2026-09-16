@@ -20,6 +20,9 @@ Only sources actually inspected for a concrete research question belong here. Re
 - =SWI-Prolog Reference Manual: DCG Grammar rules= -- official current project documentation, retrieved 2026-09-16. Used for =-->/2= expansion/difference-list semantics, terminal/nonterminal/={Goal}= forms, =phrase/[2,3]=, SWI list-state type checking, string/code-list caveats, and =call_dcg/3= context.
 - =SWI-Prolog library(dcg) / library(dcg/basics)= -- official current library documentation, retrieved 2026-09-16. Inspected for the existence/current surface of code-list helpers such as whitespace, digit, integer, number, and remainder parsers. Project 1 milestone C intentionally uses atom tokens instead of depending on these helpers.
 - =SWI-Prolog library(clpfd): Constraint Logic Programming over Finite Domains= -- official current manual, retrieved 2026-09-16. Used for finite-domain membership, relational arithmetic constraints, the distinction between constraint posting/propagation and =labeling/2= search, =ffc= and =min(Expr)= labeling options, reification with =#<==>/2=, and the existence of higher-level scheduling/global constraints. The book records the exact runtime used by CI separately from the live documentation site.
+- =SWI-Prolog Reference Manual: Meta-Call Predicates= -- official current manual, retrieved 2026-09-16. Used for =call/1= runtime goal invocation and =call/N= closure semantics that append extra arguments before invocation. Project 1 milestone E uses those mechanics only after a closed source-authored capability mapping.
+- =SWI-Prolog Reference Manual: Analysing and Constructing Terms= -- official current manual, retrieved 2026-09-16. Used for ISO =functor/3=, =arg/3=, and ==../2= semantics plus SWI-specific =compound_name_arguments/3= and zero-arity-compound behavior.
+- =SWI-Prolog Reference Manual: Examining the program= -- official current manual, retrieved 2026-09-16. Used for =current_predicate/1= and =predicate_property/2= reflection semantics. Project 1 explicitly does not equate runtime predicate visibility with request authorization.
 
 ** Constraint-programming primary source
 - Markus Triska. =The Finite Domain Constraint Solver of SWI-Prolog=. FLOPS 2012, LNCS 7294, pages 307--316. Primary paper PDF at =https://www.metalevel.at/swiclpfd.pdf=, inspected 2026-09-16. Used for historical/implementation context: scheduling/planning/allocation motivation, terminating propagation, large integer domains, and reification DSL. Its reported performance observations are UPSTREAM-REPORTED here, not current-book benchmark evidence. Bibliographic metadata follows the citation recommended by the current SWI CLP(FD) manual.
@@ -33,5 +36,4 @@ Only sources actually inspected for a concrete research question belong here. Re
 
 * Still unresearched
 - provider-specific structured outputs/tool calls used in future examples;
-- Project 1 bounded meta-call/reflection semantics after the CLP(FD) scheduling milestone;
 - broader neuro-symbolic architecture/evaluation literature.
