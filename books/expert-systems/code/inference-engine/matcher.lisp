@@ -5,7 +5,9 @@
 
 ID is stable within the teaching corpus. RELATION names the predicate-like
 shape. ARGUMENTS are ordinary Common Lisp data. PROVENANCE is opaque to the
-matcher; later chapters will give it stronger structure."
+matcher; later chapters will give it stronger structure. This ordinary
+DEFSTRUCT is not deeply immutable; milestone A relies on a documented
+frozen-input discipline while matching."
   id
   relation
   arguments
@@ -80,6 +82,10 @@ This is deliberately a naive left-to-right nested-loop join. Every condition
 is compared with the complete fact sequence. The implementation therefore
 provides a correctness oracle for the incremental matcher derived later in the
 book; it is not presented as RETE.
+
+FACTS and values reachable through them are treated as frozen input for the
+duration of matching. This function reads them but does not mutate them; the
+ordinary Common Lisp representation itself does not enforce deep immutability.
 
 Results preserve condition order, fact order, and first-binding order. A fact
 may satisfy more than one condition unless the rule language expresses an
