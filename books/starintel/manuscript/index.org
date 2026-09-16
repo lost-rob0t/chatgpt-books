@@ -363,7 +363,7 @@ Do not skip from the first row to the last. Debugging gets fast when each bounda
 The first project is intentionally smaller than a server deployment. Before operating an actor graph, you should be able to create a canonical record, validate it using a real maintained binding, predict why malformed variants fail, and explain exactly what that test does *not* prove.
 
 *** Architecture: import the boundary, do not clone it
-The project pins =lost-rob0t/starintel-doc= revision =5857914a1e34ad18a6956b8ff0df5349de0ca099=. The book owns fixtures, exercises, and tests. The upstream package owns parsing/schema validation/round-trip behavior. [cite:@starintel-doc-091]
+The project pins =lost-rob0t/starintel-doc= revision =5857914a1e34ad18a6956b8ff0df5349de0ca099=. That adapter's own schema lock points at canonical schema commit =6479c0a9dc88ce9fed183515fc4df5d245de0b3a= in =lost-rob0t/starintel-gpt-auto-dig=. The package does not vendor that schema file, so the exercise fetches only the exact immutable schema artifact named by the lock. The book owns fixtures, exercises, and assertions; the upstream package and schema remain the validation authority. [cite:@starintel-doc-091]
 
 That produces a clean dependency shape:
 
@@ -371,13 +371,15 @@ That produces a clean dependency shape:
 book fixtures + assertions
           |
           v
-pinned starintel_doc 0.9.1 package
+pinned starintel_doc 0.9.1 adapter
           |
-          v
-pinned StarIntel 0.9 wire schema artifacts
+          +----> adapter schema lock
+                        |
+                        v
+              pinned canonical 0.9 schema artifact
 #+end_example
 
-There is no second validator hiding in the tutorial.
+There is no second validator hiding in the tutorial, and fetching that schema data dependency does not run the repository that stores it.
 
 *** Run the project
 From the =chatgpt-books= repository root:
@@ -385,11 +387,17 @@ From the =chatgpt-books= repository root:
 #+begin_src sh
 git clone https://github.com/lost-rob0t/starintel-doc .cache/starintel-doc
 git -C .cache/starintel-doc checkout 5857914a1e34ad18a6956b8ff0df5349de0ca099
+
+mkdir -p .cache/starintel-schema/schemas
+curl --fail --location \
+  --output .cache/starintel-schema/schemas/starintel-doc-v0.9.0.schema.json \
+  https://raw.githubusercontent.com/lost-rob0t/starintel-gpt-auto-dig/6479c0a9dc88ce9fed183515fc4df5d245de0b3a/schemas/starintel-doc-v0.9.0.schema.json
+
 python3 -m pip install .cache/starintel-doc
 bash books/starintel/code/records/run-tests
 #+end_src
 
-The runner sets =STARINTEL_SCHEMA= to the schema artifact in that exact checkout and executes the book's regression tests. The focused CI workflow performs the same checkout so a future upstream branch move cannot silently change the lesson.
+The runner points =STARINTEL_SCHEMA= at that separately pinned canonical artifact and executes the book's regression tests. The focused CI workflow pins both authorities so a future upstream branch move cannot silently change the lesson.
 
 *** What the executable tests ask
 The suite uses two synthetic fixtures.
