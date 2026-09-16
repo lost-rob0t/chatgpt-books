@@ -3,30 +3,32 @@
 :ID:       1d153fc1-8ecd-52f4-a6b6-d2f5f1d25898
 :END:
 * Phase
-Foundational research + Project 1 implementation. Milestone A is merged on canonical =main=; milestone B is an active editorial draft. The complete 300--700 page book remains far from release-ready.
+Foundational research + Project 1 implementation. Milestone A is merged on canonical =main=; milestone B is an active worker draft for editorial review after exact-head verification. The complete 300--700 page book remains far from release-ready.
 * Completed
-- Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
+- Purpose, audience, prerequisites, project map, roadmap, and substantial long-form curriculum initialized.
 - Project 1 milestone A primary-source research completed for meta-calling, clause reflection boundaries, debugger ports, variant comparison, rule freshening, depth-limit caveats, and PL-Unit.
 - Opening manuscript slice drafted around object/meta language separation, proof trees, provenance, explicit control, cycle detection, and rule budgets.
 - Runnable Project 1 milestone A implementation and semantic regression suite added under =code/meta-interpreter/= and merged through PR #25.
 - Editable + rendered proof-tree figure added.
 - The guarded-search regression establishes that reporting a cycle for one alternative does not cut away a later successful rule on backtracking.
-- Milestone B research now documents current SWI-Prolog disjunction/control behavior, =once/1= commitment, debugger-port semantics, and the deliberately narrower object-level search-report boundary.
+- Milestone B research documents current SWI-Prolog disjunction/control behavior, =once/1= commitment, debugger-port semantics, and the deliberately narrower object-level search-report boundary.
 - Milestone B draft adds =either(Left,Right)= as a closed object control form, =choice(Side,Proof)= proof structure, and =search_report/4= for bounded top-level matching-rule diagnostics on ground ordinary goals.
 - A new manuscript chapter, failure labs, exercises, editable DOT source, and rendered search-attempt diagram distinguish successful justification from failed search attempts and full runtime traces.
+- The canonical outline is reconciled with the actual manuscript: Chapters 1--6 now match the implemented Project 1 progression, and future planning, semantic-KG, abduction/explanation, small forward-rule-engine, constraints, and hybrid-capstone stages have explicit cross-book boundaries.
+- The milestone-B suite now includes a stronger branch-budget oracle: the left =either/2= branch deliberately consumes/exhausts a two-rule budget while the right branch requires the full original two-rule budget to succeed. This detects accidental budget threading between sibling branches rather than merely checking that a right branch remains reachable.
 * Active research
-- Milestone B exact runtime/publication verification is pending on the active branch; its implementation claims remain UNTESTED until CI runs them.
-- Native-clause reflection boundaries and later search/planning work remain open.
-- Foundational research for planning, knowledge representation, abduction, constraints, production systems, and the capstone is not complete.
+- Native-clause reflection boundaries and later explicit search/planning work remain open.
+- Foundational research for planning, semantic knowledge representation, abduction, constraints, production systems, and the hybrid capstone is not complete.
+- The newly strengthened branch-budget regression and outline reconciliation require exact-head CI before they are promoted to TESTED.
 * Verification
 - TESTED at reviewed milestone-A implementation head =ce82f555c9d55f12c84a08cc96749c9a1d2deb56=: focused =symbolic-ai-prolog-book= run =35097595490= passed all 13 semantic tests under SWI-Prolog 10.0.2, =make book BOOK=symbolic-ai-prolog=, =make check BOOK=symbolic-ai-prolog=, EPUBCheck 5.3.0 with 0 fatals / 0 errors / 0 warnings / 0 infos, and =nix flake check -L=.
 - TESTED on the same reviewed implementation: generic =books-ci= run =35097595509= passed the structural, publication, citation-rendering, ERT, and real Org-roam gates.
 - TESTED at later milestone-A editorial-gate head =5d06be9468422dc6f9ce53bc028cbf7a7919e11c= integrated with then-current =main= =ad1de7c648bf63741b810f797a4ad45cb888b425=: focused run =35100680619= again passed all 13 semantic tests under SWI-Prolog 10.0.2, book build/check, EPUBCheck 5.3.0 with 0 messages, and the Nix gate; generic =books-ci= run =35100680633= also passed.
-- UNTESTED on the active milestone-B branch: the expanded semantic suite, =either/2= branch-budget behavior, =search_report/4= structures, new diagram publication, current book build/check, and current Nix/generic gates. Promote these only after exact-head workflow evidence exists.
-- Canonical =main= may advance between editorial passes. Prior green results remain valid evidence for the exact integrations they tested; PR discussion records current exact-head gates so this file does not require bookkeeping commits for unrelated main movement.
+- TESTED for the initial milestone-B draft at head =3d32f6505d0ff85eda994f8640a9e3283b273b68= on PR integration =3c6d6c989d179ae28d49d19e1fbab2032cf5a0ae=: focused run =35112800549= used SWI-Prolog 10.0.2 and passed 24/24 semantic tests, =make book BOOK=symbolic-ai-prolog=, =make check BOOK=symbolic-ai-prolog=, EPUBCheck 5.3.0 with 0 fatals / 0 errors / 0 warnings / 0 infos, and the focused Nix job; generic =books-ci= run =35112800488= also completed successfully.
+- UNTESTED on the current strengthened milestone-B head until the newly added exact branch-budget regression, canonical outline reconciliation, publication path, current-base integration, and current Nix/generic gates execute. Exact moving-head evidence belongs in the PR discussion rather than requiring a bookkeeping-only commit after every unrelated =main= advance.
 * Cross-book boundary
-[[file:../prolog/README.org][Prolog for Beginners]] remains the full pure-Prolog foundation. Explicit LLM/neuro-symbolic/RLM material belongs to [[file:../prolog-llms/README.org][Prolog + LLMs]]. This volume keeps classical/general symbolic-AI mechanisms complete and independently useful while cross-linking shared foundations where helpful.
+[[file:../prolog/README.org][Prolog for Beginners]] remains the full pure-Prolog foundation. Explicit LLM/neuro-symbolic/RLM material belongs to [[file:../prolog-llms/README.org][Prolog + LLMs]]. Deep RETE/TREAT and production expert-system engineering belongs to [[file:../expert-systems/README.org][Expert Systems]]. This volume keeps classical/general symbolic-AI mechanisms complete and independently useful while cross-linking shared foundations where helpful.
 * Technical/editorial/visual review
-Milestone A is accepted/merged. Milestone B is a focused worker draft for Editor-in-Chief review: explicit choice and bounded search-attempt diagnostics only. It does not claim to implement the planner, nested complete traces, cut/negation, abduction, production systems, or the whole book.
+Milestone A is accepted/merged. Milestone B is a focused worker draft for Editor-in-Chief review: explicit choice, bounded search-attempt diagnostics, the stronger branch-budget regression, and curriculum reconciliation. It does not claim to implement the planner, nested complete traces, cut/negation, abduction, production matching networks, or the whole book.
 * Blockers
-No known conceptual blocker prevents milestone-B verification. The immediate gate is executable evidence on an exact PR head: actual SWI-Prolog regressions, book build/check, EPUB validation, focused Nix, and generic repository checks. Any failure must be repaired before editorial review; no merge or auto-merge is authorized.
+No known conceptual blocker remains in milestone B. The immediate gate is exact-current-head evidence after reconciliation with canonical =main=: actual SWI-Prolog regressions, book build/check, EPUB validation, focused Nix, and generic repository checks. Any failure must be repaired before editorial handoff; no merge or auto-merge is authorized.
