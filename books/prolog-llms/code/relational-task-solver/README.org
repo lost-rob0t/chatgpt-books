@@ -1,4 +1,4 @@
-#+title: Project 1 -- Relational Task Solver, milestone D
+#+title: Project 1 -- Relational Task Solver, milestone E
 
 This directory is the executable symbolic baseline for Chapters 1--6.  The
 fixture is synthetic and deterministic; there is intentionally no LLM or
@@ -47,17 +47,33 @@ It derives a finite-domain schedule from explicit synthetic requirements:
 - =first_minimum_schedule/2= makes optimization/search explicit and visibly
   commits to one first minimum-makespan result with =once/1=;
 - =deadline_flag/3= reifies “finishes after deadline” into explicit =0/1= data;
-- the new PL-Unit group checks the no-hidden-labeling contract, the hand-derived
+- the PL-Unit group checks the no-hidden-labeling contract, the hand-derived
   minimum fixture, overlap rejection, a slower-but-feasible reverse resource
-  order, and both deadline flag values;
-- =run_tests.pl= fails closed unless all three named Project 1 test units load.
+  order, and both deadline flag values.
+
+Milestone E adds =task_capability.pl= to teach meta-programming without erasing
+the data/authority boundary established by the DCG:
+
+- =capability/2= enumerates four explicit request tags and arities from an
+  authored table rather than runtime predicate discovery;
+- =execute_capability/2= accepts only =request(Tag, Arguments)= data, validates
+  a proper atom list plus exact authored arity, maps the tag to a trusted
+  in-module handler, and only then crosses an explicit =call/N= boundary;
+- request tags and arguments never become predicate names;
+- =describe_term/2= demonstrates compound-term decomposition as data and does
+  not grant execution authority;
+- regressions cover the complete capability vocabulary, one- and two-argument
+  dispatch, unknown tags, wrong arity, callable-looking atoms and compounds,
+  reflection-without-authority, and malformed outer request shapes;
+- =run_tests.pl= fails closed unless all four named Project 1 test units load.
 
 The suite retains every earlier direction, join, recursion, cycle, provenance,
-unification, control, module, DCG, and dispatcher regression.  CI prints the
-exact SWI-Prolog version used for the run.
+unification, control, module, DCG, dispatcher, and CLP(FD) regression.  CI
+prints the exact SWI-Prolog version used for the run.
 
-The module/parser/constraint boundaries are maintainability, validation, and
-reasoning mechanisms, not a general security sandbox.  A future Typed
-LLM-to-Prolog Gateway still needs a closed schema/permission boundary and must
-never splice model-produced source, predicate names, or search options directly
-into executable goals.
+The module/parser/constraint/capability boundaries are maintainability,
+validation, and reasoning mechanisms, not a general security sandbox.  The
+future Typed LLM-to-Prolog Gateway still needs a closed transport schema,
+provider-specific parsing, provenance, deadlines/cancellation, and deterministic
+fixtures.  It must never splice model-produced source, predicate names, or
+search options directly into executable goals.
