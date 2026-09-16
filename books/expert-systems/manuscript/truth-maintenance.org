@@ -138,10 +138,14 @@ A current fact is immediately grounded if its exact current occurrence is base-s
 
 A derived fact needs a current justification path back to such base evidence.
 
+Crucially, those support modes are *not mutually exclusive*. A current occurrence can be base-supported and also acquire a derived justification when a rule proposes the same stable ID with the same logical content. In this teaching engine, base support is therefore one independent support source, not a flag that erases or disables derived reasons.
+
+That distinction matters during retraction. Removing the base-support stamp does not automatically remove the working-memory occurrence. If a current derived justification still grounds that exact occurrence, the fact stays in working memory, becomes non-base, and keeps the same occurrence stamp. Only loss of the last grounding source produces a working-memory retraction.
+
 This gives us a useful debugging vocabulary:
 
-- *base* -- current occurrence is explicitly base-supported;
-- *derived* -- current occurrence exists but depends on one or more recorded reasons;
+- *base* -- current occurrence is explicitly base-supported; it may also have current derived reasons;
+- *derived* -- current occurrence exists, is not base-supported, and depends on one or more recorded reasons;
 - *absent* -- no current working-memory occurrence exists for the stable ID;
 - *grounded* -- at least one current support path reaches base evidence;
 - *ungrounded* -- the fact is current but no support path reaches base evidence.
@@ -173,7 +177,7 @@ Milestone B correctly rejected a duplicate stable fact ID because working memory
 Milestone D therefore distinguishes three cases before mutation:
 
 1. The conclusion ID is absent. Assert one new working-memory occurrence and record the reason.
-2. The conclusion ID is present with the same relation and arguments. Do not assert a duplicate occurrence; record another justification for the existing occurrence.
+2. The conclusion ID is present with the same relation and arguments. Do not assert a duplicate occurrence; record another justification for the existing occurrence. This is valid even when that existing occurrence is also base-supported.
 3. The conclusion ID is present with different relation or arguments. Signal =fact-id-content-conflict= before changing working memory, refraction, firing history, or truth-maintenance state.
 
 Provenance embedded in the existing =fact= object is intentionally not used to decide logical content equality. Different productions can provide different reasons for the same logical conclusion. Those reasons belong in the justification ledger rather than being smashed into one mutable provenance field.
@@ -295,13 +299,24 @@ This is deliberately a small grounding rule, not a general ATMS. Chapter 18 will
 ** 17.8 Cascading retraction follows dependency edges
 When base evidence disappears, we could scan every current derived fact and recompute grounding from scratch. For a tiny book fixture that would work, but it would throw away the dependency structure we just built.
 
-Instead, each removed occurrence produces a dependency delta.
+The first subtlety is that *removing base support is not necessarily a working-memory retraction*. If the requested occurrence also has a current derived reason, removing the base-support stamp changes only the support ledger. The working-memory occurrence stays current, so there is no removed occurrence to use as a dependency delta and no reason to disturb its downstream dependents.
 
-The cascade algorithm is:
+Only an occurrence that actually leaves working memory produces a dependency delta.
+
+The cascade algorithm is therefore:
 
 #+begin_example
-retract requested base occurrence
-queue current conclusions whose reasons mention that removed stamp
+remove the requested occurrence's base-support stamp
+
+if the requested occurrence is still grounded through a current reason:
+    keep the working-memory occurrence
+    report "base support removed, occurrence retained"
+    stop
+
+otherwise:
+    remember the requested occurrence stamp
+    retract the requested occurrence through the incremental API
+    queue current conclusions whose reasons mention that removed stamp
 
 while queue is not empty:
     candidate = pop queue
@@ -316,16 +331,25 @@ while queue is not empty:
         queue current conclusions whose reasons mention the removed stamp
 #+end_example
 
-Two details are easy to miss.
+This distinction is why the retraction result does not use one vague =retracted-p= flag. It reports separately whether the base-support classification was removed and whether the requested working-memory occurrence was removed. Its removed-occurrence list likewise contains only occurrences that actually left working memory.
 
-First, dependency lookup must still be able to find a conclusion whose reason mentions a stamp that has *just* been removed. If lookup required the support stamp itself to remain current, the cascade would lose the very edge it needs to follow. We therefore require the *conclusion* occurrence to be current while treating the historical support stamp as the dependency key.
+Three details are easy to miss.
 
-Second, retraction goes through =incremental-retract-fact=. Truth maintenance is not allowed to mutate working memory behind the matcher's back. The same removal that changes the support graph must also invalidate alpha/beta state.
+First, a mixed-support fact can remain at the *same occurrence stamp* after its base support disappears. That is intentional. Nothing was retracted and reasserted; only one support source was removed. Current justifications attached to that occurrence therefore remain attached to exactly the object they justified.
+
+Second, dependency lookup must still be able to find a conclusion whose reason mentions a stamp that has *just* been removed. If lookup required the support stamp itself to remain current, the cascade would lose the very edge it needs to follow. We therefore require the *conclusion* occurrence to be current while treating the historical support stamp as the dependency key.
+
+Third, every actual working-memory retraction goes through =incremental-retract-fact=. Truth maintenance is not allowed to mutate working memory behind the matcher's back. The same removal that changes the support graph must also invalidate alpha/beta state.
 
 The result is a clean ownership chain:
 
 #+begin_example
-support layer decides a derived fact is unsupported
+support layer removes one support source
+        |
+        +--> another grounded reason exists -> keep occurrence
+        |
+        v otherwise
+support layer decides current occurrence is unsupported
         |
         v
 incremental API retracts exact current fact occurrence
@@ -378,12 +402,13 @@ Now retract the base failure observation.
 
 The support graph changes in this order:
 
-1. =("obs.api.state.failed" . 1)= is removed.
-2. =J-impact= no longer has all of its exact supports.
-3. The impact conclusion has no other grounded reason, so occurrence 6 is retracted.
-4. That removed conclusion occurrence is itself a support of =J-investigate=.
-5. The investigation conclusion now has no grounded reason and is retracted.
-6. The incremental matcher invalidates cache state for each retracted occurrence as those removals happen.
+1. =("obs.api.state.failed" . 1)= loses its base-support classification.
+2. It has no independent derived reason, so that working-memory occurrence is retracted.
+3. =J-impact= no longer has all of its exact supports.
+4. The impact conclusion has no other grounded reason, so occurrence 6 is retracted.
+5. That removed conclusion occurrence is itself a support of =J-investigate=.
+6. The investigation conclusion now has no grounded reason and is retracted.
+7. The incremental matcher invalidates cache state for each working-memory occurrence as those actual removals happen.
 
 This is the first point in the book where a retraction can correctly propagate *through conclusions that were already fired*, not merely through candidate matches.
 
@@ -493,6 +518,9 @@ A base fact =sensor.temp= is asserted at sequence 10, supports a conclusion, is 
 *** ★★ Add an alternative reason
 Extend the synthetic service rules so =needs-investigation(frontend)= can also be justified by a distinct current observation. Retract the original API-failure chain. The conclusion should survive through the independent reason and should not create a duplicate working-memory occurrence.
 
+*** ★★ Remove only one support mode
+Start with base-supported =X= and base-supported =Y=. Add a rule =Y -> X= that proposes exactly the same stable ID, relation, and arguments as the existing =X=. Then add a downstream rule =X -> Z=. Remove only =X='s base support while =Y= remains. Explain why =X= keeps the same occurrence stamp and why =Z= must remain untouched. Finally remove =Y= and predict the cascade before running it.
+
 *** ★★ Inspect dependency direction
 Implement a helper that prints, for one current fact occurrence:
 
@@ -579,6 +607,22 @@ Derive a conclusion from =seed @ 1=. Retract the base fact so the conclusion cas
 
 Then run forward chaining again. The newly derived conclusion must have a new conclusion occurrence and a fresh reason referring to the new seed occurrence. Historical reasons may remain inspectable, but they may not support the new materialization.
 
+** Lab E -- Remove base support without removing the occurrence
+Seed =X= and =Y= as base facts. Add =Y -> X= using the same stable ID and logical content already held by =X=, plus =X -> Z= as a downstream dependency. Run to quiescence so =X= has both base support and a derived reason and =Z= depends on the exact current =X= occurrence.
+
+Now remove =X='s base support. Inspect the retraction report rather than assuming the word “retract” means one thing:
+
+- base support should report as removed;
+- the requested working-memory occurrence should report as retained;
+- no working-memory occurrence stamp should appear in the removed-occurrence list;
+- =X= should now report =:derived=, non-base, and grounded;
+- =X='s occurrence stamp should be unchanged;
+- =Z= should remain current because its exact support occurrence never disappeared.
+
+Then remove =Y=. The derived reason for =X= loses its final path to base evidence, so =X= must now be retracted and the loss of that exact occurrence must cascade to =Z=.
+
+This lab is a useful check against an easy but incorrect shortcut: “remove base support” and “remove the fact” are not synonyms once a fact can have mixed support.
+
 ** Debugging checklist
 When a derived fact looks wrong, classify the failure in this order:
 
@@ -586,9 +630,10 @@ When a derived fact looks wrong, classify the failure in this order:
 2. *Matcher index*: Do complete-rematch and incremental agendas agree for current evidence?
 3. *Support occurrence*: Do the reason's exact support stamps still resolve to current occurrences?
 4. *Conclusion occurrence*: Is the reason attached to this exact current materialization rather than an older same-ID occurrence?
-5. *Grounding*: Does at least one reason ultimately reach base evidence without relying on a support cycle?
-6. *Cascade*: Was an ungrounded dependent queued after its support occurrence disappeared?
-7. *Identity collision*: Did a rule try to reuse one stable fact ID for different logical content?
+5. *Support mode*: Did a base-support stamp disappear while another derived grounding path still keeps the same occurrence current?
+6. *Grounding*: Does at least one reason ultimately reach base evidence without relying on a support cycle?
+7. *Cascade*: Was an ungrounded dependent queued only after its support occurrence actually disappeared?
+8. *Identity collision*: Did a rule try to reuse one stable fact ID for different logical content?
 
 Only after these invariants agree should you investigate later contradiction policy or explanation rendering.
 
