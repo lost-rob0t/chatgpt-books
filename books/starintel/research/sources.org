@@ -11,8 +11,8 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Revision :: =d4e8447c6049eaed65a93e81668ae1ec4b65c25c=
 - Retrieved :: 2026-09-16
 - Authority :: Current implementation repository for the Common Lisp StarIntel backend service.
-- Inspected :: README; ASDF load graph; v0.9 runtime/document docs; architecture; active HTTP authorization runtime; HTTP boundary/authorization/publish source.
-- Used by :: Chapters 1--5; later actor/messaging/debugging chapters must recheck current head.
+- Inspected :: README; ASDF load graph; v0.9 runtime/document docs; architecture; active HTTP authorization runtime; HTTP boundary/authorization/publish source; producer/actor publish path; active Rabbit consumer/retry path; CouchDB outbox; consumer tests; canonical test systems; messaging documentation.
+- Used by :: Chapters 1--6, 8--9, 14; Projects 1--2. Later actor/search/deployment chapters must recheck current head.
 
 ** StarIntel Python document binding
 - URL :: https://github.com/lost-rob0t/starintel-doc
@@ -42,11 +42,18 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Documentation version observed :: 4.3
 - Retrieved :: 2026-09-16
 - Authority :: Official RabbitMQ documentation.
-- Used by :: Chapter 5 distinction between publish/broker/consumer/persistence observations. No claim is made here about uninspected StarIntel publisher-confirm configuration.
+- Used by :: Chapters 5, 6, and 8 to distinguish publisher-call return, publisher confirms, consumer settlement, and downstream persistence. Current StarIntel source inspection did not find a publisher-confirm select/wait path in the inspected producer/retry publishers.
+
+** RabbitMQ reliability guide
+- URL :: https://www.rabbitmq.com/docs/reliability
+- Documentation version observed :: 4.3
+- Retrieved :: 2026-09-16
+- Authority :: Official RabbitMQ documentation.
+- Used by :: Chapter 8 failure/duplicate reasoning. Generic RabbitMQ guidance is not substituted for StarIntel runtime evidence.
 
 ** Apache CouchDB documentation
 - URL :: https://docs.couchdb.org/en/latest/
 - Documentation version observed :: 3.5
 - Retrieved :: 2026-09-16
 - Authority :: Official Apache CouchDB documentation.
-- Used by :: Chapter 3 distinction between CouchDB revision identifiers and StarIntel document/schema versions; later persistence chapters require deeper API-specific research.
+- Used by :: Chapters 3 and 9 for revision/MVCC concepts; current StarIntel mutation/outbox behavior is taken from the pinned server source rather than inferred from generic CouchDB documentation.
