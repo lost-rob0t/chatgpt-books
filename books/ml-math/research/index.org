@@ -13,6 +13,8 @@ The 2026-09-16 matrix pass covers matrix shape, matrix-vector multiplication as 
 
 A follow-up numerical pass records the boundary between exact matrix associativity and finite-precision execution. A tested one-by-one matrix case demonstrates that two algebraically equivalent parenthesizations can produce different stored results when an intermediate underflows; the manuscript now treats that as a debugging/failure lesson rather than silently implying bitwise associativity.
 
-Calculus, probability, information theory, optimization, decompositions, and later-project theory remain open rather than being implicitly declared complete.
+The 2026-09-16 calculus pass covers the secant-to-tangent derivative definition, scalar composition/chain rule, partial derivatives, gradients and directional derivatives, plus the current NumPy 2.5 sampled-gradient finite-difference contract. It deliberately separates exact derivative statements from TESTED finite-difference checks and uses Python's already-recorded floating-point guidance to motivate step-size failure cases. This pass prepares Project 2 but does not claim a regression optimizer or trained model.
+
+Probability, information theory, optimization beyond local derivative direction, decompositions, and later-project theory remain open rather than being implicitly declared complete.
 * Records
 Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].

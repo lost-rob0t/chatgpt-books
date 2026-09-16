@@ -1,0 +1,35 @@
+digraph truth_maintenance {
+  graph [rankdir=LR, labelloc=t,
+         label="Milestone D: support groups and cascading retraction"];
+  node [shape=box, fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  seed_a [label="base A\noccurrence @1"];
+  seed_b [label="base B\noccurrence @2"];
+  seed_c [label="base C\noccurrence @3"];
+  context [label="base context\noccurrence @4"];
+
+  j1 [shape=diamond, label="J1\nrule.alpha\nAND support"];
+  j2 [shape=diamond, label="J2\nrule.beta\nalternative support"];
+  conclusion [label="derived X\ncurrent occurrence @5"];
+  j3 [shape=diamond, label="J3\nrule.downstream\nAND support"];
+  downstream [label="derived Y\ncurrent occurrence @6"];
+
+  seed_a -> j1 [label="support"];
+  seed_b -> j1 [label="support"];
+  j1 -> conclusion [label="justifies"];
+
+  seed_c -> j2 [label="support"];
+  j2 -> conclusion [label="justifies"];
+
+  conclusion -> j3 [label="support"];
+  context -> j3 [label="support"];
+  j3 -> downstream [label="justifies"];
+
+  note_or [shape=note, label="J1 OR J2 can ground X.\nInside J1, A AND B are required."];
+  conclusion -> note_or [style=dotted, arrowhead=none];
+
+  note_retract [shape=note,
+                label="Retract A: J1 becomes invalid,\nbut X survives through J2.\nRetract C too: X retracts, then Y cascades."];
+  downstream -> note_retract [style=dotted, arrowhead=none];
+}

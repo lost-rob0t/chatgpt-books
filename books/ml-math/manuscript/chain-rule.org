@@ -1,0 +1,178 @@
+* Chapter 12 -- Chain Rule: Follow Change Through a Computation
+:PROPERTIES:
+:ID:       b931a231-cd66-4a84-818b-5ecc323efc07
+:END:
+
+Machine-learning losses are compositions. Parameters feed a model, the model produces predictions, predictions combine with targets to form residuals, residuals are transformed into per-example losses, and those losses are aggregated. The chain rule is what lets local rates move through that pipeline.
+
+MIT's single-variable calculus sequence introduces the chain rule specifically as the derivative rule for compositions; its multivariable sequence extends the same idea to several variables. [cite:@mit1801sc2010;@mit1802sc2010]
+
+** 12.1 Rates multiply through a scalar composition
+Let
+
+\[
+y=f(u),\qquad u=g(x).
+\]
+
+A small input change \(\Delta x\) produces approximately
+
+\[
+\Delta u\approx g'(x)\Delta x.
+\]
+
+That intermediate change then produces
+
+\[
+\Delta y\approx f'(u)\Delta u.
+\]
+
+Substitute the first approximation into the second:
+
+\[
+\Delta y\approx f'(g(x))g'(x)\Delta x.
+\]
+
+Therefore
+
+\[
+\frac{dy}{dx}=f'(g(x))g'(x).
+\]
+
+The formula says “multiply the local rate of the outer operation by the local rate of the inner operation.” It is a bookkeeping law for composed change.
+
+** 12.2 Work a composition without skipping the middle variable
+Take
+
+\[
+y=(3x+1)^2.
+\]
+
+Name the intermediate value
+
+\[
+u=3x+1,\qquad y=u^2.
+\]
+
+Then
+
+\[
+\frac{dy}{du}=2u,
+\qquad
+\frac{du}{dx}=3.
+\]
+
+Multiplying gives
+
+\[
+\frac{dy}{dx}=6u=6(3x+1).
+\]
+
+Writing the intermediate variable is not childish scaffolding. The same discipline becomes a computational graph with thousands or millions of intermediate values in a neural network.
+
+** 12.3 MSE as a computation graph
+For one training example in affine regression:
+
+#+begin_example
+(w, b, x) -> prediction p = wx+b
+(p, y)    -> residual   r = p-y
+r         -> square     q = r^2
+(q_1...q_n) -> mean    L
+#+end_example
+
+Follow the weight path for example \(i\):
+
+\[
+\frac{\partial L}{\partial q_i}=\frac1n,
+\quad
+\frac{dq_i}{dr_i}=2r_i,
+\quad
+\frac{dr_i}{dp_i}=1,
+\quad
+\frac{\partial p_i}{\partial w}=x_i.
+\]
+
+Multiply along that path:
+
+\[
+\frac{\partial L}{\partial w}\bigg|_i
+=\frac{2}{n}r_i x_i.
+\]
+
+Because the weight influences every example, the paths meet by addition:
+
+\[
+\frac{\partial L}{\partial w}
+=\frac{2}{n}\sum_i r_i x_i.
+\]
+
+The bias path is identical except \(\partial p_i/\partial b=1\), yielding
+
+\[
+\frac{\partial L}{\partial b}
+=\frac{2}{n}\sum_i r_i.
+\]
+
+These are exactly the formulas already implemented and gradient-checked in the calculus lab. Chapter 10 introduced them as partial derivatives; the chain rule now explains their internal assembly.
+
+** 12.4 A path through parameter space turns the gradient into a scalar rate
+Let a vector of parameters depend on a scalar \(t\):
+
+\[
+\theta(t)=(\theta_1(t),\ldots,\theta_n(t)).
+\]
+
+For a scalar loss \(L(\theta)\), the multivariable chain rule gives
+
+\[
+\frac{d}{dt}L(\theta(t))
+=\sum_i \frac{\partial L}{\partial \theta_i}\frac{d\theta_i}{dt}
+=\nabla L\cdot\theta'(t).
+\]
+
+This is the directional-derivative formula from Chapter 11 in motion. The chain rule and the gradient are not separate tricks: one organizes how local rates compose, and the other packages the coordinate rates for a scalar-valued multivariable function.
+
+** 12.5 Shapes are part of the mathematics
+In scalar examples, multiplication looks harmless. In vector and matrix models, derivative objects have shapes. A scalar loss with respect to \(n\) parameters has an \(n\)-component gradient. A vector-valued function generally requires a Jacobian rather than one gradient.
+
+This chapter stops before a full Jacobian calculus. But from now on every derivative derivation should write input and output shapes. Many implementation bugs that look like “bad calculus” are really accidental transposes, broadcasts, or reductions.
+
+** 12.6 Numerical gradient checks are tests, not training algorithms
+Finite differences are computationally expensive: estimating an \(n\)-component gradient by coordinate perturbation requires repeated function evaluations. Modern training systems use analytic or automatic differentiation to propagate derivatives efficiently.
+
+For this book, finite differences have a different job. They are a small independent checker for formulas we derive by hand. The later neural-network capstone can use the same idea to test a handful of parameter components without pretending finite differences are a practical large-model training method.
+
+** 12.7 Failure case: the missing inner derivative
+Suppose someone differentiates
+
+\[
+(3x+1)^2
+\]
+
+as \(2(3x+1)\) and stops. The missing factor \(3\) is the derivative of the inner computation. In a larger computational graph, this mistake appears whenever a path contribution is omitted.
+
+A useful debugging tactic is therefore structural: write the intermediate nodes, label the local derivatives, and trace every path from the parameter to the scalar output. Algebra comes after graph structure.
+
+** 12.8 Failure case: nondifferentiable points do not disappear
+A chain of differentiable operations is differentiable under the usual conditions. But an operation with a kink can introduce a nondifferentiable point. The numerical =abs= experiment from Chapter 9 already showed that a symmetric checker may look calm exactly where the derivative is undefined.
+
+Later neural-network work will encounter piecewise functions. The implementation must state what derivative or subgradient convention it uses at special points rather than smuggling that choice in as mathematical inevitability.
+
+** 12.9 What is now ready for Project 2
+We can now:
+- define an affine regression loss;
+- derive its parameter gradient;
+- implement that gradient independently of the numerical checker;
+- compare formula and finite difference on bounded fixtures;
+- interpret the negative gradient as a local descent direction;
+- explain why choosing a finite update size is still unsolved.
+
+That last item is the boundary. The next Project 2 slice should build actual regression fitting and evaluation while deriving optimization behavior rather than jumping straight to a library optimizer.
+
+** Exercises
+- ★ Differentiate \((5x-2)^3\) by naming the intermediate variable and multiplying local rates.
+- ★ Draw the computation graph for \(L(w)=(wx-y)^2\) and label every local derivative.
+- ★★ Derive \(\partial L/\partial w\) and \(\partial L/\partial b\) for the multi-example affine MSE using graph paths rather than expanding every square.
+- ★★ Let \(\theta(t)=(t,2t)\) and \(f(x,y)=x^2+3y^2\). Compute \(d f(\theta(t))/dt\) both by direct substitution and by \(\nabla f\cdot\theta'(t)\).
+- ★★ Find and repair the missing chain-rule factor in a deliberately wrong derivative of \(\sin(4x^2)\).
+- ★★★ Extend the computation graph with an L2 penalty \(\lambda w^2\). Derive the new weight gradient and add an independent finite-difference regression test.
+- ★★★ Explain why a finite-difference gradient checker can disagree with a mathematically correct derivative near a nondifferentiable point or at a badly scaled floating-point step. State what evidence you would collect before changing either implementation.
