@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""Regression tests for publication-time Org include expansion."""
+
+from __future__ import annotations
+
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+PREPARE = ROOT / "tools" / "prepare-org-for-pandoc"
+
+
+def fail(message: str) -> None:
+    print(f"ORG PREP REGRESSION FAILED: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def run_prepare(source: Path, output: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(PREPARE), str(source), str(output)],
+        capture_output=True,
+        text=True,
+    )
+
+
+def assert_contains(text: str, needle: str) -> None:
+    if needle not in text:
+        fail(f"missing {needle!r} in prepared output:\n{text}")
+
+
+def test_include_lines_minlevel_and_ids(root: Path) -> None:
+    source = root / "index.org"
+    child = root / "child.org"
+    output = root / "prepared.org"
+
+    source.write_text(
+        "#+title: Fixture\n"
+        ":PROPERTIES:\n"
+        ":ID:       root-id\n"
+        ":END:\n"
+        "* Parent\n"
+        "#+include: \"child.org\" :lines \"2-\" :minlevel 2\n",
+        encoding="utf-8",
+    )
+    child.write_text(
+        "THIS LINE MUST BE SLICED OUT\n"
+        "* Child\n"
+        ":PROPERTIES:\n"
+        ":ID:       child-id\n"
+        ":END:\n"
+        "See [[id:child-id][the child]].\n",
+        encoding="utf-8",
+    )
+
+    result = run_prepare(source, output)
+    if result.returncode != 0:
+        fail(f"valid include failed: {result.stderr.strip()}")
+
+    prepared = output.read_text(encoding="utf-8")
+    assert_contains(prepared, "** Child")
+    assert_contains(prepared, "<<org-id-child-id>>")
+    assert_contains(prepared, "[[#org-id-child-id][the child]]")
+    if "THIS LINE MUST BE SLICED OUT" in prepared:
+        fail(":lines selection did not remove the excluded line")
+
+
+def test_recursive_include(root: Path) -> None:
+    source = root / "recursive.org"
+    child = root / "middle.org"
+    leaf = root / "leaf.org"
+    output = root / "recursive-prepared.org"
+
+    source.write_text("* Root\n#+include: \"middle.org\"\n", encoding="utf-8")
+    child.write_text("** Middle\n#+include: \"leaf.org\"\n", encoding="utf-8")
+    leaf.write_text("*** Leaf\n", encoding="utf-8")
+
+    result = run_prepare(source, output)
+    if result.returncode != 0:
+        fail(f"recursive include failed: {result.stderr.strip()}")
+    prepared = output.read_text(encoding="utf-8")
+    assert_contains(prepared, "** Middle")
+    assert_contains(prepared, "*** Leaf")
+
+
+def test_cycle_is_rejected(root: Path) -> None:
+    a = root / "a.org"
+    b = root / "b.org"
+    output = root / "cycle-prepared.org"
+    a.write_text("#+include: \"b.org\"\n", encoding="utf-8")
+    b.write_text("#+include: \"a.org\"\n", encoding="utf-8")
+
+    result = run_prepare(a, output)
+    if result.returncode == 0:
+        fail("include cycle unexpectedly succeeded")
+    if "include cycle" not in result.stderr.lower():
+        fail(f"cycle failure did not explain the cause: {result.stderr.strip()}")
+
+
+def test_unknown_options_are_rejected(root: Path) -> None:
+    source = root / "unknown-option.org"
+    child = root / "unknown-child.org"
+    output = root / "unknown-prepared.org"
+    source.write_text(
+        "#+include: \"unknown-child.org\" :only-contents t\n",
+        encoding="utf-8",
+    )
+    child.write_text("* Child\n", encoding="utf-8")
+
+    result = run_prepare(source, output)
+    if result.returncode == 0:
+        fail("unsupported include option unexpectedly succeeded")
+    if "unsupported org include options" not in result.stderr.lower():
+        fail(f"unsupported-option failure was unclear: {result.stderr.strip()}")
+
+
+def main() -> None:
+    with tempfile.TemporaryDirectory(prefix="org-prep-test-") as directory:
+        root = Path(directory)
+        test_include_lines_minlevel_and_ids(root)
+        test_recursive_include(root)
+        test_cycle_is_rejected(root)
+        test_unknown_options_are_rejected(root)
+    print("ORG PREP REGRESSION OK: include slicing/minlevel, recursive expansion, IDs, cycles, and fail-closed options")
+
+
+if __name__ == "__main__":
+    main()

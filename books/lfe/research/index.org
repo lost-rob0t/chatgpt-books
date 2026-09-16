@@ -10,5 +10,6 @@
 - Which mailbox, supervision, release, and distribution claims changed across current OTP generations?
 * Active records
 - [[file:foundations-01.org][Foundations Pass 01]] -- LFE v2.2.2 baseline, BEAM terms/patterns, current process-ordering caveat, and Project 1's data-first routing kernel.
+- [[file:macros-02.org][Macro Expansion and Hygiene Pass 02]] -- exported macros, expansion APIs, non-hygienic capture behavior, compile-path mechanics, and Project 1's macro source layer.
 * Records
-Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]]. Later macro/OTP/release passes must add their own primary-source records rather than treating Foundations Pass 01 as blanket verification.
+Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]]. Later process/OTP/release passes must add their own primary-source records rather than treating either foundation pass as blanket verification.

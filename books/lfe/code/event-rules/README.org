@@ -1,15 +1,16 @@
-#+title: Event Routing DSL — Foundation Kernel
+#+title: Event Routing DSL — Data Kernel and Macro Source Layer
 
-* Why this project starts as data
-Project 1 eventually becomes an LFE DSL, but the first implementation deliberately keeps rules as ordinary BEAM terms. That makes the semantic core visible before macros are introduced: a macro may improve source ergonomics later, but it must not secretly change routing behavior.
+* Architecture
+Project 1 deliberately keeps two layers separate.
 
-The event representation is a four-tuple:
+** Runtime semantic kernel
+=event-rules.lfe= evaluates ordinary BEAM terms. The event representation is:
 
 #+begin_src lfe
 (tuple 'event level service payload)
 #+end_src
 
-The initial rule forms are:
+The kernel rule forms are:
 
 #+begin_src lfe
 (tuple 'when-level level destination)
@@ -17,7 +18,21 @@ The initial rule forms are:
 (tuple 'otherwise destination)
 #+end_src
 
-Rules are tried from left to right. The first matching rule returns =#(ok destination)=. Exhausting the list returns =#(error no-route)=. Malformed events and rules return tagged error terms instead of being silently accepted.
+Rules are tried from left to right. The first matching rule returns =#(ok destination)=. Exhausting the list returns =#(error no-route)=. Malformed events and runtime rule terms return tagged error terms.
+
+** Compile-time source layer
+=event-rules-dsl.lfe= exports the =routes= macro. It accepts a smaller declarative source language:
+
+#+begin_src lfe
+(event-rules-dsl:routes
+ (when-level 'critical 'pager)
+ (when-service 'billing 'billing-queue)
+ (otherwise 'archive))
+#+end_src
+
+and expands it to the same explicit rule data used by the kernel. The macro does not implement routing and does not create a second runtime. Unsupported DSL clauses are rejected during expansion with =bad-event-rule-syntax=.
+
+=event-rules-example.lfe= is a separate consumer module. Keeping it separate proves the exported macro works across a real compiler/module boundary rather than only inside the defining module.
 
 * Run it
 Requires Erlang/OTP plus LFE. The book CI pins LFE v2.2.2 and records the actual OTP release used by the runner.
@@ -26,12 +41,22 @@ Requires Erlang/OTP plus LFE. The book CI pins LFE v2.2.2 and records the actual
 books/lfe/code/event-rules/run-tests
 #+end_src
 
-The script compiles the LFE modules with =lfec=, runs the LFE regression module on the BEAM, then performs a second smoke test from Erlang itself. That final test is the important interoperability boundary: Erlang calls an LFE-compiled module and exchanges ordinary Erlang terms.
+The script:
+1. compiles the exported macro module;
+2. places that beam directory on =lfec='s code path and compiles the kernel, a separate macro consumer, and the regression module;
+3. runs kernel, exported-macro expansion, generated-versus-hand-written, routing, and deliberate capture regressions on the BEAM;
+4. requires =test/bad-rules.lfe= to fail compilation for =bad-event-rule-syntax=;
+5. performs a second smoke test from Erlang itself, calling the LFE-compiled runtime module with ordinary BEAM terms.
+
+That final Erlang call remains the runtime interoperability boundary. The macro tests add a compile-time boundary; they do not replace it.
 
 * Failure labs
 1. Move =otherwise= to the front and observe why first-match semantics make every later rule unreachable.
-2. Replace a rule with =#(wat nope)= and confirm the router returns =#(error #(bad-rule ...))= rather than pretending it did not match.
-3. Remove the empty-rule clause and re-run the suite. The resulting function-clause failure is a useful demonstration of why a recursive function needs an explicit base case.
+2. Replace a runtime rule with =#(wat nope)= and confirm the evaluator returns =#(error #(bad-rule ...))= rather than pretending it did not match.
+3. Remove the empty-rule clause and re-run the suite. The resulting function-clause failure demonstrates why the recursive evaluator needs an explicit base case.
+4. Put =(wat 'nope)= inside =event-rules-dsl:routes=. The deliberately invalid fixture must fail compilation; if it compiles, the DSL accepted syntax it does not understand.
+5. Inspect =unsafe-with-value= in the regression module. It intentionally introduces a common binding name to make LFE's documented non-hygienic capture behavior observable. It is teaching code, not a production helper.
+6. Change the production =routes= macro so it introduces a local binding. Add an adversarial caller using the same name and inspect the exported macro's top-level expansion before running it.
 
 * Scope boundary
-This slice does not implement macros, processes, OTP behaviours, persistence, or distribution. Those arrive after their chapters establish the underlying semantics. The macro surface must eventually compile to this same kind of explicit rule data or an equally inspectable semantic representation.
+The project now has a tested data kernel and a macro source layer, but still has no process server, mailbox protocol, OTP behaviour, persistence, supervision, distribution, or release. Those arrive only after their chapters establish and test the underlying BEAM semantics.
