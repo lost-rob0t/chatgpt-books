@@ -50,11 +50,28 @@ This pass supports Chapters 10--12 and Project 2 checkpoint A. It records these 
 
 Execution evidence: the final merged PR head =275863a4798941683718a649f6ff7fb51842da52= passed focused =erlang-book= run =35122123282= on strict Erlang/OTP 29.0.6 / ERTS 17.0.6 with foundations 14/14 EUnit and Project 2 OTP-worker 6/6 EUnit. =make book BOOK=erlang=, =make check BOOK=erlang=, EPUBCheck 5.3.0 with zero findings, and the separate Nix evaluation succeeded. Generic =books-ci= run =35122123275= also succeeded through structural validation, Pandoc Org-reader validation, deterministic assets/fixture, publication/citation regressions, ERT, real Org-roam DB synchronization, and artifact upload. The six Project 2 regressions cover behavior/state, modern call-timeout mailbox isolation, =sys= state introspection, supervised replacement with fresh process-local state, and restart-budget escalation. This is execution evidence for those bounded mechanisms, not a performance or availability benchmark. PR #54 merged as =c93bc5b2f5077d8fb18b893d37ce5b72581d1c4a=.
 
-Documentation-version caveat: on 2026-09-16 the official downloads page still named 29.0.6 as the latest released OTP, while the unversioned =/doc/apps/stdlib/gen_server.html= route rendered 29.1/stdlib 8.1 material. For exact executable claims this pass therefore cites the immutable official =OTP-29.0.6= Git tag, not the drifting unversioned documentation route.
+Documentation-version caveat: pass 03 intentionally used immutable =OTP-29.0.6= sources and execution for its merged checkpoint. Later on 2026-09-16 an immutable official =OTP-29.1= tag became available; pass 04 advances new work to that baseline without rewriting earlier evidence.
+
+** Application pass 04 -- application behaviour, =.app= metadata, and component lifecycle
+Status: DOCUMENTED; implementation/execution UNTESTED until exact branch workflow execution.
+
+Primary-source scope: official Erlang/OTP source at immutable tag =OTP-29.1=: =OTP_VERSION=, the Applications design-principles chapter, Kernel =app= application-resource reference, and Kernel =application= source documentation. See [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
+
+This pass supports Chapter 13 and Project 2 checkpoint B. It records these boundaries:
+- an OTP application is a reusable component that can be started and stopped as a unit; it is not synonymous with a release or deployment artifact;
+- the application controller coordinates application load/start/stop/unload operations;
+- a started supervision-tree application gets an application master, which invokes the callback module named by =mod= and tracks application process ownership;
+- =start/2= normally starts the top supervisor and returns its PID; =stop/1= is post-tree cleanup, not a replacement for supervisor shutdown;
+- the =Application.app= resource in =ebin= contains one application-specification term; =modules=, =registered=, =applications=, and =mod= describe different parts of the component contract;
+- loading an application stores its specification but does not load all object code;
+- =application:start/1= requires declared prerequisite applications to be running, while =ensure_all_started/1,2,3= can traverse/start the dependency set;
+- stopping the application stops the owned process tree but does not unload its specification; neither operation is persistence;
+- Project 2 continues to keep worker state volatile so a full application restart must create a new tree with empty history.
+
+The executable checkpoint adds =otp_worker_app=, =otp_worker_app.app.src=, application-controller lifecycle regressions, and an editable application-ownership diagram. Until the exact branch tests run, those observations remain proposed executable claims rather than TESTED results.
 
 * Open research queue
-- Application behavior and =.app= resource contracts for Chapter 13 / completion of Project 2 as an OTP application.
-- Releases and upgrade boundaries.
+- Releases, boot scripts, release structure, and upgrade boundaries.
 - Distributed Erlang connectivity, security/TLS, partitions, and failure visibility.
 - Persistence boundaries and restart recovery semantics.
 - EUnit/Common Test, tracing, logger/telemetry, Observer/runtime tools, production debugging.
