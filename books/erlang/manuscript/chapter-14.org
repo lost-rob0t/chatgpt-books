@@ -1,0 +1,535 @@
+** Chapter 14 -- Releases: Turn Applications into a Bootable System
+:PROPERTIES:
+:ID:       16443196-e664-4f64-8d4a-15797da1b8f7
+:END:
+
+Chapter 13 gave Project 2 a proper OTP /application/. The runtime could load its
+metadata, start its supervision tree, stop the component as a unit, and answer
+which application owned the worker process. That was an important boundary, but
+it still assumed an already-running Erlang system whose code path had been
+prepared by a developer or test script.
+
+A production-style system needs a bigger answer to a different question:
+
+#+begin_quote
+Which exact runtime and application versions make up this system, and what must
+the VM do during boot to start them in dependency order?
+#+end_quote
+
+OTP calls that composition a /release/. The official OTP 29.1 release guide
+defines a release as a complete system assembled from one or more applications
+plus the required subset of Erlang/OTP applications. [cite:@erlang-release-structure-29-1]
+
+That definition is narrower than the way teams sometimes use the word
+"release". In this chapter a release is not a Git tag, a Docker image, a Debian
+package, a Kubernetes deployment, or a promise of high availability. It is an
+OTP system-composition and boot boundary. We will derive that boundary from the
+application we already built, generate real boot artifacts, deliberately break
+the metadata, and boot a fresh VM from the result.
+
+*** From component identity to system identity
+
+The =otp_worker_app.app= file from Chapter 13 answers component-local questions:
+
+#+begin_src erlang
+{application, otp_worker_app,
+ [{vsn, "0.1.0"},
+  {modules, [otp_worker_app, otp_worker_sup, otp_worker]},
+  {registered, [otp_worker_sup, otp_worker]},
+  {applications, [kernel, stdlib]},
+  {mod, {otp_worker_app, []}}]}.
+#+end_src
+
+It says that =otp_worker_app= version =0.1.0= depends on =kernel= and =stdlib=.
+It does not say which versions of those applications belong to a concrete
+system, nor which ERTS version that system expects.
+
+A release resource file, =Name.rel=, adds exactly that missing system-level
+identity. The OTP 29.1 =rel= reference specifies one release term containing a
+release name/version, an ERTS version, and the applications with their exact
+versions. Kernel and STDLIB must be present. [cite:@erlang-rel-29-1]
+
+A concrete teaching release therefore looks like this once the current runtime
+versions have been discovered:
+
+#+begin_src erlang
+{release,
+ {"otp_worker_release", "0.1.0"},
+ {erts, "17.1"},
+ [{kernel, "...runtime kernel version..."},
+  {stdlib, "...runtime stdlib version..."},
+  {otp_worker_app, "0.1.0"}]}.
+#+end_src
+
+The ellipses are deliberate in the manuscript. Kernel and STDLIB versions are
+runtime data, not numbers we should guess or freeze into prose. The executable
+lab queries the actual OTP 29.1 environment and writes the =.rel= file from
+those values.
+
+This yields a useful distinction:
+
+| Artifact | Scope | Main question |
+|-
+| =otp_worker_app.app= | one application | What modules, names, dependencies, callback, and component version belong together? |
+| =otp_worker_release.rel= | whole system | Which exact ERTS and application versions compose this bootable system? |
+
+The two files overlap on application name/version on purpose. That overlap lets
+release tooling detect disagreement instead of silently packaging whatever it
+happens to find.
+
+*** Why exact versions are part of correctness
+
+Suppose the application resource says:
+
+#+begin_src erlang
+{vsn, "0.1.0"}
+#+end_src
+
+but the release claims:
+
+#+begin_src erlang
+{otp_worker_app, "9.9.9"}
+#+end_src
+
+Which one wins?
+
+Neither. =systools:make_script/2= checks that the application version named in
+the =.rel= file matches the =vsn= in the corresponding =.app= file. OTP's
+current =systools= documentation lists that check explicitly, alongside missing
+dependencies, circular dependencies, and duplicate modules. [cite:@erlang-systools-29-1]
+
+That is a design lesson, not merely a packaging detail. Once a system boundary
+exists, version disagreement should fail during construction rather than become
+an accidental runtime experiment.
+
+The release lab contains a regression that injects =9.9.9= into the =.rel=
+while leaving the application at =0.1.0=. It requires =make_script= to return an
+error. The check matches the structured failure result rather than brittle
+human-oriented error text.
+
+*** A release is a dependency closure, not a shopping list
+
+Our application declares:
+
+#+begin_src erlang
+{applications, [kernel, stdlib]}
+#+end_src
+
+The release therefore includes both dependencies plus =otp_worker_app=. If we
+change the application resource to declare =crypto= but fail to add =crypto= to
+the release, the system composition is incomplete.
+
+=systools= checks this relationship before generating a boot script. It also
+orders applications according to dependencies; where no dependency determines
+an order, the order in the =.rel= file is retained. [cite:@erlang-systools-29-1]
+
+The lab injects exactly this missing-dependency failure:
+
+1. copy the already compiled application into an isolated temporary =ebin=;
+2. change only its =applications= entry to =[kernel, stdlib, crypto]=;
+3. keep the release list unchanged;
+4. require =systools:make_script/2= to reject the release.
+
+This failure is useful because none of the worker's domain code is wrong. The
+system fails one layer above it. A release engineer has to debug composition as
+well as callbacks.
+
+*** Boot is generated data
+
+A =.rel= file is declarative system composition. The VM still needs an ordered
+set of boot instructions.
+
+=systools:make_script/1,2= reads the release resource and the participating
+application resources, validates them, and generates two files:
+
+- =Name.script= -- a human-readable Erlang term describing boot actions;
+- =Name.boot= -- the binary form consumed by the runtime system.
+
+[cite:@erlang-release-structure-29-1;@erlang-systools-29-1]
+
+The important word is /generated/. We do not hand-author a =.boot= file. The
+release and application contracts are source material; =systools= derives the
+ordered boot program.
+
+The Chapter 14 flow is:
+
+#+begin_example
+otp_worker_app.app        otp_worker_release.rel
+        \                       /
+         \                     /
+          +---- systools ------+
+                 |
+                 +--> otp_worker_release.script
+                 |
+                 +--> otp_worker_release.boot
+                              |
+                              v
+                         fresh BEAM VM
+                              |
+                              v
+                 application_controller
+                              |
+                              v
+                       otp_worker_app
+                              |
+                              v
+                       otp_worker_sup
+                              |
+                              v
+                         otp_worker
+#+end_example
+
+#+caption: Chapter 14 release construction and boot flow. Application metadata and the release resource are validated together. =systools= derives a readable script and binary boot term, and the boot instructions cause a fresh VM to start the accepted OTP application tree. A separate =make_tar= path packages the same validated application/release inputs into target-system layout.
+#+attr_html: :alt "Flow diagram from otp_worker_app.app and otp_worker_release.rel into systools, then to script and boot files. A fresh BEAM VM boots through the application controller and application master into otp_worker_sup and otp_worker. A second path from systools creates a release package with target-system lib and releases directories."
+[[file:assets/release-boot-flow.svg]]
+
+The editable source is =../assets/release-boot-flow.dot=.
+
+*** Local boot scripts versus relocatable boot scripts
+
+=systools:make_script/2= has a =local= option that changes an important path
+assumption. With =local=, the generated boot script records the actual
+directories where applications were found. Without it, application paths are
+written in release form such as =$ROOT/lib/App-Vsn/ebin=. The official
+documentation specifically calls =local= useful for testing a generated boot
+script locally. [cite:@erlang-systools-29-1]
+
+That gives us two distinct artifacts for two distinct jobs:
+
+- *local boot script* -- prove, in CI, that the generated boot program starts the
+  application from the temporary build directories we actually created;
+- *relocatable boot script/package* -- represent installation-relative paths for
+  a target system whose final root is not the CI temporary directory.
+
+The lab intentionally generates both instead of pretending one path model fits
+both jobs.
+
+*** Lab: boot a fresh VM from the generated release
+:PROPERTIES:
+:ID:       2e782170-e6b3-4082-b056-041776fe2c4c
+:END:
+
+The executable lab is =../code/release-lab/run-tests.sh=. It performs the build
+from scratch in a temporary directory, so passing does not depend on a stale
+=ebin= tree left by another test.
+
+First it compiles the accepted Project 2 modules with warnings treated as
+errors and installs the application resource next to the BEAM files:
+
+#+begin_src sh
+APP_EBIN="$BUILD/lib/otp_worker_app-0.1.0/ebin"
+mkdir -p "$APP_EBIN"
+erlc -Werror -o "$APP_EBIN" "$APP_ROOT"/src/*.erl
+cp "$APP_ROOT/src/otp_worker_app.app.src" \
+   "$APP_EBIN/otp_worker_app.app"
+#+end_src
+
+Then it asks the running VM for the concrete ERTS, Kernel, and STDLIB versions.
+The generated release therefore describes the environment that is actually
+under test instead of copying numbers from documentation prose.
+
+The local script gate is strict:
+
+#+begin_src erlang
+systools:make_script(
+  RelBase,
+  [{path, [AppEbin]},
+   local,
+   no_warn_sasl,
+   warnings_as_errors,
+   silent]).
+#+end_src
+
+Why =no_warn_sasl=? This chapter is teaching first-release construction, not
+runtime release upgrades. OTP documents that SASL is required when a release is
+to be upgraded and warns when SASL is absent; =no_warn_sasl= suppresses that
+specific warning for this bounded lab. [cite:@erlang-release-structure-29-1;@erlang-systools-29-1]
+
+Why =warnings_as_errors=? Because this is a test gate. A warning that would be
+easy to miss in scrolling CI output should fail the teaching artifact unless we
+have consciously scoped it out.
+
+After generation, the script launches an entirely new VM:
+
+#+begin_src sh
+erl -noshell -boot "$REL_BASE" -eval '...assert application ownership...'
+#+end_src
+
+The assertion requires all of the following:
+
+1. =otp_worker_app= appears in =application:which_applications/0= with version
+   =0.1.0=;
+2. =otp_worker_sup= is a live registered process;
+3. =otp_worker= is a live registered process;
+4. =application:get_application(WorkerPid)= returns ={ok, otp_worker_app}=.
+
+This matters more than checking that a =.boot= file merely exists. We are
+proving that the generated boot instructions cause a fresh VM to reach the same
+application/supervision ownership structure we derived in Chapters 11--13.
+
+The claim is still deliberately bounded: this is a boot-composition regression,
+not an availability or deployment benchmark.
+
+*** What the boot script actually owns
+
+It is tempting to say "the release starts the worker." That skips too many
+layers.
+
+The boot script starts applications according to the generated instructions.
+Kernel's application controller then applies the application lifecycle from
+Chapter 13. The application master calls =otp_worker_app:start/2=. That callback
+starts =otp_worker_sup=. The supervisor starts =otp_worker=.
+
+So the ownership chain remains:
+
+#+begin_example
+release boot instructions
+  -> application lifecycle
+    -> top supervisor
+      -> worker
+#+end_example
+
+The release did not replace OTP behaviours. It composed the existing ones into
+a reproducible VM boot.
+
+That is a recurring design principle in Erlang/OTP: larger reliability
+boundaries are layered around smaller explicit ownership boundaries instead of
+smashing them together into one mega-framework.
+
+*** Packaging the release
+
+Once the validated release resource can produce a boot script, =systools:make_tar/1,2=
+can create a release package. The current release guide says that the package
+contains application =.app= files and object code, the release resource, and a
+=start.boot= derived from the binary boot script; =sys.config= and =relup= are
+included when present. [cite:@erlang-release-structure-29-1;@erlang-systools-29-1]
+
+Our lab generates the package and inspects it as data. It requires at least:
+
+#+begin_example
+lib/otp_worker_app-0.1.0/ebin/otp_worker_app.app
+lib/otp_worker_app-0.1.0/ebin/otp_worker.beam
+releases/0.1.0/start.boot
+releases/0.1.0/otp_worker_release.rel
+releases/otp_worker_release.rel
+#+end_example
+
+Those assertions are not copied from an imagined successful run. They are the
+contract the CI job must actually observe before this chapter can be marked
+TESTED.
+
+The package's directory shape introduces the target-system vocabulary used by
+OTP:
+
+#+begin_example
+$ROOT/
+  lib/
+    App-Vsn/ebin/
+  releases/
+    ReleaseVsn/start.boot
+    ReleaseVsn/Name.rel
+  erts-EVsn/        # present when that runtime is included
+  bin/
+#+end_example
+
+OTP's target-system documentation distinguishes creating such a trimmed system
+from simply installing all of Erlang/OTP and adding application code to the
+code path. [cite:@erlang-create-target-29-1]
+
+This chapter stops at the package/layout boundary. It does not claim that the
+teaching tarball is a complete cross-host installer. In particular, inclusion
+of ERTS itself is an explicit =systools:make_tar/2= option, and operating-system
+startup/integration is a separate concern.
+
+*** Failure lab 1: release and application versions disagree
+
+Start from the good release, then change only this line:
+
+#+begin_src erlang
+{otp_worker_app, "9.9.9"}
+#+end_src
+
+The application resource still says =0.1.0=. The correct result is construction
+failure.
+
+The debugging sequence is:
+
+1. read =otp_worker_release.rel= and identify the application version selected
+   for the system;
+2. read the =otp_worker_app.app= that =systools= actually found on its path;
+3. compare the two =vsn= values;
+4. fix the source-of-truth mismatch rather than editing the generated boot file.
+
+Do not "repair" this by hand-modifying =.script= or =.boot=. Generated output is
+showing you that the inputs disagree.
+
+*** Failure lab 2: the application asks for a dependency the release omits
+
+Now leave the release unchanged and alter the isolated failure fixture to say:
+
+#+begin_src erlang
+{applications, [kernel, stdlib, crypto]}
+#+end_src
+
+The release still includes only Kernel, STDLIB, and =otp_worker_app=. Again,
+=systools:make_script/2= must fail.
+
+This catches a subtle class of packaging bug: an application can be perfectly
+valid in a developer shell because some dependency happens to be installed and
+running, while the release description does not include that dependency at
+all.
+
+The release boundary makes accidental ambient dependencies visible.
+
+*** Start types exist, but defaults are enough here
+
+The =rel= format can attach a start type to each application. OTP 29.1 documents
+=permanent=, =transient=, =temporary=, =load=, and =none=, with =permanent= as
+the default. [cite:@erlang-rel-29-1]
+
+We do not vary those types in this lab. Kernel, STDLIB, and our application use
+the normal default because the learning target is system composition and boot
+construction, not yet boot-policy experimentation.
+
+The important lesson is that application start semantics appear at more than
+one layer:
+
+- an application has callbacks and its own supervision tree;
+- a release decides which applications are part of the system and how they are
+  treated during boot.
+
+Those are related contracts, not duplicates.
+
+*** Release package is still not persistence
+
+Booting =otp_worker_app= from a release does nothing to change its state model.
+The worker history is still a process-local map. If the worker crashes, the
+supervisor creates a fresh worker. If the application restarts, it creates a
+fresh tree. If the node stops and boots from =start.boot=, it creates another
+fresh tree.
+
+Packaging improves reproducibility of /what code and applications start/. It
+does not answer /what state survives/.
+
+That boundary is worth writing down explicitly:
+
+| Failure/question | Chapter 14 mechanism | Durable recovery? |
+|-
+| Can a fresh VM start the intended applications? | release + boot script | No |
+| Can the runtime reconstruct the supervision tree? | application callback + supervisor | No |
+| Does a restarted worker remember old messages/history? | current in-memory state only | No |
+| Does node reboot restore domain state? | no persistence layer yet | No |
+| Does a release package survive network partitions? | unrelated question | No |
+
+A system that restarts reliably but forgets all important state may still be
+useful, but it is not durable merely because it has a =.rel= file.
+
+*** Release package is still not distribution
+
+The package also says nothing about multiple nodes. A release can describe one
+node's boot composition. Distributed Erlang adds node identity, connectivity,
+authentication/cookie/TLS concerns, remote failure visibility, partitions, and
+protocol choices.
+
+Chapter 15 will introduce those as new failure domains rather than implying
+that "packaged" means "distributed."
+
+*** Debugging release construction from the outside inward
+
+When release construction fails, debug contracts in the order that =systools=
+consumes them:
+
+#+begin_example
+1. Is Name.rel valid as one release term?
+2. Does its ERTS version describe the runtime being packaged?
+3. Are kernel and stdlib present?
+4. Can every named App.app be found on the effective code/search path?
+5. Does each .rel AppVsn equal the matching .app vsn?
+6. Are every application's declared dependencies included?
+7. Are module names unique across applications?
+8. Does make_script produce .script and .boot without unexpected warnings?
+9. Can a fresh VM boot the local .boot?
+10. Only then inspect package layout/target installation.
+#+end_example
+
+This ordering is faster than treating every failure as an application callback
+bug. A version mismatch can fail before =otp_worker_app:start/2= ever runs.
+
+*** Read the generated =.script=
+
+The binary =.boot= file is for the VM, but =.script= is a debugging asset for
+humans. Inspect it after successful generation.
+
+Find:
+
+- path instructions for Kernel, STDLIB, and =otp_worker_app=;
+- module loading instructions;
+- application loading/start instructions;
+- differences between the local script and the relocatable script.
+
+Do not memorize the entire generated term. Instead, use it to connect the
+higher-level resources to concrete VM boot actions.
+
+A useful exercise is to diff the two generated scripts while keeping the same
+=.rel= and =.app= inputs. The main conceptual difference should be path
+relocation, not a different application architecture.
+
+*** Exercises
+
+1. *★ Explain:* Why can =otp_worker_app.app= be correct while
+   =otp_worker_release.rel= is still invalid? Give two distinct examples.
+2. *★ Trace:* Starting from =erl -boot otp_worker_release=, write the ownership
+   path that eventually creates =otp_worker=.
+3. *★★ Inspect:* Run the release lab, preserve a copy of the local and
+   relocatable =.script= files, and explain which path entries changed and why.
+4. *★★ Break:* Change the application version without changing the release.
+   Predict which construction phase fails before running the test; then verify.
+5. *★★ Break:* Add =crypto= to =otp_worker_app.app= without adding it to the
+   release. Explain why this is a system-composition defect rather than a
+   =gen_server= defect.
+6. *★★ Extend:* Add SASL to the release with the exact runtime version and remove
+   =no_warn_sasl=. Explain what capability this prepares for without claiming
+   that upgrades have been implemented.
+7. *★★★ Design:* Add a second tiny OTP application that depends on
+   =otp_worker_app=. Update the release and inspect how =systools= orders the two
+   applications.
+8. *★★★ Debug:* Intentionally place two different =otp_worker_app.app= files on
+   competing search paths. Determine which one =systools= sees, then redesign
+   the build so the artifact path is unambiguous.
+9. *★★★ Boundary:* Sketch what additional evidence would be needed before you
+   could call a release package "deployable to another host" rather than merely
+   "packaged and locally validated."
+
+*** Project handoff
+
+Project 2 is now packaged far enough to establish a bootable-system boundary:
+we can derive a release resource from the accepted application, validate
+version/dependency closure, generate boot artifacts, boot a fresh VM, and build
+a release package whose expected application/release entries are inspected by a
+regression.
+
+That still leaves the interesting production problems intact. Project 3 will
+add a more demanding supervised job processor with queueing, backpressure, and
+telemetry. Chapter 15 then adds distribution as a new system boundary rather
+than treating node connectivity as a side effect of packaging.
+
+*** Evidence boundary
+
+The Chapter 14 claims fall into three buckets:
+
+- *DOCUMENTED* -- =.rel= syntax, Kernel/STDLIB requirement, version/dependency
+  checks, local versus relocatable script paths, generated =.script=/=.boot=
+  artifacts, release-package layout, and target-system concepts are grounded in
+  immutable official OTP 29.1 sources.
+- *TESTED only when CI is green* -- the repository lab compiles the existing
+  application, generates local boot artifacts, boots a fresh VM into the
+  expected application/supervision ownership chain, rejects version and missing
+  dependency fixtures, builds a release package, and inspects required package
+  entries.
+- *UNTESTED / out of scope here* -- release upgrades, ERTS-inclusive portable
+  installation on another host, OS service integration, distributed Erlang,
+  persistence/recovery, production availability, latency, throughput, and
+  mailbox-pressure behavior.
+
+Keeping those categories separate is more useful than calling the whole thing
+"production ready."

@@ -1,0 +1,30 @@
+digraph release_boot_flow {
+  graph [rankdir=LR, bgcolor="transparent", pad=0.2, nodesep=0.45, ranksep=0.65];
+  node [shape=box, style="rounded", fontname="DejaVu Sans", fontsize=11];
+  edge [fontname="DejaVu Sans", fontsize=10];
+
+  app [label="otp_worker_app.app\ncomponent metadata"];
+  rel [label="otp_worker_release.rel\nsystem composition + exact versions"];
+  systools [label="systools:make_script/2\nvalidate + order applications"];
+  script [label="otp_worker_release.script\nhuman-readable boot instructions"];
+  boot [label="otp_worker_release.boot\nbinary boot term"];
+  vm [label="fresh BEAM VM\nerl -boot ..."];
+  controller [label="application_controller"];
+  master [label="application master"];
+  sup [label="otp_worker_sup"];
+  worker [label="otp_worker"];
+  tar [label="systools:make_tar/2\nrelocatable release package"];
+  target [label="$ROOT/lib + $ROOT/releases\ntarget-system layout"];
+
+  app -> systools [label="application contract"];
+  rel -> systools [label="release contract"];
+  systools -> script;
+  script -> boot [label="binary form"];
+  boot -> vm [label="-boot"];
+  vm -> controller [label="boot instructions"];
+  controller -> master [label="start application"];
+  master -> sup [label="callback start/2"];
+  sup -> worker [label="child spec"];
+  systools -> tar [label="same validated inputs"];
+  tar -> target [label="unpack/install boundary"];
+}
