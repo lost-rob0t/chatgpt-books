@@ -160,7 +160,8 @@
                                (explanation-edge-count graph :supported-by)
                                "fact points to both independent reasons")))
 
-  ;; Base support and a derived reason are distinct support sources.
+  ;; Base support and a derived reason are distinct support sources. The graph
+  ;; also recursively includes the source that grounds the derived reason.
   (let* ((seed (test-fact "base.seed" 'seed '(on)))
          (x (test-fact "fact.x" 'conclusion '(x)))
          (production
@@ -176,18 +177,18 @@
                             :firing-limit 10
                             :contradiction-policy :report-only)
     (let ((graph (explain-current-fact network "fact.x")))
-      (explanation-check-equal 1
+      (explanation-check-equal 2
                                (explanation-node-count graph :source)
-                               "mixed support preserves base source")
+                               "mixed support includes root and recursive sources")
       (explanation-check-equal 1
                                (explanation-node-count graph :justification)
                                "mixed support preserves derived reason")
-      (explanation-check-equal 1
+      (explanation-check-equal 2
                                (explanation-edge-count graph :grounded-by)
-                               "mixed support has source edge")
+                               "mixed support recursively exposes source edges")
       (explanation-check-equal 1
                                (explanation-edge-count graph :supported-by)
-                               "mixed support has justification edge")))
+                               "mixed support has root justification edge")))
 
   ;; Historical reasons are not silently rebound to a later same-ID occurrence.
   (let* ((seed (test-fact "base.seed" 'seed '(on)))
