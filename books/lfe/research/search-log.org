@@ -32,3 +32,15 @@ Question: Can the book prove a DSL macro works as a real compiler input across L
 Sources inspected: tagged =examples/core-macros.lfe=, =test/examples_SUITE.lfe=, and =bin/lfec= at LFE v2.2.2.
 Result: upstream exports macros from modules, tests module-qualified macro expansion, and supports =lfec -pa PATH=. Project 1 can compile the macro module first, add its beam directory to the compiler code path, and then compile a separate consumer module. This is the book's acceptance boundary for the macro source layer.
 Remaining uncertainty: application/rebar3 packaging of exported macros belongs to the later tooling/release pass rather than this direct compiler milestone.
+
+** 2026-09-16 -- LFE process syntax and raw actor loop
+Question: Does Project 2 need an LFE-specific actor abstraction to teach processes, or can it expose the ordinary BEAM mechanism directly?
+Sources inspected: tagged LFE v2.2.2 =examples/messenger.lfe= and the tagged user guide.
+Result: upstream LFE demonstrates =spawn=, =!=, =receive=, and recursive process loops directly. Project 2 should therefore begin with an explicit process protocol and loop state, not an invented actor runtime. OTP behaviour packaging remains a later layer.
+Remaining uncertainty: later OTP callback and application tooling require their own primary-source pass.
+
+** 2026-09-16 -- correlation, selective receive, timeout, ordering, and monitors
+Question: Which process/message claims can Chapters 8--10 make from current official Erlang documentation, and which require executable evidence?
+Sources inspected: Erlang System Documentation v29.0.6 process reference and the official process Efficiency Guide.
+Result: sends are asynchronous signals; =receive= selects the first matching queued message; signal ordering is guaranteed from one sender to one destination rather than globally across independent senders; selective receive can scan queued messages; monitors are unidirectional and deliver a correlated =DOWN= message; a local receive timeout does not itself specify remote cancellation or target death. Project 2 can turn these documented boundaries into focused regressions without claiming performance numbers.
+Remaining uncertainty: aliases, priority-message APIs, links/=trap_exit=, and supervision are deliberately deferred until their owning slices are designed and tested.

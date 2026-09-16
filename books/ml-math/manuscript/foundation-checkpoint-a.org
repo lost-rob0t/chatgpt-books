@@ -1,0 +1,666 @@
+#+title: Machine Learning Math for People Who Actually Want to Understand It
+:PROPERTIES:
+:ID:       dedf9257-97c5-5c9c-b775-2c47eef7616f
+:END:
+#+bibliography: ../references.bib
+
+* How to use this book
+This book is for learning the mathematics that makes machine learning understandable, not for memorizing a wall of notation before touching a real problem. We will repeatedly follow the same loop:
+
+1. start with a concrete question;
+2. derive the mathematical object needed to answer it;
+3. calculate a small case by hand;
+4. implement the mechanism without hiding it behind a numerical library;
+5. compare the implementation against an independent numerical oracle;
+6. deliberately break an assumption and debug the result;
+7. connect the mechanism to the ML systems that use it.
+
+The main projects accumulate instead of resetting every chapter. Project 1 begins here as a small vector toolkit. It grows into matrices and transformations later. Project 2 will use that foundation to derive linear regression. Project 3 will turn optimization into something visible. Probability and Bayesian inference follow. The final neural-network project will have nowhere to hide: by then, matrix multiplication, derivatives, the chain rule, optimization, probability, and numerical stability will all be mechanisms you have already built and tested. The opening linear-algebra sequence—from vectors and linear combinations through dot products and then matrices—was checked against Strang's sixth-edition treatment; the examples and derivations here remain original. [cite:@strang2023ila]
+
+The code is teaching code. NumPy is used as an independent oracle in selected tests, not as the implementation of the ideas being taught. When a standard-library numerical primitive provides a materially better floating-point building block, the text says so instead of pretending that the most naive formula is always the best implementation.
+
+The opening executable checkpoint lives at =books/ml-math/code/vector_toolkit/=. Its tests are run with:
+
+#+begin_src sh
+cd books/ml-math/code/vector_toolkit
+python -m unittest -v test_vector_toolkit.py
+#+end_src
+
+A green test run proves only the behavior exercised by that exact code and test set. It does not mean the matrix, calculus, probability, or neural-network portions of the book already exist.
+
+* Chapter 1 -- Arithmetic Is Already Modeling
+:PROPERTIES:
+:ID:       b7ab84e2-7b50-49f8-b158-791d6ea14e9d
+:END:
+
+** 1.1 Numbers are answers to questions
+Suppose a training run processed 480 examples in 12 seconds. The arithmetic is easy:
+
+#+begin_example
+480 / 12 = 40 examples per second
+#+end_example
+
+The important part is what the division *means*. We took a count and divided it by elapsed time, producing a rate. If we divide 12 by 480 instead, we have not made an arithmetic error; we have answered a different question: seconds per example.
+
+This distinction matters constantly in machine learning. Accuracy is a ratio. A learning rate is a scale factor. Mean squared error averages squared residuals. A probability is constrained to a range and represents a particular model of uncertainty. A log-likelihood adds transformed probability terms. The symbols are useful only when we know what quantity each number represents.
+
+A practical habit for this book is to attach meaning to a number before calculating with it:
+
+#+begin_example
+count       = 480 examples
+elapsed     = 12 seconds
+throughput  = count / elapsed
+            = 40 examples / second
+#+end_example
+
+Units are one of the cheapest debugging tools in applied mathematics. If a distance comes out in “meters squared,” either the quantity really is squared distance or you have not finished the derivation.
+
+** 1.2 Ratios compare scales
+A ratio answers “how much of one quantity per unit of another?” If a dataset has 300 positive examples and 700 negative examples, then
+
+#+begin_example
+positive fraction = 300 / (300 + 700) = 0.3
+#+end_example
+
+and the percentage is \(100 \times 0.3 = 30\%\).
+
+The denominator is part of the model. Compare these two statements:
+
+#+begin_example
+300 / 1000 = 0.30  positive fraction of the whole dataset
+300 / 700  ≈ 0.43  positives per negative example
+#+end_example
+
+Both divisions are valid. They describe different relationships.
+
+*** Worked example -- relative change
+A loss falls from 2.0 to 1.5. The absolute decrease is
+
+#+begin_example
+2.0 - 1.5 = 0.5
+#+end_example
+
+The decrease relative to the starting value is
+
+#+begin_example
+(2.0 - 1.5) / 2.0 = 0.25 = 25%
+#+end_example
+
+Saying merely “the loss improved by 0.5” and “the loss improved by 25%” are not interchangeable. One is an absolute difference; one is normalized by a reference scale.
+
+** 1.3 Powers change how errors matter
+Squaring appears everywhere in ML. For a residual \(r\), squared error is \(r^2\). Compare three residuals:
+
+#+begin_example
+r       |r|       r^2
+0.5     0.5       0.25
+1.0     1.0       1.00
+2.0     2.0       4.00
+#+end_example
+
+Doubling the residual from 1 to 2 doubles absolute error but quadruples squared error. That is not a cosmetic algebra choice. A squared loss makes large residuals grow more rapidly than small residuals.
+
+Later, when we derive least squares, you should remember this table. “Use mean squared error” should never feel like a magical library default.
+
+** 1.4 Arithmetic on a computer is not arithmetic over the real numbers
+A mathematical derivation may use real numbers with unlimited precision. Our project uses ordinary binary floating-point values. Those are finite representations.
+
+For example, adding many floating-point values in a naive left-to-right loop can lose information through rounding. Project 1 therefore uses Python's =math.fsum= when accumulating a dot product. The official Python documentation describes =fsum= as an accurate floating-point sum that tracks multiple intermediate partial sums. This is an implementation choice with a documented purpose, not a claim that all floating-point error disappears. [cite:@python314math]
+
+Similarly, computing a Euclidean norm as
+
+#+begin_example
+sqrt(x1*x1 + x2*x2 + ...)
+#+end_example
+
+can overflow in an intermediate square even when a scaled algorithm could represent the final magnitude. Project 1 uses =math.hypot=, whose contract is directly about Euclidean norm. [cite:@python314math]
+
+We will return to numerical stability in depth. For now, learn the first rule: *an algebraically equivalent expression need not behave equivalently in finite-precision computation.*
+
+** 1.5 Failure lab
+For each failure, name the mistaken assumption rather than merely fixing the line of code.
+
+1. A report divides correct predictions by only the positive examples and labels the result “accuracy.” What question did it actually answer?
+2. A percentage is multiplied by 100 twice. Where did the scale change?
+3. A program computes =sqrt(sum(x*x for x in v))= for components near \(10^{308}\). Why can the intermediate arithmetic fail before the square root gets a chance to reduce the scale?
+4. A metric improves from 0.2 to 0.1 and someone reports “a 0.1% improvement.” Is that absolute change, percentage-point change, or relative change?
+
+** Exercises
+- ★ Convert 0.0375 into a percentage and explain the denominator implied by the original fraction.
+- ★ A batch contains 96 examples and takes 0.24 seconds. Compute examples/second and seconds/example, with units.
+- ★★ Compare absolute and relative error for predictions 9 and 90 when the respective targets are 10 and 100.
+- ★★ Write a five-line script that demonstrates a case where ordinary =sum= and =math.fsum= differ. Do not assume which result is better until you reason about the exact mathematical sum.
+- ★★★ Explain why “the formula is mathematically correct” is not a complete numerical-correctness argument.
+
+* Chapter 2 -- Algebra and Functions: Names, Inputs, and Change
+:PROPERTIES:
+:ID:       b68ea81c-707f-4f6a-b84a-ed7aff3e11ef
+:END:
+
+** 2.1 An equation states a relationship
+Consider
+
+#+begin_example
+y = 2x + 3
+#+end_example
+
+This does not tell us that =x= is a mutable storage location. It states a relationship: once \(x\) is chosen, \(y\) is twice that value plus three.
+
+A useful way to read algebra is as a system of constraints. If \(x=4\), then \(y=11\). If \(y=11\), we can reverse the relationship:
+
+#+begin_example
+11 = 2x + 3
+8  = 2x
+4  = x
+#+end_example
+
+Machine learning repeatedly asks us to manipulate relationships like these. We solve for parameters, substitute one expression into another, and ask how outputs change when inputs or parameters change.
+
+** 2.2 A function packages a rule
+Write
+
+#+begin_example
+f(x) = 2x + 3
+#+end_example
+
+Now \(f\) names a rule. \(x\) is its input and \(f(x)\) its output.
+
+A model is often a parameterized function. A one-feature linear model can be written
+
+#+begin_example
+ŷ = w x + b
+#+end_example
+
+where \(x\) is the input, \(w\) and \(b\) are parameters, and \(ŷ\) is the prediction. We have not trained anything yet. We have only stated how a prediction is computed for chosen parameters.
+
+For \(w=2\), \(b=1\), and \(x=3\):
+
+#+begin_example
+ŷ = 2*3 + 1 = 7
+#+end_example
+
+If the target is \(y=8\), then the residual can be defined as
+
+#+begin_example
+r = ŷ - y = 7 - 8 = -1
+#+end_example
+
+That tiny chain—input -> prediction -> residual -> loss—will later become our linear-regression project.
+
+** 2.3 Composition is how larger models are built
+Suppose
+
+#+begin_example
+f(x) = 2x
+g(z) = z + 3
+#+end_example
+
+Then composition means feeding one output into another:
+
+#+begin_example
+(g ∘ f)(x) = g(f(x)) = 2x + 3
+#+end_example
+
+Neural networks are built from compositions. The chain rule matters because it tells us how changes propagate through composed functions. We are several chapters away from derivatives, but the structural idea starts here: a complicated computation is often a graph of simpler functions.
+
+** 2.4 Parameters are not data points
+For
+
+#+begin_example
+f(x; w, b) = wx + b
+#+end_example
+
+we use the semicolon informally to emphasize two roles. \(x\) is an input example. \(w,b\) are parameters shared across examples.
+
+If the dataset contains \(x=1,2,3\), we do not normally invent a new \(w\) for every row. Learning means choosing shared parameter values that make the model behave well over many examples according to an objective.
+
+This distinction becomes crucial when we move from scalars to vectors. A data example may be a vector of features, while the learned weights form another vector of the same dimension.
+
+** 2.5 Solving and checking are separate operations
+If we solve \(2x+3=11\), we obtain \(x=4\). Always substitute the answer back into the original relationship:
+
+#+begin_example
+2*4 + 3 = 11
+#+end_example
+
+That simple discipline scales. Later, when deriving a gradient, we will use finite differences as an independent check. When deriving a matrix operation, we will compare selected cases with NumPy. Derivation and verification should not be the same act wearing two hats.
+
+** Failure lab
+A program has a function =predict(x, w, b)=. A student loops over examples and increments =w= inside =predict= because “w is a variable.” Explain the conceptual bug before discussing code style. Mathematical variables name quantities inside a relationship; mutation is a separate programming operation.
+
+** Exercises
+- ★ Evaluate \(f(x)=3x-2\) at \(x=-1,0,4\).
+- ★ Solve \(5x+4=19\), then verify by substitution.
+- ★★ Write the composition of \(f(x)=x^2\) and \(g(z)=z+1\) in both orders. Why are the results different?
+- ★★ For ŷ = wx+b, list which symbols are input, parameters, prediction, and target.
+- ★★★ Invent a bug caused by confusing “same mathematical symbol across examples” with “same mutable program object.” Explain how a test would expose it.
+
+* Chapter 3 -- Coordinates Turn Data into Geometry
+:PROPERTIES:
+:ID:       25996ae9-fe00-40d9-bf41-5550d76f3517
+:END:
+
+** 3.1 A coordinate is a measurement relative to an axis
+Take a data record with two features:
+
+#+begin_example
+latency_ms = 120
+error_rate = 0.03
+#+end_example
+
+Once we choose an axis for each feature, the record can be represented by the ordered pair
+
+#+begin_example
+(120, 0.03)
+#+end_example
+
+Order matters. Swapping the components changes the meaning because the axes have changed.
+
+This is the first bridge from tabular data to linear algebra. A row of numeric features can be treated as a point in a coordinate space. Three features give a point in three dimensions. A thousand features give a point in a thousand-dimensional space even though we cannot draw it directly.
+
+** 3.2 A point and a vector may use the same coordinates but answer different questions
+The pair \((2,3)\) can describe a point: a location relative to an origin. It can also describe a vector: a displacement of two units along one axis and three along another.
+
+The numbers alone do not carry that semantic distinction. Context does.
+
+If point \(A=(1,2)\) and point \(B=(4,6)\), the displacement from \(A\) to \(B\) is
+
+#+begin_example
+B - A = (4-1, 6-2) = (3,4)
+#+end_example
+
+The Euclidean distance is the length of that displacement:
+
+#+begin_example
+sqrt(3^2 + 4^2) = 5
+#+end_example
+
+The vector \((3,4)\) is not “the point B.” It is the movement needed to get from A to B in this coordinate system.
+
+** 3.3 Scale changes geometry
+Suppose our axes are latency in milliseconds and error rate as a fraction. A one-unit change on the latency axis means one millisecond; a one-unit change on the error-rate axis means moving from zero errors to 100% errors. Euclidean distance on the raw pair therefore mixes scales in a way that may or may not match our modeling intent.
+
+This is why feature scaling later matters. Geometry is not merely a drawing trick. Distances, dot products, nearest neighbors, regularization, and optimization can all depend on the coordinate representation we choose.
+
+We will not sneak in a universal normalization recipe here. Instead, remember the question: *what does one unit on each axis mean?*
+
+** 3.4 Linear combinations create new displacements
+Given vectors
+
+#+begin_example
+u = (1, 2)
+v = (3, -1)
+#+end_example
+
+we can scale and add them:
+
+#+begin_example
+2u + 0.5v
+= (2, 4) + (1.5, -0.5)
+= (3.5, 3.5)
+#+end_example
+
+A linear combination is built from scalar multiplication and vector addition. This idea becomes one of the central verbs of linear algebra. Matrix-vector multiplication will later be understood as producing linear combinations rather than as a mysterious grid-of-numbers ritual. [cite:@strang2023ila]
+
+** Exercises
+- ★ Find the displacement from \((-2,1)\) to \((3,5)\).
+- ★ Compute its Euclidean length.
+- ★★ Give an example where raw Euclidean distance is dominated by a feature measured on a much larger numerical scale.
+- ★★ Compute \(3(1,-2)-2(4,1)\).
+- ★★★ Explain why converting one feature from meters to millimeters can change a distance-based model even though the physical measurements did not change.
+
+* Chapter 4 -- Vectors: One Object, Many Components
+:PROPERTIES:
+:ID:       51f4461e-55bb-4344-93d2-8d093ca7d7db
+:END:
+
+** 4.1 A vector has a dimension
+We will write
+
+#+begin_example
+v = (v1, v2, ..., vn)
+#+end_example
+
+for an \(n\)-dimensional real vector. Project 1 deliberately starts with a narrow contract: a vector is a non-empty finite sequence of finite real-valued components.
+
+That contract is stricter than “whatever Python can put in a list.” It rejects strings, Boolean values, NaN, infinity, and the empty sequence. This gives the teaching operations a clear mathematical domain.
+
+The implementation converts admitted input into an immutable tuple of floats:
+
+#+begin_src python
+Vector = tuple[float, ...]
+#+end_src
+
+Immutability is not required by linear algebra. It is a project choice that makes examples and tests easier to reason about because a previously created vector cannot silently change underneath a later calculation.
+
+** 4.2 Addition is component-wise
+For vectors of equal dimension,
+
+#+begin_example
+(1, 2, -1) + (3, -5, 4)
+= (1+3, 2-5, -1+4)
+= (4, -3, 3)
+#+end_example
+
+Why require equal dimension? Because component \(i\) of one vector is paired with component \(i\) of the other. If one vector has two components and another has three, there is no third component on the shorter side to participate in the same coordinate-wise operation.
+
+A language feature like =zip= that silently stops at the shorter input would therefore be dangerous here. The toolkit validates dimensions first and uses strict pairing in the implementation.
+
+** 4.3 Scalar multiplication stretches or reverses
+For scalar \(a\),
+
+#+begin_example
+a(v1, v2, ..., vn) = (av1, av2, ..., avn)
+#+end_example
+
+If \(a=2\), the vector's length doubles. If \(0<a<1\), it shrinks. If \(a<0\), its direction reverses as well as its magnitude changing.
+
+Addition plus scalar multiplication give us linear combinations. Those two operations are enough to express a surprising amount of ML computation.
+
+** 4.4 Subtraction creates residual vectors
+Subtraction is addition of the negative:
+
+#+begin_example
+v - u = v + (-1)u
+#+end_example
+
+For data points, subtraction gives displacement. For predictions, subtraction gives residuals. When we later collect many residuals into a vector, norms and dot products let us summarize their magnitude.
+
+** 4.5 Project 1 API at checkpoint A
+The current vector checkpoint exposes:
+
+#+begin_example
+vector(values)
+add(left, right)
+subtract(left, right)
+scale(scalar, values)
+dot(left, right)
+l2_norm(values)
+distance(left, right)
+normalize(values)
+cosine_similarity(left, right)
+project(values, onto)
+#+end_example
+
+The implementation is intentionally small enough to read in one sitting. That is part of the assignment: do not merely call the functions; inspect why each boundary check exists.
+
+** Failure lab -- silent truncation
+Imagine a broken implementation:
+
+#+begin_src python
+def bad_add(a, b):
+    return tuple(x + y for x, y in zip(a, b))
+#+end_src
+
+Then
+
+#+begin_example
+bad_add((1, 2, 3), (10, 20)) == (11, 22)
+#+end_example
+
+The code produced an answer instead of an error, which makes it *more dangerous*. The missing third coordinate vanished.
+
+The real toolkit rejects mismatched dimensions before arithmetic. This is a recurring theme in numerical software: a plausible-looking number is not evidence that the operation was well-defined.
+
+** Exercises
+- ★ Compute \((1,-2,3)+(4,0,-1)\).
+- ★ Compute \(-3(2,-1)\).
+- ★★ Show algebraically that \(v-u = v+(-1)u\) component by component.
+- ★★ Add a temporary test for a four-dimensional vector. Which implementation lines depend on the dimension being exactly two? The correct answer should be “none” for the core operations.
+- ★★★ Explain why rejecting non-finite components at the vector boundary simplifies later invariants, and also name one scientific use case where a different library might intentionally permit NaN.
+
+* Chapter 5 -- Dot Products, Length, Direction, and Projection
+:PROPERTIES:
+:ID:       8d7e232a-8136-4dc9-b004-c0743791937a
+:END:
+
+** 5.1 The dot product combines matching components
+For equal-dimensional real vectors \(u\) and \(v\), define
+
+#+begin_example
+u · v = u1*v1 + u2*v2 + ... + un*vn
+#+end_example
+
+Example:
+
+#+begin_example
+u = (2, 1, -1)
+v = (3, 4,  5)
+
+u · v = 2*3 + 1*4 + (-1)*5
+      = 6 + 4 - 5
+      = 5
+#+end_example
+
+The output is a scalar, not another vector.
+
+One ML interpretation is a weighted sum. If \(x\) is a feature vector and \(w\) is a weight vector, then
+
+#+begin_example
+w · x = w1*x1 + w2*x2 + ... + wn*xn
+#+end_example
+
+is exactly the core of a linear model before adding a bias term. Dot products therefore connect geometry and prediction.
+
+** 5.2 Length comes from the dot product
+A vector dotted with itself gives
+
+#+begin_example
+v · v = v1^2 + v2^2 + ... + vn^2
+#+end_example
+
+The Euclidean or \(L_2\) norm is
+
+#+begin_example
+||v||_2 = sqrt(v · v)
+#+end_example
+
+For \(v=(3,4)\):
+
+#+begin_example
+v · v = 9 + 16 = 25
+||v||_2 = 5
+#+end_example
+
+The formula is Pythagoras generalized to more coordinates.
+
+Our code does not implement the norm literally as =sqrt(dot(v, v))=. It uses =math.hypot= because the standard library supplies a Euclidean-norm primitive with more careful scaling behavior. The mathematical identity still explains the norm; the implementation chooses a numerically better route. [cite:@python314math]
+
+** 5.3 Normalization separates direction from magnitude
+For nonzero \(v\), the normalized vector is
+
+#+begin_example
+v_hat = v / ||v||
+#+end_example
+
+Its length is one.
+
+For \(v=(3,4)\):
+
+#+begin_example
+v_hat = (3/5, 4/5) = (0.6, 0.8)
+#+end_example
+
+The zero vector is special. Its length is zero, so dividing by the norm would divide by zero. More importantly, the zero vector has no direction to preserve. The toolkit rejects normalization of the zero vector explicitly.
+
+** 5.4 Dot product measures directional alignment after scaling by length
+For nonzero real vectors, the angle relation is
+
+#+begin_example
+u · v = ||u|| ||v|| cos(theta)
+#+end_example
+
+Rearranging gives cosine similarity:
+
+#+begin_example
+cos(theta) = (u · v) / (||u|| ||v||)
+#+end_example
+
+After normalizing both vectors, the denominator is one, so cosine similarity becomes the dot product of the unit vectors.
+
+Interpretation:
+
+#+begin_example
+cos(theta) =  1   same direction
+cos(theta) =  0   orthogonal directions
+cos(theta) = -1   opposite directions
+#+end_example
+
+Do not turn this into the slogan “cosine similarity always measures semantic similarity.” It measures an angle-derived relationship between vectors. Whether that angle is meaningful depends on how the vectors were constructed.
+
+** 5.5 Projection asks how much of one vector lies along another
+Suppose we want the part of \(v\) that points along nonzero vector \(u\). The projection is
+
+#+begin_example
+proj_u(v) = ((v · u) / (u · u)) u
+#+end_example
+
+Why that coefficient? Let the projection be \(c u\). We want the remaining residual \(v-cu\) to be orthogonal to \(u\):
+
+#+begin_example
+(v - cu) · u = 0
+v·u - c(u·u) = 0
+c = (v·u) / (u·u)
+#+end_example
+
+That derivation is more valuable than memorizing the final formula. It tells us what property the projection is supposed to satisfy and therefore how to test it:
+
+#+begin_example
+residual = v - proj_u(v)
+residual · u ≈ 0
+#+end_example
+
+The test suite asserts that invariant.
+
+#+caption: Projection decomposes a vector into a component parallel to another vector and an orthogonal residual. The editable SVG is regenerated from the project code.
+#+attr_html: :alt Vector v from the origin is decomposed into its projection along u and a residual arrow from the projection endpoint to v.
+[[file:assets/vector_geometry.svg]]
+
+** 5.6 Numerical check: cancellation in a dot product
+Consider
+
+#+begin_example
+a = (1e16, 1, 1e16)
+b = (1,    1,   -1)
+#+end_example
+
+The exact real-number dot product is
+
+#+begin_example
+1e16 + 1 - 1e16 = 1
+#+end_example
+
+A naive floating-point accumulation can lose the middle \(1\) when it is added to a much larger partial sum. The toolkit feeds the products to =math.fsum=, and the regression suite includes this case. This does not make the dot product magically exact for all possible inputs; it gives us a concrete, documented improvement over naive summation for a known failure pattern. [cite:@python314math]
+
+** 5.7 Numerical check: large norms
+For
+
+#+begin_example
+v = (1e308, 1e308)
+#+end_example
+
+squaring either component directly overflows ordinary binary64 range. Yet the length is approximately
+
+#+begin_example
+sqrt(2) * 1e308
+#+end_example
+
+which is still finite. =math.hypot= is designed to compute a Euclidean norm without requiring us to form those naive squares directly. The regression test checks that this particular case remains finite and has the expected scaled magnitude. [cite:@python314math]
+
+** 5.8 NumPy is the oracle, not the answer sheet
+The project pins NumPy 2.5.0 as its tested numerical oracle. The 2.5 series has newer bugfix releases; pinning 2.5.0 here records the exact dependency exercised by this checkpoint rather than claiming it is the newest patch. Official NumPy 2.5 documentation defines =numpy.dot= on two one-dimensional arrays as their vector inner product and provides =numpy.linalg.vector_norm= for vector norms. [cite:@numpy250]
+
+This comparison serves a specific purpose: if our independently written operation disagrees with a mature numerical library on straightforward admitted inputs, we should investigate before trusting our code.
+
+The comparison does *not* mean NumPy and our teaching toolkit have identical APIs. Our toolkit deliberately rejects empty vectors and non-finite components, for example. Contract differences are tested rather than papered over.
+
+** Failure lab -- the formula can be right while the program is wrong
+Diagnose these independently:
+
+1. =dot([1,2,3], [4,5])= silently returns 14 because a loop stopped early.
+2. =normalize([0,0])= produces NaNs.
+3. a dot-product implementation returns 0 for the cancellation example above even though the exact result is 1.
+4. a cosine-similarity function accepts vectors with different dimensions by broadcasting one of them.
+5. a projection onto the zero vector divides by zero.
+
+For each case, identify whether the failure is domain validation, dimensional semantics, numerical accumulation, or undefined geometry.
+
+** Exercises
+- ★ Compute \((1,2,3)\cdot(4,-1,2)\).
+- ★ Compute the \(L_2\) norm of \((2,-3,6)\).
+- ★★ Normalize \((2,0,0)\), then compute its cosine similarity with \((-4,0,0)\).
+- ★★ Derive the projection coefficient by requiring the residual to be orthogonal, without looking back at the formula.
+- ★★ Given \(w=(0.2,-0.5,1.0)\), \(x=(10,2,1)\), and bias \(b=0.3\), compute \(w\cdot x+b\). Explain what changed when we moved from geometry to a linear prediction.
+- ★★★ Construct a floating-point dot-product input where cancellation matters. Compare naive =sum=, =math.fsum=, and NumPy. Record the exact runtime versions before drawing conclusions.
+- ★★★ Change the vector boundary to allow NaN. Trace how many later operations would need explicit policy for NaN propagation. Argue whether the looser contract is worth it for this teaching project.
+
+* Project 1 -- Vector/Matrix Toolkit
+:PROPERTIES:
+:ID:       fb326207-7fd5-5fb1-abbc-cfa91523cf6e
+:END:
+
+** Checkpoint A -- a vector kernel we can explain
+Project 1 eventually becomes a vector/matrix toolkit with transformations. This checkpoint deliberately stops before matrices so the vector semantics are tested before they become a dependency of larger machinery.
+
+The source tree is:
+
+#+begin_example
+books/ml-math/
+  code/vector_toolkit/
+    vector_toolkit.py
+    test_vector_toolkit.py
+    plot_vector_geometry.py
+  assets/
+    vector_geometry.svg
+#+end_example
+
+The public teaching contract is:
+
+- vectors are non-empty finite real sequences;
+- operations requiring two vectors require identical dimension;
+- core operations do not mutate their inputs;
+- normalization and projection reject a zero direction;
+- non-finite inputs are rejected at admission;
+- selected straightforward results are cross-checked against NumPy;
+- known floating-point failure patterns get explicit regressions instead of optimistic comments.
+
+** Checkpoint A architecture
+The project intentionally has three layers:
+
+1. =vector_toolkit.py= owns the mathematical teaching operations and uses only the Python standard library.
+2. =test_vector_toolkit.py= imports NumPy solely as an independent numerical oracle for selected admitted inputs.
+3. =plot_vector_geometry.py= uses the toolkit to generate the checked-in SVG deterministically, so the diagram and the code exercise the same projection operation.
+
+This separation matters. If the implementation itself called =numpy.dot= and the test compared that result to =numpy.dot=, the “verification” would prove almost nothing.
+
+** Acceptance checks for this checkpoint
+The executable regression suite covers:
+
+- vector admission and immutability;
+- rejection of empty, Boolean, string, NaN, and infinite components;
+- addition, subtraction, scaling, and dimension mismatch;
+- a cancellation-sensitive dot product;
+- Euclidean norm and distance;
+- a large finite norm that would defeat naive squaring;
+- normalization and zero-vector rejection;
+- orthogonal, parallel, and antiparallel cosine cases;
+- projection and orthogonal residual;
+- selected NumPy dot/norm/distance/projection comparisons.
+
+The committed vector diagram is regenerated in CI and checked for a clean diff. That makes the editable source code, rendered asset, and manuscript stay synchronized.
+
+** Debugging assignment
+Break exactly one invariant at a time and predict which test should fail before running it:
+
+1. remove the dimension check;
+2. replace =fsum= with ordinary =sum=;
+3. replace =hypot= with naive squaring;
+4. allow zero-vector normalization;
+5. implement projection using \(u\cdot v / v\cdot v\) instead of \(v\cdot u / u\cdot u\).
+
+If a deliberate bug does not fail a test, do not congratulate the implementation. Add the missing regression before restoring the correct code.
+
+** What comes next
+Checkpoint B introduces matrices only after this vector kernel is reviewed. It must derive matrix shape, indexing, matrix-vector multiplication as linear combinations, matrix-matrix multiplication as composition, and transformation geometry. Later Project 1 work will add transformation plots and numerical checks without replacing the from-first-principles implementation with NumPy calls.
+
+That dependency boundary is intentional: matrices should feel like an extension of vector operations we understand, not a new bag of syntax.

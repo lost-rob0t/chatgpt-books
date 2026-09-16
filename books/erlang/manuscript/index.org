@@ -26,4 +26,10 @@
 
 #+include: "chapter-09.org"
 
+#+include: "chapter-10.org"
+
+#+include: "chapter-11.org"
+
+#+include: "chapter-12.org"
+
 #+include: "next.org"
