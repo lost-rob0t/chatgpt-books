@@ -13,13 +13,14 @@ Foundational research + Project 1 checkpoint A are editorially APPROVED as a bou
 - The earlier NEEDS_REWRITE findings are resolved: source-dependent Python/NumPy/Strang claims carry targeted Org citations, and NumPy 2.5.0 is described as the exact TESTED pin rather than the newest 2.5-series patch.
 - Editor review found an additional numerical-contract defect before merge: finite admitted inputs could overflow into non-finite vector results, very large norms could silently corrupt normalization, and projection could overflow through =u dot u= even when the geometric result was representable. The implementation now fails closed on non-finite results and computes projection through a normalized direction; regressions cover these boundaries.
 - Checkpoint A was editorially approved and merged through PR #34 as canonical merge commit =acb0252749872bc0315df65ba0600dd9446df9cd=.
+- Issue #46 / PR #47 restore this accepted slice after unrelated merge commit =1340868512ea62cf1087bf27c136650d858679bb= regressed the ML-Math files from canonical main.
 * Active research
 Foundational research remains IN-PROGRESS beyond checkpoint A. Matrices/transformations are the next Project 1 dependency slice; calculus, probability, information theory, optimization, decompositions, and later numerical-stability work remain open.
 * Verification state
 - HISTORICAL TESTED evidence for the accepted checkpoint: focused =ml-math-book= run =35102323890= passed 14/14 vector-toolkit tests, deterministic SVG regeneration, structural validation, =make book BOOK=ml-math=, =make check BOOK=ml-math=, EPUBCheck 5.3.0 with 0 fatals / 0 errors / 0 warnings / 0 infos, and =nix flake check -L=.
 - HISTORICAL TESTED evidence for the accepted checkpoint: generic =books-ci= run =35102323887= passed structural validation, Pandoc Org-reader behavior, deterministic publication assets, EPUB validation, publication regressions, per-book citation rendering, ERT, and real Org-roam synchronization.
 - DOCUMENTED source review confirms Python 3.14.7 =math.fsum=/=math.hypot= behavior used by the checkpoint, NumPy's 2.5 release context through 2.5.3 (2026-09-06), and Strang's sixth-edition linear-algebra sequencing. These source claims remain distinct from executable test evidence.
-- RECOVERY IN-PROGRESS: unrelated merge commit =1340868512ea62cf1087bf27c136650d858679bb= regressed the accepted ML-Math files from canonical main. Issue #46 and branch =book/ml-math-restore-checkpoint-a= restore only the accepted checkpoint-A content. Fresh exact-head recovery verification is required before this restored state can be treated as current-main TESTED evidence.
+- RECOVERY TESTED after reconciliation with canonical main =a8af8ab871b11e6d5d71030a61577b3f10fb548a=: head =58cc5cd9c05fd2b0a0898a7fb239538810b6b631= passed focused =ml-math-book= run =35107715494= and generic =books-ci= run =35107715596=. The focused run covered the vector regression suite, deterministic figure regeneration, structural validation, book build/check, EPUB validation, and Nix; generic CI covered the repository publication/Org-roam gates. PR CI remains authoritative for any later status-only commit.
 * Unverified claims
 - Matrix and transformation behavior is not implemented in checkpoint A.
 - No performance benchmark is claimed.
@@ -29,4 +30,4 @@ APPROVED for the bounded Chapters 1--5 + Project 1 checkpoint A foundation throu
 * Next dependency-ready slice
 After checkpoint-A recovery is accepted back onto canonical main, research and implement Project 1 checkpoint B: matrix shape/indexing, matrix-vector multiplication as linear combinations, matrix multiplication as composition, and transformation geometry with executable numerical checks and teaching visuals.
 * Blockers
-The recovery PR for issue #46 must pass fresh focused and generic exact-head gates and be accepted by the Editor-in-Chief before matrix checkpoint B begins.
+No technical failure is known in the recovered checkpoint. The remaining gate is Editor-in-Chief acceptance/merge of PR #47; matrix checkpoint B remains intentionally unstarted in this recovery PR.
