@@ -1,0 +1,144 @@
+#+title: ML-StarIntel Project 1 -- Investigation Dataset Pipeline
+:PROPERTIES:
+:ID:       3b737ef6-2ec3-46d1-a373-e15dd7fca2a9
+:END:
+
+* Purpose
+
+Project 1 builds the evidence and evaluation boundary that later ML projects depend on. It does not implement a StarIntel server, actor, search service, queue, persistence layer, or storage engine.
+
+The reader-facing checkpoint answers one bounded question:
+
+#+begin_quote
+Can we reconstruct and validate the evidence used by an experiment, enforce the declared split/time constraints, and prove that approximate duplicate candidates are exact-verified before they affect evaluation groups?
+#+end_quote
+
+The deeper =research-harness/= remains the reproducibility/evidence backend. Readers should not have to run a sequence of historical research passes merely to understand the current project interface.
+
+* Reader checkpoint
+
+From this directory, create the tested dependency environment from the committed version lock:
+
+#+begin_src sh
+python3.12 -m venv .venv
+.venv/bin/python -m pip install --disable-pip-version-check --no-deps \
+  -r research-harness/requirements.lock
+.venv/bin/python -m pip check
+.venv/bin/python research-harness/verify_dependency_lock.py
+#+end_src
+
+On the first run, allow =project1.py= to materialize the exact pinned StarIntel 0.9 schema. The schema bytes are verified by their expected Git blob identity before use:
+
+#+begin_src sh
+.venv/bin/python project1.py
+#+end_src
+
+Once the verified schema cache exists, the same checkpoint can be required to stay offline:
+
+#+begin_src sh
+.venv/bin/python project1.py --offline
+#+end_src
+
+The default output is:
+
+#+begin_example
+artifacts/project-01-reader-report.json
+#+end_example
+
+* What the report proves
+
+The report is intentionally smaller than the research harness.
+
+** Environment
+
+The live Python environment must equal the complete committed Project 1 version lock. The report records interpreter/platform observations, distribution counts, and the lock-file SHA-256.
+
+This is a TESTED version-lock boundary when the verifier succeeds. It is not a claim of byte-identical wheels or cross-platform reproduction.
+
+** Canonical schema
+
+The exact pinned canonical StarIntel document schema is materialized and its Git blob SHA-1 is checked. This project consumes that contract; it does not maintain a second hand-written schema.
+
+Current upstream release/profile and wire-schema language must still be checked separately when version-sensitive prose is updated.
+
+** Frozen factual provenance
+
+The reader checkpoint runs the frozen Tier B GLEIF transformation and summarizes:
+
+- three canonical =org= documents;
+- two canonical =relation= documents;
+- source/hash reconstruction checks;
+- canonical StarIntel validation;
+- the frozen factual fixture identity and claim scope.
+
+The report deliberately does not copy the complete source/canonical documents into its summary. The research harness remains the evidence-bearing location for that detail.
+
+** Split diagnostics
+
+The factual GLEIF fixture is passed through the strict historical cutoff path. The default policy must have zero record/group/entity contamination.
+
+A second diagnostic opts the selected fund relationships into hard graph grouping. That component straddles the frozen cutoff, so the requested split must fail closed as infeasible. The failure is part of the lesson: constraints are allowed to tell us that an experiment cannot be constructed as requested.
+
+** Duplicate candidates
+
+The deterministic Tier C duplicate control runs through:
+
+#+begin_example
+exact normalized hash ---+
+                         |
+rare-token block --------+--> candidate union
+                         |        |
+MinHash/LSH -------------+        v
+                          exact token-Jaccard verification
+                                    |
+                                    v
+                             duplicate components
+#+end_example
+
+Candidate generation never defines duplicate truth. The report is green only when the candidate path recovers every exact qualifying pair on this frozen control, exact-verifies candidate pairs, reproduces the all-pairs component oracle, and remains stable under the tested input permutation.
+
+This is a teaching/control result, not a production recall or throughput guarantee.
+
+* Chapter 1 baseline
+
+=chapter01_constant_baseline.py= is intentionally independent of the larger research harness. It derives the smallest fitted model used by the book: one constant learned as the mean of training targets under squared error.
+
+Run its focused tests with:
+
+#+begin_src sh
+.venv/bin/python -m unittest -v test_chapter01_constant_baseline.py
+#+end_src
+
+Then run the reader checkpoint tests after the pinned schema cache exists:
+
+#+begin_src sh
+.venv/bin/python -m unittest -v test_project1.py
+#+end_src
+
+* Boundaries
+
+The current checkpoint is not Project 1 completion.
+
+It establishes a coherent reader interface for the already-verified foundational mechanisms. Later Project 1 work still needs to grow the project into a complete dataset-build/quality-report workflow that supports the later supervised-learning chapters without turning this directory into a second StarIntel runtime.
+
+The following remain explicitly outside this checkpoint:
+
+- production model accuracy;
+- production throughput/capacity;
+- total-process RSS;
+- cross-platform/byte-identical environment reproduction;
+- broader-corpus duplicate-candidate guarantees;
+- cross-language StarIntel conformance equivalence;
+- StarIntel persistence, routing, actor, search, authorization, queue, or storage semantics.
+
+* Research backend
+
+Historical experiments, acquisition scripts, frozen fixtures, exact measurements, failure records, and source provenance remain in [[file:research-harness/README.org][=research-harness/=]].
+
+That separation is intentional:
+
+#+begin_example
+reader interface     -> one coherent checkpoint/report
+research harness     -> detailed evidence, experiments, fixtures, and reproduction
+StarIntel repositories -> product/runtime source of truth
+#+end_example

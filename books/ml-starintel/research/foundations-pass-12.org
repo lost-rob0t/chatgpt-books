@@ -1,0 +1,116 @@
+#+title: Machine Learning for StarIntel -- Foundational Research Pass 12
+#+date: 2026-09-16
+
+* Status
+RESEARCH / IMPLEMENTED / TESTED on the frozen Tier C control corpus. This pass executes the scalable near-duplicate candidate contract frozen in pass 11. It does not claim adequate recall, runtime, or blocking behavior on larger public corpora.
+
+* Exact research questions
+1. Can the layered candidate path produce deterministic canonical candidate pairs independent of input order?
+2. Does exact hash matching remain independent of the approximate index?
+3. Are MinHash/LSH and deterministic blocking used only to propose pairs, with exact normalized token-Jaccard verification preserving the frozen duplicate predicate?
+4. On the existing 480-record Tier C duplicate fixture, does the scalable path recover the same final duplicate components as the quadratic all-pairs oracle?
+5. How many candidate comparisons does the first frozen operating point produce relative to all pairs?
+6. Which implementation/version parameters must be recorded so a later benchmark can reproduce the run?
+
+* Retrieval and execution date
+2026-09-16.
+
+* Source and implementation evidence
+** Primary/authoritative algorithm sources retained from pass 11
+- Andrei Z. Broder, =On the Resemblance and Containment of Documents=, SEQUENCES 1997, DOI 10.1109/SEQUEN.1997.666900.
+- Piotr Indyk and Rajeev Motwani, =Approximate Nearest Neighbors: Towards Removing the Curse of Dimensionality=, STOC 1998, DOI 10.1145/276698.276876.
+- Mauricio A. Hernández and Salvatore J. Stolfo, =The Merge/Purge Problem for Large Databases=, SIGMOD 1995, DOI 10.1145/223784.223807.
+
+** Current implementation documentation rechecked
+- =datasketch= 2.0.0 official documentation and package metadata, retrieved 2026-09-16. =MinHash= accepts explicit =num_perm=, =seed= and =scheme=; release 2.0.0 uses =affine32= as the current default scheme. =MinHashLSH= exposes threshold-oriented approximate candidate queries and its selected band/row layout. The official documentation recommends exact similarity filtering when exact results are required.
+- scikit-learn 1.9 grouped split documentation remains downstream context only. Candidate generation occurs before the final composite-group handoff.
+
+** Current StarIntel boundary rechecked
+The current =lost-rob0t/starintel-server/schema/starintel-schema.lock.json= reports =release_version="0.9.1"= while the immutable wire/base family remains =schema_version="0.9.0"=. Book prose must call 0.9.1 the current release/profile when discussing current StarIntel. Existing Project 1 fixtures continue to carry =schema_version="0.9.0"= because that is the current wire family, not because the current release is 0.9.0.
+
+The research harness remains intentionally pinned to its previously verified immutable schema commit for reproducibility. This pass does not silently repin historical experiments or duplicate StarIntel runtime/storage/schema ownership.
+
+* Tests-first execution
+The acceptance tests were committed before the implementation in this pass. They require:
+- canonical lexical pair ordering;
+- exact pair/source equality under reversed and seeded-permuted input order;
+- exact-hash candidate production independent of LSH retrieval;
+- exact Jaccard verification before duplicate-component closure;
+- final duplicate-component equality with the pre-existing all-pairs Tier C oracle;
+- qualifying-pair recall 1.0 on Tier C;
+- fewer candidate pairs than all possible record pairs;
+- explicit =datasketch= scheme, threshold, seed and =num_perm= parameters.
+
+The implementation then added three candidate sources under the pass-11 contract:
+1. =exact-hash=: buckets of the existing Experiment C normalized-text SHA-256;
+2. =block=: deterministic rare-token blocking using corpus document frequency, lexical tie-breaking and two selected tokens per record;
+3. =minhash-lsh=: =datasketch==2.0.0= MinHash/LSH with =scheme="affine32"=, =seed=1729=, =num_perm=128= and candidate threshold =0.80=.
+
+The blocking rule is TESTED only as a deterministic candidate producer on Tier C. It is not promoted to a general-quality claim for heterogeneous public StarIntel records. Labels and future-only features are not inputs to the blocker.
+
+Every proposed pair is canonicalized and deduplicated across candidate sources. Exact normalized token-set Jaccard =>= 0.80= remains the only near-duplicate edge predicate before transitive component closure.
+
+* Executed evidence
+GitHub Actions workflow =ml-starintel-research= run =35093942622= / run 81 / job =104786567764= completed successfully on 2026-09-16.
+
+Observed environment:
+- Ubuntu 24.04.5 hosted runner;
+- Python 3.12.3;
+- =datasketch= 2.0.0;
+- scikit-learn 1.9.0;
+- matplotlib 3.11.1;
+- jsonschema 4.26.0.
+
+The selected research-harness suite ran 39 tests in 4.556 seconds with zero failures. The five new candidate-generation regressions all passed.
+
+The Tier C candidate experiment produced:
+
+| Measurement | Observed value |
+| record count | 480 |
+| all possible pairs | 114,960 |
+| candidate pairs after source union | 526 |
+| exact qualifying pairs from all-pairs oracle | 480 |
+| qualifying pairs proposed | 480 |
+| qualifying-pair recall | 1.0 |
+| false-positive candidates before exact verification | 46 |
+| verified exact duplicate edges | 480 |
+| final component equality with all-pairs oracle | true |
+| input-order permutation equality | true |
+| pair reduction fraction | 0.9954244954766875 |
+| exact-hash source pair count | 160 |
+| block source pair count | 480 |
+| MinHash/LSH source pair count | 362 |
+| LSH bands | 9 |
+| LSH rows per band | 13 |
+
+Candidate-source counts overlap because a pair may carry more than one provenance source.
+
+The observed 99.5424495% reduction is a measurement of this synthetic 480-record fixture only. It is not a production scaling benchmark. No wall-clock comparison with an alternative implementation is promoted from this pass.
+
+The workflow also re-ran the prior provenance, GLEIF, leakage, and composite-planner suites successfully and uploaded the machine-readable candidate artifact as part of =ml-starintel-project1-research-results=, artifact ID =10445766226=. The uploaded ZIP SHA-256 reported by GitHub Actions was =786e7911102e06b9cad7b294d263cbbbf59da167b0e7213f4c2351bbf76de26c=.
+
+* Claim status
+| Claim | Status |
+| pass-11 exact-hash + block + MinHash/LSH candidate pipeline is implemented | IMPLEMENTED |
+| output pairs/source provenance are deterministic under the tested Tier C input permutations | TESTED |
+| exact normalized token-Jaccard remains authoritative before component closure | TESTED |
+| final scalable-path components equal the all-pairs oracle on the frozen Tier C fixture | TESTED |
+| qualifying-pair candidate recall is 1.0 on the frozen Tier C fixture | TESTED |
+| the Tier C candidate set is 526 versus 114,960 all pairs | TESTED |
+| =datasketch==2.0.0= with affine32/seed 1729/128 permutations is reproducibly recorded | TESTED |
+| the rare-token blocker is adequate for heterogeneous public StarIntel records | UNTESTED |
+| the selected MinHash/LSH operating point has adequate recall on a larger public corpus | UNTESTED |
+| the observed Tier C pair reduction predicts production runtime or memory use | NOT CLAIMED |
+| approximate LSH output defines duplicate truth | REJECTED / NOT CLAIMED |
+| Book 1 owns StarIntel runtime, persistence, search, routing, or schema semantics | REJECTED / NOT CLAIMED |
+| current StarIntel release/profile is 0.9.0 | REJECTED; current release is 0.9.1 while wire schema_version remains 0.9.0 |
+
+* Failure and adversarial notes
+- LSH false negatives remain possible in principle. The Tier C recall result does not remove that risk on a new corpus.
+- Deterministic blocking can miss pairs whose useful lexical keys diverge. Unioning it with LSH helps candidate recall but is not proof of completeness.
+- Candidate false positives are safe for duplicate truth because exact verification rejects them before union-find closure; false negatives are the dangerous failure mode.
+- A transitive duplicate component can be wrong if even one required true edge is never proposed. Larger-corpus evaluation therefore must compare candidate recall against an exact or otherwise defensible oracle subset, not merely inspect final group sizes.
+- The current Python dependency file pins direct dependencies but not the entire transitive environment; the reproducibility contract remains incomplete.
+
+* Next research question
+Freeze, before observing larger-corpus results, a small =num_perm= benchmark grid and a reproducible public-corpus/oracle sampling policy. Then measure candidate recall, pair reduction, memory/runtime, and final-component agreement without post-hoc parameter tuning. In parallel, finish the explicit composite-group to scikit-learn grouped-split handoff and the transitive dependency-lock policy required before Chapters 2--5 move from research material into durable manuscript claims.

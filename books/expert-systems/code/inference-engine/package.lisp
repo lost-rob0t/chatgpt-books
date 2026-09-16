@@ -152,6 +152,46 @@
            #:truth-maintained-run-engine
            #:truth-maintained-retract-base-fact
            #:truth-maintained-network-snapshot
+           #:duplicate-contradiction-spec-id
+           #:duplicate-contradiction-spec-id-id
+           #:contradiction-spec
+           #:make-contradiction-spec
+           #:contradiction-spec-id
+           #:contradiction-spec-left-pattern
+           #:contradiction-spec-right-pattern
+           #:contradiction-spec-provenance
+           #:contradiction-report
+           #:contradiction-report-spec-id
+           #:contradiction-report-spec-provenance
+           #:contradiction-report-bindings
+           #:contradiction-report-left-fact-id
+           #:contradiction-report-left-stamp
+           #:contradiction-report-left-support-kind
+           #:contradiction-report-right-fact-id
+           #:contradiction-report-right-stamp
+           #:contradiction-report-right-support-kind
+           #:consistency-run-result
+           #:consistency-run-result-status
+           #:consistency-run-result-firing-count
+           #:consistency-run-result-firing-records
+           #:consistency-run-result-remaining-activation-keys
+           #:consistency-run-result-contradictions
+           #:assumption-network
+           #:assumption-network-truth-network
+           #:assumption-network-assumption-stamps
+           #:assumption-network-contradiction-specs
+           #:make-assumption-network
+           #:assumption-network-engine
+           #:assumption-network-working-memory
+           #:assumption-network-incremental-network
+           #:assumption-supported-p
+           #:assumption-network-support-kind
+           #:assumption-network-assert-evidence
+           #:assumption-network-assert-assumption
+           #:assumption-network-withdraw-assumption
+           #:assumption-network-contradictions
+           #:assumption-network-consistency-status
+           #:run-assumption-network
            #:*service-diagnosis-facts*
            #:make-service-diagnosis-productions))
 

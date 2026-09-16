@@ -1,0 +1,89 @@
+#+title: Machine Learning for StarIntel -- Foundational Research Pass 16
+#+date: 2026-09-16
+
+* Status
+DOCUMENTED / DRAFT SYNTHESIS. This pass introduces no new benchmark result. It converts the already TESTED Project 1 evidence from passes 03--15 into reader-facing Chapters 2--5 and rechecks the current version-sensitive sources used by that prose.
+
+* Research question
+Can the Project 1 provenance, leakage, point-in-time feature, composite-split, candidate-generation, exact-verification, dependency-lock, and measurement evidence be taught as one coherent beginner-facing progression without promoting research-harness observations into production claims or duplicating StarIntel runtime behavior?
+
+* Current source recheck
+** StarIntel schema/release boundary
+Read-only upstream check on 2026-09-16:
+- repository: =lost-rob0t/starintel-server=;
+- master revision inspected: =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=;
+- file: =schema/starintel-schema.lock.json=;
+- observed =release_version=: =0.9.1=;
+- observed =schema_version=: =0.9.0=;
+- canonical schema path remains =schemas/starintel-doc-v0.9.0.schema.json=.
+
+The manuscript therefore describes 0.9.1 as the current release/profile and 0.9.0 as the wire/base schema family. It does not call the current release 0.9.0 and does not copy server persistence, routing, actor, search, or storage implementation into the book.
+
+** scikit-learn current documentation
+Official scikit-learn documentation retrieved 2026-09-16 reports version 1.9.1 for:
+- =Common pitfalls and recommended practices=, including data-leakage guidance and the rule that learned preprocessing should be fitted on training data rather than on held-out test data;
+- =Cross-validation: evaluating estimator performance=;
+- =GroupKFold=;
+- =GroupShuffleSplit=.
+
+The Project 1 research environment remains deliberately pinned to =scikit-learn==1.9.0= for the frozen experiments. Current-doc citations and frozen-environment execution claims are kept separate.
+
+** GLEIF current formats
+GLEIF's official Supporting Documents page was rechecked 2026-09-16. It currently lists:
+- LEI-CDF 3.1;
+- Relationship Record-CDF 2.1;
+- Reporting Exceptions 2.1;
+- XML, JSON, and CSV current-format sample files and a sample API response for testing.
+
+This supports the manuscript's description of the format/sample role. The factual Project 1 Tier B observation remains the committed 2026-08-17 frozen API snapshot rather than silently refreshing to today's source state.
+
+* Reader-facing synthesis
+The monolithic split draft has been reorganized into separate canonical Org includes:
+- Chapter 2 -- provenance before features;
+- Chapter 3 -- validation before learning;
+- Chapter 4 -- features and labels live in time;
+- Chapter 5 -- split specification, composite groups, and candidate/verification separation.
+
+The pre-existing split chapter and all of its stable Org IDs were preserved when moved into Chapter 5. New sections add only new IDs.
+
+The progression is now:
+
+#+begin_example
+source evidence + hashes
+        |
+        v
+canonical StarIntel documents
+        |
+        v
+experimental admissibility
+        |
+        v
+point-in-time rows
+        |
+        v
+composite dependence groups
+        |
+        v
+candidate generation -> exact duplicate verification
+        |
+        v
+split stable record IDs
+        |
+        v
+fit transforms/model on training only
+#+end_example
+
+* Claim boundaries retained
+- GLEIF Tier A samples remain illustrative format fixtures, not factual entity-closed observations.
+- The Tier B 2026-08-17 GLEIF API fixture remains an as-of factual observation, not timeless truth.
+- Tier C leakage results remain synthetic controls, not estimates of production StarIntel model performance.
+- The pass-15 1,400-record 20 Newsgroups/control benchmark remains one frozen candidate-recall experiment, not a production throughput/capacity or cross-corpus recall guarantee.
+- =tracemalloc= measurements remain Python-managed allocation observations, not RSS.
+- Approximate candidate sources may propose comparisons only; exact normalized-token Jaccard remains authoritative before duplicate-component closure.
+- The dependency lock is TESTED for the named CPython 3.12.3/Linux x86_64 environment; byte-identical cross-platform reproduction remains UNTESTED.
+
+* Manuscript/project implications
+The prior Chapter 5 checkpoint was stale because it still said a transitive dependency lock and larger candidate benchmark were future work. Passes 14 and 15 have completed those gates, so the checkpoint now records them as TESTED foundational evidence and names the real remaining work: exact-head publication verification, technical/editorial review, Chapter 1 integration, and a cohesive reader-facing Project 1 build/report interface.
+
+* No new measurement claim
+No new model score, benchmark runtime, memory figure, candidate recall, source observation, or StarIntel runtime behavior is introduced by this pass. Existing numeric claims in Chapters 2--5 are traced to the previously recorded TESTED experiments and remain scoped to those fixtures/runs.
