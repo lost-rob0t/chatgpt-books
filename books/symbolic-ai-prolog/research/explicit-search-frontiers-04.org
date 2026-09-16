@@ -1,0 +1,79 @@
+#+title: Symbolic AI in Prolog Research 04 -- Explicit Search Frontiers
+:PROPERTIES:
+:ID:       109c9e2f-98f7-47aa-95f3-26f7e69e1a65
+:END:
+
+* Scope
+This record supports Project 2 milestone A: make graph search an explicit symbolic mechanism before Chapter 8 introduces planning operators.
+
+Retrieval date: 2026-09-16.
+
+Claim status follows repository policy. DOCUMENTED is reserved for behavior supported by inspected sources. TESTED is reserved for observed repository/runtime evidence. Algorithmic properties derived directly from this implementation are stated with their assumptions instead of being promoted into broad historical or performance claims.
+
+* Question 1 -- What should count as state identity in the first explicit search kernel?
+DOCUMENTED, SWI-SPECIFIC IMPLEMENTATION DETAIL: current SWI-Prolog =library(ordsets)= documents ordered sets and states that =ord_memberchk/2= compares elements using term identity, written =Term1 == Term2=. The term-comparison section documents =Term1 == Term2= as identity and separately describes the standard order used to maintain ordered sets.
+
+Sources inspected:
+- https://www.swi-prolog.org/pldoc/doc/_SWI_/library/ordsets.pl
+- https://www.swi-prolog.org/pldoc/man?section=compare
+
+Teaching/implementation consequence: this milestone requires every start state, goal state, transition action, and transition endpoint to be ground. Groundness keeps the closed-set policy simple: two syntactically identical ground state terms are the same search state for this project. We do not teach a variable-containing state as if =ordsets= had performed logical unification.
+
+This is intentionally narrower than the later planner. Chapter 8 must state what facts make a planning state complete enough for duplicate-state pruning to be sound for the planning problem at hand.
+
+* Question 2 -- Why make the frontier a data structure instead of relying on Prolog's ordinary proof search?
+Project 1 intentionally used host backtracking to make proof alternatives visible. Project 2 needs a different lesson: the search policy itself becomes part of the AI mechanism.
+
+The milestone therefore stores frontier entries explicitly as:
+
+#+begin_src prolog
+node(State, ReverseActions, ReverseStates, Depth)
+#+end_src
+
+Depth-first search prepends generated children before the old frontier. Breadth-first search appends generated children after the old frontier. Both operate on the same ordered transition data:
+
+#+begin_src prolog
+edge(Action, From, To)
+#+end_src
+
+No arbitrary callback predicate is accepted in this milestone. That keeps the transition relation inspectable and prevents a generic search API from becoming an accidental =call/N= escape hatch.
+
+* Question 3 -- What duplicate policy does the implementation actually use?
+The closed set records a state when that state is *expanded*, not when it is first generated. Children already in the closed set are omitted. If two frontier entries for the same not-yet-expanded state were generated earlier, the first one expanded enters the closed set and later copies are skipped when popped.
+
+This is a project-defined algorithmic contract. It means the implementation does not promise frontier deduplication at insertion time; it promises no repeated *expansion* of a closed ground state. A regression deliberately puts two =incident_open -> broker_down= transitions into the fixture and requires the trace to contain only one =expanded(broker_down, ...)= event.
+
+* Question 4 -- What can we honestly say about breadth-first search here?
+The implementation uses unit-depth edges. Every generated child has =Depth + 1=. The BFS frontier keeps all previously queued nodes before newly generated children. Therefore nodes are popped in nondecreasing depth for this finite fixture and the first reached goal has the fewest transition edges among paths represented by this state graph.
+
+This milestone tests that bounded statement on the service-recovery fixture: DFS follows the longer first branch while BFS reaches =healthy= through a three-edge broker-first path.
+
+Do not widen this into an unsupported claim about weighted-cost optimality, heuristic search, infinite graphs, path-dependent duplicate semantics, or production performance. Cost-aware and heuristic policies belong to later Project 2 milestones.
+
+* Question 5 -- What is the trace, and what is it not?
+The search kernel returns a chronological list of:
+
+#+begin_src prolog
+expanded(State, Depth)
+#+end_src
+
+The trace is algorithm diagnostic data: it answers which unique states were actually expanded, and in what order, under one frontier policy. It does not claim that every generated frontier node was expanded, does not record SWI debugger ports, and is not proof/provenance for a final path.
+
+The successful path is returned separately as ordered action and state lists. This continues Project 1's discipline of not collapsing justification/result artifacts and operational diagnostics into one ambiguous object.
+
+* Fixture boundary
+The bundled service-recovery graph is synthetic teaching data. It is not evidence about a specific real deployment. It contains:
+- a longer app-first route to =healthy=;
+- a shorter broker-first route;
+- duplicate transitions to =broker_down=;
+- cycles back toward already-seen states;
+- an unreachable-goal test that must terminate with =exhausted(Goal)=.
+
+No benchmark or runtime-capacity claim is attached to this fixture.
+
+* Verification state
+DOCUMENTED: current =ordsets= membership behavior (=ord_memberchk/2= uses term identity, =Term1 == Term2=) and term-ordering behavior were checked against official SWI-Prolog documentation on 2026-09-16.
+
+TESTED at implementation/manuscript head =d2b57ea4c4a7923219c238da35af452a59c2f3ee=: focused =symbolic-ai-prolog-book= run =35118036653= completed successfully. Its =prolog-and-book= job ran the combined Project 1 + Project 2 test runner, =make book BOOK=symbolic-ai-prolog=, and =make check BOOK=symbolic-ai-prolog= successfully; the separate Nix job completed =nix flake check -L= successfully. Generic =books-ci= run =35118036869= also completed successfully through structural validation, Pandoc Org-reader checks, deterministic assets/fixture, EPUBCheck 5.3.0, publication/citation regressions, ERT, and real Org-roam synchronization.
+
+These gates test the repository implementation and publication path. They do not establish weighted-search optimality, production performance, later planning semantics, or any LLM/neuro-symbolic behavior.
