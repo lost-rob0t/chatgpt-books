@@ -66,7 +66,7 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Authority :: Official SWI-Prolog documentation.
 - Retrieved :: 2026-09-16.
 - Relevant to :: Chapter 4; Project 1 milestone 2.
-- Used for :: explicit first-success commitment around a nondeterministic relation; the book keeps the underlying =connection_path/3= multi-answer and names the committed wrapper =first_connection_path/3=.
+- Used for :: explicit first-success commitment around a nondeterministic relation; the book keeps =connection_path/3= multi-answer and names the committed wrapper =first_connection_path/3=.
 
 * SWI-Prolog =library(lists)= -- =member/2=
 - URL :: https://www.swi-prolog.org/pldoc/doc_for?object=member/2
@@ -94,14 +94,14 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Authority :: Official current SWI-Prolog documentation.
 - Retrieved :: 2026-09-16.
 - Relevant to :: Chapter 7; Project 1 milestone 3.
-- Used for :: arithmetic-expression evaluation, =is/2= as evaluation followed by unification, arithmetic comparisons including ==:=/2= and =</2=/=< /2=, the integer-vs-float equality example, and the distinction between general ISO arithmetic predicates and SWI's special-purpose integer relations.
+- Used for :: arithmetic-expression evaluation, =is/2= as evaluation followed by unification, arithmetic comparisons ~=:=/2~, ~=\=/2~, ~</2~, ~=</2~, ~>/2~, and ~>=/2~, the integer-vs-float equality example, and the distinction between general ISO arithmetic predicates and SWI's special-purpose integer relations.
 
 * SWI-Prolog =library(clpfd)= -- declarative integer arithmetic
 - URL :: https://www.swi-prolog.org/man/clpfd.html
 - Authority :: Official SWI-Prolog library documentation.
 - Retrieved :: 2026-09-16.
 - Relevant to :: Chapter 7 forward boundary; Chapters 15--16 later implementation.
-- Used for :: the documented contrast between insufficiently instantiated low-level =is/2= / ==:=/2= calls and relational finite-domain constraints such as =#=/2=. Chapter 7 cites this only to avoid the false claim that Prolog cannot support relational integer arithmetic; it does not implement CLP(FD).
+- Used for :: the documented contrast between insufficiently instantiated low-level =is/2= / ~=:=/2~ calls and relational finite-domain constraints such as =#=/2=. Chapter 7 cites this only to avoid the false claim that Prolog cannot support relational integer arithmetic; it does not implement CLP(FD).
 
 * SWI-Prolog stable downloads
 - URL :: https://www.swi-prolog.org/download/stable
