@@ -1,0 +1,85 @@
+** Chapter 4 -- Processes: State Owners, Not Tiny Threads
+:PROPERTIES:
+:ID:       5c6c6828-ac61-48f1-8646-147d884b2207
+:END:
+
+Erlang processes are the unit that makes the previous chapters operational. The current
+reference manual describes them as lightweight entities intended for massive concurrency;
+=spawn= creates a process and returns a pid. [cite:@erlang-processes]
+
+It is tempting to map "Erlang process" directly to "OS thread." Do not. The BEAM runtime
+schedules Erlang processes. They are language/runtime entities with pids, mailboxes,
+links/monitors, reductions-based scheduling, and per-process failure. They are far
+lighter than creating a conventional operating-system process for each activity.
+
+*** Spawning a loop
+
+A minimal state-owning process looks like this:
+
+#+begin_src erlang
+start() ->
+    spawn(fun() -> loop(0) end).
+
+loop(Count) ->
+    receive
+        increment ->
+            loop(Count + 1);
+        {get, From} ->
+            From ! {count, Count},
+            loop(Count)
+    end.
+#+end_src
+
+=Count= is not mutated. Receiving =increment= computes =Count + 1= and tail-calls
+=loop/1= with the new value. Only that process chooses the next count. Other processes
+cannot assign to =Count=.
+
+*** Sending is asynchronous
+
+The send operator =!= sends a message signal and returns; it is not a remote function
+call. The processes reference manual describes process communication as asynchronous
+signals and distinguishes signal delivery from the later execution of a =receive=
+expression. [cite:@erlang-processes]
+
+#+begin_src erlang
+Server ! {publish, self(), make_ref(), <<"hello">>}.
+#+end_src
+
+The sender has learned almost nothing from that expression. It has not learned that the
+server processed the message, wrote anything to disk, or will remain alive. If the sender
+needs an outcome, the protocol must define a reply.
+
+That distinction is central to distributed and fault-tolerant programming: /submission/
+and /completion/ are different facts.
+
+*** Message data is isolated
+
+For ordinary local messages, Erlang's efficiency guide says data is copied between
+processes, with documented exceptions such as reference-counted binaries and literals.
+[cite:@erlang-process-efficiency] The language-level consequence is the useful part: after
+sending a term, sender and receiver do not acquire a shared mutable object that either can
+edit.
+
+This can cost memory and copying time, so message shape still matters. Sending a huge
+state map to many workers is not free just because the syntax is one line. Later
+performance chapters will inspect process memory and queue pressure instead of relying on
+folk wisdom.
+
+*** Pids are capabilities with lifetimes
+
+A pid identifies a process. Sending to a pid does not make the recipient immortal, and a
+pid that referred to a useful server a moment ago might now refer to a terminated process.
+Protocols therefore need to decide what a caller does when the peer dies. In the Project
+1 seed we monitor the server during a synchronous request so server death becomes an
+explicit ={error, {server_down, Reason}}= result.
+
+The monitor is not yet supervision. A monitor tells one process about another process's
+termination. Supervision adds a reusable policy for starting children, observing failure,
+and deciding whether/how to restart them; that arrives in Part II.
+
+*** Exercises
+
+1. ★ Spawn a process that waits for =stop= and returns normally.
+2. ★★ Change the counter loop so ={get, From, Ref}= replies with the same =Ref=.
+3. ★★★ Spawn ten clients that each send one increment. Explain which ordering facts you
+   can and cannot infer before running the program.
