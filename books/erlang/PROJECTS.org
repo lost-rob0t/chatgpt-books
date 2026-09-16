@@ -23,18 +23,18 @@ Expected deliverable: runnable implementation, tests, design notes, diagrams, ex
 :PROPERTIES:
 :ID:       80c110b1-bc1a-56d6-ae93-924c4b541baf
 :END:
-Purpose: Convert ad-hoc processes into a proper OTP application with gen_server boundaries.
-Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
-Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
-Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
-Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
-Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
-External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
-Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
-Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
-Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
-Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
-Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+Purpose: Convert the Project 1 process lessons into a conventional OTP service and carry it through an explicit application boundary without hiding BEAM process/failure semantics.
+Learning outcomes: derive behaviour callbacks from an ordinary server loop; distinguish =gen_server= request/state semantics from supervisor lifecycle policy; package the resulting supervision tree as a loadable/startable/stoppable OTP application; debug ownership at worker, supervisor, and application-controller layers; explain why none of those layers implies durable state recovery.
+Prerequisites: Chapters 1--12 and the accepted Project 1 checkpoints.
+Relevant chapters: Chapters 10--13. Checkpoint A covers behaviour + supervised worker; checkpoint B completes the application-lifecycle boundary.
+Architecture: =otp_worker= owns domain transitions and volatile state; =gen_server= owns generic server mechanics; =otp_worker_sup= owns child lifecycle/restart policy; =otp_worker_app= and =otp_worker_app.app= expose the component lifecycle to OTP. Persistence, releases, distribution, and deployment remain outside this project checkpoint.
+Implementation language/tooling: Erlang/OTP, with the focused workflow pinning the exact OTP version used for executable evidence.
+External dependencies: official Erlang/OTP primary documentation/source plus repository publication tooling only.
+Tests: EUnit regressions cover call/cast behavior, timeout mailbox isolation, =sys= inspection, supervised crash/restart, restart-intensity escalation, application resource metadata, application-controller startup/ownership, component stop, and fresh volatile state after a full application restart.
+Failure scenarios: delayed calls, deliberate worker crashes, restart-budget exhaustion, application stop/restart, and application-specification debugging exercises.
+Visuals: editable worker/supervisor lifecycle diagram plus an application-controller/application-master ownership diagram.
+Research requirements: use immutable official Erlang/OTP tags for version-sensitive =gen_server=, supervisor, application, and =.app= contracts; preserve older exact-version evidence rather than silently rewriting historical test baselines.
+Expected deliverable: runnable OTP worker application, executable lifecycle tests, Chapters 10--13, failure labs, editable diagrams, sourced claims, and a bounded handoff to release packaging.
 ** Project 3 -- Supervised Job Processor
 :PROPERTIES:
 :ID:       6d9afccc-5159-5527-9caf-447701fc748e
