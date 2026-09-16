@@ -53,3 +53,54 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Authority: implementation's official project site.
 - Retrieved: 2026-09-16.
 - Used for: current executable-test environment record only; project code remains ANSI Common Lisp.
+
+* Formal methods and software verification sources
+** Hoare 1969 -- axiomatic program reasoning
+- Source: C. A. R. Hoare, “An Axiomatic Basis for Computer Programming,” /Communications of the ACM/ 12(10), 576--580 (1969).
+- DOI: https://doi.org/10.1145/363235.363259
+- Authority: original ACM paper/publisher record.
+- Retrieved: 2026-09-16.
+- Used for: Hoare triples, assertions, invariants, inference-rule view of program verification.
+
+** Pnueli 1977 -- temporal logic of programs
+- Source: Amir Pnueli, “The Temporal Logic of Programs,” FOCS 1977, 46--57.
+- DOI: https://doi.org/10.1109/SFCS.1977.32
+- Authority: original paper + DBLP metadata.
+- Retrieved: 2026-09-16.
+- Used for: temporal reasoning, concurrent/nonterminating systems, safety/liveness motivation.
+
+** Clarke, Emerson, Sistla 1986 -- finite-state model checking
+- Source: Edmund M. Clarke, E. Allen Emerson, A. Prasad Sistla, “Automatic Verification of Finite-State Concurrent Systems Using Temporal Logic Specifications,” /ACM TOPLAS/ 8(2), 244--263 (1986).
+- DOI: https://doi.org/10.1145/5397.5399
+- Authority: original paper / author publication archive.
+- Retrieved: 2026-09-16.
+- Used for: explicit-state model checking, CTL motivation, finite-state verification, counterexample-oriented checking.
+
+** Lamport -- TLA+ specification and model checking
+- Source: Leslie Lamport, /Specifying Systems: The TLA+ Language and Tools for Hardware and Software Engineers/.
+- Author-maintained source: https://lamport.azurewebsites.net/tla/book.html
+- Additional current author source: https://lamport.azurewebsites.net/tla/science-book.html
+- Authority: author-maintained book/supporting material.
+- Retrieved: 2026-09-16.
+- Used for: specification-first thinking, state-transition models, safety/liveness, design-vs-implementation boundary.
+
+** ACL2 -- theorem proving in an applicative Common Lisp logic
+- Source: ACL2 official site/manual: https://acl2.org/
+- Current UT ACL2 home page inspected: ACL2 8.7, dated 2026-03-20.
+- Book source: Matt Kaufmann, Panagiotis Manolios, J Strother Moore, /Computer-Aided Reasoning: An Approach/, 2000; author-maintained page https://www.cs.utexas.edu/~moore/publications/acl2-books/car/index.html
+- Authority: ACL2 project/manual and authors' official material.
+- Retrieved: 2026-09-16.
+- Used for: mechanized induction/proof automation and the boundary between ordinary Common Lisp and ACL2's applicative subset.
+
+** SMT-LIB 2.7 -- solver interchange
+- Source: official SMT-LIB language page https://smt-lib.org/language.shtml
+- Current official standard: Version 2.7; site records release 2026-03-27.
+- Authority: SMT-LIB initiative.
+- Retrieved: 2026-09-16.
+- Used for: later solver-boundary curriculum; =sat=/=unsat=/=unknown= result discipline and theory-specific proof obligations.
+
+** Lean 4 -- proof-kernel comparison point
+- Source: official Lean 4 reference/tutorials, https://lean-lang.org/doc/reference/latest and https://docs.lean-lang.org/theorem_proving_in_lean4/
+- Authority: Lean project documentation.
+- Retrieved: 2026-09-16.
+- Used for: comparison of kernel-checked proof terms/type-theoretic theorem proving with model checking/ACL2.  Not a Common Lisp implementation dependency.
