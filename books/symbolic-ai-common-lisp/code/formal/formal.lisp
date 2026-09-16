@@ -163,4 +163,4 @@ function supplied by the caller."
                         (return-from check-invariant
                           (result :bounded :complete-p nil
                                   :reason "MAX-STATES prevented exhaustive reachability exploration."))))))))
-      (result :proved :complete-p t))))
+      (result :proved :complete-p t)))))
