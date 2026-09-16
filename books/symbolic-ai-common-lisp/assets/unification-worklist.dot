@@ -1,0 +1,34 @@
+digraph unification_worklist {
+  rankdir=TB;
+  graph [fontname="sans-serif", labelloc="t", label="Equation-worklist unification: one selected equation at a time"];
+  node [shape=box, fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  pending [label="Pending equations\n[(L = R), ...]"];
+  rewrite [label="Rewrite selected L and R\nthrough the current substitution"];
+  classify [shape=diamond, label="What remains?"];
+
+  delete [label="DELETE\nL and R are EQUAL\nDrop this equation"];
+  bind [label="BIND\nL is a variable\nOccurs check, then extend substitution"];
+  orient [label="ORIENT\nR is a variable\nSwap to R = L"];
+  decompose [label="DECOMPOSE\nBoth are conses\nAdd CAR and CDR equations"];
+  fail [label="FAIL\nAtom/shape clash or occurs-check failure"];
+
+  more [shape=diamond, label="Pending equations left?"];
+  done [label="SUCCESS\nNormalize and return substitution + trace"];
+
+  pending -> rewrite -> classify;
+  classify -> delete [label="equal"];
+  classify -> bind [label="left variable"];
+  classify -> orient [label="right variable"];
+  classify -> decompose [label="cons / cons"];
+  classify -> fail [label="otherwise"];
+
+  delete -> more;
+  bind -> more [label="binding accepted"];
+  bind -> fail [label="occurs check fails"];
+  orient -> more;
+  decompose -> more;
+  more -> rewrite [label="yes"];
+  more -> done [label="no"];
+}
