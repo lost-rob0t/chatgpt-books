@@ -1,0 +1,166 @@
+#+title: Prolog + LLMs -- CLP(FD) Scheduling Research Pass
+:PROPERTIES:
+:ID:       15a4219f-c722-4b3a-bc63-b5d5f069c7e4
+:END:
+
+* Scope
+Retrieval date: 2026-09-16.
+
+This pass supports the Project 1 CLP(FD) scheduling milestone that follows the
+accepted DCG parser boundary.  It is intentionally model-free.  General
+meta-programming, provider APIs, generated Prolog, and Prolog-RLM runtime
+experiments remain later work.
+
+Evidence labels follow repository policy:
+- DOCUMENTED :: supported by an inspected current official/primary source;
+- TESTED :: reproduced by executable code/tests in this repository;
+- UNTESTED :: not reproduced here yet;
+- EXPERIMENTAL :: a proposed design or exercise;
+- FAILED :: an attempted check failed and is retained;
+- UPSTREAM-REPORTED :: reported by another source without reproduction here.
+
+No benchmark, model call, provider request, or Prolog-RLM execution was
+performed in this research pass.
+
+* Questions and inspected evidence
+** Why use CLP(FD) for this scheduling worksheet?
+DOCUMENTED: the current official SWI-Prolog =library(clpfd)= manual describes
+CLP(FD) as constraint logic programming over finite domains and explicitly
+lists planning, scheduling, and allocation among its combinatorial use cases.
+It also distinguishes arithmetic constraints such as =#=/2= and =#>=/2= from
+finite-domain membership, enumeration/search, global constraints, reification,
+and reflection.
+
+Source:
+- https://www.swi-prolog.org/man/clpfd.html
+
+Teaching consequence: the milestone starts from a scheduling relation whose
+unknown start times are integers in finite domains.  We do not introduce CLP(FD)
+as a decorative replacement for already-ground arithmetic.
+
+** Constraint posting is not the same operation as search
+DOCUMENTED: the current manual classifies =in/2= and =ins/2= as membership
+constraints and =labeling/2= as an enumeration predicate.  It recommends
+separating the predicate that posts the core constraints from the goal that
+labels variables, especially when comparing search/optimization options.
+Before labeling, propagation can narrow domains while variables remain
+uninstantiated; the toplevel may display these residual constraints.
+
+Source:
+- https://www.swi-prolog.org/man/clpfd.html
+
+Project decision: =schedule_constraints/2= posts the Project 1 scheduling
+relation but performs no labeling.  =first_minimum_schedule/2= is a separately
+named search/commitment boundary.  Tests must prove that the core relation can
+return with unbound constrained starts before search occurs.
+
+** What does optimization labeling promise?
+DOCUMENTED, SWI-SPECIFIC: current SWI =labeling/2= requires finite domains for
+the variables it enumerates.  Its =min(Expr)= and =max(Expr)= options generate
+solutions in increasing or decreasing objective order.  The manual notes that
+=once/1= can be used when a caller deliberately wants only the first optimal
+solution, while retaining alternatives is often useful when multiple optimal
+solutions matter.
+
+Source:
+- https://www.swi-prolog.org/man/clpfd.html
+
+Teaching consequence: the project does not call a complete labeling relation
+=optimal_schedule/2= and then silently return only one answer.  The committing
+API is named =first_minimum_schedule/2= and its implementation visibly places
+=once/1= around =labeling([ffc,min(Makespan)], Starts)=.  The manuscript treats
+=ffc= as a search policy, not as part of the mathematical schedule constraints.
+
+UNTESTED until branch CI: the exact fixture minimum and first returned schedule.
+
+** How can one shared resource be modeled without hiding the mechanism?
+DOCUMENTED premise: CLP(FD) arithmetic comparisons and Boolean connectives can
+be combined as constraints.  Current SWI also provides higher-level global
+constraints for scheduling/resource problems, including =cumulative/2=.
+
+Source:
+- https://www.swi-prolog.org/man/clpfd.html
+
+Project decision: the first worksheet derives the two-job single-resource case
+explicitly instead of starting with a global scheduler.  For jobs A and B, one
+of these must hold:
+
+#+begin_example
+A_start + A_duration #=< B_start
+#\/
+B_start + B_duration #=< A_start
+#+end_example
+
+That relation says the half-open execution intervals do not overlap while
+leaving either order available to search.  This is a repository-local model,
+not a claim that pairwise disjunctions are the right implementation for every
+production scheduling problem.
+
+** What does reification buy us?
+DOCUMENTED: current SWI CLP(FD) documentation defines reification as reflecting
+the truth of a reifiable constraint into a Boolean finite-domain value =0= or
+=1=.  =#<==>/2= expresses equivalence between such constraints/Boolean values.
+
+Source:
+- https://www.swi-prolog.org/man/clpfd.html
+
+Project decision: =deadline_flag(Makespan, Deadline, Late)= relates =Late= to
+whether =Makespan #> Deadline=.  This creates ordinary explicit data that a
+later typed boundary can serialize without converting an external string into
+an executable goal.  It is a teaching bridge, not yet an LLM integration.
+
+** Historical/implementation context
+DOCUMENTED from the inspected primary paper: Markus Triska's 2012 FLOPS paper,
+/The Finite Domain Constraint Solver of SWI-Prolog/, presents the then-new
+SWI-Prolog finite-domain solver, describes CLP(FD) as a declarative formalism
+for combinatorial problems including scheduling/planning/allocation, and
+discusses terminating propagation, large integer domains, and a DSL for
+reification.  The current official SWI manual recommends this paper as the
+scientific reference for the library.
+
+Primary paper inspected:
+- https://www.metalevel.at/swiclpfd.pdf
+
+Bibliographic metadata used here follows the citation supplied by the current
+SWI manual: FLOPS 2012, LNCS 7294, pages 307--316.
+
+Boundary: implementation/performance measurements reported in the 2012 paper
+are UPSTREAM-REPORTED historical evidence here.  This book does not transfer
+those numbers to the current runtime and does not make a performance claim from
+this milestone.
+
+* Project 1 worksheet design
+The scheduling fixture is separate from =task_solver.pl= so the accepted task
+facts/dependency chain do not silently acquire new semantics.  Five synthetic
+jobs are scheduled:
+
+- =collect_sources= -- duration 2;
+- =normalize_terms= -- duration 2, after collection;
+- =validate_schema= -- duration 2, after normalization;
+- =verify_provenance= -- duration 3, after normalization and not before time 5;
+- =publish_report= -- duration 1, after both verification jobs.
+
+The two verification jobs share one single-capacity verifier and therefore may
+not overlap.  All start variables are constrained to =0..12=.  =Makespan= is
+the end of publication.
+
+This fixture deliberately admits both verifier orders.  The schema-first order
+can reach a shorter makespan than the provenance-first order; branch tests must
+measure the exact outcomes before the manuscript calls them TESTED.
+
+* Claim boundary before CI
+DOCUMENTED: the SWI CLP(FD) APIs/semantics above and the historical paper facts
+actually inspected in this pass.
+
+UNTESTED at authoring time: the new scheduling module, exact minimum makespan,
+resource-overlap rejection, reverse-order feasible schedule, deadline
+reification regressions, publication build, and Nix gate.  These become TESTED
+only if the exact branch head executes successfully.
+
+* Next questions
+- After this constraint milestone is accepted, research =call/N=, predicate
+  indicators, term decomposition/reflection, and bounded closed meta-dispatch.
+- Preserve the distinction between a term that names an operation and permission
+  to invoke an operation before introducing a model provider.
+- Defer provider structured-output/tool-call research until Project 2's typed
+  gateway slice chooses concrete current interfaces.
