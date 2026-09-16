@@ -122,18 +122,37 @@ This failure is valuable curriculum evidence: do not casually transfer Erlang's 
 
 The run's independent Nix job again passed. Diagram, book-build, and book-check steps were skipped after the actor regression failed. No Project 2 result from this run is marked TESTED.
 
-* UNTESTED -- corrected checkpoint acceptance plan
-The guard-corrected implementation is not TESTED until a fresh focused LFE workflow executes it. The gate must prove:
-1. Project 1 routing semantics survive the process boundary.
-2. a fresh correlation ref plus explicit receive guard prevents a stale reply from satisfying a new request;
-3. rule replacement becomes the next loop state;
-4. same-sender request order is observed by the actor;
-5. caller timeout can occur while the target process remains alive;
-6. clean stop returns an acknowledgement;
-7. Erlang can start/request/stop the compiled LFE actor directly;
-8. an Erlang monitor observes the intentional LFE actor crash and its reason.
+* TESTED -- guarded correlation and raw-process checkpoint
+Corrected candidate head =d84b5acb944d12451a0ce7a02864952d10d62dc6= passed focused =lfe-book= workflow run =35111492894=. GitHub checked PR integration commit =40d66eb2aecd7159c363d602cf8ddc4128f7a467=, merging that authored head into then-current =main= =747f7f4713a4afa41dc5aee6ea3f9bd99ade8e80=.
 
-No latency, mailbox-throughput, scheduler, memory, or scalability benchmark is claimed by this pass.
+Observed execution environment:
+- Ubuntu 24.04.5;
+- Erlang/OTP 25 from the runner package set;
+- pinned LFE v2.2.2 at upstream tag commit =dae7489ebf9588e5f746a34cd4f8ff83d1469eef=;
+- Pandoc 3.10.1;
+- EPUBCheck 5.3.0.
+
+The focused gate produced these concrete successful observations:
+
+#+begin_example
+event-rules: kernel, macro expansion, capture lab, invalid-syntax gate, and Erlang interop passed
+actor-router: routing, correlation, state transition, ordering, timeout, stop, crash monitor, and Erlang interop passed
+Messages: 0 fatals / 0 errors / 0 warnings / 0 infos
+#+end_example
+
+It also parsed all three LFE DOT diagrams, ran =make book BOOK=lfe= successfully, ran =make check BOOK=lfe= successfully, and its independent Nix job passed =nix flake check -L=.
+
+This evidence promotes the following Project 2 claims to TESTED for that exact candidate integration:
+1. Project 1 routing semantics survive the raw process boundary.
+2. a fresh correlation ref plus explicit receive guard prevents the prepared stale reply from satisfying a new request.
+3. rule replacement becomes the next loop state and affects subsequent routing.
+4. same-sender request order is observed by the actor in the prepared ordered-request scenario.
+5. caller timeout can occur against a still-live process that intentionally does not reply.
+6. clean stop returns its acknowledgement.
+7. Erlang can start/request/stop the compiled LFE actor directly.
+8. an Erlang monitor observes the intentional LFE actor crash with the expected reason.
+
+The current documentation-only evidence head still requires final exact-head CI. That final rerun is integration verification, not a new behavioral claim. No latency, mailbox-throughput, scheduler, memory, or scalability benchmark is claimed by this pass.
 
 * Deferred questions
 - Links, =trap_exit=, restart policy, and supervisor strategies belong to the OTP/supervision pass.
