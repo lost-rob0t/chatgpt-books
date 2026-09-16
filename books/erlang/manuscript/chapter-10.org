@@ -1,0 +1,322 @@
+** Chapter 10 -- OTP Principles: Give Recurring Process Relationships a Contract
+:PROPERTIES:
+:ID:       412a0d9e-8aa6-49b8-af71-f865d6cbc4a8
+:END:
+
+Project 1 deliberately made us do the awkward thing first. We wrote a receive loop, chose a
+request envelope, generated correlation references, installed monitors, handled timeouts,
+traced links, and injected crashes. That work was not wasted scaffolding. It exposed the
+mechanisms OTP is built from.
+
+Now we can ask a better question than "what boilerplate does OTP save?"
+
+The useful question is:
+
+#+begin_quote
+Which relationships in a concurrent service repeat so often that they deserve a standard
+contract, standard tooling, and standard failure policy?
+#+end_quote
+
+OTP's answer is not a new concurrency model. Processes are still isolated processes.
+Messages are still signals that become mailbox messages. Links still carry failure
+relationships. A process still loses its private in-memory state when it dies. OTP adds
+structure around those facts. The official OTP design-principles documentation describes
+behaviours as a split between a generic part supplied by Erlang/OTP and a specific callback
+module supplied by the application. It describes supervision trees as hierarchies of
+workers and supervisors. [cite:@otp-design-principles]
+
+That division is the central idea of this part of the book.
+
+*** From a hand-written loop to a named pattern
+
+Strip Project 1's =pmsg_server= down to its shape:
+
+#+begin_src erlang
+loop(State) ->
+    receive
+        {request, From, Ref, Request} ->
+            {Reply, NextState} = handle(Request, State),
+            From ! {reply, Ref, Reply},
+            loop(NextState);
+        stop ->
+            ok
+    end.
+#+end_src
+
+There are two kinds of code mixed together here.
+
+The first kind is *generic process machinery*:
+
+- receive a request;
+- distinguish synchronous from asynchronous work;
+- correlate a reply with the caller;
+- run a process loop;
+- expose process-debugging hooks;
+- participate in standard startup and shutdown;
+- report failures in a conventional way.
+
+The second kind is *our domain behavior*:
+
+- publishing a payload allocates an ID;
+- topic histories are stored in a map;
+- history replies are ordered oldest-to-newest;
+- a deliberate crash exists for failure labs.
+
+Those categories have different rates of change. The domain rules belong to this service.
+The mechanics recur in thousands of services. A behaviour is useful because it lets the
+runtime/library own the recurring machinery while our callback module owns the specific
+state transitions. The tagged Erlang/OTP 29.0.6 =gen_server= source describes exactly this
+split and maps start/call/cast operations onto =init/1=, =handle_call/3=,
+=handle_cast/2=, and the other callbacks. It also states that a =gen_server= participates
+in OTP system-message handling through =sys=. [cite:@erlang-gen-server]
+
+A behaviour is therefore not inheritance in the object-oriented sense. Our callback module
+does not become a subclass of =gen_server=. The =gen_server= module owns the generic
+process loop and invokes our exported callbacks according to a documented protocol.
+
+*** The callback is not the process
+
+This distinction is worth making painfully explicit.
+
+Suppose =otp_worker.erl= exports:
+
+#+begin_src erlang
+handle_call({history, Topic}, _From, State) ->
+    ...
+#+end_src
+
+There is no separate "callback process" waiting inside =handle_call/3=. The running
+=gen_server= process calls that function while handling a request. The callback executes in
+that server process. If the callback blocks for 500 ms, the server process is busy for 500
+ms. If the callback raises an uncaught exception, the server process can terminate. If the
+callback returns a new state term, that term becomes the state carried into later
+callbacks. [cite:@erlang-gen-server]
+
+This immediately explains an operational fact that gets obscured by friendly APIs:
+
+#+begin_quote
+A =gen_server= serializes its callback work because one process executes one callback at a
+time. OTP did not turn one process into a thread pool.
+#+end_quote
+
+That is sometimes exactly what you want: one process can be the serialization boundary for
+one piece of state. It is sometimes exactly what you do /not/ want: slow or blocking work
+can make every caller queue behind it. Later projects will separate coordination from
+expensive work rather than hiding expensive work in a server callback.
+
+*** Interfaces still matter
+
+A common beginner mistake is to expose =gen_server:call/2= throughout an application:
+
+#+begin_src erlang
+gen_server:call(otp_worker, {publish, Topic, Payload})
+#+end_src
+
+That works. It also leaks the implementation protocol into every caller. Our Project 2
+worker keeps a normal module API:
+
+#+begin_src erlang
+otp_worker:publish(otp_worker, Topic, Payload)
+#+end_src
+
+and lets that function choose =gen_server:call= internally.
+
+This is not ceremony. It buys us a boundary where we can later validate arguments, change
+request shapes, instrument calls, or replace the implementation without asking every
+caller to know the callback protocol. The public module API is an application contract;
+the =handle_call= request term is an internal behaviour contract.
+
+*** Synchronous and asynchronous mean different obligations
+
+Project 1 manually distinguished request/reply from "send a message and continue." OTP
+names those choices.
+
+=gen_server:call= is synchronous from the caller's point of view: the caller waits for a
+reply or failure. The server handles the request in =handle_call/3=. =gen_server:cast= is
+asynchronous from the caller's point of view: the call returns =ok= after sending the
+request and does not wait for the server to process it; the server handles it in
+=handle_cast/2=. [cite:@erlang-gen-server]
+
+The choice is semantic, not aesthetic.
+
+Use a call when the caller needs a result or needs to know the server reached a particular
+protocol point. Use a cast only when "request accepted for delivery to this server
+reference, with no reply contract" is actually enough. A cast does not report that the
+work succeeded. In the current =gen_server= API it even returns =ok= when the destination
+process or node does not exist. [cite:@erlang-gen-server]
+
+For that reason, Project 2 uses a synchronous =publish/3= for the normal teaching path and
+an asynchronous =publish_async/3= only so we can examine ordering and acknowledgment
+tradeoffs directly.
+
+*** Same runtime, stronger conventions
+
+It helps to map what we already know onto the new abstraction.
+
+| Manual Project 1 mechanism | OTP Project 2 contract |
+|-
+| =spawn= + receive loop | =gen_server:start/start_link= + behaviour loop |
+| custom request tuple | =gen_server:call= request |
+| custom fire-and-forget tuple | =gen_server:cast= request |
+| custom reply correlation | generic call protocol |
+| local state argument to =loop/1= | callback =State= |
+| unexpected mailbox term | =handle_info/2= or default handling |
+| ad-hoc debug messages | standard =sys= support plus normal tracing |
+| hand-written restart idea | /not/ =gen_server=; supervisor policy comes next |
+
+The last row matters most. A =gen_server= is a server behaviour, not a supervisor. Its
+process can crash just as Project 1's process can crash. Converting the loop does not make
+lost state durable and does not create a restart budget.
+
+*** =start= and =start_link= say different things
+
+Project 2 exposes both =start/0= and =start_link/0= for teaching, but the supervision path
+uses =start_link=.
+
+The exact OTP 29.0.6 =gen_server= contract says =start_link= creates the server linked to
+the caller and is intended for starting a server as part of a supervision tree. Startup is
+synchronized: it does not report success until =init/1= has returned successfully.
+[cite:@erlang-gen-server]
+
+That is already a richer ownership statement than "spawn this function somewhere." When a
+supervisor invokes a child's =start_link= function, the link is part of the lifecycle
+contract. The supervisor can observe and react to the child's exit through that relationship.
+
+But linking still does not answer /how/ to react. Chapter 12 adds the missing policy.
+
+*** System messages: the loop has an operational side channel
+
+A hand-written receive loop sees ordinary mailbox messages that match its receive clauses.
+OTP behaviours additionally participate in a standardized system-message protocol handled
+through the =sys= module. The tagged =gen_server= documentation explicitly states this and
+points to =sys= for debugging. [cite:@erlang-gen-server]
+
+That gives us tools such as:
+
+#+begin_src erlang
+State = sys:get_state(ServerPid)
+#+end_src
+
+Project 2 has a regression test that publishes one record, asks =sys:get_state/1= for the
+callback state, and verifies the map it gets back. We are not recommending that application
+features reach into server state this way. We are making the operational contract visible:
+using a standard behaviour gives standard runtime tools a standard way to cooperate with
+the process.
+
+The distinction is:
+
+- the public API is for application behavior;
+- =sys= is for system/debugging behavior;
+- callback functions implement the process-specific part behind both.
+
+That separation becomes increasingly valuable once tracing, suspension, code change, and
+production debugging enter the book.
+
+*** The lifecycle picture
+
+#+caption: Project 2 keeps domain callbacks inside one gen_server while a supervisor owns the worker lifecycle. Calls and casts enter through the generic behaviour; sys provides an operational control/debugging channel. A restart creates a new process and therefore a new process-local state value.
+#+attr_html: :alt "Diagram showing clients calling and casting to a gen_server behaviour, the behaviour invoking otp_worker callbacks and state, a supervisor linked to the worker, and sys tools communicating with the behaviour. A crash arrow returns to the supervisor and a restart creates a new worker with fresh state."
+[[file:assets/otp-worker-lifecycle.svg]]
+
+The editable source is =../assets/otp-worker-lifecycle.dot=.
+
+Read the diagram from two directions.
+
+Horizontally, request handling separates generic machinery from specific callbacks.
+Vertically, supervision separates worker behavior from lifecycle policy. These axes are
+independent. We can change a callback's domain logic without inventing a new restart loop,
+and we can change restart policy without rewriting the domain transitions.
+
+*** Project 2 begins by preserving behavior, not adding features
+
+A refactor is easiest to reason about when its first checkpoint preserves an existing
+contract. The new =otp_worker= therefore starts with Project 1's small domain:
+
+- publish binary payloads under binary topics;
+- assign monotonically increasing IDs within one process lifetime;
+- return a topic's in-memory history;
+- provide a deliberate delayed reply for timeout experiments;
+- provide a deliberate crash for failure experiments.
+
+The interesting change is /who owns the process machinery/.
+
+That gives us a differential mental model:
+
+#+begin_example
+Project 1:
+caller -> custom call helper -> custom receive loop -> domain transition
+
+Project 2:
+caller -> module API -> gen_server machinery -> callback -> domain transition
+#+end_example
+
+When the outputs differ, we can ask whether the difference is intentional behaviour or an
+accidental migration bug.
+
+*** Failure injection is part of the design
+
+The new worker retains an explicit crash request:
+
+#+begin_src erlang
+handle_call({crash, Reason}, _From, _State) ->
+    exit(Reason).
+#+end_src
+
+This is not a production admin API recommendation. It is a teaching seam. Fault-tolerant
+code that never gets tested under faults is just optimistic code with a slogan attached.
+
+We use the seam to establish three different facts in the next two chapters:
+
+1. a server callback crash terminates the worker process;
+2. a supervisor can start a replacement worker according to a child specification;
+3. the replacement starts with fresh process-local state unless recovery is explicitly
+   designed.
+
+Those are separate claims and receive separate observations in the executable tests.
+
+*** Design exercise: find the generic half
+
+Take this hypothetical process:
+
+#+begin_src erlang
+counter_loop(N) ->
+    receive
+        {From, Ref, increment} ->
+            From ! {reply, Ref, N + 1},
+            counter_loop(N + 1);
+        {From, Ref, get} ->
+            From ! {reply, Ref, N},
+            counter_loop(N)
+    end.
+#+end_src
+
+Before writing any =gen_server= code, mark each piece as one of:
+
+- request transport/correlation machinery;
+- domain-specific state transition;
+- lifecycle/failure policy;
+- persistence/recovery policy.
+
+Only the first category is replaced merely by choosing =gen_server=. The second becomes
+callbacks. The third belongs to supervision. The fourth still does not exist unless we
+build it.
+
+That decomposition is more important than remembering the callback names.
+
+*** Exercises
+
+1. ★ Explain why =-behaviour(gen_server)= does not mean the callback module is a process.
+   Point to the code that actually starts a process in Project 2.
+2. ★ Classify =publish=, =history=, =start_link=, =sys:get_state=, and the supervisor's
+   child specification as application interface, callback/domain logic, lifecycle policy,
+   or operational tooling.
+3. ★★ Rewrite one Project 1 request as a table row showing: public API call, behaviour
+   operation, callback invoked, callback return tuple, and resulting caller observation.
+4. ★★ Design an operation that should be a =cast=. State what the caller is explicitly
+   giving up by choosing a no-reply contract.
+5. ★★★ Find one place where a slow callback would create head-of-line blocking in Project
+   2. Propose a design that keeps one process as coordinator while moving slow work into
+   separately supervised workers. Do not implement the worker pool yet; draw the ownership
+   and message boundaries first.
+6. ★★★ Explain why replacing =pmsg_server= with =gen_server= cannot, by itself, recover
+   topic history after a crash. Identify the missing persistence/replay contract.
