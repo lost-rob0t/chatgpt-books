@@ -68,6 +68,46 @@
            #:run-result-firing-records
            #:run-result-remaining-activation-keys
            #:run-engine
+           #:alpha-item
+           #:alpha-item-entry
+           #:alpha-item-bindings
+           #:alpha-memory
+           #:alpha-memory-condition
+           #:alpha-memory-items
+           #:beta-token
+           #:beta-token-bindings
+           #:beta-token-fact-ids
+           #:beta-token-support-stamps
+           #:beta-memory
+           #:beta-memory-depth
+           #:beta-memory-tokens
+           #:join-node
+           #:join-node-index
+           #:join-node-alpha-memory
+           #:join-node-left-memory
+           #:join-node-right-memory
+           #:production-node
+           #:production-node-production
+           #:production-node-beta-memory
+           #:production-network
+           #:production-network-production
+           #:production-network-alpha-memories
+           #:production-network-beta-memories
+           #:production-network-join-nodes
+           #:production-network-production-node
+           #:incremental-network
+           #:incremental-network-engine
+           #:incremental-network-production-networks
+           #:make-incremental-network
+           #:incremental-production-network
+           #:incremental-agenda
+           #:incremental-assert-fact
+           #:incremental-assert-facts
+           #:incremental-retract-fact
+           #:incremental-fire-activation
+           #:run-incremental-engine
+           #:incremental-cache-references-current-p
+           #:incremental-network-snapshot
            #:*service-diagnosis-facts*
            #:make-service-diagnosis-productions))
 
