@@ -1,0 +1,17 @@
+digraph actor_protocol {
+  graph [rankdir=LR, bgcolor="transparent", pad=0.2, nodesep=0.5, ranksep=0.7];
+  node [shape=box, style="rounded", fontname="sans-serif", fontsize=11];
+  edge [fontname="sans-serif", fontsize=10];
+
+  caller [label="Caller process\nfresh Ref + selective receive"];
+  actor [label="Actor Router process\nloop(Rules)"];
+  kernel [label="Project 1 kernel\nevent-rules:route/2"];
+  observer [label="Observer process\nmonitor reference"];
+
+  caller -> actor [label="{call, Caller, Ref, Request}"];
+  actor -> caller [label="{reply, Ref, Result}"];
+  actor -> kernel [label="route(Event, Rules)"];
+  kernel -> actor [label="Result"];
+  observer -> actor [style=dashed, label="monitor(process, Pid)"];
+  actor -> observer [style=dashed, label="DOWN on termination"];
+}
