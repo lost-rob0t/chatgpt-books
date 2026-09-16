@@ -1,0 +1,180 @@
+** Chapter 2 -- Provenance Before Features
+:PROPERTIES:
+:ID:       5ea15c85-d2f4-416b-af24-400e56354b21
+:END:
+
+A machine-learning dataset is not just a matrix. Before there is an =X= and a =y=, there is a chain of evidence: somebody published bytes, a collector retrieved them, a parser interpreted them, a transform produced a canonical record, a dataset builder selected some records, and a feature builder finally turned those records into numbers or tokens.
+
+If we cannot explain that chain, we cannot reliably answer basic questions later:
+
+- Which source did this row come from?
+- Which version of the parser produced it?
+- Did the source change after the experiment?
+- Was an entity missing from the source, or did our transform lose it?
+- Can another researcher reconstruct the same canonical record?
+- Is a field an observation from the source, an analyst annotation, or a synthetic control?
+
+This chapter builds Project 1 around those questions. The goal is not provenance bureaucracy. The goal is to make the dataset debuggable before a model exists.
+
+Dataset documentation work such as /Datasheets for Datasets/ argues for recording how a dataset was created, composed, maintained, and intended to be used [cite:@gebru2018datasheets]. W3C PROV gives a more formal vocabulary for relating entities, activities, and agents in provenance records [cite:@moreau2013provdm]. We will not import either document wholesale. We will use the practical idea they share: a derived artifact should carry enough lineage to make its origin and transformation inspectable.
+
+*** The five layers we must not collapse
+:PROPERTIES:
+:ID:       d462b820-7193-4840-a816-1a166f73358a
+:END:
+
+For Project 1, keep five different things conceptually separate:
+
+#+begin_example
+upstream bytes
+    |
+    v
+parsed source object
+    |
+    v
+canonical StarIntel document
+    |
+    v
+dataset row + build manifest
+    |
+    v
+model feature vector
+#+end_example
+
+Each arrow is a transformation boundary. Each boundary can fail in a different way.
+
+/Upstream bytes/ are what a source actually published or returned. A content hash can identify a particular captured representation, but the hash says nothing about whether the source is correct.
+
+A /parsed source object/ is our interpretation of those bytes. JSON parsing, character decoding, archive extraction, and source-specific field names live here. Two parsers can produce different objects from the same malformed input, so this layer has its own version and assumptions.
+
+A /canonical StarIntel document/ is the representation admitted through the StarIntel document contract. The current =starintel-server= schema lock distinguishes the current release/profile, =0.9.1=, from the underlying wire/base schema family, =0.9.0= [cite:@starintel2026schemalock]. That distinction is version-sensitive. Project 1 reads the contract; it does not reimplement StarIntel persistence, routing, queues, actor behavior, or storage.
+
+A /dataset row/ is an experimental view. It may select fields from several canonical documents, attach labels, add point-in-time metadata, or deliberately omit information. The associated /build manifest/ records which source/canonical records and policy versions were used to construct it.
+
+A /feature vector/ is model-facing data. TF-IDF weights, standardized numbers, embeddings, category encodings, and graph features belong here. Many feature transforms are learned from data, which is why they must happen after the evaluation boundary is defined rather than before it.
+
+Collapsing these layers creates bugs that are hard to name. If a source hash is stored only beside a final vector, we cannot tell which canonical document was transformed. If a canonical document silently contains a synthetic label, we can mistake a benchmark control for source truth. If a dataset row is overwritten when an analyst resolves an entity later, a historical experiment can accidentally acquire future information.
+
+*** A concrete public-data chain
+
+Project 1 uses GLEIF legal-entity data because it has useful properties for teaching: it is public, structured, relationship-rich, and accompanied by official format documentation and sample files. GLEIF's current supporting-documents page still lists LEI-CDF 3.1, Relationship Record-CDF 2.1, and Reporting Exceptions 2.1, and provides XML/JSON/CSV samples for testing those formats [cite:@gleif2026supporting].
+
+We use three evidence tiers rather than pretending every fixture means the same thing:
+
+| tier | role | what it may support |
+|------+------|---------------------|
+| A | official format/sample material | parser and mapping shape |
+| B | frozen factual as-of observation | claims about the captured entities/relationships at that retrieval time |
+| C | deterministic synthetic control | deliberately constructed evaluation/failure behavior |
+
+This separation prevents a common category error. A vendor-provided sample may demonstrate valid field structure without being an entity-closed real-world snapshot. A synthetic corpus may prove that a leakage detector catches a constructed failure without estimating production accuracy.
+
+The current Project 1 Tier B fixture is a frozen GLEIF API observation captured on 2026-08-17. Its offline transform produces three canonical =org= documents and two canonical =relation= documents. The two relation predicates are =IS_FEEDER_TO= and =IS_FUND-MANAGED_BY=. The transform records the publisher, requested source URL, retrieval time, canonical-source SHA-256, raw-response SHA-256 observed by acquisition, source resource ID/type, fixture ID, transform ID, and GLEIF Golden Copy publication time. The resulting five documents are then validated against the pinned StarIntel 0.9 wire schema.
+
+That experiment is TESTED for this frozen fixture. It does /not/ prove that those relationships are timeless, that every GLEIF response maps losslessly into every future StarIntel release, or that the source itself is error-free.
+
+*** Identity is not provenance
+
+It is tempting to use a business identifier as provenance. For example, an LEI is a stable external identifier for a legal entity. But =6354009BJOFO62XYIX17= does not tell us which API response, Golden Copy publication, parser, or transform produced a row.
+
+Conversely, a source hash is not entity identity. Two observations of the same legal entity at different times can have different bytes and therefore different hashes. We need both axes:
+
+#+begin_example
+entity identity:  what real or logical thing is this about?
+provenance:       where did this observation come from, and how was it transformed?
+#+end_example
+
+Later, Chapter 5 will use entity identity as one possible must-link constraint when we ask whether train and test contain independent entities. Provenance remains useful even when the entity is the same, because it tells us whether two rows came from the same source lineage or from independent observations.
+
+*** A minimal manifest is executable documentation
+
+A build manifest should be data, not a paragraph somebody has to interpret by hand. The exact Project 1 schema will evolve, but the minimum shape we want is conceptually like this:
+
+#+begin_src json
+{
+  "dataset_id": "book1-project1-gleif-live-2026-08-17",
+  "source_snapshot": "gleif-live-2026-08-17",
+  "source_hash_algorithm": "sha256",
+  "canonical_schema": "starintel-doc-v0.9.0",
+  "release_profile_observed": "0.9.1",
+  "transform": "book1-gleif-api-to-starintel-v1",
+  "record_ids": ["..."],
+  "split_policy": "...",
+  "feature_policy": "..."
+}
+#+end_src
+
+The ellipses are intentional: this is a teaching shape, not a fabricated output from the current harness. The real research harness stores the corresponding fields in its frozen source manifest and generated experiment artifacts.
+
+The point is that a later check can compare values mechanically. If a source object no longer hashes to the recorded digest, reconstruction fails. If a record appears under a different schema profile, the manifest can make that mismatch visible. If the split policy changes, two scores can no longer masquerade as the same experiment.
+
+*** Failure lab -- the missing endpoint
+:PROPERTIES:
+:ID:       5e5e6b3a-8ae9-45ae-8a3a-19dd1c963520
+:END:
+
+The official GLEIF sample bundle gave Project 1 a useful failure before the factual Tier B snapshot existed. A selected fund-relationship sample referenced endpoint LEIs that were not present in the same selected Level 1 sample member.
+
+The easy wrong move is to invent the missing organizations so the graph looks complete.
+
+Do not do that.
+
+An absent endpoint can mean many things: the fixture is intentionally partial, the relevant entity lives in another file, the acquisition is incomplete, or the source genuinely lacks the record. Fabricating an =org= document destroys our ability to distinguish those cases.
+
+The Tier A adapter therefore represents the endpoint as unresolved. The later Tier B acquisition explicitly retrieves the related entity resources and proves entity closure for that frozen five-document fixture.
+
+This gives us a general rule for ML dataset construction:
+
+#+begin_quote
+Missing evidence is a state to represent, not a license to manufacture evidence.
+#+end_quote
+
+That rule becomes especially important in later projects. Entity-resolution systems, graph models, and semantic retrieval can all make plausible-looking connections. A plausible connection is still not source provenance.
+
+*** Reconstructability is stronger than "I saved the CSV"
+
+A reproducible dataset build needs enough information to re-run the meaningful boundaries. Saving one final CSV is insufficient when we cannot tell:
+
+- which source snapshot it came from;
+- which source records were admitted or rejected;
+- how canonical documents were produced;
+- which normalization/version policy was used;
+- how train/test membership was assigned;
+- which dependencies actually executed the build.
+
+Project 1 therefore has two complementary reproducibility mechanisms. First, source/canonical provenance is explicit and hash-checked. Second, the Python research environment is version-locked transitively rather than pinning only four top-level packages. The tested lock contains 24 installed distributions for the named CPython 3.12.3/Linux x86_64 environment. That is TESTED environment evidence, not a claim that package names and versions alone produce byte-identical results on every platform.
+
+This distinction matters. Reproducibility is not a magic boolean. We can honestly claim the boundaries we tested and keep cross-platform or artifact-byte equivalence UNTESTED until we actually test it.
+
+*** Exercises
+:PROPERTIES:
+:ID:       d6961edc-b428-46f6-a4f9-54fd93ca4eec
+:END:
+
+**** ★ Classify the evidence
+
+For each item, classify it as source evidence, parsed-source data, canonical-document data, dataset-build metadata, or model feature data. Explain why moving it to another layer could be misleading.
+
+1. a SHA-256 of an HTTP response;
+2. an LEI copied from a GLEIF entity record;
+3. a StarIntel =org= document ID;
+4. a =composite_group_id= created for evaluation;
+5. a TF-IDF weight learned from training documents.
+
+**** ★★ Detect a provenance break
+
+Create a tiny JSON source fixture and a manifest containing its canonical JSON SHA-256. Write a loader that refuses to continue when the digest changes. Then mutate one field while keeping the JSON syntactically valid. Your test should demonstrate that schema validity and source identity are different checks.
+
+**** ★★ Preserve an unresolved endpoint
+
+Construct a relationship fixture whose target identifier is absent from the available entity records. Map the relationship without fabricating the missing entity. Your output must retain the external identifier and an explicit unresolved state so a later acquisition pass can repair the graph with evidence.
+
+**** ★★★ Design a dataset rebuild record
+
+Design a manifest that would let another engineer reconstruct one experiment six months later. Include source identifiers/hashes, schema/profile information, transform versions, exact record IDs, split policy, feature-availability policy, dependency environment, and random seeds. Mark which fields are necessary for semantic reconstruction and which are only useful diagnostics.
+
+*** Project 1 checkpoint -- provenance before prediction
+
+Project 1 can now make its first meaningful promise: a dataset row does not appear from nowhere. The research harness has TESTED source-hash reconstruction on a frozen factual GLEIF snapshot, preserves unresolved endpoints rather than inventing source facts, validates derived canonical documents, and records the environment used to execute the build.
+
+That is still not enough to train honestly. A perfectly reconstructed dataset can be contaminated by repeated entities, future-only information, or duplicates crossing an evaluation boundary. Chapter 3 turns those failures into executable validation rules.

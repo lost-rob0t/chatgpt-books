@@ -1,0 +1,96 @@
+#+title: Machine Learning for StarIntel -- Foundational Research Pass 10
+#+date: 2026-08-19
+
+* Status
+RESEARCH. This pass implements the pass-09 composite leakage planner as a pure Project 1 dataset/split component and adds a contamination-only dry run over the frozen factual GLEIF Tier B fixture. It does not add StarIntel persistence, routing, actor, queue, or storage semantics.
+
+* Exact research questions
+1. Does the pass-09 equivalence-closure contract remain deterministic under constraint and record ordering changes?
+2. Does the first strict-time policy fail closed when a composite component crosses the declared cutoff?
+3. Are prediction-time feature availability violations rejected before any partition is interpreted?
+4. Can the planner emit zero-overlap contamination diagnostics for enabled hard constraints on a clean split?
+5. On the frozen factual GLEIF fixture, does leaving graph grouping disabled preserve a feasible strict-time diagnostic while explicitly selecting the feeder/master/manager relationship component demonstrates the predicted cutoff-straddling failure mode?
+6. Does this implementation preserve the current StarIntel runtime boundary rather than duplicating =starintel-server= behavior?
+
+* Retrieval date
+2026-08-19.
+
+* Sources inspected
+** Primary / official ML sources
+- scikit-learn 1.9 =GroupShuffleSplit= documentation. It accepts caller-provided domain group labels; randomized group assignments can be made reproducible with an integer =random_state=; size parameters refer to groups rather than rows.
+- scikit-learn 1.9 common-pitfalls / data-leakage guidance. Learned transformations must fit on training data only, and information unavailable at prediction time is leakage.
+- Kapoor and Narayanan, =Leakage and the reproducibility crisis in machine-learning-based science=, Patterns 4(9), 2023, DOI 10.1016/j.patter.2023.100804. Metadata was checked against PubMed during this pass. No bibliography entry was added because this source was already part of the established Book 1 leakage research context and no duplicate metadata was needed.
+
+** Current StarIntel repository sources
+- =lost-rob0t/starintel-server= current =master= head inspected on 2026-08-19: commit =7df7fce9b95146a72c7b1e9c6ed7655e9f4b0bae=. The server remains the owner of persistent ingest/storage/search/routing/runtime lifecycle semantics.
+- Existing Book 1 frozen factual GLEIF fixture =research-harness/fixtures/gleif-live-2026-08-17/=, previously acquired from the primary GLEIF API and already covered by provenance/hash checks.
+
+* Implementation result
+Added =research-harness/composite_split_planner.py= as a pure planner module. It:
+- canonicalizes record/edge IDs;
+- composes hard must-link constraints through deterministic disjoint-set/equivalence closure;
+- assigns the lexicographically smallest record ID as =composite_group_id=;
+- preserves edge provenance in component diagnostics;
+- checks strict cutoff straddling separately from grouping;
+- checks feature =available_at= against =prediction_at=;
+- audits train/test overlap for composite groups and selected hard-rule fields;
+- raises =SplitInfeasible= rather than silently moving rows when a strict constraint is violated.
+
+This module has no CouchDB, RabbitMQ, HTTP ingest, actor supervision, durable outbox, search, or StarIntel storage code.
+
+* Tests
+Added =test_composite_split_planner.py= with six protocol tests covering:
+1. transitive entity + near-duplicate closure;
+2. order-independent deterministic component IDs;
+3. fail-closed unknown constraint endpoints;
+4. cutoff-straddling component rejection;
+5. future feature-availability rejection;
+6. a clean strict-cutoff split with zero composite/entity overlap.
+
+The exact module/test pair was executed before repository publication with:
+
+#+begin_src sh
+python -m unittest -v test_composite_split_planner.py
+#+end_src
+
+Result: 6 tests ran and passed.
+
+Repository validation then completed in =ml-starintel-research= run 72 / workflow =32266363088= / job =96111726639= on 2026-08-19. The full selected harness ran 34 tests and reported =OK=. The workflow also completed sample acquisition, Project 1 foundational experiments, the new factual composite-planner diagnostic, live GLEIF snapshot acquisition, and artifact upload successfully. Observed runner environment: Ubuntu 24.04.4 and Python 3.12.3; direct research dependencies resolved as =jsonschema= 4.26.0, =scikit-learn= 1.9.0, and =matplotlib= 3.11.1. Transitive versions observed in that run are not promoted to the final dependency-lock contract.
+
+* Factual GLEIF contamination diagnostic
+Added =run_composite_planner_diagnostic.py=. It reads the three frozen factual LEI records:
+- feeder =6354009BJOFO62XYIX17=, last update =2026-06-26T16:38:55Z=;
+- master fund =635400VZ8GQJUZ3L3H12=, last update =2026-06-26T16:38:55Z=;
+- fund manager =635400Z5LRZZSML7CV16=, last update =2026-07-22T13:08:14Z=.
+
+The declared research cutoff is =2026-07-01T00:00:00Z=.
+
+Two policies were executed in run 72:
+- default Project 1 policy: no blanket graph union. Feeder and master fund landed in train; fund manager landed in test. Record overlap, composite-group overlap, entity-ID overlap, future-feature violations, and cutoff-straddling components were all zero;
+- explicit opt-in graph grouping: feeder -> master and feeder -> fund manager were unioned under =selected_gleif_fund_relation=. The resulting three-record component crossed the cutoff, yielding one straddling component with ID =6354009BJOFO62XYIX17=; the planner returned =infeasible_as_expected=.
+
+This is intentionally a contamination/policy diagnostic only. Three factual entities are far too small to support a meaningful model-performance estimate, and no score is produced.
+
+* Claim status
+| Claim | Status |
+| deterministic transitive hard-constraint closure is implemented in the new pure planner | TESTED in run 72 |
+| lexical component IDs are independent of input edge/record order for tested cases | TESTED in run 72 |
+| unknown hard-constraint endpoints fail closed | TESTED in run 72 |
+| strict cutoff-straddling components are rejected | TESTED in unit fixture and factual GLEIF dry run 72 |
+| features available after prediction time are rejected | TESTED in run 72 |
+| clean enabled hard constraints can produce zero train/test overlap diagnostics | TESTED in run 72 |
+| default no-blanket-graph policy is feasible on the frozen three-entity GLEIF diagnostic at the declared cutoff | TESTED in run 72 |
+| opt-in selected GLEIF fund-relation grouping creates the predicted cutoff-straddling component on this fixture | TESTED in run 72 |
+| blanket StarIntel graph connectivity should be the default grouping policy | REJECTED / NOT CLAIMED |
+| the factual three-entity GLEIF diagnostic measures production model quality | NOT CLAIMED |
+| Book 1 should own StarIntel persistence/runtime/storage semantics | REJECTED / NOT CLAIMED |
+
+* Remaining uncertainty
+- The planner currently exposes policy compilation/auditing, but the final Project 1 API still needs the explicit upstream =GroupShuffleSplit=/=GroupKFold= handoff after admissibility constraints are satisfied.
+- Scalable near-duplicate candidate generation remains unresolved; the current small control still uses pairwise comparison.
+- The final dependency-lock/reproducibility contract remains unresolved.
+- Cross-language StarIntel conformance equivalence remains a separate upstream concern.
+- The refreshed live GLEIF API snapshot from run 72 is a new as-of observation; it must not silently replace the committed frozen fixture used for the reproducible diagnostic without a deliberate refresh/provenance decision.
+
+* Next research question
+What scalable, deterministic near-duplicate candidate-generation strategy should Project 1 teach and implement before exact pairwise Jaccard becomes unusable: MinHash/LSH, blocking/sorted-neighborhood methods, an embedding-assisted candidate stage, or a deliberately layered combination? The next pass should compare primary algorithm papers and current maintained implementations, define recall/complexity/provenance requirements, and benchmark only after the protocol is frozen.

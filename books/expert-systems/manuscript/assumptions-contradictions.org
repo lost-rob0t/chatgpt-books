@@ -1,0 +1,591 @@
+* Chapter 18 -- Assumptions, Contradictions, and Counterevidence
+:PROPERTIES:
+:ID:       e5a7323d-0670-401f-a846-cffa56d57e58
+:END:
+
+Chapter 17 gave the engine memory for *why* a derived fact is present. That solves one class of stale-knowledge bugs, but it creates a harder question immediately:
+
+#+begin_quote
+What should the engine do when two *grounded* pieces of knowledge cannot both describe the same modeled situation?
+#+end_quote
+
+A support graph by itself does not answer that.
+
+Suppose two collectors produce these observations:
+
+#+begin_example
+(unit-active-state api-service active 42)
+(unit-active-state api-service failed 42)
+#+end_example
+
+Both can be base-supported. Both can have impeccable source metadata. Both can even be independently corroborated. Yet if =42= denotes one observation epoch for one modeled systemd unit, our domain model says the two values cannot both be the unit's high-level state for that same epoch.
+
+The mistake would be to hide that conflict by immediately deleting whichever fact arrived second.
+
+The other mistake would be to shrug and let every rule continue firing as though the knowledge base were ordinary and consistent.
+
+This chapter derives a smaller, explicit policy:
+
+1. assumptions are named support commitments, not invisible defaults;
+2. contradictions are domain declarations with stable identity and provenance;
+3. contradiction detection preserves both grounded sides as counterevidence;
+4. time and other context dimensions participate in the consistency key;
+5. an execution gate can halt before the *next* firing while leaving the conflict inspectable;
+6. a report-only mode exists for debugging, but it is not a conflict-resolution strategy.
+
+This is deliberately less ambitious than an assumption-based truth-maintenance system. De Kleer's ATMS work makes assumption sets first-class and is designed to reason effectively with inconsistent information and multiple contexts [cite:@dekleer1986atms]. We need that lineage because it shows why “assumption” deserves an explicit representation. We are not going to smuggle ATMS environment labels, nogoods, or context switching into a few helper functions and call the result equivalent.
+
+Likewise, Doyle's earlier TMS work treats assumptions as revisable commitments rather than sacred input [cite:@doyle1979tms]. We keep that design pressure while implementing a much smaller course-local interface.
+
+** 18.1 Truth maintenance is not consistency maintenance
+A milestone-D fact can be perfectly grounded and still conflict with another perfectly grounded fact.
+
+That is easiest to see with two independent base observations:
+
+#+begin_example
+A: source-1 says state(api) = active at epoch 42
+B: source-2 says state(api) = failed at epoch 42
+#+end_example
+
+The truth-maintenance layer answers:
+
+#+begin_example
+A grounded? yes -- base evidence
+B grounded? yes -- base evidence
+#+end_example
+
+Nothing is wrong with that answer. Grounding asks whether each occurrence has an accepted support path. It does not ask whether the *pair* satisfies every invariant in the domain model.
+
+This distinction matters enough to make architectural:
+
+#+begin_example
+working memory
+    |
+    +--> incremental matcher --> activations
+    |
+    +--> support ledger ------> grounding / cascading retraction
+    |
+    +--> consistency layer ---> contradiction reports / execution gate
+#+end_example
+
+The new layer reads the accepted working-memory and support semantics. It does not take ownership of alpha memories, beta tokens, justifications, or retraction.
+
+That separation lets us test three questions independently:
+
+- *match*: what rules are enabled?
+- *support*: what current facts are still grounded?
+- *consistency*: what grounded facts violate a declared domain constraint together?
+
+A production system that collapses those questions into one boolean eventually becomes impossible to debug.
+
+** 18.2 Make assumptions explicit instead of hiding them in code
+The word /assumption/ gets abused in technical systems. Sometimes it means “a value with no source.” Sometimes it means “a default.” Sometimes it means “something the developer forgot to model.” None of those is good enough for an explainable expert system.
+
+For this project an assumption is precise:
+
+#+begin_quote
+An assumption is an exact current base-supported working-memory occurrence that the caller has explicitly classified as revisable assumption support.
+#+end_quote
+
+The occurrence part is inherited from Chapter 8. Stable ID is not enough.
+
+Suppose we assume:
+
+#+begin_example
+(unit-active-state api-service active 42)
+#+end_example
+
+and the resulting occurrence stamp is:
+
+#+begin_example
+("state.api.active.e42" . 7)
+#+end_example
+
+Later we withdraw that assumption, then reuse the stable fact ID for a fresh observation at occurrence 19. The old assumption classification must *not* jump onto occurrence 19.
+
+So the wrapper records assumption stamps, not just IDs.
+
+The public classification used by contradiction reports is intentionally small:
+
+- =:assumption= -- the exact current occurrence is explicitly assumed;
+- =:evidence= -- current base support exists but is not classified as an assumption;
+- =:derived= -- current occurrence is not base-supported and depends on justifications;
+- =:absent= -- there is no current occurrence.
+
+Do not read confidence into that list. =:evidence= is not automatically “more true” than =:assumption=. A bad sensor can be base evidence; an excellent engineering hypothesis can be an assumption. Source quality and uncertainty policy belong to later knowledge engineering, not enum ordering.
+
+The constructor makes this boundary visible:
+
+#+begin_src lisp
+(make-assumption-network
+ truth-network
+ :contradiction-specs (list active-vs-failed))
+#+end_src
+
+Existing base facts remain ordinary evidence. New explicit assumptions enter through a separate operation:
+
+#+begin_src lisp
+(assumption-network-assert-assumption network proposed-state)
+#+end_src
+
+That tiny API difference is worth a lot. A code review can now ask, “Why is this an assumption?” instead of reverse-engineering intent from comments.
+
+** 18.3 Withdrawal is support revision, not unconditional deletion
+Once assumptions are explicit, the obvious API is to withdraw one.
+
+The naive implementation would call =retract-fact=.
+
+That would violate the support semantics we just spent Chapter 17 building.
+
+Consider:
+
+#+begin_example
+assume X
+Y -> X
+X -> Z
+#+end_example
+
+After =Y -> X= fires, the exact current occurrence of =X= has two support sources:
+
+- assumption/base support;
+- a derived justification from =Y=.
+
+Withdrawing the assumption should remove only the first support source. If =Y= is still grounded, =X= remains the *same occurrence*, becomes =:derived=, and =Z= remains supported.
+
+The wrapper therefore delegates assumption withdrawal to the milestone-D base-support retraction operation:
+
+#+begin_src lisp
+(assumption-network-withdraw-assumption network fact-id)
+#+end_src
+
+The accepted truth-maintenance layer decides whether the occurrence survives.
+
+This gives us a useful invariant:
+
+#+begin_quote
+Assumption metadata can disappear without a working-memory delta.
+#+end_quote
+
+If another reason survives, no matcher retraction should happen because no fact occurrence disappeared.
+
+Only after the final grounding path vanishes should the ordinary support cascade remove the occurrence and its unsupported descendants.
+
+** 18.4 Contradictions must be declared by the domain model
+The engine cannot infer “contradiction” from different values in the abstract.
+
+These two facts disagree lexically:
+
+#+begin_example
+(load-average host-a 0.7 epoch-1)
+(load-average host-a 1.4 epoch-2)
+#+end_example
+
+That is not necessarily contradictory. They may simply be two valid observations over time.
+
+These two facts use different predicates:
+
+#+begin_example
+(service-enabled api-service true)
+(unit-active-state api-service inactive 42)
+#+end_example
+
+They are also not contradictory. Enablement and current activity are different systemd concepts.
+
+So milestone E refuses to invent negation from shape. Instead, the knowledge engineer declares a =contradiction-spec=:
+
+#+begin_src lisp
+(make-contradiction-spec
+ :id "constraint.systemd.active-state.active-vs-failed"
+ :left-pattern  '(unit-active-state ?unit active ?epoch)
+ :right-pattern '(unit-active-state ?unit failed ?epoch)
+ :provenance '(:source :systemd-dbus-unit-api
+               :claim :one-high-level-active-state-per-observation))
+#+end_src
+
+That object has four important properties.
+
+First, it has a stable ID. A contradiction rule deserves identity just as much as a production rule does. Tests, explanations, versioning, and later workbench tooling need something stable to refer to.
+
+Second, both sides use the *existing matcher language*. We do not introduce a secret second unifier for consistency constraints.
+
+Third, the left-side bindings flow into the right-side match. Shared variables therefore define the consistency key.
+
+Fourth, the declaration carries provenance. The constraint itself is knowledge and should be auditable.
+
+For the systemd lab, the source boundary is careful. Current systemd documentation exposes =ActiveState= as the high-level state of a unit and distinguishes it from finer-grained =SubState= [cite:@systemd-dbus-unit]. The book's =?epoch= field is not a systemd field. It is course-local observation context added so the expert system does not confuse state *transition* with state *contradiction*.
+
+** 18.5 Context is part of logical meaning
+Here is the bug we want the reader to be able to spot instantly:
+
+#+begin_src lisp
+;; Wrong for temporal observations:
+:left-pattern  '(unit-active-state ?unit active ?when)
+:right-pattern '(unit-active-state ?unit failed ?other-when)
+#+end_src
+
+The two time variables are independent. That declaration says “a unit may never be observed active at one time and failed at another.” Real services would violate it constantly.
+
+The correct teaching declaration carries one variable across both sides:
+
+#+begin_src lisp
+:left-pattern  '(unit-active-state ?unit active ?epoch)
+:right-pattern '(unit-active-state ?unit failed ?epoch)
+#+end_src
+
+Now the matcher itself enforces:
+
+#+begin_example
+same unit
+AND same observation epoch
+AND active on one grounded occurrence
+AND failed on another grounded occurrence
+#+end_example
+
+Different epochs do not match the contradiction pair.
+
+This pattern generalizes far beyond time. A serious troubleshooting KB may need consistency keys containing:
+
+- host identity;
+- tenant;
+- cluster;
+- interface or process identity;
+- software/configuration generation;
+- observation window;
+- collection method;
+- namespace or container;
+- source authority scope.
+
+Leaving one out can manufacture fake contradictions. Adding the wrong one can hide real contradictions. This is knowledge engineering, not plumbing.
+
+** 18.6 Detect only grounded counterevidence
+A stale historical justification should not produce a current contradiction. Neither should a working-memory occurrence that no longer has any path to base evidence.
+
+The detector therefore asks milestone D whether both matched occurrences are grounded:
+
+#+begin_example
+left matches?       yes
+left grounded?      yes
+right matches?      yes
+right grounded?     yes
+shared bindings?    consistent
+exact occurrences?  distinct
+--------------------------------
+contradiction report
+#+end_example
+
+The report stores:
+
+#+begin_src lisp
+(defstruct contradiction-report
+  spec-id
+  spec-provenance
+  bindings
+  left-fact-id
+  left-stamp
+  left-support-kind
+  right-fact-id
+  right-stamp
+  right-support-kind)
+#+end_src
+
+Notice what is missing: =winner=.
+
+The system does not silently decide that evidence beats assumption, newest beats oldest, local beats remote, or “failed” beats “active.” Those may become valid domain policies later, but only after they are stated, sourced, and tested.
+
+This chapter wants the contradiction to become *more visible*, not less.
+
+** 18.7 Counterevidence is a first-class debugging object
+Imagine a report saying:
+
+#+begin_example
+constraint: constraint.systemd.active-state.active-vs-failed
+bindings:   ?unit=api-service, ?epoch=42
+left:       obs.api.active.e42       [evidence]
+right:      assume.api.failed.e42    [assumption]
+#+end_example
+
+That report tells an operator or later explanation layer several useful things without pretending to solve the conflict:
+
+- the exact consistency rule that detected it;
+- the domain key on which the conflict exists;
+- both fact identities and exact occurrences;
+- whether either side is explicitly assumed;
+- where the consistency rule itself came from.
+
+A future workbench can then offer actions such as:
+
+- inspect each fact's provenance;
+- inspect each side's current justification graph;
+- withdraw an explicit assumption;
+- mark an observation superseded under a versioned domain policy;
+- collect more evidence;
+- compare source freshness/authority.
+
+None of those actions should be guessed by the matching engine.
+
+** 18.8 The consistency gate belongs between firings
+The forward-chaining loop now has one more explicit decision point.
+
+Without contradiction handling:
+
+#+begin_example
+build agenda -> fire first activation -> propagate -> repeat
+#+end_example
+
+With =:halt= policy:
+
+#+begin_example
+check contradictions
+        |
+        +-- any? --> return :contradiction, preserve facts + agenda
+        |
+        `-- none --> build agenda
+                       |
+                       +-- empty --> :quiescent
+                       |
+                       `-- fire first activation
+                                |
+                                `--> loop to contradiction check
+#+end_example
+
+The placement matters.
+
+Suppose firing 1 derives a fact that conflicts with current evidence. A second rule becomes enabled by that new fact. If we check consistency only once at engine startup, firing 2 will consume the contradictory state before anyone sees the boundary.
+
+The milestone-E =:halt= policy checks *before every next firing*. That means the contradiction-producing firing remains committed and inspectable, but the downstream firing is held on the agenda.
+
+This is not rollback.
+
+It is not a database transaction.
+
+It is not proof that every external side effect in a future production system is safe.
+
+It is simply a precise semantic boundary: “do not perform another rule firing while a declared contradiction is current.”
+
+The result type keeps the blocked agenda visible:
+
+#+begin_src lisp
+(defstruct consistency-run-result
+  status
+  firing-count
+  firing-records
+  remaining-activation-keys
+  contradictions)
+#+end_src
+
+=:contradiction= is therefore different from =:quiescent=. Work may remain; the consistency policy is what stopped execution.
+
+That mirrors Chapter 10's earlier distinction between genuine quiescence and a caller-imposed firing limit. Good control systems name why they stopped.
+
+** 18.9 Report-only mode is for inspection, not denial
+Sometimes you need to understand what the rule base *would* do in the presence of conflicting data.
+
+For that case the wrapper offers:
+
+#+begin_src lisp
+(run-assumption-network
+ network
+ :firing-limit 100
+ :contradiction-policy :report-only)
+#+end_src
+
+The engine continues truth-maintained forward chaining, while the final result still includes current contradiction reports.
+
+That is useful for:
+
+- tests;
+- dry-run tooling;
+- migration analysis;
+- workbench previews;
+- debugging a rule base that historically tolerated inconsistent inputs.
+
+It would be reckless to describe =:report-only= as “safe inconsistent reasoning” in general. A production action may someday trigger an external system, allocate resources, page an operator, or mutate durable state. This project currently constrains actions to in-memory fact proposals, but later chapters explicitly have to revisit side-effect policy.
+
+So keep the status honest:
+
+- =:halt= -- consistency gate;
+- =:report-only= -- observation/debug mode;
+- neither -- conflict resolution.
+
+** 18.10 Why not encode contradictions as ordinary productions?
+You could write a production like:
+
+#+begin_example
+active(api, epoch) + failed(api, epoch)
+    -> contradiction(api, epoch)
+#+end_example
+
+For some systems that is perfectly reasonable. Why introduce a separate declaration at all?
+
+Because the course needs to expose a different control role.
+
+An ordinary production creates another working-memory fact after the conflicting state already exists. It then participates in agenda ordering and refraction like every other rule. A consistency gate, however, must be able to inspect the conflict *before selecting the next ordinary activation*.
+
+The separate =contradiction-spec= also makes several future workbench operations straightforward:
+
+- list all declared consistency constraints;
+- validate duplicate constraint IDs;
+- inspect source/provenance for the constraint itself;
+- run contradiction scans without firing the domain rule base;
+- version consistency policy separately from remediation rules.
+
+This is a deliberate architecture choice, not a claim that production rules are incapable of representing logical conflict.
+
+** 18.11 Failure lab: the missing epoch variable
+Start with two grounded observations:
+
+#+begin_example
+(unit-active-state api-service active 42)
+(unit-active-state api-service failed 43)
+#+end_example
+
+Now define the broken constraint:
+
+#+begin_src lisp
+(make-contradiction-spec
+ :id "broken.active-vs-failed"
+ :left-pattern  '(unit-active-state ?unit active ?left-epoch)
+ :right-pattern '(unit-active-state ?unit failed ?right-epoch)
+ :provenance '(:kind :lab-bug))
+#+end_src
+
+The matcher is doing exactly what you asked: =?left-epoch= and =?right-epoch= can take different values. The bug is in the knowledge model.
+
+Repair it by sharing =?epoch=.
+
+This is an important style of debugging because the engine can be internally correct while the domain constraint is wrong. Expert-system engineering requires tests for the knowledge base, not merely tests for the inference machinery.
+
+For later Project 2 work, every contradiction declaration should have at least:
+
+- one positive contradiction scenario;
+- one near-miss scenario that must *not* be reported;
+- source/provenance evidence for why the pair is incompatible;
+- explicit context dimensions;
+- stable identity.
+
+** 18.12 Failure lab: “assumption” is not synonymous with “discard first”
+Seed a grounded failed-state observation. Then explicitly assume active state for the same unit and epoch.
+
+The contradiction report identifies one side as =:evidence= and the other as =:assumption=.
+
+It is tempting to implement:
+
+#+begin_example
+if contradiction and one side is assumption:
+    retract assumption
+#+end_example
+
+Do not do that yet.
+
+The assumption may exist because an operator is testing a hypothesis. The observation may be stale or from a lower-authority source. The assumption may have acquired an independent derived justification after it was asserted. The consistency rule may itself be wrong.
+
+Milestone E therefore separates *detection* from *resolution*.
+
+A caller may explicitly withdraw the assumption. If it has no other grounding, it disappears and the contradiction clears. If another current justification grounds the same occurrence, withdrawal only removes the assumption support and the fact remains =:derived=. The contradiction remains until the actual counterevidence situation changes.
+
+That behavior is exactly why Chapter 17 had to come first.
+
+** 18.13 Project Lab E.1 -- Build a systemd consistency sentinel
+The lab extends the progressive inference engine with a narrow piece of the future Technical Troubleshooting Knowledge Base.
+
+The systemd documentation grounds only the high-level =ActiveState= concept [cite:@systemd-dbus-unit]. All incident data in this lab is synthetic.
+
+*** Requirements
+1. Represent state observations as:
+
+#+begin_example
+(unit-active-state UNIT STATE EPOCH)
+#+end_example
+
+2. Give every fact a stable ID and provenance object. For a real collector later, provenance must distinguish host, collector, timestamp/epoch source, and retrieval method. For this lab, use synthetic provenance explicitly.
+
+3. Declare one stable contradiction specification for =active= versus =failed= at the same unit/epoch.
+
+4. Demonstrate all four cases:
+   - same unit + same epoch + active/failed -> contradiction;
+   - same unit + different epoch -> no contradiction;
+   - different unit + same epoch -> no contradiction;
+   - assumption + evidence conflict -> report preserves both support classes.
+
+5. Run once under =:halt= and prove by state inspection that an eligible downstream activation remains unfired.
+
+6. Run the equivalent fixture under =:report-only= and inspect the resulting firing trace *and* contradiction list.
+
+7. Withdraw an explicit assumption and inspect the milestone-D retraction report. Do not equate support demotion with occurrence removal.
+
+8. Add a case where the assumed occurrence has gained another derived reason. Withdrawing assumption support must leave the exact occurrence current until that derived support also disappears.
+
+9. Preserve all prior matcher, agenda, incremental-network, and truth-maintenance regressions.
+
+*** Deliverable
+The deliverable is not a daemon and not a production systemd monitor. It is a tested semantic slice:
+
+#+begin_example
+facts + justifications
+        |
+        v
+ explicit assumption metadata
+        |
+        v
+ contradiction declarations
+        |
+        v
+ current grounded counterevidence
+        |
+        +--> halt before next firing
+        `--> report-only inspection
+#+end_example
+
+#+caption: Project 1 milestone-E consistency flow. Assumptions and ordinary evidence share the accepted truth-maintenance layer; grounded fact pairs are checked against provenance-bearing contradiction declarations, then either halt the next firing or remain visible in report-only mode. No automatic winner is chosen.
+#+attr_html: :alt Ordinary evidence and explicit assumptions feed the existing truth-maintained working memory; grounded occurrences enter a contradiction matcher keyed by shared variables such as unit and epoch; a contradiction report preserves both sides and flows either to a halt gate before the next firing or to report-only inspection, with no automatic retraction or winner selection.
+[[file:assets/assumption-contradiction.svg]]
+
+** 18.14 Debugging checklist
+When a contradiction report surprises you, do not start by editing the engine. Ask in this order:
+
+1. Are both exact occurrences current?
+2. Are both grounded?
+3. Which support kind does each side currently have?
+4. What contradiction specification matched them?
+5. Which shared bindings formed the consistency key?
+6. Is a context dimension missing from that key?
+7. Is the contradiction declaration actually justified by its source?
+8. Are the two facts observations of the same modeled thing and time?
+9. Did an assumption survive because another derived justification still grounds the same occurrence?
+10. Is execution halted because of contradiction, because of a firing limit, or because the agenda is truly empty?
+
+The checklist is intentionally mechanical. “The AI got confused” is not a debugging method.
+
+** 18.15 Exercises
+1. ★ Explain why two grounded facts can still be contradictory. Give one example that does not involve systemd.
+2. ★ Explain why assumption classification must use exact occurrence identity rather than stable fact ID alone.
+3. ★ For the systemd lab, predict whether =(active, 42)= and =(failed, 43)= should produce a report. Then identify the exact variable-sharing choice that enforces your answer.
+4. ★★ Add a second contradiction specification for a synthetic mutually-exclusive deployment mode keyed by service and configuration generation. Write one positive and two near-miss tests.
+5. ★★ Write a regression proving that two different units at the same epoch are not paired by the systemd constraint.
+6. ★★ Start with an assumed fact that has a separate derived justification. Withdraw the assumption and verify the occurrence stamp does not change.
+7. ★★ Compare =:halt= with =:report-only= on the same fixture. Explain why neither mode is a resolution algorithm.
+8. ★★★ Deliberately omit one context field from a contradiction specification. Construct the smallest false-positive scenario and then repair the pattern.
+9. ★★★ Extend =contradiction-report= in a branch with source timestamps from fact provenance. Do *not* implement a winner policy. Instead, design the additional evidence an operator would need before source freshness could legitimately matter.
+10. ★★★ Design a property test: for any current contradiction report, both occurrence stamps must be current, both facts must be grounded, and the report's stored bindings must make both declaration patterns match. Explain what this catches that example tests do not.
+11. ★★★ Research one real operational invariant from authoritative Linux or distributed-system documentation. Write the contradiction declaration only after documenting its context dimensions and near misses. Do not invent an invariant from intuition.
+12. Research/design: read de Kleer's ATMS paper [cite:@dekleer1986atms]. List at least four mechanisms in the paper that milestone E does *not* implement, and explain why calling this wrapper an ATMS would therefore be misleading.
+
+** 18.16 Boundary to uncertainty and explanation
+Contradiction is not probability.
+
+An engine can know that two claims conflict without knowing whether one is 90% likely and the other 10% likely. Chapter 19 will treat certainty/fuzzy machinery as a separate research and implementation problem rather than attaching numbers to contradiction reports because numbers look sophisticated.
+
+Likewise, a contradiction report is not yet a full explanation.
+
+It exposes the exact facts, support classes, shared bindings, and constraint identity. Chapter 20 will turn the accepted support graph plus these stable conflict identities into reader-facing “why,” “why not,” and provenance views. That explanation layer should *consume* stable semantics from Chapters 17 and 18, not reconstruct them from log strings.
+
+At this point Project 1 has crossed another important boundary:
+
+#+begin_example
+matching tells us what can fire
+support tells us what may remain
+consistency tells us what cannot jointly describe one modeled context
+control tells us whether to fire again
+#+end_example
+
+That is enough machinery to begin building a serious sourced troubleshooting knowledge base without pretending disagreement disappears when we close our eyes.

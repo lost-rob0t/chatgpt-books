@@ -1,0 +1,131 @@
+#+title: Machine Learning for StarIntel -- Foundational Research Pass 05
+#+date: 2026-08-16
+
+* Status
+RESEARCH; foundational phase remains open.
+
+* Scope
+Resolve the source-shape question left open by Pass 04: what should the final tiny Level 1 + Level 2 teaching fixture be based on so it is reproducible, official, and appropriate for verification rather than a moving live lookup?
+
+This pass is research-only. It does not claim that the final fixture bytes have been downloaded, hashed, normalized, or executed yet.
+
+* Research questions
+- Does GLEIF publish an official stable sample corpus that covers current Level 1 and Level 2 formats?
+- Is that sample corpus explicitly intended for verification/testing?
+- Which current Level 1 and Level 2 formats should Project 1 target?
+- What ownership semantics must the StarIntel adapter preserve when mapping RR-CDF relationship records?
+- Should the final Project 1 fixture prefer a live API response, a full Golden Copy slice, or GLEIF's official sample bundle?
+
+* Retrieval date
+2026-08-16.
+
+* Sources inspected
+** GLEIF Supporting Documents
+Official GLEIF documentation states that it publishes sample XML, JSON, and CSV files plus a sample GLEIF API response for verifying and testing current LEI data formats. The current format table identifies:
+- LEI-CDF 3.1 for Level 1 records;
+- RR-CDF 2.1 for Level 2 relationship records;
+- Reporting Exceptions 2.1.
+
+The official JSON sample package is named:
+=2021-11-23_lei-cdf-3.1-and-rr-cdf-2.1-and-repex-cdf-2.1-json-samples_v1.1-final.zip=
+
+** GLEIF RR-CDF 2.1 documentation
+GLEIF documents Level 2 as the answer to “who owns whom”. RR-CDF relationship records identify the involved legal entities, relationship type/characteristics and dates, plus validation/reporting information. The current RR-CDF version is 2.1.
+
+** GLEIF API documentation
+GLEIF's official API documentation exposes direct-parent, ultimate-parent, direct-child and ultimate-child relationship endpoints. A direct-parent relationship is defined around the closest entity preparing consolidated financial statements for the child; ultimate-parent denotes the furthest such entity.
+
+** Current StarIntel 0.9 boundary
+The Book 1 adapter remains bound to the pinned canonical StarIntel 0.9 schema established in earlier passes. This pass does not copy GLEIF or StarIntel schema semantics into a second runtime/storage layer.
+
+* Findings
+** Official sample bundle is the preferred baseline fixture source
+DOCUMENTED.
+
+Project 1 should prefer GLEIF's own current-format JSON sample bundle as the canonical deterministic Level 1 + Level 2 teaching fixture source, rather than making ordinary tests depend on a live API response or a moving latest Golden Copy.
+
+Rationale:
+- it is published by the authoritative upstream data owner;
+- GLEIF explicitly describes the samples as intended for verification/testing;
+- one bundle covers Level 1, Level 2 relationships and reporting exceptions;
+- it uses the current documented CDF versions;
+- a frozen copy can be hashed and exercised offline after acquisition;
+- it avoids choosing a production company solely because its current live record happens to contain a convenient ownership chain.
+
+This does not make live API/Golden Copy testing useless. Live-source refresh belongs in a deliberate refresh/integration path, not the ordinary deterministic unit/research fixture path.
+
+** Target upstream formats
+DOCUMENTED.
+
+- Level 1: LEI-CDF 3.1.
+- Level 2 relationships: RR-CDF 2.1.
+- Level 2 exceptions: Reporting Exceptions 2.1.
+
+Book 1 must not conflate these GLEIF format versions with StarIntel =schema_version: "0.9.0"=. They are independent version domains.
+
+** Required relationship semantics for the adapter
+DOCUMENTED upstream; StarIntel mapping remains UNTESTED.
+
+A normalized relation record must preserve at least:
+- child/start-node identity;
+- parent/end-node identity;
+- direct versus ultimate relationship semantics;
+- relationship type;
+- relevant relationship periods/dates;
+- registration status;
+- validation/reporting provenance when present.
+
+The adapter should emit canonical StarIntel entity/relation records and preserve source-specific detail in namespaced provenance/extensions rather than reimplementing GLEIF storage or StarIntel runtime semantics.
+
+* Fixture decision
+The final Project 1 public fixture is now specified as a *frozen subset of GLEIF's official JSON current-format sample bundle*.
+
+Acquisition contract:
+1. download the official JSON sample ZIP from GLEIF;
+2. retain the original ZIP bytes or the exact selected JSON member bytes;
+3. record source URL, retrieval date, archive/member names and SHA-256 hashes;
+4. identify the smallest Level 1 records required by the selected RR-CDF relationship sample;
+5. retain at least one genuine relationship record and, if compact enough, one reporting-exception example;
+6. normalize only through the narrow Book 1 StarIntel adapter;
+7. hash normalized artifacts;
+8. validate every emitted StarIntel document against the pinned canonical StarIntel 0.9 schema;
+9. record a provenance manifest sufficient to reconstruct source -> member -> normalized entity/relation -> split membership;
+10. run offline in CI after the fixture is frozen.
+
+* Claim-status table
+| Claim | Status |
+| GLEIF publishes current-format sample files explicitly for verification/testing | DOCUMENTED |
+| current Level 1 sample format is LEI-CDF 3.1 | DOCUMENTED |
+| current relationship sample format is RR-CDF 2.1 | DOCUMENTED |
+| current reporting-exception sample format is 2.1 | DOCUMENTED |
+| GLEIF API exposes parent/child relationship retrieval | DOCUMENTED |
+| official sample JSON bundle selected as Project 1 deterministic fixture source | RESEARCH DECISION |
+| sample ZIP/member bytes frozen and hashed in Book 1 | UNTESTED |
+| selected RR-CDF record normalized to canonical StarIntel relation | UNTESTED |
+| full Experiment D on official Level 1 + Level 2 bytes | UNTESTED |
+| leakage Experiments A--C | UNTESTED |
+
+* Failure / blocker encountered
+The research environment could inspect the official GLEIF page and resolve the exact JSON sample archive link, but could not retrieve the ZIP bytes through the available fetch path because the binary application/zip response was unsupported by that path. No hash has been invented and no fixture is marked frozen.
+
+This is a tooling limitation for this pass, not evidence that the GLEIF archive is unavailable.
+
+* Implementation implications
+Project 1 should now have two source modes:
+- deterministic fixture mode: frozen official sample members, offline and hash-verified;
+- refresh/integration mode: explicit live API or Golden Copy acquisition that creates a new snapshot/version rather than mutating the deterministic fixture silently.
+
+Neither mode owns CouchDB, RabbitMQ, StarIntel server ingest, or a second StarIntel schema.
+
+* Remaining uncertainty
+- exact member filenames and byte hashes inside the official JSON sample archive;
+- smallest relationship-connected subset to retain;
+- whether a reporting-exception record should be mandatory in the first fixture or added as a second fixture;
+- exact mapping of RR-CDF relationship qualifiers/periods into canonical StarIntel relation fields versus namespaced extension/provenance fields;
+- full Experiment D execution;
+- grouped+temporal split policy and near-duplicate rule before A--C execute.
+
+* Next highest-priority research question
+What is the smallest exact set of Level 1 + RR-CDF JSON sample records in GLEIF's official current-format sample bundle that forms a self-contained ownership example, and does a narrow StarIntel adapter preserve their identities, relationship semantics, periods and provenance while validating every emitted document against canonical StarIntel 0.9?
+
+The next pass should acquire the archive bytes, freeze/hash the selected members, implement that minimal entity+relation mapping, and execute full Experiment D before moving to leakage measurements.
