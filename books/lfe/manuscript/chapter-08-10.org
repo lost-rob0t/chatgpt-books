@@ -75,27 +75,30 @@ Again, there is no “LFE reference.” This is precisely the kind of interopera
 *** Correlation is a correctness property, not decoration
 Suppose a caller performed an older request and a reply was delayed. Later it sends a new request. If the client helper accepts any tuple beginning with =reply=, the old reply can satisfy the new request.
 
-The wrong receive is conceptually:
-
-#+begin_src lfe
-(receive
-  ((tuple 'reply _ref result)
-   result))
-#+end_src
-
-Project 2 instead waits for the exact fresh reference:
+There is an LFE-specific trap here. Our first executable attempt tried to reuse the outer variable name directly inside the receive-clause pattern:
 
 #+begin_src lfe
 (receive
   ((tuple 'reply ref result)
+   result))
+#+end_src
+
+It *looked* like the familiar Erlang idea “this already-bound variable must equal the incoming value.” The regression disproved that assumption: the clause pattern introduced its own binding and accepted a stale reply carrying a different reference. The correct implementation makes the two roles explicit:
+
+#+begin_src lfe
+(receive
+  ((tuple 'reply reply-ref result)
+   (when (=:= reply-ref ref))
    result)
   (after timeout
     (tuple 'error 'timeout)))
 #+end_src
 
-That repeated =ref= is the same pattern-matching idea from Chapter 2, now doing concurrency work. The client has not gained a new concurrency abstraction; it has reused structural matching to specify which message can advance the protocol.
+The pattern destructures the incoming reply. The guard compares its =reply-ref= with the outer request =ref=. This is less cute and more correct.
 
-The regression suite deliberately puts a stale, well-shaped reply in the caller's mailbox before making a fresh request. The fresh request must still return the new request's result. Only afterward does the test consume the stale reply. That gives us evidence for two facts at once: correlation works, and selective receive can leave unmatched messages waiting in the mailbox.
+The regression suite deliberately puts a stale, well-shaped reply in the caller's mailbox before making a fresh request. The fresh request must still return the new request's result. Only afterward does the test consume the stale reply. That gives us evidence for two facts at once: guarded correlation works, and selective receive can leave unmatched messages waiting in the mailbox.
+
+This is why executable teaching examples matter. A plausible-looking derivation was wrong; a one-case regression forced the manuscript to teach the implementation that actually survives the runtime.
 
 *** Direct Erlang interoperability is an acceptance test
 A process API becomes more convincing when a second BEAM language uses it. The Project 2 gate launches an ordinary Erlang runtime, calls the compiled LFE module, receives the PID, routes an event through it, and stops it.
@@ -109,23 +112,25 @@ That test protects us from a subtle documentation failure: it prevents the book 
 [[file:assets/actor-protocol.svg]]
 
 *** Failure lab: hide everything behind a convenience wrapper
-Imagine replacing all explicit protocol tuples with a macro that expands =ask actor event= into the full call protocol. That can be pleasant *after* the protocol is understood. It is a terrible first teaching step.
+Imagine replacing all explicit protocol tuples with a macro that expands =ask actor event= into the full request protocol. That can be pleasant *after* the protocol is understood. It is a terrible first teaching step.
 
 For this lab, write the hypothetical source form and then expand it on paper into:
 
 1. a fresh reference;
 2. a message containing caller PID, reference, and request;
-3. a selective receive for that reference;
-4. a timeout branch.
+3. a receive clause that binds the incoming reply reference under a distinct name;
+4. an equality guard against the outer reference;
+5. a timeout branch.
 
 If the macro version makes any one of those obligations easy to forget, the abstraction is currently hiding more than it helps.
 
 *** Exercises
 1. ★ Explain why an Erlang process can use the PID returned by =actor-router:start/1= without an LFE-specific adapter.
 2. ★ Draw the exact request and reply tuples for two concurrent callers using different references.
-3. ★★ Change the protocol design so the destination of a route reply is explicitly tagged =route-result=. Does the correlation reference become unnecessary? Why or why not?
-4. ★★ Explain what a PID tells you and what it does *not* tell you about the message protocol.
-5. ★★★ Design a versioned protocol envelope using ordinary BEAM terms. Keep the current server able to reject an unsupported version with a useful tagged error.
+3. ★★ Explain why =reply-ref= and =ref= are deliberately different variable names in the receive clause and guard.
+4. ★★ Change the protocol design so the destination of a route reply is explicitly tagged =route-result=. Does the correlation reference become unnecessary? Why or why not?
+5. ★★ Explain what a PID tells you and what it does *not* tell you about the message protocol.
+6. ★★★ Design a versioned protocol envelope using ordinary BEAM terms. Keep the current server able to reject an unsupported version with a useful tagged error.
 
 ** Chapter 9 -- Processes: State Is the Next Loop Argument
 :PROPERTIES:
@@ -256,13 +261,16 @@ That difference matters whenever we debug time.
   (let ((ref (erlang:make_ref)))
     (! pid (tuple 'call (self) ref request))
     (receive
-      ((tuple 'reply ref result)
+      ((tuple 'reply reply-ref result)
+       (when (=:= reply-ref ref))
        result)
       (after timeout
         (tuple 'error 'timeout)))))
 #+end_src
 
 The helper is intentionally named =request= rather than =call=. The first executable gate tried =call= and LFE rejected the definition because =call= is a core form. Keeping that failure in the research record is useful: Lisp syntax is programmable, but core-language names are not an infinite namespace for convenience APIs.
+
+The explicit guard is equally intentional. A second executable gate tried to use the outer name =ref= directly in the receive-clause pattern and the stale-reply regression caught that false correlation. The clause now binds =reply-ref= and compares it to the outer =ref= in a guard. The source is slightly longer because the semantic boundary is now visible instead of assumed.
 
 There are at least four events here:
 
@@ -292,11 +300,12 @@ mailbox:
   #(reply OldRef stale)
   #(reply CurrentRef #(ok pager))
 
-receive pattern:
-  #(reply CurrentRef Result)
+receive clause:
+  pattern: #(reply ReplyRef Result)
+  guard:   ReplyRef =:= CurrentRef
 #+end_example
 
-The first message is well-formed but does not match the bound current reference, so it remains queued while the second message can satisfy the receive.
+The first message is well-formed but fails the equality guard against the current request reference, so it remains queued while the second message can satisfy the receive.
 
 This is correct protocol behavior and a potential operational smell if stale/unrelated messages accumulate. The lesson is not “selective receive is bad.” The lesson is that mailbox protocol design affects both correctness and work performed while scanning.
 
@@ -358,13 +367,14 @@ When a request “hangs,” debug the protocol in reference order rather than st
 3. Did the server receive a =call= carrying that exact reference?
 4. Did the server choose the intended handler?
 5. Did it emit =reply= with the same reference?
-6. Is the caller still waiting for that reference, or did it already time out?
-7. Is a late reply now stuck behind unrelated mailbox traffic?
+6. Did the caller's equality guard compare the incoming reference to the correct outer reference?
+7. Is the caller still waiting for that reference, or did it already time out?
+8. Is a late reply now stuck behind unrelated mailbox traffic?
 
 This style scales to OTP calls, distributed nodes, and tracing. A correlation identifier gives you a path through concurrent events that source-level stack traces alone cannot reconstruct.
 
-*** Failure lab: remove correlation
-Modify =request/3= so any =#(reply _ Result)= satisfies the receive. Keep the stale-reply regression unchanged. The test should now return =stale= for the fresh request and fail.
+*** Failure lab: remove the correlation guard
+Delete =(when (=:= reply-ref ref))= from =request/3=. Keep the stale-reply regression unchanged. The test should now return =stale= for the fresh request and fail. That is not hypothetical: it is the exact failure the executable gate caught while this chapter was being drafted.
 
 Then repair the code and try a subtler bug: create the reference once at process startup and reuse it for every request. Explain why that defeats the purpose even if simple sequential tests appear to pass.
 
@@ -374,7 +384,7 @@ At the end of Chapter 10, Project 2 has a deliberately small but real actor appl
 - a process owns the current rule-set term;
 - routing still delegates to the independently tested Project 1 kernel;
 - requests and replies are explicit BEAM tuples;
-- fresh references correlate requests and replies;
+- fresh references plus an explicit equality guard correlate requests and replies;
 - state changes are loop-recursion state transitions;
 - a regression demonstrates selective receive against a stale reply;
 - a regression demonstrates same-sender ordering for two requests to one actor;
@@ -386,11 +396,12 @@ What remains absent is intentional: no =gen_server=, no supervisor, no applicati
 
 *** Exercises
 1. ★ Explain why correlation solves “wrong reply satisfies this request” but not “late replies never accumulate.”
-2. ★★ Write a trace for a request that times out locally and is processed successfully by the actor afterward.
-3. ★★ Invent a malformed call envelope for which the server cannot safely send an error reply. What should the server do, and why?
-4. ★★★ Design an explicit cancellation protocol. Identify at least one race between completion and cancellation and state what result each side should accept.
-5. ★★★ Design a retry policy for =replace-rules=. Is the operation idempotent with the current data model? How would a compare-and-set version number change the answer?
-6. ★★★ Research Erlang process aliases and explain how they can help with request/reply lifetime management. Do not modify Project 2 until the version/compatibility boundary is separately tested.
+2. ★ Explain why the incoming reference is bound as =reply-ref= and then compared in a guard rather than reusing =ref= as the pattern variable.
+3. ★★ Write a trace for a request that times out locally and is processed successfully by the actor afterward.
+4. ★★ Invent a malformed call envelope for which the server cannot safely send an error reply. What should the server do, and why?
+5. ★★★ Design an explicit cancellation protocol. Identify at least one race between completion and cancellation and state what result each side should accept.
+6. ★★★ Design a retry policy for =replace-rules=. Is the operation idempotent with the current data model? How would a compare-and-set version number change the answer?
+7. ★★★ Research Erlang process aliases and explain how they can help with request/reply lifetime management. Do not modify Project 2 until the version/compatibility boundary is separately tested.
 
 * Project 2 -- Actor Application, Raw Process Milestone
 The runnable checkpoint lives in =books/lfe/code/actor-router/=. After the pinned LFE toolchain is available, run:
@@ -399,9 +410,9 @@ The runnable checkpoint lives in =books/lfe/code/actor-router/=. After the pinne
 bash books/lfe/code/actor-router/run-tests
 #+end_src
 
-Read the source before reaching for OTP. Break the correlation rule, break the state transition, trigger the crash path, and observe which tests fail. The point of this milestone is to earn an understanding of the mechanism that the next project will package into OTP behaviour callbacks and supervision policy.
+Read the source before reaching for OTP. Break the correlation guard, break the state transition, trigger the crash path, and observe which tests fail. The point of this milestone is to earn an understanding of the mechanism that the next project will package into OTP behaviour callbacks and supervision policy.
 
 * Source checkpoints for the process slice
 The process chapters use the tagged LFE v2.2.2 process example plus current official Erlang/OTP process and efficiency documentation. [cite:@lfe-messenger-v2-2-2;@lfe-guide-v2-2-2;@erlang-processes-29;@erlang-efficient-processes-29]
 
-The detailed retrieval record and claim boundaries live in =books/lfe/research/processes-03.org=. At authoring time the new Actor Router implementation remains UNTESTED until the focused repository workflow executes its real LFE/Erlang gate; this manuscript does not promote the planned assertions into test evidence merely because the code exists.
+The detailed retrieval record and claim boundaries live in =books/lfe/research/processes-03.org=. At authoring time the guard-corrected Actor Router remains UNTESTED until the focused repository workflow executes its real LFE/Erlang gate; the manuscript preserves the two failed attempts rather than pretending code presence is test evidence.
