@@ -1,155 +1,175 @@
-#+title: Symbolic AI in Prolog -- Detailed Bootstrap Outline
+#+title: Symbolic AI in Prolog -- Detailed Outline
 :PROPERTIES:
 :ID:       7de1c543-4f0f-5baf-abaa-e9d01bc0c3f5
 :END:
-* Part I -- Foundations
-** Chapter 1 -- Relations As Knowledge
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for relations as knowledge.
-Dependencies: none.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 2 -- Unification As Inference Machinery
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for unification as inference machinery.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 3 -- Search Control
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for search control.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 4 -- Rule Systems
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for rule systems.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 5 -- Theorem-Proving Concepts
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for theorem-proving concepts.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
 
-* Part II -- Building Useful Systems
-** Chapter 6 -- Backward Chaining
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for backward chaining.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 7 -- Forward Chaining
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for forward chaining.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 8 -- Meta-Interpreters
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for meta-interpreters.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 9 -- Knowledge Representation
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for knowledge representation.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 10 -- Semantic Networks
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for semantic networks.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 11 -- Planning
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for planning.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+* Curriculum contract
+This outline tracks the manuscript rather than a generic topic list. Chapters 1--6 are the current Project 1 progression: the reader first turns rules into data, derives a closed meta-interpreter, separates proof from runtime history, adds explicit nontermination controls, breaks those invariants deliberately, and finally exposes choice/search attempts without handing the object language arbitrary host execution.
 
-* Part III -- Advanced Design, Integration, and Failure
-** Chapter 12 -- Dcgs
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for DCGs.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 13 -- Constraints
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for constraints.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 14 -- Abduction
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for abduction.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 15 -- Explanation
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for explanation.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 16 -- Expert Systems
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for expert systems.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 17 -- Hybrid Symbolic Systems
-Goal: compose rules, constraints, search/planning, provenance, explanation, persistence boundaries, and controlled external integration into one inspectable symbolic system without giving any one inference method ownership of every problem.
-Dependencies: previous chapter and the earlier project checkpoints.
-Examples: integrate the accumulated symbolic projects around a realistic domain while preserving explicit ownership and failure boundaries.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder system-design and failure-injection work.
-Visuals: architecture, inference-flow, provenance, and failure-boundary diagrams.
-Expected code: executable capstone integration, tests, failure injection, and reproducible operational examples.
-Research: verify each integration boundary against primary/current sources. Explicit LLM, neuro-symbolic, and RLM integration belongs to the separate =prolog-llms= volume, not this chapter.
+The later parts preserve the intended 300--700 page scope. They grow the same habits into explicit search and planning, provenance-aware semantic knowledge, abduction/explanation, a deliberately small forward-rule engine, constraints, and an integrated symbolic capstone. The pure-Prolog language course remains in =books/prolog=; explicit LLM/neuro-symbolic/RLM integration remains in =books/prolog-llms=; RETE/TREAT and production expert-system engineering depth remain in =books/expert-systems=.
+
+* Part I -- Build a Reasoning Kernel
+** Chapter 1 -- When the Program Becomes Data
+Goal: distinguish object language from meta language and represent a closed rule system as inspectable =rule(Id,Head,Body)= terms.
+Project: begin Project 1, the Meta-Interpreter.
+Mechanisms: symbolic terms as program representation, stable rule identity, explicit facts/rules, closed execution boundary.
+Failure/debugging: confuse data with callable goals; duplicate provenance IDs; accidentally widen the object language with host calls.
+Research: current SWI-Prolog meta-call/clause-reflection boundaries and the historical/meta-programming context needed by the chapter.
+
+** Chapter 2 -- Deriving the Smallest Useful Meta-Interpreter
+Goal: derive proof search from =true=, conjunction, and fresh rule selection rather than dropping in a finished framework.
+Project: add successful proof terms and alternative derivations to Project 1.
+Mechanisms: unification, fresh rule invocation with =copy_term/2=, ordinary Prolog backtracking, proof constructors.
+Failure/debugging: reuse stored rule variables across recursive applications; commit to the first matching rule; collapse multiple proofs to a boolean.
+Research: current SWI term-copying/unification behavior and implementation-specific notes.
+
+** Chapter 3 -- A Proof Tree Is Not a Debugger Trace
+Goal: make successful justification first-class while keeping it distinct from operational history.
+Project: add ordered provenance projection and explanation-oriented proof queries.
+Mechanisms: =fact/2=, =step/3=, =and/2= proof structure; stable rule IDs; querying proof terms as data.
+Failure/debugging: present a successful proof as a complete account of search; deduplicate repeated rule applications; ambiguous provenance identity.
+Visuals: editable proof-tree figure plus worked derivation traces.
+Research: current SWI debugger/trace facilities only to define the boundary honestly.
+
+** Chapter 4 -- Nontermination Is a Semantic Problem, Not a Timeout Message
+Goal: derive explicit object-level control for recursive reasoning rather than treating a host timeout as semantics.
+Project: add path-local variant cycle detection and an object-rule budget to Project 1.
+Mechanisms: =@=/2= variant checks, guarded outcomes, branch-local path state, explicit rule-selection accounting.
+Failure/debugging: direct cycles, growing recursion that evades variant detection, too-small budgets, conflating exhaustion with logical falsity.
+Research: current SWI variant comparison and depth-limit caveats.
+
+** Chapter 5 -- Debug the Interpreter by Breaking Its Invariants
+Goal: turn the Project 1 semantic contract into executable regressions and deliberate failure labs.
+Project: harden rule freshening, multiplicity, provenance, cycle, exhaustion, and invalid-input behavior.
+Mechanisms: PL-Unit as semantic specification; exact answer-set assertions; reproducible failure cases.
+Failure/debugging: remove =copy_term/2=, insert an accidental cut/commit, duplicate rule IDs, or map operational outcomes to false.
+Research: current SWI PL-Unit behavior needed by the actual suite.
+
+** Chapter 6 -- Choice Points You Can See
+Goal: expose one object-language choice form and a bounded rule-attempt diagnostic while preserving the proof/trace distinction.
+Project: Project 1 checkpoint B.
+Mechanisms: closed =either(Left,Right)=, =choice(Side,Proof)=, branch-local budget reset, deterministic =search_report/4= for ground ordinary goals.
+Failure/debugging: erase alternatives with =once/1=, charge the right branch for work done on the left, confuse a non-unifying rule with a matching rule whose body failed, aggregate a non-ground report without a substitution contract.
+Visuals: failed matching-rule attempt -> backtrack -> successful attempt, contrasted with the retained proof tree.
+Research: current SWI control, =once/1=, and debugger-port behavior; historical Byrd attribution only where directly or bibliographically verified.
+
+* Part II -- Make Search and Planning Explicit
+** Chapter 7 -- Search Trees as Data
+Goal: stop relying on host depth-first search when the AI problem needs a selectable search policy.
+Project: begin Project 2, the Relational Planner, with an explicit search-state representation.
+Mechanisms: node/state/path terms, successor relation, frontier/closed-set invariants, duplicate-state policy, failure/exhaustion result types.
+Algorithms: derive depth-first and breadth-first search over the same relational successor interface before adding heuristics.
+Failure/debugging: tree search on cyclic state spaces, global visited sets that erase valid path-dependent states, non-ground state identity, accidental dependence on clause order.
+Visuals: frontier evolution and duplicate-state diagrams.
+Research: primary search/planning sources plus current SWI data-structure behavior where implementation details matter.
+
+** Chapter 8 -- Relational Planning from States, Actions, and Goals
+Goal: derive a planner from explicit state transitions instead of encoding one opaque recursive predicate.
+Project: define action schemas, preconditions, effects, goals, and plan/provenance artifacts.
+Mechanisms: immutable state representation, relational =applicable/3= / transition contracts, action identity, plan reconstruction.
+Failure/debugging: actions that silently delete unrelated state, non-reversible state normalization, hidden host side effects, plans with no traceable action provenance.
+Exercises: extend a realistic operations/logistics domain and explain an impossible goal.
+
+** Chapter 9 -- Search Strategy Is Part of the Planner
+Goal: compare bounded DFS, BFS, iterative deepening, and cost-aware/heuristic search without pretending they are equivalent.
+Project: make Project 2's search policy pluggable and observable.
+Mechanisms: explicit depth/cost bounds, best-known-cost maps, stale frontier entries, admissible-heuristic discussion only where evidence supports it.
+Failure/debugging: incompleteness from an arbitrary depth limit, nontermination from zero-progress actions, negative/invalid costs, heuristic claims that outrun the implemented algorithm.
+Visuals: same planning problem under two frontier policies.
+Research: original/primary algorithm sources for historical and correctness claims.
+
+** Chapter 10 -- Constraints Inside Search and Planning
+Goal: show when propagating constraints beats enumerating candidate states first.
+Project: add a constrained scheduling/resource-allocation subproblem to Project 2 without turning the chapter into a CLP(FD) syntax catalog.
+Mechanisms: domains, constraints, propagation, labeling/search separation, reified conditions where useful.
+Failure/debugging: label too early, mix plain arithmetic with constrained arithmetic, mistake residual constraints for concrete answers, present solver incompleteness as domain impossibility.
+Boundary: deeper pure CLP(FD) language instruction remains in =books/prolog=; this chapter is about symbolic-system design.
+Research: current SWI =library(clpfd)= documentation and authoritative constraint-programming sources.
+
+* Part III -- Knowledge, Provenance, and Explanation
+** Chapter 11 -- Semantic Knowledge Graphs as Relations
+Goal: build Project 3 from ordinary relations rather than importing a graph framework whose semantics are invisible.
+Project: begin the Semantic Knowledge Graph with typed nodes/edges, stable assertion IDs, source provenance, and query APIs.
+Mechanisms: binary/n-ary relation choices, canonical identifiers, relation metadata, source/evidence records, graph traversal as relations.
+Failure/debugging: confuse entity identity with display names, mix provenance with truth status, create recursive inheritance without a cycle policy.
+Visuals: claim/provenance graph and query-path examples.
+Research: primary/authoritative knowledge-representation sources and current SWI graph/RDF facilities only where they inform explicit design choices.
+
+** Chapter 12 -- Inheritance, Reachability, and Counterevidence
+Goal: derive richer graph queries while making open-world/closed-world assumptions explicit.
+Project: add transitive queries, typed inheritance, counterevidence records, and explanation paths to Project 3.
+Mechanisms: reachability, path provenance, scoped defaults, explicit negative/counterevidence representation rather than accidental negation-as-failure semantics.
+Failure/debugging: recursive cycles, unsupported inherited claims, contradictory sources, path explosion, treating absence as negation without a declared policy.
+Exercises: diagnose why two paths support the same conclusion differently.
+
+** Chapter 13 -- Abduction: Reasoning Backward to Candidate Causes
+Goal: derive candidate assumptions from observations without relabeling guesses as facts.
+Project: begin Project 4, the Abductive Explanation System.
+Mechanisms: abducible declarations, assumption sets, proof-with-assumptions, candidate enumeration, provenance links between observations/rules/assumptions.
+Failure/debugging: circular explanations, assumptions that directly contradict evidence, duplicate-equivalent explanations, unlimited hypothesis growth.
+Research: original/primary abductive-logic-programming sources before historical or semantic claims are promoted.
+
+** Chapter 14 -- Consistency, Minimality, and Competing Explanations
+Goal: make explanation selection an explicit policy layer rather than hiding it in rule order.
+Project: add contradiction checking, bounded candidate generation, minimality/dominance policies, and counterevidence to Project 4.
+Mechanisms: assumption-set normalization, integrity constraints, subset-minimal comparison, explicit rejection reasons.
+Failure/debugging: confuse one minimality policy with probability, discard non-minimal explanations before debugging, allow operational budget exhaustion to masquerade as inconsistency.
+Visuals: candidate/rejected explanation lattice or graph where it clarifies the policy.
+
+** Chapter 15 -- Explanation Is an API, Not Pretty-Printing
+Goal: turn proofs, plans, provenance, and abductive assumptions into stable inspectable explanation data.
+Project: unify explanation conventions across Projects 1--4 without erasing their different semantics.
+Mechanisms: typed explanation nodes, source references, rejected-candidate records, human-facing rendering separated from machine-facing structure.
+Failure/debugging: explanation claims unsupported by the inference artifact, source IDs that cannot be resolved, UI summaries that hide uncertainty/counterevidence.
+Exercises: write two renderers over the same explanation term and verify they preserve the same evidence.
+
+* Part IV -- Explicit Rule Engines and Hybrid Symbolic Systems
+** Chapter 16 -- From Backward Chaining to Forward Chaining
+Goal: explain why some systems need an explicit working memory and firing loop even though Prolog already proves goals backward.
+Project: begin Project 5, a deliberately small Rule/Expert-System Engine used for contrast and composition.
+Mechanisms: working-memory facts, condition matching, enabled-rule set, firing records, monotonic first pass.
+Failure/debugging: refire the same activation forever, mutate evidence without provenance, confuse host clause order with a declared conflict policy.
+Boundary: production RETE/TREAT matching-network engineering belongs to =books/expert-systems=; this volume implements enough explicit machinery to compare inference styles honestly.
+
+** Chapter 17 -- Agenda, Truth Changes, and Explanation
+Goal: make forward-rule scheduling and support/retraction semantics explicit before composing the engine with other projects.
+Project: add activation identity, deterministic conflict resolution, support records, and a bounded truth-maintenance policy appropriate to this teaching engine.
+Mechanisms: agenda terms, firing/refraction identity, support dependencies, derived-fact provenance, retraction/recompute boundary.
+Failure/debugging: duplicate activations, stale derived facts, provenance cycles, rule IDs that change across reloads.
+Research: classic production-system/truth-maintenance primary sources, while cross-linking deep implementation treatment in =expert-systems=.
+
+** Chapter 18 -- Meta-Level Policies Over Reasoners
+Goal: reason about which symbolic mechanism should answer a subproblem and what evidence it must return.
+Project: define typed boundaries among planner, constraints, knowledge graph, abducer, and forward engine.
+Mechanisms: explicit request/result terms, permissioned dispatch, bounded recursion between subsystems, shared provenance envelope without a universal mega-proof type.
+Failure/debugging: cyclic subsystem delegation, swallowed failure categories, one subsystem interpreting another subsystem's private term representation as executable code.
+
+** Chapter 19 -- Hybrid Symbolic Reasoning Without a Magic Layer
+Goal: compose rules, constraints, planning, provenance, abduction, and explanation while keeping ownership/failure boundaries visible.
+Project: begin Project 6, the Hybrid Symbolic Reasoning System.
+Mechanisms: typed adapters, normalized evidence records, consistency checks at boundaries, replayable decision traces, controlled persistence/external interfaces.
+Failure/debugging: stale evidence, partial subsystem failure, contradictory results, resource exhaustion, unsupported conversion between inference artifacts.
+Boundary: explicit LLM/model integration is not the hybrid layer in this book; it belongs to =prolog-llms=.
+
+** Chapter 20 -- Capstone: An Inspectable Symbolic Operations Reasoner
+Goal: deliver a serious integrated system that can ingest a bounded synthetic/public technical domain, represent sourced facts, diagnose/plan under constraints, generate competing explanations, and show why it reached a result.
+Projects integrated: Projects 1--6.
+Required deliverables: architecture, runnable implementation, tests, failure injection, provenance fixtures, explanation outputs, deterministic diagrams, research records, debugging guide, and reproducible build/check commands.
+Evaluation: semantic regressions, failure-case coverage, trace/provenance completeness, bounded resource behavior, and explicitly scoped performance experiments only if actually run.
+Failure scenarios: contradictory evidence, missing provenance, cycles, impossible plans, budget exhaustion, stale derived facts, subsystem boundary failures, and replay after a controlled change in evidence.
 
 * Project integration map
-- Project 1 (Meta-Interpreter) begins after the foundations it needs and reappears in later chapters for extension/testing.
-- Project 2 (Planner) begins after the foundations it needs and reappears in later chapters for extension/testing.
-- Project 3 (Semantic Knowledge Graph) begins after the foundations it needs and reappears in later chapters for extension/testing.
-- Project 4 (Abductive Explanation System) begins after the foundations it needs and reappears in later chapters for extension/testing.
-- Project 5 (Rule/Expert-System Engine) begins after the foundations it needs and reappears in later chapters for extension/testing.
-- Project 6 (Hybrid Symbolic Reasoning System) begins after the foundations it needs and reappears in later chapters for extension/testing.
-* Capstone
-The final major project in [[file:PROJECTS.org][PROJECTS.org]] is an integrated capstone, not a toy appendix. It must include requirements, architecture, implementation, tests, failure analysis, visuals, research provenance, and a reproducible deliverable.
+- Project 1 (Meta-Interpreter) owns Chapters 1--6 and remains a reusable proof/provenance/debugging reference later.
+- Project 2 (Planner) begins in Chapter 7 and grows through explicit search, planning, and constraints in Chapters 8--10.
+- Project 3 (Semantic Knowledge Graph) begins in Chapter 11 and adds provenance-aware graph reasoning in Chapter 12.
+- Project 4 (Abductive Explanation System) begins in Chapter 13, is hardened in Chapter 14, and contributes typed explanation artifacts in Chapter 15.
+- Project 5 (Rule/Expert-System Engine) begins in Chapter 16 and adds scheduling/support semantics in Chapter 17; deep RETE/TREAT/workbench material stays in =books/expert-systems=.
+- Project 6 (Hybrid Symbolic Reasoning System) begins with explicit subsystem policies in Chapter 18, integrates them in Chapter 19, and becomes the Chapter 20 capstone.
+
+* Cross-book dependency rules
+- =books/prolog= owns broad language instruction: syntax, core control, modules, DCGs, general CLP(FD), testing, indexing/performance, persistence, and ordinary debugging. This book recaps only what a symbolic-AI mechanism needs at the point of use.
+- =books/prolog-llms= owns typed LLM/Prolog gateways, neuro-symbolic evaluation, model failure handling, and the Prolog-RLM arc. This book's capstone must remain useful with no model present.
+- =books/expert-systems= owns production-grade matching networks, RETE/TREAT engineering, knowledge-engineering workbenches, and deeper truth-maintenance/operations treatment. Project 5 here is an explicit comparative engine, not a duplicate book.
+
+* Capstone quality gate
+The final major project in [[file:PROJECTS.org][PROJECTS.org]] is an integrated capstone, not a toy appendix. It must include requirements, architecture, implementation, semantic and failure tests, visuals, research provenance, a debugging guide, and a reproducible deliverable. Passing early Project 1 checks must never be presented as whole-book completion.

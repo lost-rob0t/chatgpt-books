@@ -26,3 +26,21 @@ Inspected official sources:
 Result: sufficient to freeze the first pedagogical object-language boundary and its verification plan. Native-clause reflection, cuts, exception semantics, tabling, and advanced module-transparent metaprogramming remain later research rather than being silently inherited by milestone A.
 
 Remaining uncertainty: exact runtime behavior is not marked TESTED until branch CI runs the project under a recorded SWI-Prolog executable.
+
+** 2026-09-16 -- Project 1 milestone B: explicit choice and bounded search-attempt diagnostics
+Questions:
+- What semantics does current SWI-Prolog document for conjunction/disjunction and their interaction with cut/if-then-else?
+- What does =once/1= commit to, and why would inserting it into rule/branch selection change the reasoning API?
+- Which events belong to the current SWI debugger's Byrd-box model, and which should remain outside a small object-level diagnostic?
+- Can the teaching interpreter expose a failed matching rule attempt without calling a successful proof tree a debugger trace?
+- What should the existing object-rule budget mean across explicit alternatives?
+
+Inspected sources:
+- https://www.swi-prolog.org/pldoc/man?section=control -- official current control-predicate reference.
+- https://www.swi-prolog.org/pldoc/man?predicate=once/1 -- official current =once/1= reference.
+- https://www.swi-prolog.org/pldoc/man?section=debugoverview -- official current debugger overview and Byrd-box attribution.
+- https://www.cambridge.org/core/journals/journal-of-functional-programming/article/debugger-for-standard-ml1/BF54A954B1F2E6447C9B404627F87EC4 -- scholarly bibliographic cross-check for Byrd 1980; not treated as the original paper.
+
+Result: sufficient to specify a deliberately smaller =either/2= object control form and a ground-goal top-level =search_report/4= diagnostic without inheriting host cut/if-then-else semantics or misrepresenting the diagnostic as SWI's runtime trace. The original Byrd paper was not directly inspected in this pass, so no new technical claim is derived from it.
+
+Implementation status at research time: UNTESTED on the milestone-B branch until SWI-Prolog CI executes the new regressions. Host documentation claims are DOCUMENTED, not execution evidence.
