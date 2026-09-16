@@ -1,0 +1,31 @@
+digraph frontier_evolution {
+  graph [rankdir=TB, bgcolor="transparent", pad="0.2", nodesep="0.35", ranksep="0.45", labelloc="t", label="Same transition graph, different frontier policy"];
+  node [shape=box, style="rounded", fontname="DejaVu Sans", fontsize=10];
+  edge [fontname="DejaVu Sans", fontsize=9];
+
+  subgraph cluster_dfs {
+    label="Depth-first search";
+    style="rounded";
+    d0 [label="frontier\n[incident_open]"];
+    d1 [label="expand incident_open\nfrontier [app_down, broker_down, broker_down]"];
+    d2 [label="expand app_down\nfrontier [app_waiting_for_broker, broker_down, broker_down]"];
+    d3 [label="expand app_waiting_for_broker\nfrontier [broker_down, app_down, broker_down, broker_down]"];
+    d4 [label="... first path reaches healthy\nat depth 5"];
+    d0 -> d1 -> d2 -> d3 -> d4;
+  }
+
+  subgraph cluster_bfs {
+    label="Breadth-first search";
+    style="rounded";
+    b0 [label="frontier\n[incident_open]"];
+    b1 [label="expand incident_open\nfrontier [app_down, broker_down, broker_down]"];
+    b2 [label="expand app_down\nfrontier [broker_down, broker_down, app_waiting_for_broker]"];
+    b3 [label="expand broker_down\nfrontier [..., app_waiting_for_broker, broker_up]"];
+    b4 [label="... first path reaches healthy\nat depth 3"];
+    b0 -> b1 -> b2 -> b3 -> b4;
+  }
+
+  note [shape=note, label="Closed set is updated on expansion.\nA queued duplicate may remain,\nbut it is skipped after the state closes."];
+  d3 -> note [style=dashed, arrowhead=none];
+  b3 -> note [style=dashed, arrowhead=none];
+}

@@ -1,17 +1,17 @@
-#+title: Pattern Matcher and Unifier -- Milestone A
+#+title: Pattern Matcher and Unifier
 :PROPERTIES:
 :ID:       1455a470-f214-4df5-a23e-e938174123b4
 :END:
 
 * Purpose
-This directory is the first executable slice of Project 2.  It derives directional pattern matching and then symmetric first-order unification from small ANSI Common Lisp mechanisms.
+This directory is the evolving executable Project 2.  Milestone A derives directional pattern matching and then symmetric first-order unification from small ANSI Common Lisp mechanisms.  Milestone B adds an explicit equation-worklist path and bounded metamorphic regressions so later planner code does not inherit an unexamined unifier.
 
 The implementation is teaching code, not a production rule engine and not a Prolog runtime.  Deeper production matching belongs in the sibling Expert Systems volume; native relational execution and meta-interpretation belong in Symbolic AI in Prolog.
 
 * Term contract
 A symbolic variable is represented explicitly as =(:var NAME)= and should normally be built with =MAKE-VARIABLE=.  That tag is reserved by this project.  Ordinary atoms and cons cells are terms, so proper lists, trees, and dotted pairs work without a separate AST class.
 
-Milestone A deliberately supports *finite acyclic terms*.  The unifier always performs the occurs check.  It does not silently create rational trees or cyclic substitutions.  The implementation never calls =EVAL= and never destructively rewrites the caller's terms.
+Project 2 deliberately supports *finite acyclic terms*.  Both unification paths perform the occurs check.  They do not silently create rational trees or cyclic substitutions.  The implementation never calls =EVAL= and never destructively rewrites the caller's terms.
 
 * Result contracts
 =MATCH-PATTERN= returns a =MATCH-RESULT=:
@@ -23,6 +23,15 @@ Milestone A deliberately supports *finite acyclic terms*.  The unifier always pe
 - =:failed= with =:clash= or =:occurs-check= plus the term pair that caused the failure.
 
 Pattern matching is directional: only the pattern introduces variables.  Unification is symmetric: either side may contain variables, and substitutions constrain both sides until they become equal or fail.
+
+* Milestone B -- an equation worklist as a semantic cross-check
+=UNIFY-EQUATIONS= solves the same finite-term problem through an explicit pending-equation worklist.  It returns the ordinary =UNIFICATION-RESULT= as its first value and a chronological list of =UNIFICATION-STEP= records as its second value.
+
+The visible actions are =:delete=, =:orient=, =:decompose=, =:bind=, =:occurs-check=, and =:clash=.  A step records the selected equation, a snapshot of the current substitution, and the number of equations pending after that rewrite action.  Failed results retain the same contract as =UNIFY=: any partial bindings stay in the trace rather than being exposed as a successful substitution.
+
+This path is independently structured but not mathematically independent: it shares the project's term representation, substitution application, and occurs predicate.  Agreement between two implementations is therefore useful regression evidence, not a proof of general correctness.
+
+The bounded validation suite additionally checks controlled metamorphic relationships over a generated family of terms: side-reversal preserves success/failure, fresh variable renaming preserves success/failure and the common instance modulo renaming, successful substitutions equalize both source terms, normalized substitutions are idempotent on those source terms, and the recursive/worklist paths agree on success/failure.  These are finite TEST cases when executed, not an exhaustive theorem about all first-order terms.
 
 * Run
 From the repository root:
@@ -41,4 +50,4 @@ sbcl --noinform --non-interactive \
 #+end_src
 
 * Evidence boundary
-The source and tests are TESTED only when an exact commit has successfully run the executable suite.  Robinson's 1965 unification paper and Norvig's PAIP source are DOCUMENTED research context, not evidence that this particular implementation is correct.  No performance benchmark is claimed.
+The source and tests are TESTED only when an exact commit has successfully run the executable suite.  Robinson's 1965 unification paper, Martelli and Montanari's 1982 equation-system treatment, and Norvig's PAIP source are DOCUMENTED research context, not evidence that this particular implementation is correct.  No performance benchmark is claimed.

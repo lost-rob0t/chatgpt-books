@@ -11,5 +11,7 @@
 * Project 1 assets
 - =proof-tree.dot= / =proof-tree.svg= -- successful derivation/provenance structure for multi-hop reachability.
 - =search-attempts.dot= / =search-attempts.svg= -- failed matching-rule attempt, backtracking, and later successful attempt; explicitly diagnostic rather than proof structure.
+* Project 2 assets
+- =frontier-evolution.dot= / =frontier-evolution.svg= -- side-by-side DFS/BFS frontier evolution over the service-recovery fixture, including the closed-on-expansion duplicate-state policy.
 * Rule
 Do not add decorative assets merely to inflate the book. Every informative figure gets caption + alt text.

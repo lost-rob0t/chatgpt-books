@@ -1,0 +1,101 @@
+#+title: Project 2 Validation -- Equation Rewriting and Metamorphic Oracles
+:PROPERTIES:
+:ID:       7cc85477-6d25-4389-bbfd-cf5b4ab97250
+:END:
+
+* Status
+- Research date: 2026-09-16.
+- Tracking issue: #62.  Depends on the accepted finite-term contract from #45 / PR #48.
+- DOCUMENTED: Martelli--Montanari's equation-system formulation and transformation rules; the validation relationships below are derived for this project's stated finite acyclic term language.
+- TESTED: milestone-B implementation and manuscript content at head =650f3b2cb52d49855123eb5acf8e9378fe045bcf= under PR-integration run =35118475288=: Pattern Matcher/Unifier 19/19 direct and 19/19 ASDF, focused book build/check, diagram/citation checks, repository test target, and Nix all succeeded.  Generic =books-ci= run =35118475559= also succeeded.  The bounded generated family is 24 terms / 576 ordered pairs; this is finite regression evidence, not exhaustive proof.
+- No performance or complexity measurement is claimed for this Common Lisp implementation.
+
+* Research question
+How can Project 2 strengthen confidence in its recursive unifier before the Symbolic Planner consumes it, without pretending that a second implementation or a finite generated test family is a proof of first-order unification correctness?
+
+The useful answer is to change the *shape of the implementation* and the *shape of the tests*.  The existing =UNIFY= follows the recursive structure of two terms.  Milestone B adds a pending set/worklist of equations and makes the rewrite action visible.  The tests then check relationships that should survive controlled transformations of the input, rather than comparing only against isolated expected substitutions.
+
+* Primary source -- Martelli and Montanari 1982
+Alberto Martelli and Ugo Montanari, “An Efficient Unification Algorithm,” /ACM Transactions on Programming Languages and Systems/ 4(2), 258--282 (1982), DOI =10.1145/357162.357169=. [cite:@martelli1982]
+
+Inspected on 2026-09-16 from author-uploaded full text and institutional bibliographic records.  The paper states first-order unification as solving a set of equations and develops transformations that preserve the set of unifiers.  The early nondeterministic presentation provides exactly the pedagogical bridge needed here:
+
+- if both non-variable terms have the same root constructor, reduce that equation to equations between corresponding subterms;
+- if their root constructors differ, the system has no unifier;
+- an equation =x = t= permits variable elimination by substituting =t= for =x= through the remaining system;
+- if =x= occurs in =t= and =t= is not =x=, the system has no finite first-order unifier;
+- solved equations describe a most-general solution under the paper's first-order term model.
+
+The paper then derives more efficient machinery.  This book does *not* reproduce those data structures or transfer the paper's performance results to our alist/cons teaching implementation.  We use the equation-transformation view because it gives readers a second way to see the semantics already introduced recursively.
+
+* Teaching adaptation to Lisp cons terms
+The source paper assumes a ranked first-order signature with explicit function symbols and arities.  Project 2 deliberately uses ordinary Common Lisp atoms and cons cells instead.  Therefore its visible worklist algorithm is an adaptation, not a line-for-line implementation of the paper:
+
+1. select one pending equation and rewrite both sides through the current substitution;
+2. *delete* when the rewritten sides are =EQUAL=;
+3. *bind* when the left side is a variable and the occurs check accepts the right side;
+4. *orient* a right-variable equation so the variable is on the left;
+5. *decompose* two conses into =CAR= and =CDR= equations;
+6. otherwise return an inspectable =:clash=; return =:occurs-check= when finite-term variable elimination would create a self-containing term.
+
+Variable elimination is lazy in the implementation: a successful binding extends the current substitution, and each later selected equation is rewritten through that substitution.  This preserves the teaching invariant without destructively walking and replacing every pending equation at the moment of binding.
+
+Because lists are cons trees, decomposition also walks list spines.  A source-level term such as =(f a b)= is therefore not treated as a magical function/arity object; its =F=, argument cells, and terminating =NIL= become visible through ordinary cons decomposition.  That is intentional for this book's Lisp representation contract.
+
+* Why the second implementation is evidence, not proof
+Agreement between =UNIFY= and =UNIFY-EQUATIONS= can catch bugs that are tied to one control structure: a recursive decomposition-order defect, incorrect orientation, a forgotten pending equation, or a failure result that accidentally exposes partial bindings.  It cannot prove both implementations correct because they still share:
+
+- the same =(:var NAME)= representation;
+- =APPLY-SUBSTITUTION= and substitution normalization;
+- the same finite-term occurs predicate;
+- Common Lisp =EQUAL= as the project's structural equality boundary.
+
+A shared bug in any of those mechanisms can make both paths agree for the wrong reason.  The book must say that plainly.
+
+* Metamorphic validation relationships
+For a bounded generated fixture family, milestone B checks five relationships.
+
+** Successful equalization
+If a result is =:unified=, applying its returned substitution to both original inputs must produce =EQUAL= terms.  This was already a direct milestone-A oracle; milestone B applies it systematically to the generated family and to both implementations.
+
+** Side-reversal status symmetry
+For finite syntactic first-order unification, swapping the two input terms must not change whether they are unifiable.  The concrete substitution representation may orient variable bindings differently, so the test compares success/failure status rather than requiring alist equality.
+
+** Normalized-substitution idempotence on source terms
+After a successful normalized substitution =S=, applying =S= again to a source term already rewritten by =S= should not change that rewritten term.  Each returned right-hand side is checked against the same property.  This targets avoidable variable chains and incomplete normalization.
+
+** Fresh-variable renaming invariance
+A bijective fresh renaming of the controlled variables must preserve success/failure.  On success, the resulting common instance must equal the corresponding fresh renaming of the original common instance.  The fixture uses names disjoint from the original variable names so this is a true alpha-like renaming of free first-order variables, not accidental capture by an existing project variable.
+
+** Recursive/worklist status agreement
+Both implementation paths must agree on =:unified= versus =:failed= over every generated pair.  Successful results from each path independently pass the equalization and idempotence contracts above.
+
+The generated family is intentionally bounded and deterministic.  Passing it is TESTED evidence for those concrete fixtures.  It is not exhaustive over all finite terms and not a theorem about the implementation.
+
+* Failure evidence worth preserving
+A particularly useful trace is:
+
+#+begin_example
+(p X X) = (p a b)
+#+end_example
+
+The worklist can bind =X -> a= while processing the first argument, then later rewrite the second occurrence of =X= to =a= and discover =a = b=.  The final result must be =:failed / :clash=.  The partial =X -> a= binding remains visible in the trace because it explains the path to failure, but it must *not* be returned as though it were a solution.
+
+The occurs-check trace remains separately typed.  For:
+
+#+begin_example
+X = (f X)
+#+end_example
+
+the worklist does not report a generic constructor clash; it records the semantic boundary that rejects a cyclic finite-term binding.
+
+* Planner-facing interface consequence
+The next project should treat substitution representation as an implementation detail.  Planner action-schema code may call =UNIFY=, inspect =UNIFICATION-RESULT=, and apply returned substitutions with =APPLY-SUBSTITUTION=.  It should not depend on the ordering of the underlying alist or splice bindings directly into planner state.
+
+=UNIFY-EQUATIONS= and its trace are teaching/debugging oracles.  They need not become the planner's normal hot path.  This keeps the planner coupled to symbolic operations rather than to one environment data structure and leaves later indexing/representation experiments possible without rewriting planner semantics.
+
+* Remaining uncertainty
+- The bounded term generator is not a property-testing framework and does not establish completeness.
+- We have not benchmarked the recursive path against the worklist path and make no speed/allocation claim.
+- Destructive unification with a trail, rational trees, constraint/attributed variables, discrimination indexing, and production matching remain outside this milestone.
+- After this contract is accepted, the dependency-ready consumer is Project 3's planner action-schema/state-transition layer.

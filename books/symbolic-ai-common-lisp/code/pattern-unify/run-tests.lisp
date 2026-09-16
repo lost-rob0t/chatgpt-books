@@ -1,5 +1,7 @@
 (require :asdf)
 (load (merge-pathnames "package.lisp" *load-truename*))
 (load (merge-pathnames "pattern-unify.lisp" *load-truename*))
+(load (merge-pathnames "equation-unify.lisp" *load-truename*))
 (load (merge-pathnames "tests.lisp" *load-truename*))
+(load (merge-pathnames "validation-tests.lisp" *load-truename*))
 (symbolic-ai.pattern.tests:run-tests)
