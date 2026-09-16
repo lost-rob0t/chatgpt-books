@@ -91,6 +91,21 @@ class RegressionControlTests(unittest.TestCase):
         self.assertTrue(probe["outside_observed_training_range"])
         self.assertFalse(probe["label_available"])
 
+    def test_duplicate_predictor_exposes_rank_deficiency_without_new_signal(self) -> None:
+        probe = run_regression_control()["rank_deficiency_probe"]
+        base = probe["base_design"]
+        duplicated = probe["duplicated_design"]
+
+        self.assertEqual(base["rank"], base["feature_count"])
+        self.assertLess(duplicated["rank"], duplicated["feature_count"])
+        self.assertTrue(probe["predictions_equivalent_within_1e_10"])
+        self.assertLess(probe["prediction_max_abs_delta"], 1e-9)
+        self.assertAlmostEqual(
+            probe["duplicated_token_coefficient_sum"],
+            probe["base_token_coefficient"],
+            places=10,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
