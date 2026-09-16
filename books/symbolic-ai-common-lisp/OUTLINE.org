@@ -152,28 +152,127 @@ Visuals: a diagram, trace, or plot when structure/state/change is easier to see 
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
 ** Chapter 19 -- Expert Systems
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for expert systems.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+Goal: implement enough agenda, justification, and explanation machinery to understand how symbolic systems compose, then cross-link to the dedicated Expert Systems volume for RETE/TREAT-style matching, knowledge engineering, persistence, and production operations rather than duplicating that book.
+Dependencies: pattern matching, unification, forward/backward chaining, explanation.
+Examples: a small transparent production system plus a boundary comparison with the sibling volume.
+Exercises: distinguish mechanism-level teaching code from production-engine concerns.
+Visuals: agenda/working-memory flow and provenance trace.
+Expected code: a deliberately small rule engine used as a later verification target.
+Research: classic production-system sources plus current implementation references; deeper engine architecture remains owned by =expert-systems=.
 ** Chapter 20 -- Symbolic Plus Llm Boundaries
 Goal: develop working intuition, precise terminology, and an implementation/debugging angle for symbolic plus LLM boundaries.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
 Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+Expected code: typed/validated interfaces; generated text never becomes arbitrary callable Lisp.
+Research: verify current interfaces and distinguish model suggestions from symbolic proof/validation.
+
+* Part IV -- Formal Reasoning and Verified Symbolic AI
+** Chapter 21 -- Formal Systems and Derivations
+:PROPERTIES:
+:ID:       8c18b295-ac16-5731-a2c4-875ec6082414
+:END:
+Goal: derive the anatomy of a formal system from tiny executable proof rules: object language, metalanguage, syntax, semantics, judgments, inference rules, derivation trees, soundness, and completeness as separate claims.
+Dependencies: symbolic representation and tree processing.
+Project step: begin Project 6, the Formal Reasoning Workbench, with a tiny explicit rule/derivation checker rather than an opaque theorem-prover API.
+Examples: arithmetic evaluation judgments and a malformed derivation that fails with an explanation.
+Exercises: hand-build derivations, add a rule, reject a conclusion whose premises do not justify it, and identify object-language versus metalanguage data.
+Visuals: derivation-tree diagrams with named rules.
+Expected code: proof-rule data structures, a small checker, tests for valid/invalid derivations, and provenance-preserving failures.
+Research: authoritative logic/formal-methods sources; do not infer semantic soundness merely from a checker accepting its own syntax.
+** Chapter 22 -- Specifications, Invariants, and Proof Obligations
+:PROPERTIES:
+:ID:       3eabd021-b68f-5e6f-b187-d641d5fdfced
+:END:
+Goal: turn informal requirements into explicit initial-state, transition, and invariant predicates; derive initialization/preservation obligations and explain why a true invariant need not be inductive in a chosen representation.
+Dependencies: Chapter 21 plus Search Library state identity.
+Project step: specify finite transition systems and typed evidence outcomes.
+Examples: token conservation, locked-door safety, and an intentionally too-weak invariant that “proves” something useless.
+Exercises: strengthen invariants, expose hidden assumptions, and classify preconditions/postconditions versus state invariants.
+Visuals: specification -> obligations -> evidence flow.
+Expected code: transition-system data model and invariant predicates with stable =EQUAL=-comparable keys.
+Research: Hoare 1969 and modern specification material; distinguish total/partial correctness when relevant.
+** Chapter 23 -- Finite Transition Systems and Counterexamples
+:PROPERTIES:
+:ID:       91110b66-8e94-5253-92c5-05f4a5dd6e31
+:END:
+Goal: reuse explicit-state BFS mechanics to derive finite invariant checking while tightening the evidence contract.
+Dependencies: Chapters 4--6 and 22.
+Project step: Formal Reasoning Workbench milestone A: =:proved= only after exhaustive finite reachability, =:refuted= with a shortest counterexample, =:bounded= when a caller limit interrupts exploration, and =:unknown= for incomplete successor semantics.
+Examples: safe cyclic model, unreachable bad state, locked-door counterexample, bounded chain, unknown external transition source.
+Exercises: corrupt state identity to hide a counterexample; convert the resulting trace into a regression test; explain why exhaustive checking proves only the supplied finite model.
+Visuals: editable formal-verification-flow diagram plus concrete transition graphs.
+Expected code: the tested =code/formal/= checker, direct and ASDF test entry points, exact trace reconstruction, and duplicate/cycle handling.
+Research: Clarke/Emerson/Sistla and Lamport/TLA+ as authoritative context without pretending this workbench is TLC or a general theorem prover.
+** Chapter 24 -- Program Logic and Hoare Reasoning
+:PROPERTIES:
+:ID:       c2a106ff-bacc-5571-a7b9-b46fde4af8a2
+:END:
+Goal: derive Hoare-style reasoning and weakest-precondition intuition on a deliberately tiny imperative AST before delegating obligations to solvers.
+Dependencies: Chapters 21--23.
+Project step: extend the Formal Reasoning Workbench with assignment, sequence, conditional, and loop proof-obligation generation.
+Examples: assignment substitution, branch obligations, a loop invariant that is insufficient, then strengthened.
+Exercises: generate obligations by hand, compare executable tests with deductive obligations, and diagnose an invalid loop invariant.
+Visuals: command AST -> proof obligations -> discharged/refuted/unknown results.
+Expected code: pure symbolic AST and obligation generator; no host-language =EVAL= boundary.
+Research: Hoare 1969 plus authoritative modern program-logic treatment; state termination assumptions explicitly.
+** Chapter 25 -- Temporal Properties and Model Checking
+:PROPERTIES:
+:ID:       b2ebc202-bb54-5829-b8ff-ea9477095f1a
+:END:
+Goal: motivate temporal logic from properties that single-state invariants cannot express, then introduce safety/liveness, traces, fairness assumptions, and a bounded finite temporal-checking exercise before LTL/CTL syntax grows richer.
+Dependencies: finite transition systems and logic.
+Project step: add trace/property examples without claiming full industrial LTL/CTL coverage.
+Examples: request/response progress, starvation under different fairness assumptions, and a system that is safe but not live.
+Exercises: classify properties, produce lassos/counterexample traces where appropriate, and identify fairness assumptions.
+Visuals: infinite-behavior/lasso diagrams and temporal-property timelines.
+Expected code: small finite trace/graph checks where semantics are fully specified; otherwise DOCUMENTED/UNTESTED until implemented.
+Research: Pnueli 1977 and Clarke/Emerson/Sistla 1986; keep LTL and CTL semantics distinct.
+** Chapter 26 -- SAT/SMT Boundaries and Encodings
+:PROPERTIES:
+:ID:       e89ecaa2-a373-52a1-9e80-d4348e7829a1
+:END:
+Goal: treat external decision procedures as typed boundaries: derive an obligation first, encode it explicitly, preserve =sat=/=unsat=/=unknown=, and validate model/counterexample decoding.
+Dependencies: Chapters 22--25.
+Project step: add an optional SMT-LIB 2.7 exporter only after a reproducible solver choice is pinned.
+Examples: bounded integer-state obligation and an intentionally wrong encoding whose solver answer is locally correct but globally irrelevant.
+Exercises: inspect generated SMT-LIB, mutate an encoding, round-trip a model, and state exactly what an =unsat= result proves.
+Visuals: Lisp obligation -> SMT-LIB -> solver -> typed result/model -> checked decoding.
+Expected code: serializer/parser boundary with golden fixtures and no string-to-=EVAL= shortcut.
+Research: current official SMT-LIB standard and chosen solver documentation; solver integration remains UNTESTED until CI actually executes it.
+** Chapter 27 -- ACL2 and Mechanized Proof
+:PROPERTIES:
+:ID:       6a4682ec-fd34-58b1-8a18-10d4f97b5982
+:END:
+Goal: use ACL2 as the Lisp-family theorem-proving deep dive after readers understand proof obligations, induction, and the difference between model checking and deduction.
+Dependencies: Chapters 21--26 and comfort with pure recursive Common Lisp.
+Project step: port selected pure functions/models to ACL2 under an explicitly pinned version and prove small structural properties.
+Examples: list/tree transformation invariants and one failed induction repaired with a useful lemma.
+Exercises: distinguish executable Common Lisp from ACL2-admissible definitions, inspect failed proof attempts, and avoid editing theorem statements merely to make them pass.
+Visuals: ordinary CL tests versus ACL2 definitions/theorems/proof events.
+Expected code: reproducible ACL2 examples only after the exact toolchain pin is verified; until then this chapter is DOCUMENTED/RESEARCH rather than TESTED.
+Research: current ACL2 official docs and Community Books; do not claim ACL2 proves unrestricted Common Lisp programs.
+** Chapter 28 -- Verified Symbolic AI Components
+:PROPERTIES:
+:ID:       88179101-7716-535e-bd74-05b1927e277f
+:END:
+Goal: apply the evidence taxonomy back to the book's actual symbolic systems and decide which properties deserve tests, finite model checks, deductive proofs, or combinations.
+Dependencies: Search, Pattern/Unifier, Planner, Rule, KR, Explanation, and formal-methods foundations.
+Project step: use counterexamples/proof obligations as regression artifacts for earlier projects; feed selected invariants and provenance guarantees into the Hybrid capstone.
+Examples: search path legality/cost accounting, substitution invariants, planner safety, rule agenda/justification consistency, KR typing/acyclicity/provenance, and typed hybrid-interface constraints.
+Exercises: classify evidence for each property, build a finite abstraction, find a counterexample, and document the refinement gap back to implementation code.
+Visuals: evidence matrix mapping component -> claim -> model -> checking method -> artifact.
+Expected code: focused verification adapters/tests around real book projects without rewriting them into a proof-assistant-specific codebase.
+Research: verify each component-specific claim against its algorithm/model assumptions; no blanket “formally verified” label.
 
 * Project integration map
 - Project 1 (Search Library) begins after the foundations it needs and reappears in later chapters for extension/testing.
 - Project 2 (Pattern Matcher and Unifier) begins after the foundations it needs and reappears in later chapters for extension/testing.
 - Project 3 (Symbolic Planner) begins after the foundations it needs and reappears in later chapters for extension/testing.
-- Project 4 (Production Rule System) begins after the foundations it needs and reappears in later chapters for extension/testing.
+- Project 4 (Production Rule System) begins after the foundations it needs and reappears in later chapters for extension/testing; production-grade RETE/TREAT, persistence, and knowledge engineering remain in the sibling Expert Systems book.
 - Project 5 (Knowledge Representation System) begins after the foundations it needs and reappears in later chapters for extension/testing.
-- Project 6 (Hybrid Symbolic AI Application) begins after the foundations it needs and reappears in later chapters for extension/testing.
+- Project 6 (Formal Reasoning Workbench) starts after the Search/Logic foundations, grows from explicit proof checking to finite-state verification and proof obligations, then verifies selected earlier project contracts.
+- Project 7 (Hybrid Symbolic AI Application) is the capstone. It combines the previous systems and keeps external/LLM proposals behind typed validation and permissioned symbolic boundaries.
 * Capstone
-The final major project in [[file:PROJECTS.org][PROJECTS.org]] is an integrated capstone, not a toy appendix. It must include requirements, architecture, implementation, tests, failure analysis, visuals, research provenance, and a reproducible deliverable.
+The final major project in [[file:PROJECTS.org][PROJECTS.org]] is an integrated capstone, not a toy appendix. It must include requirements, architecture, implementation, tests, failure analysis, visuals, research provenance, a reproducible deliverable, and explicit claim/evidence boundaries. The formal-methods track supplies selected invariants and counterexample/proof artifacts; it does not replace testing or implementation-level conformance work.
