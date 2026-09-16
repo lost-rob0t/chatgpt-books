@@ -9,13 +9,14 @@ Foundational research and first project-backed manuscript slice in progress.
 - Foundations Pass 01 records a current LFE v2.2.2 baseline plus primary-source BEAM term/pattern/process semantics.
 - Chapters 1--3 now have substantive manuscript material tied to the Event Routing DSL foundation kernel.
 - Project 1 has a data-first LFE implementation, regression module, Erlang interoperability smoke, editable diagram source, and book-local run instructions on its focused branch.
+- The foundation runtime/publication boundary has executed successfully in the dedicated LFE workflow: pinned LFE v2.2.2 compiled on the observed OTP 25 runner; LFE regressions and direct Erlang-to-LFE interop passed; =make book BOOK=lfe= and =make check BOOK=lfe= passed; EPUBCheck 5.3.0 reported zero messages; =nix flake check -L= passed.
 * Active research
 Macro expansion/hygiene, OTP behaviours/supervision, release tooling, and distribution remain dependency-gated future passes. Foundational research as a whole is not declared complete.
 * Verification status
-The executable claims in the active branch become TESTED only when the exact-head LFE-book CI runs the pinned LFE compiler/tests, Erlang interop smoke, EPUB build/check, and Nix gate successfully. A green generic repository workflow alone is not sufficient evidence.
+The first project-backed foundation slice is TESTED at its actual LFE/Erlang boundary and publication gate. Exact evidence and the distinction between the OTP 29 documentation baseline and the observed OTP 25 execution runner are recorded in =research/foundations-01.org=. Later version-sensitive surfaces require their own fresh gates.
 * Unverified claims
 All later version-sensitive implementation details remain RESEARCH/UNTESTED until their owning slice verifies them.
 * Technical/editorial/visual review
 Not started as a whole-book phase; the first project flow diagram is present for the foundation slice.
 * Blockers
-No foundational scope blocker is known. Later chapters remain gated on their own primary-source research and executable project milestones rather than being filled with unverified prose.
+The generic repository =books-ci= structural gate currently fails on a repository-wide ten-book set mismatch before later generic checks execute. The dedicated LFE runtime/book/Nix workflow is green; fixing the shared book registry/validator is outside this book-only slice. Later LFE chapters remain gated on their own primary-source research and executable project milestones rather than being filled with unverified prose.
