@@ -4,3 +4,73 @@
 :END:
 * Policy
 Add only sources actually inspected. Record URL, authority, publication/version date when known, retrieval date, relevant sections, and affected chapters/projects.
+
+* SWI-Prolog Reference Manual -- Getting started quickly
+- URL :: https://www.swi-prolog.org/pldoc/man?section=quickstart
+- Authority :: Official SWI-Prolog documentation.
+- Retrieved :: 2026-09-16.
+- Relevant to :: Chapter 1; Project 1 launch.
+- Used for :: =swipl=, loading source with =consult/1= / bracket notation, and the query/top-level workflow.
+
+* SWI-Prolog Reference Manual -- The SWI-Prolog syntax
+- URL :: https://www.swi-prolog.org/pldoc/man?section=syntax
+- Authority :: Official SWI-Prolog documentation.
+- Retrieved :: 2026-09-16.
+- Relevant to :: Chapter 2.
+- Used for :: default variable-token convention and the SWI-specific =var_prefix= portability note.
+
+* SWI-Prolog FAQ -- Singleton variables
+- URL :: https://www.swi-prolog.org/FAQ/SingletonVar.html
+- Authority :: Official SWI-Prolog FAQ.
+- Retrieved :: 2026-09-16.
+- Relevant to :: Chapter 2; debugging exercises.
+- Used for :: anonymous-variable semantics and the distinction between =_= and named underscore-prefixed variables.
+
+* SWI-Prolog Reference Manual -- The string type and its double quoted syntax
+- URL :: https://www.swi-prolog.org/pldoc/man?section=string
+- Authority :: Official SWI-Prolog documentation.
+- Retrieved :: 2026-09-16.
+- Relevant to :: Chapter 2; later DCG/text chapters.
+- Used for :: SWI-specific string behavior since version 7 and the atom/string/list-of-codes distinction.
+
+* SWI-Prolog Reference Manual -- Comparison and Unification of Terms
+- URL :: https://www.swi-prolog.org/pldoc/man?section=compare
+- Authority :: Official SWI-Prolog documentation.
+- Retrieved :: 2026-09-16.
+- Relevant to :: Chapter 3.
+- Used for :: =(/2)=, implicit unification, =unify_with_occurs_check/2=, cyclic-term caveat, and portability boundary.
+
+* SWI-Prolog Reference Manual -- Prolog flags
+- URL :: https://www.swi-prolog.org/pldoc/man?section=flags
+- Authority :: Official SWI-Prolog documentation.
+- Retrieved :: 2026-09-16.
+- Relevant to :: Chapter 3.
+- Used for :: =occurs_check= behavior and configuration caveat.
+
+* SWI-Prolog library(plunit)
+- URL :: https://www.swi-prolog.org/pldoc/doc/_SWI_/library/ext/plunit/index.html
+- Authority :: Official SWI-Prolog package documentation.
+- Retrieved :: 2026-09-16.
+- Relevant to :: all runnable projects; Chapter 19.
+- Used for :: =begin_tests/1=, =end_tests/1=, and =run_tests/0= surface.
+
+* SWI-Prolog stable downloads
+- URL :: https://www.swi-prolog.org/download/stable
+- Authority :: Official SWI-Prolog release channel.
+- Retrieved :: 2026-09-16.
+- Observed :: SWI-Prolog 10.0.2 is the current listed stable release.
+- Relevant to :: course toolchain/version policy.
+
+* SWI-Prolog development downloads
+- URL :: https://www.swi-prolog.org/download/devel
+- Authority :: Official SWI-Prolog release channel.
+- Retrieved :: 2026-09-16.
+- Observed :: SWI-Prolog 10.1.14 is the current listed development release.
+- Relevant to :: course toolchain/version policy.
+
+* SWI-Prolog download-channel policy
+- URL :: https://www.swi-prolog.org/Download.md
+- Authority :: Official SWI-Prolog project documentation.
+- Retrieved :: 2026-09-16.
+- Relevant to :: course toolchain/version policy.
+- Used for :: development/stable release-cadence and intended-use distinction.
