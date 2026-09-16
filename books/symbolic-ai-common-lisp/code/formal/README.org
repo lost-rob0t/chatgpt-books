@@ -1,0 +1,53 @@
+#+title: Formal Reasoning Workbench -- Milestone A
+:PROPERTIES:
+:ID:       2c386364-22b3-4bcb-8b92-69e1ab4e5a8a
+:END:
+
+* Purpose
+This directory is the first executable slice of the book's formal-methods track.  It deliberately starts with a small explicit-state checker rather than a theorem prover framework.
+
+The checker answers one narrow question:
+
+#+begin_quote
+For every state reachable in this explicitly enumerable model, does a supplied invariant hold?
+#+end_quote
+
+That question is enough to teach several ideas that later scale into program logics, model checking, SMT-backed proof obligations, and mechanized theorem proving.
+
+* Result contract
+=check-invariant= returns one of four statuses:
+
+- =:proved= -- the finite reachable state graph was exhausted and every reached state satisfied the invariant;
+- =:refuted= -- a reachable state violated the invariant; =trace= is a shortest counterexample in transition count because the workbench explores breadth-first;
+- =:bounded= -- =max-states= stopped exploration before exhaustion; this is explicitly not a proof;
+- =:unknown= -- the model itself could not enumerate a successor relation for some reached state.
+
+The distinction is intentional.  "No counterexample found" is weaker than "the model was exhausted and the invariant held everywhere."  A model checker proves a property of its model; it does not automatically prove arbitrary Common Lisp code implements that model.
+
+* Run
+From this directory:
+
+#+begin_src sh
+sbcl --script run-tests.lisp
+#+end_src
+
+Or through ASDF:
+
+#+begin_src lisp
+(require :asdf)
+(asdf:load-asd (truename "symbolic-ai-formal.asd"))
+(asdf:test-system "symbolic-ai-formal/tests")
+#+end_src
+
+* Milestone A boundaries
+This milestone is TESTED only when the exact branch workflow actually runs the test suite.
+
+It does not yet implement:
+- temporal logic;
+- symbolic model checking;
+- SAT/SMT solving;
+- a Hoare-logic verifier;
+- ACL2 integration;
+- proof certificates for arbitrary Common Lisp programs.
+
+Those are later slices.  The point here is to make the specification/model/property/counterexample boundary executable before adding more powerful proof machinery.
