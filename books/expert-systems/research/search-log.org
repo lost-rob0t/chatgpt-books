@@ -21,3 +21,13 @@ Inspected:
 - official Linux kernel =/proc= documentation.
 
 Result: milestone A uses only synthetic service observations, marks them synthetic in provenance, and cites systemd only for the meaning of service configuration/state concepts. No load threshold or real-host observation is claimed.
+
+** 2026-09-16 -- working memory, agenda, conflict resolution, and refraction
+Questions: What current documented behavior can ground the next semantic slice? Which choices are implementation-specific and therefore must not be smuggled into the course as universal production-system semantics?
+
+Inspected:
+- /CLIPS Reference Manual, Volume I: Basic Programming Guide/, Version 6.4.2, especially the basic rule-execution cycle and conflict-resolution-strategy sections.
+- /CLIPS 6.4 User's Guide/ from the official V6.4.2 documentation distribution, especially fact identifiers/duplicate policy and the activation/refraction example.
+- Rechecked Forgy's 1981 OPS5 primary description for the architecture/control boundary already recorded by foundation slice A.
+
+Result: milestone B explicitly separates DOCUMENTED behavior from BOOK CONTRACT. The course engine allows equal-content facts under distinct lifetime-stable IDs rather than copying CLIPS's default duplicate suppression; uses a total deterministic agenda policy (salience, assertion recency, condition-count specificity, stable IDs) rather than claiming CLIPS strategy equivalence; keys refraction by production ID plus ordered support IDs; restricts actions to structured fact assertion; and keeps full rematching as the correctness oracle before incremental alpha/beta work. No performance claim is made.
