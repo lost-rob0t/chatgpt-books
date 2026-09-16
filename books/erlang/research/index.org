@@ -6,5 +6,22 @@
 - Which primary sources define the foundational concepts?
 - Which behavior is version-sensitive in the current toolchain?
 - Which claims require reproduction/benchmarking rather than citation alone?
-* Records
-Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
+
+* Passes
+** Foundational pass 01 -- terms, matching, processes, mailboxes, message protocols
+Status: DOCUMENTED + EXECUTION VERIFIED for Project 1 checkpoint A.
+
+Primary-source scope: OTP 29 release/patch metadata; current Data Types, Pattern Matching, Processes, Errors, process Efficiency Guide, and gen_server documentation. See [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
+
+The pass supports manuscript Chapters 1--6 and Project 1 checkpoint A. It explicitly records the OTP 28+ priority-message caveat so the book does not teach an obsolete unconditional mailbox-ordering simplification.
+
+Execution evidence at =c33951f24feafaf7a9d7623169041ab321e8c580=: exact Erlang/OTP 29.0.6 via =erlef/setup-beam@v1.24.1=; all 9 EUnit tests passed; book build and EPUBCheck 5.3.0 validation passed with zero messages; repository =nix flake check -L= passed. The repository-wide =books-ci= structural validator is independently red on canonical main because its hard-coded expected-book set predates the existing =books/starlang= directory; this pass does not treat that inherited gate as Erlang runtime evidence.
+
+* Open research queue
+- Links, exit trapping, monitor/link races, and failure propagation.
+- OTP behavior contracts: gen_server, supervisor strategies/restart intensity, applications.
+- Releases and upgrade boundaries.
+- Distributed Erlang connectivity, security/TLS, partitions, and failure visibility.
+- Persistence boundaries and restart recovery semantics.
+- EUnit/Common Test, tracing, logger/telemetry, Observer/runtime tools, production debugging.
+- Performance experiments for mailbox pressure and selective receive; do not substitute anecdotes for measurements.

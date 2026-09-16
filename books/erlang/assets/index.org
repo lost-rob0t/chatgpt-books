@@ -10,3 +10,5 @@
 - unique cover background/motif + deterministic typography
 * Rule
 Do not add decorative assets merely to inflate the book. Every informative figure gets caption + alt text.
+* Project 1 assets
+- =process-request-flow.dot= -> =process-request-flow.svg= :: Editable Graphviz source and deterministic render for the Chapter 6 request/reply, monitor, timeout, and late-reply flow. The manuscript provides caption and alt text.

@@ -1,0 +1,37 @@
+#+title: Prolog + LLMs -- Roadmap
+:PROPERTIES:
+:ID:       bcc1d978-84c7-5fac-918f-036244fccffb
+:END:
+
+* Phase 0 -- scope and boundaries
+DONE Establish standalone scope, sibling-book boundaries, long-form target, evidence policy, and major-project sequence.
+
+* Phase 1 -- foundational research
+Research current SWI-Prolog semantics required by the compact Prolog tutorial, current structured-output/tool-call interfaces used in examples, and primary neuro-symbolic/RLM literature. Record exact versions and dates. Do not let vendor API churn leak into timeless conceptual sections.
+
+* Phase 2 -- standalone Prolog foundation
+Draft and test the minimum complete Prolog progression needed by an independent reader: relations, terms, unification, recursion, lists, backtracking/control, modules, DCGs, CLP(FD), meta-programming, PL-Unit, debugging, and explanation. Reuse concepts, not paragraphs, from the pure Prolog book.
+
+* Phase 3 -- safe integration boundary
+Build the typed LLM-to-Prolog gateway. Treat model text as untrusted external input. Require schemas, parsing, validation, provenance, explicit timeout/cancellation behavior, and a deterministic symbolic acceptance boundary before generated material becomes executable knowledge.
+
+* Phase 4 -- retrieval and symbolic verification
+Teach evidence retrieval, fact normalization, contradiction handling, provenance, and query/explanation design. The LLM may propose candidates; Prolog decides only what the symbolic contract actually entails.
+
+* Phase 5 -- bounded generate/verify/repair systems
+Introduce recursive and agentic loops only after deterministic boundaries exist. Specify budgets, termination, replay, duplicate work, stale context, tool failure, and what happens when the model repeatedly returns invalid material.
+
+* Phase 6 -- neuro-symbolic architecture survey and experiments
+Compare major architecture families using primary papers/implementations. Separate conceptual taxonomy from measured experiments. Reproduce only claims the repository can actually run and record.
+
+* Phase 7 -- evaluation harness
+Measure task correctness, symbolic acceptance/rejection, recovery rate, trace/provenance quality, token/cost/latency where observable, and robustness to malformed or adversarial model output. Keep benchmark datasets and prompts versioned.
+
+* Phase 8 -- Prolog-RLM capstone
+Build the integrated research-grade capstone with Prolog-owned orchestration/verification contracts, replaceable model providers, recursive calls under explicit budgets, durable experiment traces, and failure injection.
+
+* Phase 9 -- technical and editorial review
+Re-run every significant example/test, verify citations and model/API version claims, remove duplicated tutorial prose, check diagrams/accessibility, and audit cross-book links.
+
+* Phase 10 -- private EPUB release
+Production export, EPUBCheck, artifact inspection, and private release evidence. A green outline or research scaffold is never a finished book.

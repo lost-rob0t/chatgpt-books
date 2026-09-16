@@ -1,0 +1,23 @@
+#+title: Prolog + LLMs -- Source Inventory
+:PROPERTIES:
+:ID:       35608453-2f3d-5a4c-adcd-2d27bccf4937
+:END:
+
+* Promotion rule
+Only sources actually inspected for a concrete research question belong here. Record enough metadata to distinguish current official documentation from historical material and to reproduce the lookup where possible. Bibliographic entries move to =../references.bib= only after title/author/venue/date/URL or DOI metadata has been verified.
+
+* Categories
+** SWI-Prolog and logic programming
+Reserved for official SWI-Prolog manuals/source, relevant ISO-standard material where legally/technically available, and primary logic-programming papers/books needed for claims beyond basic implementation documentation.
+
+** Model/provider interfaces
+Reserved for current official documentation and SDK/source for structured generation, tool/function calling, streaming, error/cancellation behavior, model/version identification, and usage accounting. Provider marketing pages are not enough for semantic guarantees.
+
+** Neuro-symbolic and recursive language-model research
+Reserved for original papers and implementation repositories. Each entry should note which architecture component is neural, which is symbolic, what evaluation was actually reported, and whether this repository reproduced any result.
+
+** Evaluation and safety boundaries
+Reserved for primary benchmark papers, security/robustness work, and standards or implementation documentation relevant to parsing untrusted output, provenance, reproducibility, and experiment reporting.
+
+* Current verified entries
+None yet. The scaffold deliberately does not fabricate bibliographic metadata. The first focused research slice must populate this file from inspected primary sources.

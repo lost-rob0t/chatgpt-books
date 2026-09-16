@@ -1,0 +1,70 @@
+name: prolog-book
+
+on:
+  pull_request:
+    paths:
+      - 'books/prolog/**'
+      - 'tools/build-book'
+      - 'tools/check-book-citations'
+      - '.github/workflows/prolog-book.yml'
+  workflow_dispatch:
+
+jobs:
+  prolog-and-book:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SWI-Prolog and publication tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y swi-prolog-nox graphviz python3-matplotlib curl unzip default-jre-headless
+          curl --fail --location --retry 3 \
+            --output pandoc.deb \
+            https://github.com/jgm/pandoc/releases/download/3.10.1/pandoc-3.10.1-1-amd64.deb
+          sudo dpkg -i pandoc.deb
+          curl --fail --location --retry 3 \
+            --output epubcheck.zip \
+            https://github.com/w3c/epubcheck/releases/download/v5.3.0/epubcheck-5.3.0.zip
+          unzip -q epubcheck.zip -d .cache
+          swipl --version
+          pandoc --version | head -1
+          java -jar .cache/epubcheck-5.3.0/epubcheck.jar --version
+
+      - name: Run Prolog book tests
+        run: bash books/prolog/code/run-tests
+
+      - name: Build Prolog book
+        run: make book BOOK=prolog
+
+      - name: Check rendered citations
+        run: |
+          python3 ./tools/check-book-citations \
+            books/prolog/dist/prolog.epub \
+            swi-stable-download \
+            'SWI-Prolog stable downloads'
+
+      - name: Validate Prolog book
+        env:
+          EPUBCHECK_JAR: .cache/epubcheck-5.3.0/epubcheck.jar
+        run: make check BOOK=prolog
+
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y nix-bin
+          sudo mkdir -p /etc/nix
+          echo 'experimental-features = nix-command flakes' | sudo tee -a /etc/nix/nix.conf
+          nix --version
+
+      - name: Flake check
+        run: sudo nix flake check -L

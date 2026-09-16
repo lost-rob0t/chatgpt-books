@@ -1,30 +1,91 @@
 #!/usr/bin/env python3
 from pathlib import Path
 import sys, re
-root=Path(__file__).resolve().parents[1]
-expected={'ml-starintel','ml-math','starintel','prolog','erlang','lfe','symbolic-ai-common-lisp','symbolic-ai-prolog','expert-systems'}
-errors=[]
-if (root/'AGENTS.md').read_text().splitlines()[2].strip() != '**Read `README.org` completely before performing any work in this repository.**': errors.append('AGENTS.md first instruction changed')
-actual={p.name for p in (root/'books').iterdir() if p.is_dir()}
-if actual != expected: errors.append(f'book set mismatch: {sorted(actual)}')
-for slug in sorted(expected):
-    b=root/'books'/slug
-    for name in ['README.org','STATUS.org','ROADMAP.org','OUTLINE.org','PROJECTS.org']:
-        p=b/name
-        if not p.exists(): errors.append(f'{slug}: missing {name}')
-        elif len(p.read_text()) < 500: errors.append(f'{slug}: {name} is suspiciously small')
-    projects=(b/'PROJECTS.org').read_text()
-    if projects.count('** Project ') < 3: errors.append(f'{slug}: fewer than three major projects')
-    if 'Capstone' not in (b/'OUTLINE.org').read_text(): errors.append(f'{slug}: capstone not explicit')
-expert=(root/'books/expert-systems/ARCHITECTURE.org').read_text()
-for phrase in ['Knowledge Engineering Workbench','Fact editor','Rule editor','Rule testing','Dry-run inference','CouchDB project','PostgreSQL project','Truth Maintenance','RETE']:
-    if phrase.lower() not in expert.lower(): errors.append(f'expert systems architecture missing {phrase}')
+
+root = Path(__file__).resolve().parents[1]
+required_principal_books = {
+    'ml-starintel',
+    'ml-math',
+    'starintel',
+    'prolog',
+    'prolog-llms',
+    'erlang',
+    'lfe',
+    'symbolic-ai-common-lisp',
+    'symbolic-ai-prolog',
+    'expert-systems',
+}
+# These directories are intentionally not active principal-book pipelines yet.
+# They must remain discoverable/documented, but paused scaffolds are not forced
+# to pretend they already satisfy the full manuscript/project contract.
+paused_scaffolds = {'starlang'}
+errors = []
+
+if (root / 'AGENTS.md').read_text().splitlines()[2].strip() != '**Read `README.org` completely before performing any work in this repository.**':
+    errors.append('AGENTS.md first instruction changed')
+
+actual = {p.name for p in (root / 'books').iterdir() if p.is_dir()}
+missing = required_principal_books - actual
+if missing:
+    errors.append(f'missing required principal books: {sorted(missing)}')
+
+for slug in sorted(paused_scaffolds & actual):
+    readme = root / 'books' / slug / 'README.org'
+    if not readme.exists() or len(readme.read_text()) < 500:
+        errors.append(f'{slug}: paused scaffold requires a substantive README.org')
+
+# Validate every active discovered book. New book directories are allowed to
+# grow the series without editing a magic total, but they must satisfy the same
+# canonical structure before they count as active books.
+for slug in sorted(actual - paused_scaffolds):
+    b = root / 'books' / slug
+    for name in ['README.org', 'STATUS.org', 'ROADMAP.org', 'OUTLINE.org', 'PROJECTS.org']:
+        p = b / name
+        if not p.exists():
+            errors.append(f'{slug}: missing {name}')
+        elif len(p.read_text()) < 500:
+            errors.append(f'{slug}: {name} is suspiciously small')
+
+    projects_path = b / 'PROJECTS.org'
+    outline_path = b / 'OUTLINE.org'
+    if projects_path.exists():
+        projects = projects_path.read_text()
+        if projects.count('** Project ') < 3:
+            errors.append(f'{slug}: fewer than three major projects')
+    if outline_path.exists() and 'Capstone' not in outline_path.read_text():
+        errors.append(f'{slug}: capstone not explicit')
+
+expert = (root / 'books/expert-systems/ARCHITECTURE.org').read_text()
+for phrase in [
+    'Knowledge Engineering Workbench',
+    'Fact editor',
+    'Rule editor',
+    'Rule testing',
+    'Dry-run inference',
+    'CouchDB project',
+    'PostgreSQL project',
+    'Truth Maintenance',
+    'RETE',
+]:
+    if phrase.lower() not in expert.lower():
+        errors.append(f'expert systems architecture missing {phrase}')
+
 for p in root.rglob('*.org'):
-    if '/dist/' in str(p): continue
-    txt=p.read_text(errors='replace')
-    if '/home/unseen/' in txt: errors.append(f'hard-coded user path in {p.relative_to(root)}')
+    if '/dist/' in str(p):
+        continue
+    txt = p.read_text(errors='replace')
+    if '/home/unseen/' in txt:
+        errors.append(f'hard-coded user path in {p.relative_to(root)}')
+
 if errors:
     print('STRUCTURE FAIL')
-    for e in errors: print('-',e)
+    for e in errors:
+        print('-', e)
     sys.exit(1)
-print(f'STRUCTURE OK: {len(expected)} books; expert workbench architecture present')
+
+print(
+    f'STRUCTURE OK: {len(actual - paused_scaffolds)} active books '
+    f'({len(required_principal_books)} required principal), '
+    f'{len(paused_scaffolds & actual)} paused scaffold(s); '
+    'expert workbench architecture present'
+)
