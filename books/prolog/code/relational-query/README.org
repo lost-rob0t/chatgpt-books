@@ -45,10 +45,10 @@ Issue #86 adds explicit direct-cut wrappers without changing the accepted multi-
 - =first_connection_path_cut/3= exposes the first =connection_path/3= proof using raw =!/0= so the chapter can compare direct cut with the accepted =once/1= wrapper.
 - =first_connection_within_hops(+Start,+Goal,+Limit,-Path,-Hops)= commits only after =connection_within_hops/5= has proved that a candidate satisfies the limit.
 - “First” means first in the current Prolog search order. It is not shortest-path, best-path, planning, or optimization semantics.
-- The test-local =premature_cut_connection_within_hops/5= deliberately cuts before the hop-limit test. Its expected failure demonstrates how a later failing goal can expose an incorrectly placed commitment.
+- The test-local =premature_cut_connection_within_hops/5= deliberately cuts before the hop-limit test. Its tested failure demonstrates how a later failing goal can expose an incorrectly placed commitment.
 - The new suite also checks that a cut inside a called wrapper does not erase a caller's later clause, keeping the scope boundary concrete.
 
-This Chapter 8 code remains a worker draft until the actual SWI-Prolog suite and publication checks pass and the Editor-in-Chief accepts the bounded milestone.
+The Chapter 8 implementation is a TESTED worker draft: corrected head =906a261f01c7265c5953084183e97f6850f3e157= passed the actual SWI-Prolog, book/check, EPUB, Nix, and generic repository CI gates. It still requires Editor-in-Chief review and approval before merge.
 
 * Failure labs
 Work on temporary copies and introduce exactly one defect at a time. Record prediction, observed result, explanation, and fix; do not keep the broken change.
