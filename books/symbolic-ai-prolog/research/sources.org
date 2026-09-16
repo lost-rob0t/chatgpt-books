@@ -27,8 +27,26 @@ Affects: decision to keep milestone A rule-as-data rather than reflective over a
 ** SWI-Prolog Reference Manual -- Debugger overview
 URL: https://www.swi-prolog.org/pldoc/man?section=debugoverview
 Authority: official SWI-Prolog reference documentation.
-Relevant material: debugger ports =call=, =redo=, =exit=, =fail= plus SWI extensions.
-Affects: trace/proof terminology and debugging exercises.
+Relevant material: traditional =call=, =redo=, =exit=, =fail= ports; SWI extensions =unify= and =exception=; current explanation of the phases at which ports occur; explicit attribution to Byrd's box model.
+Affects: proof/search-report/runtime-trace distinction; Project 1 milestone B debugging exercises.
+
+** SWI-Prolog Reference Manual -- Control Predicates
+URL: https://www.swi-prolog.org/pldoc/man?section=control
+Authority: official SWI-Prolog reference documentation.
+Relevant material: ISO conjunction/disjunction behavior and documented interactions among =;/2=, cut, =->/2=, =*->/2=, and meta-calling.
+Affects: decision to add a deliberately smaller object control term =either/2= rather than pass host =;/2= through to the teaching language.
+
+** SWI-Prolog Reference Manual -- =once/1=
+URL: https://www.swi-prolog.org/pldoc/man?predicate=once/1
+Authority: official SWI-Prolog predicate documentation.
+Relevant material: semideterministic commitment to at most one solution; documented definition in terms of =call/1= and cut.
+Affects: milestone-B warning that =once/1= around rule/branch selection changes reasoning semantics by erasing alternatives.
+
+** Cambridge Core bibliographic cross-check -- Byrd 1980
+URL: https://www.cambridge.org/core/journals/journal-of-functional-programming/article/debugger-for-standard-ml1/BF54A954B1F2E6447C9B404627F87EC4
+Authority: scholarly publication bibliography; secondary bibliographic evidence, not the original paper.
+Relevant material: bibliographic record for Lawrence Byrd, “Understanding the control flow of Prolog programs,” Logic Programming Workshop, Debrecen, 1980, pp. 127--138; notes Edinburgh DAI Research Paper 151.
+Affects: historical attribution note only. The original Byrd paper itself was not directly inspected in this pass, so no technical claim is derived from an uninspected primary copy.
 
 ** SWI-Prolog =library(prolog_trace)=
 URL: https://www.swi-prolog.org/pldoc/man?section=prologtrace
