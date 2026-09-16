@@ -1,0 +1,147 @@
+#+title: Expert Systems Foundations Research -- Working Memory, Agenda, and Refraction
+:PROPERTIES:
+:ID:       2ccc076e-193f-486d-b2c0-bd7ac5823b33
+:END:
+
+* Scope
+This record supports Project 1 milestone B of issue #15: mutable working memory, production identity, complete production instantiations, forward chaining, agenda/conflict resolution, and explicit refraction. It deliberately keeps matching naive. Incremental alpha/beta memories, RETE/TREAT, negative conditions, truth maintenance, uncertainty, persistence, and performance benchmarking remain downstream.
+
+Retrieval date for the web sources below: 2026-09-16.
+
+* Evidence status
+- *DOCUMENTED*: behavior stated by the inspected primary/official sources.
+- *BOOK CONTRACT*: semantics selected for this teaching engine. These are not attributed to CLIPS or OPS5 unless the source says so.
+- *TESTED*: only after the exact implementation and regression suite have run successfully. Until then, code added by this slice is DRAFT/UNTESTED.
+- *DEFERRED*: intentionally outside this milestone.
+
+* Questions and results
+** Why does a fact list become working memory?
+Milestone A accepted a frozen list because that was enough to define matching. A production system needs a state transition mechanism: firing changes the data that later matching sees. Forgy's OPS5 description identifies working-memory elements, productions, pattern matching, and conflict resolution as parts of the production-system architecture [cite:@forgy1981ops5]. The current CLIPS Basic Programming Guide likewise documents a rule-execution cycle in which changes to facts or instances update activations on an agenda before another rule is selected [cite:@clips642bpg].
+
+The teaching consequence is straightforward: mutation belongs in an explicit =working-memory= abstraction. It must not be hidden inside the matcher. The naive matcher remains a semantic oracle over the current snapshot; assertion/retraction decides which snapshot exists.
+
+** What is a fact identity, and are equal facts duplicates?
+The CLIPS 6.4 User's Guide documents a CLIPS-specific policy: asserted facts receive unique fact identifiers, duplicate facts are rejected by default, and =set-fact-duplication= can change that behavior [cite:@clips642ug]. That is evidence that duplicate policy is a real language/runtime semantic choice, not a detail an implementation should accidentally inherit from a hash table.
+
+*BOOK CONTRACT*: this course engine deliberately chooses a different default because the later technical-diagnosis KB must be able to retain two observations with equal content but different provenance or times. Therefore:
+
+1. every fact ID is a non-empty string;
+2. an ID is unique for the entire lifetime of one working-memory object;
+3. retracting a fact removes it from active matching but does not make its ID reusable;
+4. equal =(relation arguments)= content is allowed under distinct IDs;
+5. assertion gets a monotonically increasing sequence number used only for this milestone's recency policy.
+
+This contract separates *identity* from *content*. Deduplicating retries from one collector is an ingestion/knowledge-engineering problem with its own evidence, not a primitive matcher behavior.
+
+** What exactly is a production instantiation?
+A production can match in more than one way. The milestone-A =match-result= already records bindings plus ordered support fact IDs. Milestone B adds stable production identity and turns each complete match into an =activation= carrying:
+
+- production ID;
+- bindings;
+- ordered support fact IDs;
+- production salience;
+- support recency;
+- condition-count specificity;
+- a refraction signature.
+
+The activation is the bridge between matching and control. It is intentionally data that can be inspected and tested; it is not an anonymous closure.
+
+*BOOK CONTRACT*: production IDs are unique non-empty strings within an inference session. Production actions are structured data. This milestone accepts only =(:assert relation field ...)=. No arbitrary Common Lisp function object or text-to-code path is accepted as a rule action. That restriction keeps the recognize/act semantics observable and gives later workbench validation a real boundary.
+
+** What is the agenda?
+The official CLIPS 6.4.2 Basic Programming Guide defines the agenda as the list of rules whose conditions are satisfied but which have not yet executed, and documents salience plus conflict-resolution strategy as inputs to placement. It lists depth, breadth, simplicity, complexity, LEX, MEA, and random strategies and explicitly warns that activations tied after the relevant rules may be arbitrarily ordered by the implementation [cite:@clips642bpg].
+
+That last point is important for this book: tests must never pretend an implementation-dependent CLIPS tie is a portable semantic guarantee.
+
+*BOOK CONTRACT*: milestone B uses one small, total, deterministic policy chosen for pedagogy and reproducible traces:
+
+1. greater integer salience first;
+2. greater support recency first, where activation recency is the maximum assertion sequence among its support facts;
+3. greater number of LHS conditions first as an explicitly crude *condition-count specificity* proxy;
+4. lexically smaller stable production ID;
+5. lexicographically smaller ordered support-ID list.
+
+This policy is not claimed to implement CLIPS depth/LEX/MEA, nor OPS5's full historical strategy. The stable-ID fallbacks exist so a test never depends on container/list accident. Later chapters can implement alternative strategies behind the same activation representation and compare semantics deliberately.
+
+** Why is refraction necessary?
+The current CLIPS User's Guide explains refraction using a concrete rule/fact example: after a rule fires on a fact, the same activation does not remain eligible merely because the supporting fact is still present; retracting and asserting a new fact can make the rule eligible again [cite:@clips642ug]. This is a maintained implementation's documented behavior, not a universal definition every engine must copy byte-for-byte.
+
+*BOOK CONTRACT*: the teaching engine's refraction identity is:
+
+#+begin_example
+(production-id, ordered-support-fact-ids)
+#+end_example
+
+Once that exact signature fires, it is suppressed for the remainder of the inference session. Because working-memory IDs cannot be recycled, re-observing equal content under a new ID creates a new signature and may activate again. This makes the policy inspectable and avoids hiding a timestamp or object-address dependency inside refraction.
+
+Refraction is not a termination proof. A rule that turns one =pulse= fact into a new =pulse= fact gets a new support identity every cycle. The bounded runner must therefore distinguish =:quiescent= from =:limit-reached=. The regression suite intentionally includes this changing-support loop.
+
+** Why recompute every match after each firing?
+Because milestone B is still the semantic baseline. After a firing changes working memory, the implementation runs every production through the milestone-A nested-loop matcher again. This is redundant by construction, but it is simple enough to audit.
+
+That redundancy gives Chapters 11--15 their reason to exist. Incremental matching may cache alpha tests, partial joins, and tokens only after this baseline can answer the question “which activations should exist after this working-memory delta?” A future RETE-like implementation will be accepted first for semantic equivalence, then measured. No performance result is claimed in this record.
+
+** What should firing be allowed to do at this stage?
+An unrestricted host-language callback would let a rule mutate files, sockets, global variables, or the working memory behind the engine's back. It would also make dry-run/replay and later persistence semantics much harder to define.
+
+*BOOK CONTRACT*: milestone B actions only assert derived facts. Variables in action fields are substituted from the activation's binding environment. Derived fact IDs are deterministically constructed from the production ID, action index, and support fact IDs. Provenance records the producing rule's ID/provenance and exact support IDs.
+
+This does *not* yet implement truth maintenance. Retracting a support fact removes future activations, but a previously derived fact is not automatically retracted. That gap is deliberate curriculum material for the truth-maintenance chapters, not something to hide in milestone B.
+
+* Worked semantic trace
+Starting active facts:
+
+#+begin_example
+#1  obs.api.state.failed          (service-state api failed)
+#2  cfg.api.restart.on-failure    (service-restart-policy api on-failure)
+#3  obs.api.exit-code.1           (service-exit-code api 1)
+#4  dep.frontend.api              (depends-on frontend api)
+#5  obs.frontend.state.degraded   (service-state frontend degraded)
+#+end_example
+
+Two synthetic book productions are introduced:
+
+#+begin_example
+derive.dependency-impact  salience 20
+  (service-state ?dependency failed)
+  (depends-on ?service ?dependency)
+  => (:assert dependency-impact ?service ?dependency)
+
+derive.restart-candidate  salience 10
+  (service-state ?service failed)
+  (service-restart-policy ?service on-failure)
+  => (:assert restart-candidate ?service)
+#+end_example
+
+The first activation is supported by =#1 + #4= and the second by =#1 + #2=. Salience selects =derive.dependency-impact= first. Firing asserts a derived =dependency-impact= fact with support IDs =("obs.api.state.failed" "dep.frontend.api")=. The engine rematches. The already-fired signature is refracted, so =derive.restart-candidate= fires next. After another rematch no eligible activation remains and the session is quiescent.
+
+The scenario and rules are synthetic teaching data. The systemd manual grounds service terminology, not the truth of these fictional observations or the domain validity of a production diagnosis [cite:@systemd-service].
+
+* Required regression cases
+- initial facts receive monotonic assertion sequence numbers;
+- equal content with different stable IDs remains distinct;
+- duplicate/recycled IDs are rejected;
+- retraction removes a fact and activations that require it;
+- a newly identified equal-content observation can activate again;
+- duplicate production IDs are rejected;
+- unsupported callable/action forms are rejected;
+- higher salience wins;
+- recency breaks equal-salience alternatives;
+- condition count breaks a recency tie;
+- stable production ID provides deterministic final rule tie-breaking;
+- structured action substitution produces the expected derived fact;
+- derived provenance retains the exact support fact IDs;
+- the same production/support signature fires at most once per session;
+- changing support identity can keep producing work, and the bounded runner reports =:limit-reached= rather than hanging.
+
+* Deferred research
+- negative/not/exists conditions and their retraction behavior;
+- activation groups, modules, dynamic salience, and alternative conflict strategies;
+- action transactions/rollback across external effects;
+- truth-maintenance retraction of derived facts;
+- contradiction and counterevidence semantics;
+- alpha/beta memory ownership and delta propagation;
+- RETE/TREAT equivalence tests and benchmarks;
+- concurrency and persistence/session recovery.
+
+Those are not inferred from milestone-B code and must remain honestly unimplemented until their own dependency slices.
