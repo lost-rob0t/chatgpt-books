@@ -6,16 +6,22 @@
 DONE bootstrap purpose, audience, topics, and project boundaries.
 * Phase 1 -- foundational research
 Verify theory, current toolchain behavior, canonical implementations, and source bibliography.
+
+Active additions include the formal-methods track in issue #42: formal-system anatomy, specifications/invariants, finite transition systems, model checking, Hoare-style proof obligations, temporal properties, SAT/SMT boundaries, ACL2 mechanized proof, and verified symbolic-AI components.  Keep testing, bounded checking, exhaustive finite-model checking, and deductive proof as distinct evidence classes.
 * Phase 2 -- curriculum
 Review sequence and cross-book dependencies.
+
+The formal-methods track should reuse the Search Library's explicit-state/search intuitions, then feed later Planner, Rule System, Knowledge Representation, and Hybrid Capstone projects with specifications, invariants, counterexamples, and proof obligations.  It must not turn into a survey-only appendix or a second Prolog/Expert Systems book.
 * Phase 3 -- detailed outline
-Turn each chapter item into research questions, examples, exercises, and asset requirements.
+Turn each chapter item into research questions, examples, exercises, and asset requirements.  Issue #42 owns insertion of the formal sequence and Formal Reasoning Workbench into the detailed outline while preserving existing stable IDs/user edits.
 * Phases 4--6 -- progressive chapters/projects
 Implement projects in the order listed in PROJECTS.org; later projects depend on foundations from earlier ones.
+
+For formal methods, grow one Common Lisp workbench in stages: rule checker -> explicit finite-state invariant checker -> proof-obligation generator -> temporal/model-checking exercises -> external SMT-LIB/ACL2 boundaries only after their semantics and reproducibility are researched.
 * Phase 7 -- capstone
-The last project is the major integrated capstone and depends on the previous project/tooling slices.
+The last project is the major integrated capstone and depends on the previous project/tooling slices.  It should consume selected formally stated invariants/explanations from the earlier projects rather than adding a detached proof-demo appendix.
 * Phase 8 -- technical review
-Re-run all examples/tests/benchmarks and verify citations.
+Re-run all examples/tests/benchmarks and verify citations.  Formal claims must state exactly what was proved/checked and under which model/tool assumptions.
 * Phase 9 -- editorial and visual review
 Prose, navigation, diagrams, accessibility, and cover.
 * Phase 10 -- EPUB release
