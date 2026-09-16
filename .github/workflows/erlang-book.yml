@@ -32,7 +32,7 @@ jobs:
           java -jar .cache/epubcheck-5.3.0/epubcheck.jar --version
 
       - name: Run Erlang foundations tests
-        run: ./books/erlang/code/foundations/run-tests.sh
+        run: bash ./books/erlang/code/foundations/run-tests.sh
 
       - name: Build Erlang book
         run: make book BOOK=erlang
