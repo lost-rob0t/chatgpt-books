@@ -1,0 +1,31 @@
+digraph lfe_otp_supervision {
+  graph [rankdir=LR, bgcolor="transparent", pad="0.2", nodesep="0.45", ranksep="0.8"];
+  node [shape=box, fontname="sans-serif", fontsize=11];
+  edge [fontname="sans-serif", fontsize=10];
+
+  client [label="LFE / Erlang client"];
+  sys [label="sys debugger\nOTP system messages"];
+  supervisor [label="otp-router-sup\none_for_one\nrestart intensity", shape=folder];
+  replacement [label="replacement otp-router\ninit(initial rules)", style=dashed];
+  kernel [label="event-rules:route/2\npure semantic kernel", shape=component];
+
+  subgraph cluster_worker {
+    label="one otp-router gen_server process";
+    fontname="sans-serif";
+    fontsize=10;
+    style=rounded;
+    generic [label="gen_server\ngeneric receive/system loop", shape=box3d];
+    callbacks [label="LFE callback module\ninit / handle_call / handle_cast\nprocess-local rules state"];
+    generic -> callbacks [label="dispatch callback"];
+    callbacks -> generic [label="reply/action + next state", style=dashed];
+  }
+
+  client -> generic [label="gen_server:call / cast"];
+  generic -> client [label="reply / exit on failed call", style=dashed];
+  sys -> generic [label="suspend / resume / get_state"];
+  supervisor -> generic [label="start_link child spec"];
+  generic -> supervisor [label="linked child exit", style=dashed];
+  callbacks -> kernel [label="route request"];
+  kernel -> callbacks [label="tagged result", style=dashed];
+  supervisor -> replacement [label="restart if policy permits"];
+}

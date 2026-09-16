@@ -1,0 +1,613 @@
+* Part III -- OTP Without Magic
+** Chapter 11 -- OTP Behaviours: Move the Loop, Keep the Semantics
+:PROPERTIES:
+:ID:       01a5ac20-c17d-4a83-bfa9-250e45709659
+:END:
+
+Project 2 ended with a process that we could explain all the way down. It had
+one recursive loop, one immutable rules term, an explicit request envelope, an
+explicit reply envelope, fresh references for correlation, and an intentional
+crash hook. That was useful precisely because nothing was hidden.
+
+Now we are going to hide some of it.
+
+That sounds suspicious in a book that keeps telling you to expose semantics.
+The difference is that we have already paid the cost of understanding the
+mechanism. OTP is valuable when it removes *repeated plumbing* while preserving
+a contract we can still reason about. If an abstraction makes us unable to say
+which process owns state, what a timeout means, who is linked to whom, or what
+happens after a crash, then we have not gained engineering leverage. We have
+just traded code for mystery.
+
+*** The raw loop had two jobs
+
+The Actor Router's loop mixed two categories of work:
+
+1. generic server machinery -- wait for messages, distinguish call-like from
+   cast-like traffic, correlate requests with replies, preserve process state,
+   and participate in failure signaling;
+2. application policy -- route this event, replace this rules term, report the
+   current rules, or reject a bad request.
+
+Only the second category is special to our router.
+
+The =gen_server= behaviour exists to standardize the first category. Current
+Erlang/OTP documentation describes a generic server process whose generic
+functions dispatch into a callback module: start functions invoke =init/1=,
+calls invoke =handle_call/3=, casts invoke =handle_cast/2=, and other messages
+can arrive at =handle_info/2=. The same process participates in standard OTP
+system-message handling and can be inspected with =sys=. [cite:@erlang-gen-server-29]
+
+LFE does not replace that runtime contract. The official LFE v2.2.2
+=ping-pong.lfe= example declares =(behaviour gen_server)=, calls
+=gen_server:start_link= and =gen_server:call= directly, and implements the
+ordinary callbacks. [cite:@lfe-ping-pong-v2-2-2]
+
+That is the first important boundary of this chapter:
+
+#+begin_example
+LFE source
+   ↓ compiles to BEAM module
+OTP gen_server generic process
+   ↓ calls
+LFE callback functions
+#+end_example
+
+There is no "LFE actor" hiding between those layers.
+
+*** Project 3 begins by preserving a pure kernel
+
+The worst possible refactor here would be to stuff Project 1's routing logic
+into =handle_call/3= until the callback became the only place the domain model
+could run.
+
+We do the opposite.
+
+#+begin_src lfe
+([(tuple 'route event) _from rules]
+ (tuple 'reply
+        (event-rules:route event rules)
+        rules))
+#+end_src
+
+The callback owns orchestration and process state. The already-tested
+=event-rules:route/2= function still owns routing semantics. That separation is
+why the same kernel survived a macro surface, a raw process wrapper, and now an
+OTP behaviour without being rewritten three times.
+
+This is Lisp thinking and BEAM thinking cooperating:
+
+- Lisp thinking says keep the semantic object small, inspectable, and easy to
+  transform.
+- BEAM thinking says isolate mutable-over-time state behind a process boundary
+  and make transitions explicit.
+- OTP says the generic process mechanics have a standard implementation; give
+  it callbacks rather than hand-rolling the loop again.
+
+*** =init/1= is construction, not resurrection
+
+Our server starts with:
+
+#+begin_src lfe
+(defun init (rules)
+  (tuple 'ok rules))
+#+end_src
+
+There is intentionally no database lookup, replay log, global table, or hidden
+singleton. The rules argument becomes the process-local state.
+
+That makes the state contract almost embarrassingly clear:
+
+#+begin_example
+start argument = initial callback state
+#+end_example
+
+This matters in Chapter 12. When the worker crashes and a supervisor starts a
+replacement, =init/1= runs again with the child specification's start
+arguments. Unless *we* add a persistence/recovery mechanism later, the new
+process does not inherit the dead process's latest state.
+
+*** =handle_call/3= is a state transition function with a reply
+
+The raw Actor Router manually received this:
+
+#+begin_example
+#(call CallerPid Ref #(route Event))
+#+end_example
+
+and manually sent this:
+
+#+begin_example
+#(reply Ref Result)
+#+end_example
+
+The OTP service receives the domain request in =handle_call/3=:
+
+#+begin_src lfe
+(defun handle_call
+  ([(tuple 'route event) _from rules]
+   (tuple 'reply (event-rules:route event rules) rules))
+  ([(tuple 'replace-rules new-rules) _from _rules]
+   (tuple 'reply (tuple 'ok 'replaced) new-rules))
+  (['get-rules _from rules]
+   (tuple 'reply (tuple 'ok rules) rules))
+  ([bad-request _from rules]
+   (tuple 'reply
+          (tuple 'error (tuple 'bad-request bad-request))
+          rules)))
+#+end_src
+
+Read each callback return as a tiny transition proof:
+
+#+begin_example
+(current state, request)
+        ↓
+(reply value, next state)
+#+end_example
+
+For routing, current state and next state are identical. For replacement, the
+next state is the new rules term. For a bad domain request, the server remains
+healthy and replies with a tagged error.
+
+That last choice is deliberate. "Let it crash" does not mean "convert normal
+domain rejection into process death." An unknown request is representable in
+the protocol, so we represent the rejection. A corrupted invariant or
+unexpected callback failure is a different category.
+
+*** =call= and =cast= are not just two spellings
+
+=gen_server:call/3= gives the caller a synchronous *API experience*: send a
+request and wait for its reply. Underneath, the processes are still exchanging
+signals on the BEAM. The generic server machinery owns correlation and reply
+delivery.
+
+=gen_server:cast/2= is asynchronous from the caller's perspective. It returns
+=ok= without waiting for the server to handle the request. [cite:@erlang-gen-server-29]
+
+Our project uses a cast only for deliberate crash injection:
+
+#+begin_src lfe
+(defun crash (reason)
+  (gen_server:cast 'otp-router (tuple 'crash reason)))
+#+end_src
+
+and the callback intentionally dies:
+
+#+begin_src lfe
+([(tuple 'crash reason) _rules]
+ (erlang:exit reason))
+#+end_src
+
+Do not cargo-cult that into ordinary command handling. We want the crash hook
+because supervision is impossible to teach honestly without controlled
+failure.
+
+*** Failure lab: timeout changed shape
+
+Project 2's hand-written helper returned:
+
+#+begin_example
+#(error timeout)
+#+end_example
+
+after its own =receive ... after= expired. Project 3 deliberately does *not*
+copy that contract over the top of OTP. =gen_server:call/3= exits the caller
+when its timeout expires. [cite:@erlang-gen-server-29]
+
+The executable lab suspends the server through =sys:suspend/1=, performs a
+20-millisecond call, catches the real timeout exit in an Erlang smoke test,
+then resumes the same still-live process.
+
+The important comparison is not "which API is nicer." It is this:
+
+| Boundary | Timeout observation | Does it prove remote cancellation? |
+|----------+---------------------+------------------------------------|
+| Project 2 helper | tagged =#(error timeout)= | no |
+| =gen_server:call/3= | caller exit with timeout reason | no |
+
+Modern OTP also documents protection against the classic late ordinary-call
+reply polluting the caller mailbox on nodes with alias support, a change from
+pre-OTP-24 behaviour. [cite:@erlang-gen-server-29] That improvement is useful,
+but it still does not turn a timeout into a distributed transaction rollback.
+
+*** The =From= argument exists for a reason
+
+=handle_call/3= receives a =From= value even when our simple callback ignores
+it. Do not assume it is just the caller PID. OTP defines it as reply
+destination metadata used by the generic call machinery.
+
+Later we can defer a reply and use =gen_server:reply/2=, but that would add a
+new lifecycle problem: where do we store outstanding work, what happens if the
+client disappears, and what ordering do we promise? This checkpoint keeps
+replying directly from =handle_call/3= so the state transition remains easy to
+audit.
+
+*** System messages are part of the value proposition
+
+A hand-written receive loop can implement whatever protocol we invent. A
+=gen_server= also participates in the OTP system-message protocol. The current
+manual explicitly points to =sys= as a debugging interface for a generic
+server. [cite:@erlang-gen-server-29]
+
+Our test uses:
+
+#+begin_src erlang
+Rules = sys:get_state('otp-router'),
+ok = sys:suspend('otp-router'),
+...
+ok = sys:resume('otp-router').
+#+end_src
+
+This is a concrete reason to prefer a standard behaviour once the raw process
+mechanics are understood: tooling can talk to the generic machinery without
+our domain callback inventing a second control protocol.
+
+It is also a warning. =sys:get_state/1= is an introspection tool, not a
+persistence API. Seeing state is not the same thing as durably storing it.
+
+*** Direct Erlang interoperability is still the acceptance boundary
+
+The service is compiled from LFE, but the smoke test drives it through ordinary
+Erlang calls:
+
+#+begin_src erlang
+{ok, Pid} = 'otp-router':start_link(Rules),
+{ok, pager} =
+    gen_server:call('otp-router', {route, Event}, 1000),
+Rules = sys:get_state('otp-router'),
+ok = gen_server:stop('otp-router').
+#+end_src
+
+That test matters because it rules out a comforting fiction: we are not merely
+testing an LFE wrapper calling another LFE wrapper. An Erlang client sees an
+ordinary OTP server.
+
+*** Debugging callback failures
+
+When a callback fails or returns an invalid callback value, current
+=gen_server= documentation says the server terminates. [cite:@erlang-gen-server-29]
+That means debugging has two distinct questions:
+
+1. *What domain request/state combination reached the callback?*
+2. *What lifecycle policy observes or replaces the process after it dies?*
+
+The first belongs here. The second belongs to Chapter 12.
+
+A good failure investigation therefore records at least:
+
+- the request term;
+- the callback state before the failing transition;
+- the process identity;
+- the exit reason;
+- whether the process was supervised;
+- whether a replacement appeared;
+- what initial state that replacement received.
+
+If you only record "the service recovered," you have hidden the interesting
+part.
+
+*** Exercises
+1. ★ Compare the raw Actor Router loop with =otp-router:handle_call/3=. List
+   every responsibility that moved into =gen_server= and every responsibility
+   that remained project code.
+2. ★ Explain why =#(error #(bad-request wat))= is a reasonable reply while an
+   impossible callback invariant might reasonably terminate the server.
+3. ★★ Add a read-only request that returns the number of configured rules.
+   Keep =event-rules= independent of OTP.
+4. ★★ Use =sys:get_state/1= before and after =replace-rules=. Explain why the
+   result is evidence about process-local state but not evidence of durability.
+5. ★★★ Design a delayed-reply version using =gen_server:reply/2= on paper.
+   Identify the new state, timeout, client-death, and cleanup questions before
+   writing code.
+6. ★★★ Break one callback return tuple deliberately. Predict which process
+   terminates and what a linked caller observes when the server is *not*
+   supervised.
+
+** Chapter 12 -- Supervision: Restart Policy Is Not Recovery Magic
+:PROPERTIES:
+:ID:       60f35afa-58f9-44fc-b8f2-f5b4ddd4f7cb
+:END:
+
+A process crashed in Chapter 9 and a monitor told us about it. That was
+observation.
+
+A =gen_server= crashed in Chapter 11 and OTP gave us a standardized server
+process. That was behaviour structure.
+
+Neither one answers the operational question:
+
+*Who is responsible for starting a replacement, and when should they stop
+trying?*
+
+That is supervision policy.
+
+*** A supervisor is a process with a narrow job
+
+Current OTP documentation defines a supervisor as a process responsible for
+starting, stopping, and monitoring child processes. Child specifications say
+how children start and how they are treated after termination; supervisor
+flags define restart strategy and restart intensity. [cite:@erlang-supervisor-29;@erlang-supervision-principles-29]
+
+That is narrower than "fault tolerance." A supervisor does not know how to
+reconstruct our rules from durable storage. It does not know whether an event
+was already delivered to an external system. It does not know whether a
+restarted worker should replay anything. Those are application semantics.
+
+The supervisor knows lifecycle.
+
+#+caption: Project 3 separates generic =gen_server= mechanics, LFE callbacks, the pure routing kernel, and supervisor lifecycle policy. A replacement process is started from the child specification; the diagram deliberately does not draw dead-process memory flowing into the replacement.
+#+attr_html: :alt A client and sys debugger talk to the gen_server generic loop. The loop invokes LFE callbacks, which call the pure event-rules kernel. A one-for-one supervisor starts and observes the gen_server. On child exit it may start a separate replacement initialized from the original start arguments.
+[[file:assets/otp-supervision.svg]]
+
+*** =start_link= makes ownership explicit
+
+The worker starts with =gen_server:start_link=. The supervisor starts with
+=supervisor:start_link=. The "link" is not naming decoration: OTP uses linked
+process relationships as part of supervision-tree lifecycle.
+
+Current =gen_server= documentation explicitly describes =start_link= as the
+start form intended for a supervision tree. Current supervisor documentation
+requires a child start function that creates and links the child and returns
+the expected start result. [cite:@erlang-gen-server-29;@erlang-supervisor-29]
+
+Our child specification therefore points at:
+
+#+begin_example
+#(otp-router start_link (Rules))
+#+end_example
+
+Conceptually, the supervisor can perform:
+
+#+begin_example
+apply(otp-router, start_link, [Rules])
+#+end_example
+
+and receive a linked child.
+
+*** Current child specifications are data
+
+Project 3 builds supervisor flags and a child specification as BEAM maps. The
+important fields are visible:
+
+#+begin_example
+strategy  -> one_for_one
+intensity -> 2
+period    -> 60
+
+id       -> otp-router
+start    -> #(otp-router start_link (Rules))
+restart  -> permanent
+shutdown -> 5000
+type     -> worker
+modules  -> (otp-router)
+#+end_example
+
+The current supervisor manual prefers map child specifications; tuple format
+is retained for backward compatibility. [cite:@erlang-supervisor-29]
+
+This is a nice Lisp/BEAM moment. We do not need a macro to make the policy
+declarative. The policy already *is data*. Macros become interesting later only
+if they can make a larger supervision topology clearer without obscuring the
+underlying child-spec terms.
+
+*** Why =one_for_one= here
+
+Current OTP defines =one_for_one= so that when a child needs restarting, only
+that child is affected. [cite:@erlang-supervisor-29;@erlang-supervision-principles-29]
+
+Our supervisor has exactly one child. That makes the strategy unsurprising,
+which is good for the first supervision lab.
+
+We deliberately do *not* spend pages chanting that =one_for_one= is "best."
+With multiple dependent children, restart strategy expresses dependency and
+failure-domain policy:
+
+- =one_for_one= isolates sibling restarts;
+- =one_for_all= treats the children as a unit;
+- =rest_for_one= encodes an ordering/dependency relation.
+
+Those strategies become meaningful when Project 4 has a workflow with multiple
+processes. Using them now would turn vocabulary into trivia instead of design.
+
+*** Failure lab: mutate, crash, restart
+
+This is the most important lab in the slice.
+
+1. Start the supervisor with initial rules that route =critical= to =pager=.
+2. Ask the running worker to replace its rules with an =otherwise -> sink=
+   rule.
+3. Verify the live worker now routes the sample event to =sink=.
+4. Record the worker PID.
+5. Crash that worker deliberately.
+6. Observe the old PID terminate with the chosen reason.
+7. Wait for a different =otp-router= PID.
+8. Route the same event again.
+
+The expected post-restart result is =pager=, not =sink=.
+
+Why? Because the replacement runs =init/1= with the rules stored in the
+supervisor's child start specification. The dead process's in-memory state is
+gone.
+
+This gives us an equation worth remembering:
+
+#+begin_example
+restart ≠ recovery of volatile state
+#+end_example
+
+If the product requires =sink= to survive a process crash, we need a persistence
+boundary, replay log, replicated state machine, external store, or some other
+explicit recovery design. A supervisor cannot infer that requirement for us.
+
+*** Permanent does not mean immortal
+
+The child uses =restart -> permanent=. Current supervisor documentation means
+that such a child is restarted whenever it terminates, subject to the
+supervisor's own ability and restart budget. [cite:@erlang-supervisor-29]
+
+"Permanent" therefore does not mean:
+
+- this PID never changes;
+- this state never disappears;
+- restart attempts continue forever;
+- the whole tree can never terminate.
+
+PID replacement is the point.
+
+*** Restart intensity is the circuit breaker
+
+Imagine a worker that crashes instantly because its initial configuration is
+invalid. Restarting it forever would turn one bug into an infinite crash loop.
+
+OTP supervisors bound that behavior with =intensity= and =period=. Current
+documentation says that if more than =MaxR= restarts occur inside =MaxT=
+seconds, the supervisor terminates its children and then itself with reason
+=shutdown=. [cite:@erlang-supervisor-29]
+
+The project exposes =start_link/3= only so the failure lab can choose a tiny
+budget:
+
+#+begin_src lfe
+(otp-router-sup:start_link rules 1 60)
+#+end_src
+
+Then:
+
+1. crash the worker once -- one restart is still inside the budget;
+2. wait for the replacement;
+3. crash the replacement;
+4. require the supervisor itself to terminate with =shutdown=.
+
+The test does not claim those numbers are good production settings. They are a
+controlled experiment that makes escalation observable.
+
+*** Why a supervisor should fail
+
+Beginners sometimes read "fault tolerant" as "nothing above this level should
+ever notice a failure." That is backwards.
+
+A supervision tree is valuable because responsibility has structure. If a
+local supervisor cannot stabilize its children inside policy, it should stop
+pretending. Its own failure gives the next level of the tree a chance to apply
+a broader policy.
+
+We have only one supervisor in this checkpoint, so escalation ends there. A
+later application tree can decide what lives above it.
+
+*** The supervisor does not own domain errors
+
+Suppose an event has the wrong shape. Project 1 returns a tagged =bad-event=
+domain error. The =gen_server= can reply with that value and remain healthy.
+
+Suppose the callback hits an impossible internal invariant and raises. The
+worker terminates. The supervisor applies lifecycle policy.
+
+Those two paths are intentionally different:
+
+#+begin_example
+expected domain rejection
+  -> value in protocol
+  -> worker remains alive
+
+unexpected process failure
+  -> process exit
+  -> supervisor policy
+#+end_example
+
+If you crash for every invalid user input, your supervisor becomes an expensive
+validation loop. If you catch every internal failure and return =error=, you
+erase fault isolation. The engineering work is deciding which category a
+failure belongs to.
+
+*** Debugging the restart boundary
+
+When a service "came back," record both identities:
+
+#+begin_example
+old worker PID -> exits(boom)
+supervisor      -> starts child again
+new worker PID -> init(initial rules)
+#+end_example
+
+Then ask:
+
+- Did the new PID differ from the old one?
+- Which exact state did =init/1= receive?
+- Was volatile state expected to survive?
+- Which child spec caused the restart?
+- How many recent restarts has the supervisor counted?
+- If it stops, who supervises *it*?
+
+This is more useful than logging "restarted successfully."
+
+*** Project 3 checkpoint A
+
+At this checkpoint the book has a genuine OTP vertical slice:
+
+- an LFE =gen_server= callback module;
+- ordinary =gen_server:call/3= and =cast/2= semantics;
+- direct Erlang interoperability against the compiled LFE server;
+- standard =sys= state introspection and suspension in the failure lab;
+- a pure routing kernel that remains independent of OTP;
+- an LFE supervisor callback module;
+- a map-based permanent child specification;
+- one-for-one worker replacement;
+- explicit evidence that restart resets volatile process state to the
+  supervisor's start arguments;
+- restart-intensity escalation.
+
+It intentionally does *not* yet claim:
+
+- an OTP application resource or application callback;
+- release assembly or boot scripts;
+- persistence/state replay;
+- distributed node operation;
+- production tracing/telemetry policy;
+- production-ready restart numbers.
+
+Those are not missing decorations. They are separate mechanisms with separate
+failure modes.
+
+*** Failure lab: choose the wrong restart assumption
+
+Change the test so it expects the =sink= rules to survive the worker crash
+without adding persistence. The assertion should fail.
+
+Now ask what change would actually make that expectation valid. "Use a
+supervisor" is no longer an allowed answer. You need to name a source of truth
+outside the volatile worker and define when/how a replacement reconstructs
+state from it.
+
+That question is the bridge to the later persistence chapter.
+
+*** Exercises
+1. ★ Explain why a replacement worker should have a different PID even though
+   clients continue addressing the registered name =otp-router=.
+2. ★ For each child-spec field in Project 3, say which policy it expresses and
+   which concerns it does *not* solve.
+3. ★★ Change the worker restart type to =transient=. Predict behavior for a
+   normal stop versus =boom= before running the experiment; verify against
+   current OTP documentation first.
+4. ★★ Add a second independent child on paper. Compare =one_for_one= and
+   =one_for_all= for that topology using a concrete dependency story.
+5. ★★★ Design a persistence boundary that could restore the most recent rules
+   after restart. Specify write ordering, failure windows, and what
+   "successfully replaced rules" would mean. Do not implement it in the
+   supervisor.
+6. ★★★ Lower restart intensity and inject repeated failures. Produce a trace
+   containing worker PIDs, =DOWN= reasons, replacement points, and the final
+   supervisor shutdown. Explain why this is policy evidence rather than an
+   availability benchmark.
+
+* Project 3 -- OTP Router, checkpoint A
+The runnable checkpoint lives in =books/lfe/code/otp-router/=. Read the LFE
+callback modules beside the raw =actor-router= implementation. The useful
+comparison is not the number of lines. It is which semantic responsibilities
+moved into OTP and which remained explicit project policy.
+
+Research claims for this slice are recorded in
+=books/lfe/research/otp-04.org=. Before exact-head CI succeeds, the new
+implementation statements remain UNTESTED. The workflow must compile pinned
+LFE v2.2.2, execute the project gate, validate the diagram, build/check the
+book, and run the repository's Nix gate before this checkpoint can be promoted
+to TESTED.

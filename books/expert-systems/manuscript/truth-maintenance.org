@@ -1,0 +1,648 @@
+* Chapter 17 -- Truth Maintenance: A Match Is Not a Reason to Keep a Belief
+:PROPERTIES:
+:ID:       170eb63e-bbc6-4fff-9876-0d3707400dc3
+:END:
+
+Chapter 15 ended with a deliberately uncomfortable result. The incremental matcher can be perfectly synchronized with working memory and still leave the *knowledge state* wrong.
+
+Suppose the service-diagnosis project has already fired these two synthetic teaching rules:
+
+#+begin_example
+failed(api) + depends-on(frontend, api)
+    -> dependency-impact(frontend, api)
+
+dependency-impact(frontend, api) + degraded(frontend)
+    -> needs-investigation(frontend)
+#+end_example
+
+Now retract the original observation that =api= is failed.
+
+Milestone C does exactly what an incremental matcher should do: it removes alpha items and beta tokens whose support included that exact assertion occurrence. The agenda no longer offers activations requiring the retracted observation. =incremental-cache-references-current-p= can be true, and a fresh complete rematch can agree with the incremental agenda.
+
+But two derived facts can still be sitting in working memory:
+
+#+begin_example
+derived.dependency-impact.frontend.api
+derived.needs-investigation.frontend
+#+end_example
+
+Nothing in a matching cache answers whether those already-materialized conclusions still have a reason to exist.
+
+That is the boundary for this chapter:
+
+#+begin_quote
+Matching asks, “Which rules are enabled by the current working memory?”
+
+Truth maintenance asks, “Which derived facts are still supported by the evidence and derivations we currently accept?”
+#+end_quote
+
+The word /truth/ can be misleading if you hear it as a claim about the world. This subsystem is not an oracle for reality. It maintains the support relationships declared by this expert system. A conclusion can be perfectly supported by the system's current rules and evidence while the rule, evidence, or domain model is wrong. Knowledge engineering and source quality still matter.
+
+Historically, Doyle's truth-maintenance work separated a problem solver from a subsystem that records and maintains reasons for program beliefs; those reason records also support revision and explanation [cite:@doyle1979tms]. Current CLIPS 6.4.2 offers a useful maintained comparison: its =logical= conditional element gives RHS-created entities logical support, permits multiple independent support groups, and removes an entity after its final logical support is lost [cite:@clips642bpg].
+
+We will borrow the *questions* those systems force us to answer. We will not pretend the small engine in this book implements all of Doyle's nonmonotonic machinery or reproduces CLIPS internals.
+
+Chapter 16's planned TREAT comparison is an optimization discussion, not a prerequisite for the support semantics here. Milestone D therefore advances the dependency-ready implementation path directly from the accepted RETE-like matcher to an explicit justification layer.
+
+** 17.1 Reproduce the stale-derived-fact bug before fixing it
+A useful truth-maintenance implementation starts with an executable failure case.
+
+The service fixture already gives us one. Seed the five synthetic facts, run the two accepted productions to quiescence, and then retract =obs.api.state.failed=. With only milestone-C semantics, the matcher cache can become correct again while the two conclusions remain materialized.
+
+That failure is important because it prevents a common architectural mistake: stuffing belief-removal behavior into alpha or beta nodes merely because retraction already flows through them.
+
+An alpha item knows that one occurrence satisfied one condition. A beta token knows that a sequence of occurrences satisfied a prefix of one rule. Neither object should become the authority for whether an old conclusion remains justified after firing.
+
+If those responsibilities are mixed together, several questions become awkward immediately:
+
+- What if two different productions derive the same conclusion?
+- What if the same production derives the same conclusion from two different support groups?
+- What if a conclusion participates in a support cycle?
+- What if a fact ID is retracted and later reasserted as a new occurrence?
+- What should an explanation show after one old reason becomes stale but another remains current?
+
+Those are not cache-index questions. They are dependency questions.
+
+Milestone D therefore layers a new =truth-maintained-network= over the existing =incremental-network=. The incremental matcher remains the authority for matches. The new layer owns base-support occurrences and justification records.
+
+#+begin_example
+working memory
+     |
+     +--> incremental matcher --------> current activations
+     |
+     +--> support ledger ------------> current justification graph
+                                          |
+                                          +--> grounding
+                                          +--> cascading retraction
+                                          +--> dependency queries
+#+end_example
+
+Keeping those paths separate costs a little code now and saves us from making Chapter 20's explanation machinery depend on RETE cache accidents later.
+
+** 17.2 A reason is a first-class record
+A firing record from Chapter 10 already tells us a lot:
+
+- which production fired;
+- the activation bindings;
+- the support fact IDs and support occurrence stamps;
+- which new fact IDs were asserted.
+
+That is an audit trace of a successful state transition. It is not yet a maintained dependency object.
+
+Milestone D adds a =justification= structure whose job is narrower and longer-lived:
+
+#+begin_src lisp
+(defstruct justification
+  id
+  conclusion-fact-id
+  conclusion-stamp
+  production-id
+  activation-key
+  bindings
+  support-stamps)
+#+end_src
+
+The distinction matters.
+
+A firing can historically have happened even after its conclusion is no longer current. We do not want to erase the firing record merely because the system revised its present knowledge. Likewise, a historical justification can remain useful to an explanation or audit tool even when its support occurrences are stale.
+
+The current state is decided by *occurrence identity*, not by deleting history.
+
+A justification records two kinds of occurrence stamps:
+
+#+begin_example
+conclusion stamp: (derived.x . 8)
+support stamps:   ((obs.a . 2) (cfg.b . 5))
+#+end_example
+
+The conclusion stamp answers “which materialization did this reason justify?” The support stamps answer “which exact evidence occurrences did this reason depend on?”
+
+Stable IDs alone are not enough for either side.
+
+** 17.3 Base support is different from derived support
+A production-system engine usually begins with some facts that did not themselves come from a production firing. They may be observations, configuration records, imported topology, operator assertions, or test fixtures.
+
+Milestone D calls the exact current occurrences of those facts *base support*.
+
+When =make-truth-maintained-network= wraps an engine, every working-memory occurrence already present is recorded as base-supported. A later caller can add another base occurrence through =truth-maintained-assert-base-fact=.
+
+This is deliberately explicit and course-local.
+
+CLIPS documents its own distinction between logical support and unconditional support, including behavior when an entity gains unconditional support [cite:@clips642bpg]. Our teaching wrapper does not claim that exact policy. It records base-support occurrence stamps separately and retains historical justifications for inspection.
+
+The practical invariant is simpler:
+
+#+begin_quote
+A current fact is immediately grounded if its exact current occurrence is base-supported.
+#+end_quote
+
+A derived fact needs a current justification path back to such base evidence.
+
+Crucially, those support modes are *not mutually exclusive*. A current occurrence can be base-supported and also acquire a derived justification when a rule proposes the same stable ID with the same logical content. In this teaching engine, base support is therefore one independent support source, not a flag that erases or disables derived reasons.
+
+That distinction matters during retraction. Removing the base-support stamp does not automatically remove the working-memory occurrence. If a current derived justification still grounds that exact occurrence, the fact stays in working memory, becomes non-base, and keeps the same occurrence stamp. Only loss of the last grounding source produces a working-memory retraction.
+
+This gives us a useful debugging vocabulary:
+
+- *base* -- current occurrence is explicitly base-supported; it may also have current derived reasons;
+- *derived* -- current occurrence exists, is not base-supported, and depends on one or more recorded reasons;
+- *absent* -- no current working-memory occurrence exists for the stable ID;
+- *grounded* -- at least one current support path reaches base evidence;
+- *ungrounded* -- the fact is current but no support path reaches base evidence.
+
+In a well-maintained state, a non-base derived occurrence should not remain ungrounded for long. The cascade algorithm exists to remove it.
+
+** 17.4 One justification is AND; multiple justifications are OR
+Consider a conclusion =X= with two independent reasons:
+
+#+begin_example
+J1: A AND B -> X
+J2: C       -> X
+#+end_example
+
+Inside =J1=, all support occurrences are required. Lose =A= and =J1= no longer grounds =X=.
+
+Across =J1= and =J2=, either reason is sufficient. Lose =A= while =C= remains and =X= should stay.
+
+That AND-within / OR-across shape is the heart of this milestone. It is also a useful point of comparison with current CLIPS logical support groups, where an entity can have more than one support group and remains while another valid group exists [cite:@clips642bpg].
+
+#+caption: Milestone-D support graph. A justification is conjunctive over its incoming supports; independent justifications are alternative reasons for one conclusion. Cascading retraction begins only after the last grounded reason is lost.
+#+attr_html: :alt Base facts A and B feed justification J1, base fact C feeds alternative justification J2, both justify derived X, then X and another base context fact feed J3 to justify derived Y; notes show that losing A invalidates J1 but X survives through J2, while losing C too retracts X and cascades to Y.
+[[file:assets/truth-maintenance.svg]]
+
+This immediately changes how we treat duplicate conclusion IDs during a firing.
+
+Milestone B correctly rejected a duplicate stable fact ID because working memory cannot contain two current records with the same identity. Truth maintenance adds a second possibility: the proposed conclusion may be the *same logical fact* already materialized, but this activation supplies another reason for it.
+
+Milestone D therefore distinguishes three cases before mutation:
+
+1. The conclusion ID is absent. Assert one new working-memory occurrence and record the reason.
+2. The conclusion ID is present with the same relation and arguments. Do not assert a duplicate occurrence; record another justification for the existing occurrence. This is valid even when that existing occurrence is also base-supported.
+3. The conclusion ID is present with different relation or arguments. Signal =fact-id-content-conflict= before changing working memory, refraction, firing history, or truth-maintenance state.
+
+Provenance embedded in the existing =fact= object is intentionally not used to decide logical content equality. Different productions can provide different reasons for the same logical conclusion. Those reasons belong in the justification ledger rather than being smashed into one mutable provenance field.
+
+That decision also keeps stable fact identity meaningful. A rule is not allowed to quietly redefine what =derived.database-risk= means merely because it reused the string.
+
+** 17.5 Exact support occurrences prevent stale reasons from reviving
+Suppose a base fact has stable ID =obs.api.state.failed= and current occurrence sequence 1.
+
+A justification records:
+
+#+begin_example
+(("obs.api.state.failed" . 1)
+ ("dep.frontend.api" . 4))
+#+end_example
+
+Now retract the failure observation and later reassert a fact with the same stable ID. Working memory gives the new assertion a fresh occurrence sequence, perhaps 8.
+
+The old reason still says =("obs.api.state.failed" . 1)=. It does not match =("obs.api.state.failed" . 8)=.
+
+That is not bookkeeping fussiness. Without the sequence, a stale historical reason could silently become current merely because a sensor or operator reused the same stable identity.
+
+The conclusion side needs the same protection.
+
+Imagine =derived.x= at occurrence 6 was retracted because it lost support. Later, fresh evidence causes =derived.x= to be derived again at occurrence 11. If historical reasons stored only the stable conclusion ID, an old reason for occurrence 6 could appear to support occurrence 11.
+
+So a current reason must satisfy both of these checks:
+
+#+begin_example
+justification conclusion stamp == current conclusion occurrence
+all justification support stamps == current support occurrences
+#+end_example
+
+Stable IDs let us talk about the same logical record across time. Occurrence stamps tell us whether a particular historical dependency is current *now*.
+
+** 17.6 Firing now has two commit paths
+The ordinary =fire-activation= API from milestone B assumes every successful action proposes facts that will all be newly asserted. That was exactly the right contract before multiple reasons existed.
+
+Milestone D cannot simply call it unchanged because “same conclusion, another reason” is now a valid outcome and should *not* create another working-memory occurrence.
+
+The truth-maintained firing path therefore performs the following sequence:
+
+#+begin_example
+1. run action -> proposed facts
+2. validate every proposed object is a fact with a stable ID
+3. classify each proposal:
+     absent ID              -> new assertion
+     same ID, same content  -> justification only
+     same ID, new content   -> fail
+4. validate the entire new-assertion batch
+5. commit and propagate genuinely new occurrences
+6. mark this activation refracted
+7. append the firing record
+8. append one justification for every proposed conclusion
+#+end_example
+
+The important failure boundary remains from milestone B: ordinary validation failures happen before state mutation.
+
+This milestone still does *not* claim transactional rollback for an unexpected host-language failure after the working-memory commit while incremental propagation or later bookkeeping is executing. That operational boundary was already explicit in milestone C and remains future production engineering.
+
+The purpose here is semantic correctness of the normal project path, not a fake database transaction implemented with optimistic prose.
+
+** 17.7 Grounding means eventually reaching base evidence
+A tempting first implementation says:
+
+#+begin_quote
+A derived fact is supported if it has any justification whose support facts are currently present.
+#+end_quote
+
+That is wrong in the presence of cycles.
+
+Consider:
+
+#+begin_example
+seed -> A
+A    -> B
+B    -> A
+#+end_example
+
+Initially, =A= is grounded by =seed=, and =B= is grounded by =A=. The third rule adds another reason for =A= through =B=.
+
+Now retract =seed=.
+
+If “present support facts” were enough, =A= would point to =B= and =B= would point to =A=. Both would remain forever even though the only path to base evidence disappeared.
+
+The milestone-D predicate =truth-maintained-fact-grounded-p= therefore asks a stronger recursive question:
+
+#+begin_quote
+Does at least one current justification for this exact conclusion occurrence have every support occurrence current *and* every support fact itself grounded?
+#+end_quote
+
+Base evidence terminates the recursion successfully.
+
+A visiting set of exact conclusion occurrence stamps detects the current candidate path returning to itself. Re-entering an occurrence does not prove grounding; that path fails. Another independent justification may still succeed.
+
+Pseudocode:
+
+#+begin_src text
+GROUND(fact, visiting):
+    if fact occurrence is absent:
+        return false
+
+    if exact fact occurrence is base-supported:
+        return true
+
+    if exact fact occurrence is already in visiting:
+        return false
+
+    for each reason attached to this exact occurrence:
+        if every support occurrence is current
+           and every support fact is GROUND(support, visiting + fact):
+            return true
+
+    return false
+#+end_src
+
+This is deliberately a small grounding rule, not a general ATMS. Chapter 18 will deal with assumptions and contradictions as a separate semantic problem rather than hiding them inside this recursion.
+
+** 17.8 Cascading retraction follows dependency edges
+When base evidence disappears, we could scan every current derived fact and recompute grounding from scratch. For a tiny book fixture that would work, but it would throw away the dependency structure we just built.
+
+The first subtlety is that *removing base support is not necessarily a working-memory retraction*. If the requested occurrence also has a current derived reason, removing the base-support stamp changes only the support ledger. The working-memory occurrence stays current, so there is no removed occurrence to use as a dependency delta and no reason to disturb its downstream dependents.
+
+Only an occurrence that actually leaves working memory produces a dependency delta.
+
+The cascade algorithm is therefore:
+
+#+begin_example
+remove the requested occurrence's base-support stamp
+
+if the requested occurrence is still grounded through a current reason:
+    keep the working-memory occurrence
+    report "base support removed, occurrence retained"
+    stop
+
+otherwise:
+    remember the requested occurrence stamp
+    retract the requested occurrence through the incremental API
+    queue current conclusions whose reasons mention that removed stamp
+
+while queue is not empty:
+    candidate = pop queue
+
+    if candidate is still base-supported:
+        keep it
+    else if candidate is still grounded through another reason:
+        keep it
+    else:
+        remember candidate's exact occurrence stamp
+        retract candidate through the incremental API
+        queue current conclusions whose reasons mention the removed stamp
+#+end_example
+
+This distinction is why the retraction result does not use one vague =retracted-p= flag. It reports separately whether the base-support classification was removed and whether the requested working-memory occurrence was removed. Its removed-occurrence list likewise contains only occurrences that actually left working memory.
+
+Three details are easy to miss.
+
+First, a mixed-support fact can remain at the *same occurrence stamp* after its base support disappears. That is intentional. Nothing was retracted and reasserted; only one support source was removed. Current justifications attached to that occurrence therefore remain attached to exactly the object they justified.
+
+Second, dependency lookup must still be able to find a conclusion whose reason mentions a stamp that has *just* been removed. If lookup required the support stamp itself to remain current, the cascade would lose the very edge it needs to follow. We therefore require the *conclusion* occurrence to be current while treating the historical support stamp as the dependency key.
+
+Third, every actual working-memory retraction goes through =incremental-retract-fact=. Truth maintenance is not allowed to mutate working memory behind the matcher's back. The same removal that changes the support graph must also invalidate alpha/beta state.
+
+The result is a clean ownership chain:
+
+#+begin_example
+support layer removes one support source
+        |
+        +--> another grounded reason exists -> keep occurrence
+        |
+        v otherwise
+support layer decides current occurrence is unsupported
+        |
+        v
+incremental API retracts exact current fact occurrence
+        |
+        +--> working memory changes
+        +--> matching caches invalidate dependent tokens
+        |
+        v
+support layer follows historical dependency edges to next conclusions
+#+end_example
+
+** 17.9 Worked trace: the service diagnosis chain
+Return to the synthetic service scenario.
+
+The base evidence includes, among other facts:
+
+#+begin_example
+("obs.api.state.failed" . 1)
+("dep.frontend.api" . 4)
+("obs.frontend.state.degraded" . 5)
+#+end_example
+
+The first production derives =derived.dependency-impact.frontend.api=. Its justification records the exact support group:
+
+#+begin_example
+J-impact
+  production: rule.dependency-impact
+  supports:
+    ("obs.api.state.failed" . 1)
+    ("dep.frontend.api" . 4)
+  conclusion:
+    ("derived.dependency-impact.frontend.api" . 6)
+#+end_example
+
+The second production then derives =derived.needs-investigation.frontend= with a reason that includes the newly derived impact occurrence and the degraded frontend observation:
+
+#+begin_example
+J-investigate
+  production: rule.investigate-degraded-dependent
+  supports:
+    ("derived.dependency-impact.frontend.api" . 6)
+    ("obs.frontend.state.degraded" . 5)
+  conclusion:
+    ("derived.needs-investigation.frontend" . 7)
+#+end_example
+
+The exact numeric sequences above illustrate the fixture's assertion order; treat the executable tests as the authority for actual current implementation state rather than copying numbers into operational tooling.
+
+Now retract the base failure observation.
+
+The support graph changes in this order:
+
+1. =("obs.api.state.failed" . 1)= loses its base-support classification.
+2. It has no independent derived reason, so that working-memory occurrence is retracted.
+3. =J-impact= no longer has all of its exact supports.
+4. The impact conclusion has no other grounded reason, so occurrence 6 is retracted.
+5. That removed conclusion occurrence is itself a support of =J-investigate=.
+6. The investigation conclusion now has no grounded reason and is retracted.
+7. The incremental matcher invalidates cache state for each working-memory occurrence as those actual removals happen.
+
+This is the first point in the book where a retraction can correctly propagate *through conclusions that were already fired*, not merely through candidate matches.
+
+** 17.10 “Why?” starts here, but Chapter 20 owns the full explanation system
+Once justifications are first-class, several explanation questions become cheap enough to expose as typed queries:
+
+- Is this fact base, derived, or absent?
+- Is the current occurrence grounded?
+- Which current justification identities support it?
+- Which current conclusions depend directly on this occurrence?
+
+=truth-maintained-support-report= exposes the first three categories plus direct dependents. =truth-maintained-current-dependents= exposes the direct reverse edge.
+
+Those are *support facts*, not polished natural-language explanations.
+
+A full explanation system still needs policy about:
+
+- how to render rules and bindings for a reader;
+- how to distinguish source provenance from inference provenance;
+- how to present alternative reasons without flooding the reader;
+- how to answer “why not?” when a rule failed to match;
+- how to explain contradictions and counterevidence;
+- how to preserve explanations across KB versions and persisted inference sessions.
+
+Chapter 20 owns that larger design. This chapter gives it a stable dependency substrate instead of forcing it to reconstruct reasons from logs after the fact.
+
+** 17.11 Failure lab: same ID, different meaning
+Stable identity is useful only if the engine defends it.
+
+Seed this base fact:
+
+#+begin_src lisp
+(make-fact :id "obs.api.state"
+           :relation 'service-state
+           :arguments '(api failed))
+#+end_src
+
+Now write a bad production whose action proposes:
+
+#+begin_src lisp
+(make-fact :id "obs.api.state"
+           :relation 'port-open
+           :arguments '(api 443))
+#+end_src
+
+This is not “another justification.” It is a collision between two different logical records.
+
+The truth-maintained firing path signals =fact-id-content-conflict= before normal engine mutation. The regression for this case snapshots working-memory IDs, refraction keys, firing records, justification state, and incremental cache state before the attempt and requires them to remain unchanged afterward.
+
+The debugging lesson is broader than this one structure:
+
+#+begin_quote
+Alternative provenance is compatible with one logical identity. Alternative meaning is not.
+#+end_quote
+
+Later persistence projects will need the same discipline when IDs cross process and database boundaries.
+
+** 17.12 Failure lab: the orphaned cycle
+Build three rules:
+
+#+begin_example
+seed(on) -> node(a)
+node(a)  -> node(b)
+node(b)  -> node(a)
+#+end_example
+
+Run to quiescence while =seed(on)= is base-supported. =node(a)= can have two reasons: one from =seed= and one through =node(b)=.
+
+Retract =seed=.
+
+A shallow “does any reason mention present facts?” checker will keep =a= because =b= exists and keep =b= because =a= exists. The graph has become an unsupported island.
+
+The grounding predicate must instead reject the cyclic-only path. Once =a= is found ungrounded, its removal makes =b= ungrounded as well, and the cascade removes both.
+
+When debugging a future larger KB, an unexplained island of mutually supporting derived facts is a strong signal that grounding semantics were reduced to presence checks.
+
+** 17.13 What milestone D deliberately does not solve
+A bounded project is easier to trust than a chapter that quietly imports five research areas.
+
+Milestone D does not implement:
+
+- an assumption-based truth-maintenance system;
+- an ATMS with environments or labels;
+- contradiction selection or preference policy;
+- confidence combination, certainty factors, probabilities, or fuzzy membership;
+- negative, existential, or universal conditional elements;
+- TREAT;
+- durable justification persistence;
+- concurrent truth-maintenance transactions;
+- external side-effect rollback;
+- performance or scaling guarantees.
+
+The next semantic dependency is contradiction/assumption policy in Chapter 18. Explanation can then build on both support identity and contradiction identity rather than retrofitting them later.
+
+** 17.14 Exercises
+*** ★ Separate the two graphs
+For the service fixture after both rules have fired, draw:
+
+1. the incremental match graph needed to determine current activations;
+2. the justification graph needed to determine whether the two derived facts stay in working memory.
+
+Mark one piece of information that appears in both and one that belongs only to each graph.
+
+*** ★ Exact occurrence reasoning
+A base fact =sensor.temp= is asserted at sequence 10, supports a conclusion, is retracted, and is reasserted at sequence 14 under the same stable ID. Explain why the old justification cannot become current again. What would go wrong if support identity stored only the fact ID?
+
+*** ★★ Add an alternative reason
+Extend the synthetic service rules so =needs-investigation(frontend)= can also be justified by a distinct current observation. Retract the original API-failure chain. The conclusion should survive through the independent reason and should not create a duplicate working-memory occurrence.
+
+*** ★★ Remove only one support mode
+Start with base-supported =X= and base-supported =Y=. Add a rule =Y -> X= that proposes exactly the same stable ID, relation, and arguments as the existing =X=. Then add a downstream rule =X -> Z=. Remove only =X='s base support while =Y= remains. Explain why =X= keeps the same occurrence stamp and why =Z= must remain untouched. Finally remove =Y= and predict the cascade before running it.
+
+*** ★★ Inspect dependency direction
+Implement a helper that prints, for one current fact occurrence:
+
+- its current reasons;
+- its direct current dependents;
+- whether it is base-supported;
+- whether it is grounded.
+
+Do not recursively print the whole graph yet. Why is a bounded one-hop view useful during debugging?
+
+*** ★★★ Break grounding on purpose
+Replace the recursive grounding predicate with a shallow check that every support occurrence is merely present. Run the orphaned-cycle scenario. Write down the incorrect survivors, restore recursive grounding, and turn the difference into a regression.
+
+*** ★★★ Design a persistence key
+The later CouchDB/PostgreSQL projects must store justification identity durably. Propose a representation that preserves production identity, activation identity, conclusion occurrence, and support occurrences without depending on Common Lisp's printed object syntax. Identify which fields need indexes for “Why?” and “What depends on this?” queries.
+
+* Project Lab D.1 -- Break the Support Graph on Purpose
+:PROPERTIES:
+:ID:       e6cd74c1-e8ef-4f96-9ffe-7ad2c3c90d2c
+:END:
+
+The point of this lab is not to get a green run once. It is to learn which invariant failed when truth maintenance disagrees with your intended knowledge state.
+
+** Lab setup
+Construct the accepted service engine, wrap it before any firing, and run it through the truth-maintained entry point:
+
+#+begin_src lisp
+(let* ((engine
+         (make-engine
+          :facts *service-diagnosis-facts*
+          :productions (make-service-diagnosis-productions)))
+       (truth (make-truth-maintained-network engine)))
+  (truth-maintained-run-engine truth :firing-limit 10)
+  ...)
+#+end_src
+
+Do not record an expected REPL transcript from this page. Run the code in your current checkout and treat the executable tests as the authority.
+
+** Lab A -- Remove the root observation
+Inspect the support report for:
+
+#+begin_example
+derived.dependency-impact.frontend.api
+derived.needs-investigation.frontend
+#+end_example
+
+Then call:
+
+#+begin_src lisp
+(truth-maintained-retract-base-fact
+ truth
+ "obs.api.state.failed")
+#+end_src
+
+Check three independent layers:
+
+1. Both unsupported conclusions should be absent from working memory.
+2. =incremental-cache-references-current-p= should remain true for the matcher index.
+3. Historical firing records and justification records should still exist for audit/debugging, but their stale occurrence stamps must not ground any current conclusion.
+
+If layer 1 fails while layer 2 passes, you have rediscovered the exact boundary that motivated this chapter.
+
+** Lab B -- Give one conclusion two reasons
+Create two one-condition productions that both propose the same stable conclusion ID with the same relation and arguments, each supported by a different base fact.
+
+Run both activations. Verify conceptually that:
+
+- working memory contains one conclusion occurrence;
+- the support ledger contains two distinct current reasons;
+- retracting the first base fact leaves the conclusion grounded;
+- retracting the second removes the conclusion.
+
+Now change the second production so it reuses the same ID for different relation/arguments. The firing must fail before normal state mutation. This is an identity bug, not a truth-maintenance alternative.
+
+** Lab C -- Manufacture an unsupported cycle
+Use the =seed -> A -> B -> A= scenario from the chapter.
+
+Before removing =seed=, ask whether =A= and =B= are grounded. Then remove =seed= and inspect the cascade report.
+
+If a modified implementation leaves either conclusion present, inspect the grounding recursion before touching the incremental matcher. A cycle is a support-semantics problem unless your cache and working memory already disagree independently.
+
+** Lab D -- Reuse a stable ID across occurrences
+Derive a conclusion from =seed @ 1=. Retract the base fact so the conclusion cascades away. Reassert the same base object; its new occurrence sequence must differ. Before allowing a new firing, inspect the old justification and verify that its support stamp is stale.
+
+Then run forward chaining again. The newly derived conclusion must have a new conclusion occurrence and a fresh reason referring to the new seed occurrence. Historical reasons may remain inspectable, but they may not support the new materialization.
+
+** Lab E -- Remove base support without removing the occurrence
+Seed =X= and =Y= as base facts. Add =Y -> X= using the same stable ID and logical content already held by =X=, plus =X -> Z= as a downstream dependency. Run to quiescence so =X= has both base support and a derived reason and =Z= depends on the exact current =X= occurrence.
+
+Now remove =X='s base support. Inspect the retraction report rather than assuming the word “retract” means one thing:
+
+- base support should report as removed;
+- the requested working-memory occurrence should report as retained;
+- no working-memory occurrence stamp should appear in the removed-occurrence list;
+- =X= should now report =:derived=, non-base, and grounded;
+- =X='s occurrence stamp should be unchanged;
+- =Z= should remain current because its exact support occurrence never disappeared.
+
+Then remove =Y=. The derived reason for =X= loses its final path to base evidence, so =X= must now be retracted and the loss of that exact occurrence must cascade to =Z=.
+
+This lab is a useful check against an easy but incorrect shortcut: “remove base support” and “remove the fact” are not synonyms once a fact can have mixed support.
+
+** Debugging checklist
+When a derived fact looks wrong, classify the failure in this order:
+
+1. *Working-memory identity*: Is the expected stable ID present, and is its occurrence the one you think it is?
+2. *Matcher index*: Do complete-rematch and incremental agendas agree for current evidence?
+3. *Support occurrence*: Do the reason's exact support stamps still resolve to current occurrences?
+4. *Conclusion occurrence*: Is the reason attached to this exact current materialization rather than an older same-ID occurrence?
+5. *Support mode*: Did a base-support stamp disappear while another derived grounding path still keeps the same occurrence current?
+6. *Grounding*: Does at least one reason ultimately reach base evidence without relying on a support cycle?
+7. *Cascade*: Was an ungrounded dependent queued only after its support occurrence actually disappeared?
+8. *Identity collision*: Did a rule try to reuse one stable fact ID for different logical content?
+
+Only after these invariants agree should you investigate later contradiction policy or explanation rendering.
+
+** Lab extensions
+*** ★ Add a three-level chain
+Extend the service fixture with one more derived conclusion downstream of =needs-investigation=. Retract the root observation and verify the cascade order remains deterministic and complete.
+
+*** ★★ Add a base-supported derived-looking fact
+Start the wrapper with a fact whose provenance says =:derived= but which was loaded as current input. What status does the support layer assign it? Explain why support classification follows the wrapper's explicit base boundary rather than trusting an arbitrary provenance keyword.
+
+*** ★★★ Add a diagnostic path
+Write a bounded function that returns one grounding path from a derived conclusion to base evidence as justification IDs plus occurrence stamps. Keep it separate from the Boolean grounding predicate. What additional decisions would Chapter 20 need before that path becomes a reader-facing explanation?

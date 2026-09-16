@@ -162,3 +162,40 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Used for :: Chapter 13 callback contracts, dependency-start distinction, and debugging/inspection material.
 - Result :: =start/2= callback returns the top-supervisor PID (and optional state); =stop/1= performs post-tree cleanup. =load= stores application specification without loading object code. =ensure_all_started= can traverse/start dependencies, while ordinary =start= requires declared prerequisites to be running.
 - Claim status :: DOCUMENTED + EXECUTION VERIFIED for Project 2 load/start/ownership/stop/restart behavior at implementation head =03a441a5717a7cfab430bd334f655daba05bd4de=; focused run =35129230500= used strict OTP 29.1 / BEAM 17.1 and passed all bounded tests.
+
+* Inspected 2026-09-16 -- release pass 05
+** Releases -- OTP Design Principles at tag =OTP-29.1=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.1/system/doc/design_principles/release_structure.md
+- Authority :: Official Erlang/OTP source repository, immutable tag.
+- Retrieved :: 2026-09-16.
+- Relevant sections :: Release Concept; Release Resource File; Generating Boot Scripts; Creating a Release Package; Directory Structure.
+- Used for :: Chapter 14 release/application boundary, generated boot artifacts, package contents, and target layout.
+- Result :: A release composes one or more applications with the required subset of OTP applications. A =.rel= names exact ERTS/application versions; Kernel and STDLIB are mandatory. =systools:make_script/1,2= generates =.script= and =.boot=. =local= is useful for local boot-script testing. =make_tar= builds a release package with application resources/object code, release resources, and =start.boot=; SASL is required for release upgrade support.
+- Claim status :: DOCUMENTED. Repository execution evidence is separate and initially UNTESTED.
+
+** =rel= release-resource reference at tag =OTP-29.1=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.1/lib/sasl/doc/references/rel.md
+- Authority :: Official Erlang/OTP source repository, immutable tag.
+- Retrieved :: 2026-09-16.
+- Relevant sections :: Description; File Syntax; application start types; included applications.
+- Used for :: Chapter 14 exact release syntax, Kernel/STDLIB requirement, and start-type boundary.
+- Result :: =Name.rel= contains one release specification with release identity, ERTS version, exact application versions, optional start types/included-app overrides, and mandatory Kernel/STDLIB membership.
+- Claim status :: DOCUMENTED.
+
+** =systools= source documentation at tag =OTP-29.1=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.1/lib/sasl/src/systools.erl
+- Authority :: Official Erlang/OTP source repository, immutable tag.
+- Retrieved :: 2026-09-16.
+- Relevant sections :: module documentation; =make_script/1,2=; =make_tar/1,2=; =script2boot/1=.
+- Used for :: Chapter 14 executable lab design and construction-failure assertions.
+- Result :: =make_script= checks release/application version agreement, undefined and circular dependencies, duplicate modules, mandatory Kernel/STDLIB, and can treat warnings as errors. =local= preserves discovered application paths; default generated application paths are release-relative. =make_tar= repeats construction checks and packages release/application artifacts.
+- Claim status :: DOCUMENTED; no test result is claimed until CI observes the new lab.
+
+** Creating and Upgrading a Target System at tag =OTP-29.1=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.1/system/doc/system_principles/create_target.md
+- Authority :: Official Erlang/OTP source repository, immutable tag.
+- Retrieved :: 2026-09-16.
+- Relevant sections :: Creating a Target System; Installing a Target System; Starting a Target System.
+- Used for :: Chapter 14 terminology and the boundary between a release package and an installed/operated target system.
+- Result :: OTP distinguishes ordinary development installs from tailored target systems and documents =lib/=, =releases/=, runtime/bin, and boot-file roles. The same document covers upgrades, but Chapter 14 does not use those upgrade procedures.
+- Claim status :: DOCUMENTED for target-system concepts only; cross-host installation remains UNTESTED in this book slice.

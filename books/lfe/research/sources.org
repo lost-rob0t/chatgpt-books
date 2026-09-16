@@ -39,6 +39,12 @@ Authority: official tagged LFE implementation.
 Relevant material: recurring pattern variables, function-clause matching/guards/recursion, direct Erlang calls, spawn/send/receive and recursive process loop, exported =defmacro= examples, cross-module macro expansion tests, and compiler =-pa= / =-o= mechanics.
 Affects: Chapters 1--10 and Projects 1--2.
 
+** LFE v2.2.2 gen_server example
+URL: https://github.com/lfe/lfe/blob/v2.2.2/examples/ping-pong.lfe
+Authority: official tagged LFE implementation/example.
+Relevant material: =(behaviour gen_server)= declaration, direct =gen_server:start_link=/=call=/=stop= use, and ordinary =init=/=handle_call=/=handle_cast=/=handle_info=/=terminate=/=code_change= callbacks.
+Affects: Chapter 11 and Project 3.
+
 ** Erlang System Documentation -- data types
 URL: https://www.erlang.org/doc/system/data_types.html
 Authority: official Erlang/OTP documentation.
@@ -68,3 +74,24 @@ Authority: official Erlang/OTP documentation.
 Version inspected: v29.0.6 documentation line.
 Relevant material: selective receive and message-queue searching behavior.
 Affects: Chapter 10 and Project 2. Used qualitatively only; this book slice makes no mailbox performance benchmark claim.
+
+** Erlang/OTP gen_server behaviour
+URL: https://www.erlang.org/doc/apps/stdlib/gen_server.html
+Authority: official Erlang/OTP STDLIB documentation.
+Version inspected: OTP 29.0.6 / STDLIB 8.0.4.
+Relevant material: generic-server/callback split, start_link, call/cast, callback failure, system messages and =sys= debugging, timeout behavior, post-OTP-24 late-reply handling.
+Affects: Chapter 11 and Project 3.
+
+** Erlang/OTP supervisor behaviour
+URL: https://www.erlang.org/doc/apps/stdlib/supervisor.html
+Authority: official Erlang/OTP STDLIB documentation.
+Version inspected: OTP 29.0.6 / STDLIB 8.0.4.
+Relevant material: supervisor responsibility, supervisor flags, child-spec maps, =one_for_one=, permanent children, restart intensity/period, shutdown escalation, child start-link contract, and the fact that =supervisor:stop/1,3= are documented as introduced in OTP 29.0.
+Affects: Chapter 12 and Project 3, including the explicit OTP-29-documentation versus OTP-25-runner shutdown compatibility boundary.
+
+** Erlang/OTP supervision design principles
+URL: https://www.erlang.org/doc/system/sup_princ.html
+Authority: official Erlang/OTP System Documentation.
+Version inspected: v29.0.6.
+Relevant material: supervision principles, restart strategy definitions, map-based example.
+Affects: Chapter 12 and Project 3.
