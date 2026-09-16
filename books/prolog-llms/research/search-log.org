@@ -80,14 +80,37 @@ Result:
 - DOCUMENTED: =phrase/2= is the complete-input case of =phrase/3= with an empty remainder; =phrase/3= exposes unconsumed input.
 - DOCUMENTED, SWI-SPECIFIC: =phrase/3= checks list-shaped state and SWI provides =call_dcg/3= for arbitrary state; SWI's post-version-7 string values are not direct list arguments to =phrase/3=.
 - DOCUMENTED premise / repository-local safety conclusion: ={Goal}= executes ordinary Prolog, so a DCG is not an authorization boundary. The milestone parser therefore emits only a closed data vocabulary and a separate explicit dispatcher maps those terms to allowlisted relations.
-- UNTESTED pending branch CI: new =task_language.pl= parsing/dispatch and its PL-Unit regressions.
+- TESTED by merged milestone C / PR #61: the closed parser/dispatcher suite and retained Project 1 regressions passed the recorded exact-head gates before merge. Exact run evidence remains in PR #61 and STATUS history.
 
 Detailed evidence and teaching decisions: [[file:dcg-task-language.org][dcg-task-language.org]].
 
-Downstream: Chapter 6 and Project 1 milestone C. CLP(FD), general meta-programming, and model/provider behavior remain out of scope.
+Downstream: Chapter 6 and Project 1 milestone C. CLP(FD), general meta-programming, and model/provider behavior remained out of scope for that slice.
+
+* 2026-09-16 -- CLP(FD) scheduling and reification
+Questions:
+- how does current SWI distinguish finite-domain constraints from enumeration/search;
+- what semantics do =ins/2=, =labeling/2=, =ffc=, and =min(Expr)= expose for a small scheduling worksheet;
+- how can a single shared resource be derived as an explicit either-order non-overlap relation;
+- what does current SWI mean by reification and =#<==>/2=;
+- what historical claims can be taken from the primary SWI CLP(FD) solver paper without borrowing performance results?
+
+Sources inspected:
+- current official SWI-Prolog =library(clpfd)= manual at =https://www.swi-prolog.org/man/clpfd.html=;
+- Markus Triska, =The Finite Domain Constraint Solver of SWI-Prolog=, FLOPS 2012, primary PDF at =https://www.metalevel.at/swiclpfd.pdf=; bibliographic metadata cross-checked against the citation recommended by the current SWI manual.
+
+Result:
+- DOCUMENTED: =in/2= and =ins/2= constrain domains while =labeling/2= is an explicit enumeration/search operation; the manual recommends keeping the core constraint relation separate from labeling policy.
+- DOCUMENTED, SWI-SPECIFIC: =ffc= is a labeling variable-selection strategy and =min(Expr)= orders generated solutions by increasing objective value. The manual notes =once/1= as an explicit way to keep only the first optimal solution while alternatives may still be useful.
+- DOCUMENTED: reification reflects supported constraint truth values into finite-domain Boolean values 0/1, including equivalence through =#<==>/2=.
+- DOCUMENTED from the primary 2012 paper: the presented solver treats scheduling/planning/allocation as canonical CLP(FD) use cases and discusses terminating propagation, large integer domains, and a DSL for reification.
+- UPSTREAM-REPORTED: historical solver performance observations in the paper; this book did not reproduce them.
+- UNTESTED pending branch CI: the Project 1 scheduling module, exact minimum makespan, non-overlap rejection, reverse-order feasible schedule, reified deadline cases, and publication/Nix gates.
+
+Detailed evidence and teaching decisions: [[file:clpfd-scheduling.org][clpfd-scheduling.org]].
+
+Downstream: Chapter 6 Project 1 constraint lab / milestone D. General meta-programming and model/provider behavior remain out of scope.
 
 * Next research sessions
-- CLP(FD) propagation, labeling/search, reification, and a genuine Project 1 scheduling subproblem.
 - Safe meta-programming/meta-call/reflection boundaries after the parser and constraint baseline.
 - Current structured-output and tool-call documentation for any provider used in runnable examples.
 - Primary neuro-symbolic systems beyond RLM and evaluation methodology for verifier-assisted/recursive systems.
