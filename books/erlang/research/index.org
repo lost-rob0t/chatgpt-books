@@ -34,7 +34,7 @@ This pass supports Chapters 7--9 and Project 1 checkpoint B. The contract taught
 Execution evidence for the final reviewed checkpoint-B head is recorded in =STATUS.org= and the merged PR #40 discussion. No performance benchmark is inferred from these semantics.
 
 ** OTP pass 03 -- behaviours, =gen_server= calls, and supervisor policy
-Status: DOCUMENTED + EXECUTION VERIFIED for Project 2 checkpoint A implementation; editorial review remains pending.
+Status: DOCUMENTED + EXECUTION VERIFIED for Project 2 checkpoint A implementation; bounded Chapters 10--12 content is editorially APPROVED, with current-main objective gates tracked separately in =STATUS.org=.
 
 Primary-source scope: official Erlang/OTP =OTP-29.0.6= tagged source documentation for OTP Design Principles, =gen_server=, and =supervisor=, plus official 29.0.6 release metadata. See [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
 
