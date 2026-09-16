@@ -3,14 +3,22 @@
 :ID:       810b5809-da3a-57bd-9b33-8776012c7c45
 :END:
 * Phase
-Bootstrap curriculum and architecture.
+Foundational research + first Progressive Inference Engine implementation slice.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
+- Foundation research record added for production-system semantics, literal matching, variables/bindings, multi-condition joins, and the technical-diagnosis fixture boundary.
+- Chapters 1--7 drafted around Project 1 milestone A.
+- Project 1 milestone A source/tests added: stable provenance-bearing facts, literal matching, variable consistency, deterministic naive joins, and support fact identities.
+- Editable matcher/join Graphviz diagram added with an accessible manuscript caption/alt description.
 * Active research
-Foundational primary-source research has not yet been declared complete.
+Foundational research remains IN-PROGRESS. Next dependency slice must research/freeze working-memory mutation, production identity, forward chaining, agenda/conflict resolution, and refraction before incremental alpha/beta/RETE implementation.
+* Verified claims
+Verification status is recorded against exact branch/CI evidence; prose does not promote later mechanisms to implemented status.
 * Unverified claims
-All version-sensitive implementation details remain RESEARCH/UNTESTED until the relevant issue verifies them.
+- No RETE performance benchmark has been run or claimed.
+- Working-memory mutation, agenda/refraction, incremental network, truth maintenance, uncertainty/counterevidence, workbench, persistence, and production deployment remain future work.
+- The synthetic service fixture is not evidence from a real host.
 * Technical/editorial/visual review
-Not started.
+Not started beyond executable milestone checks and the first editable execution diagram.
 * Blockers
-Dependency-aware backlog must be executed before chapter prose is promoted to DONE.
+No book-internal design blocker for the next dependency slice. Repository-wide structural validation may remain independently affected by the pre-existing book-set mismatch and must not be weakened from this book branch.
