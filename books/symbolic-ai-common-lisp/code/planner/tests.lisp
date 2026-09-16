@@ -333,6 +333,20 @@
     (signals ambiguous-plan-step
       (explain-plan-result schemas result))))
 
+(deftest plan-explanation-refuses-stale-or-mismatched-domain
+  (let* ((schemas (warehouse-schemas))
+         (result
+           (solve-plan (warehouse-initial-state)
+                       (warehouse-goals)
+                       schemas
+                       :algorithm :breadth-first)))
+    (is (eq :found (symbolic-ai.search:search-result-status result)))
+    ;; Removing PICKUP makes the first recorded transition impossible under the
+    ;; replay domain.  Explanation must reject the stale/domain-mismatched trace
+    ;; instead of narrating the remaining labels as if provenance still held.
+    (signals invalid-plan-trace
+      (explain-plan-result (rest schemas) result))))
+
 (defun run-tests ()
   (let ((passed 0)
         (failed 0))
