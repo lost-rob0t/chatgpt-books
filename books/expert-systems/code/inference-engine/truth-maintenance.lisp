@@ -41,12 +41,19 @@ ledger, not a database key contract."
   current-dependent-fact-ids)
 
 (defstruct retraction-report
-  "Result of retracting one current base fact and cascading lost support."
+  "Result of removing base support and, when needed, cascading lost grounding.
+
+BASE-SUPPORT-REMOVED-P reports only the support-classification change.
+REQUESTED-OCCURRENCE-REMOVED-P reports whether the requested working-memory
+occurrence itself was retracted. REMOVED-OCCURRENCE-STAMPS contains only exact
+working-memory occurrences actually removed, so a base occurrence retained by
+an independent derived reason is not misreported as retracted."
   requested-fact-id
-  retracted-p
+  base-support-removed-p
+  requested-occurrence-removed-p
   requested-stamp
   cascaded-fact-ids
-  removed-stamps)
+  removed-occurrence-stamps)
 
 (defstruct (truth-maintained-network
             (:constructor %make-truth-maintained-network))
@@ -293,9 +300,11 @@ cycle without another path to base evidence cannot ground itself."
   "Fire ACTIVATION while recording justifications for every proposed conclusion.
 
 Same-ID/same-content conclusions already in working memory gain another reason
-without another working-memory occurrence. Validation happens before normal
-state mutation. As in milestone C, no transactional rollback is claimed for an
-unexpected host failure during post-commit incremental propagation."
+without another working-memory occurrence. This includes a base-supported
+occurrence: base support and derived reasons are independent support sources.
+Validation happens before normal state mutation. As in milestone C, no
+transactional rollback is claimed for an unexpected host failure during
+post-commit incremental propagation."
   (let* ((network (truth-maintained-network-incremental-network truth-network))
          (engine (truth-maintained-engine truth-network))
          (production (activation-production activation))
@@ -355,22 +364,26 @@ unexpected host failure during post-commit incremental propagation."
       (setf queue (append queue (list item))))))
 
 (defun truth-maintained-retract-base-fact (truth-network fact-id)
-  "Retract current base FACT-ID and cascade facts that lose all grounded support.
+  "Remove FACT-ID's current base support and cascade only if grounding is lost.
 
-The cascade is dependency-directed but intentionally simple: direct dependents
-of each removed exact occurrence are queued; each candidate is rechecked by the
-grounded-support predicate before removal. Historical justifications and firing
-records are retained for later explanation work."
+Base support is one independent support source. Removing its exact stamp does
+not automatically retract the working-memory occurrence: if a current derived
+justification still grounds that same occurrence, it remains current and only
+its base classification changes. If no grounded reason remains, the occurrence
+is retracted through the incremental API and its exact stamp drives the usual
+dependency-directed cascade. Historical justifications and firing records are
+retained for later explanation work."
   (let* ((network (truth-maintained-network-incremental-network truth-network))
          (stamp (current-stamp-for-fact-id truth-network fact-id)))
     (cond
       ((null stamp)
        (make-retraction-report
         :requested-fact-id fact-id
-        :retracted-p nil
+        :base-support-removed-p nil
+        :requested-occurrence-removed-p nil
         :requested-stamp nil
         :cascaded-fact-ids '()
-        :removed-stamps '()))
+        :removed-occurrence-stamps '()))
       ((not (member stamp
                     (truth-maintained-network-base-support-stamps truth-network)
                     :test #'equal))
@@ -380,41 +393,57 @@ records are retained for later explanation work."
              (remove stamp
                      (truth-maintained-network-base-support-stamps truth-network)
                      :test #'equal :count 1))
-       (multiple-value-bind (fact present-p)
-           (incremental-retract-fact network fact-id)
-         (declare (ignore fact))
-         (unless present-p
-           (error "Truth-maintenance base stamp ~S had no current fact." stamp)))
-       (let ((removed-stamps (list stamp))
-             (cascaded '())
-             (queue (current-dependent-fact-ids-for-stamp truth-network stamp)))
-         (loop while queue
-               for candidate = (pop queue)
-               do (let ((candidate-stamp
-                          (current-stamp-for-fact-id truth-network candidate)))
-                    (when (and candidate-stamp
-                               (not (truth-maintained-base-supported-p
-                                     truth-network candidate))
-                               (not (truth-maintained-fact-grounded-p
-                                     truth-network candidate)))
-                      (multiple-value-bind (removed removed-p)
-                          (incremental-retract-fact network candidate)
-                        (declare (ignore removed))
-                        (when removed-p
-                          (setf cascaded (append cascaded (list candidate))
-                                removed-stamps
-                                (append removed-stamps (list candidate-stamp))
-                                queue
-                                (enqueue-new
-                                 (current-dependent-fact-ids-for-stamp
-                                  truth-network candidate-stamp)
-                                 queue)))))))
-         (make-retraction-report
-          :requested-fact-id fact-id
-          :retracted-p t
-          :requested-stamp (copy-tree stamp)
-          :cascaded-fact-ids cascaded
-          :removed-stamps removed-stamps))))))
+       ;; Removing the base-support classification is not itself a working-memory
+       ;; delta. A same-occurrence derived reason may still ground this fact.
+       (if (truth-maintained-fact-grounded-p truth-network fact-id)
+           (make-retraction-report
+            :requested-fact-id fact-id
+            :base-support-removed-p t
+            :requested-occurrence-removed-p nil
+            :requested-stamp (copy-tree stamp)
+            :cascaded-fact-ids '()
+            :removed-occurrence-stamps '())
+           (progn
+             (multiple-value-bind (fact present-p)
+                 (incremental-retract-fact network fact-id)
+               (declare (ignore fact))
+               (unless present-p
+                 (error "Truth-maintenance base stamp ~S had no current fact."
+                        stamp)))
+             (let ((removed-stamps (list stamp))
+                   (cascaded '())
+                   (queue
+                     (current-dependent-fact-ids-for-stamp truth-network stamp)))
+               (loop while queue
+                     for candidate = (pop queue)
+                     do (let ((candidate-stamp
+                                (current-stamp-for-fact-id truth-network candidate)))
+                          (when (and candidate-stamp
+                                     (not (truth-maintained-base-supported-p
+                                           truth-network candidate))
+                                     (not (truth-maintained-fact-grounded-p
+                                           truth-network candidate)))
+                            (multiple-value-bind (removed removed-p)
+                                (incremental-retract-fact network candidate)
+                              (declare (ignore removed))
+                              (when removed-p
+                                (setf cascaded
+                                      (append cascaded (list candidate))
+                                      removed-stamps
+                                      (append removed-stamps
+                                              (list candidate-stamp))
+                                      queue
+                                      (enqueue-new
+                                       (current-dependent-fact-ids-for-stamp
+                                        truth-network candidate-stamp)
+                                       queue)))))))
+               (make-retraction-report
+                :requested-fact-id fact-id
+                :base-support-removed-p t
+                :requested-occurrence-removed-p t
+                :requested-stamp (copy-tree stamp)
+                :cascaded-fact-ids cascaded
+                :removed-occurrence-stamps removed-stamps))))))))
 
 (defun truth-maintained-network-snapshot (truth-network)
   "Return deterministic support/cache state for tests and debugging labs."
