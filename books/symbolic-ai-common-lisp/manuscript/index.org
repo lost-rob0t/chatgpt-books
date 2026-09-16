@@ -13,7 +13,7 @@ Symbolic AI becomes interesting when a program can *name a state, transform it, 
 
 This book will build those mechanisms explicitly in Common Lisp before introducing larger planners, rule systems, knowledge representations, and meta-level tools.  The point is not to memorize four search functions.  The point is to acquire a vocabulary of symbolic machinery that later systems can reuse.
 
-The first evolving project is the [[file:../PROJECTS.org::*Project 1 -- Search Library][Search Library]].  Its implementation lives in =../code/search/=.  We start deliberately small: no framework dependency, no opaque priority-queue package, and no hidden global state.  The implementation is ordinary ANSI Common Lisp so that the reader can inspect every state transition and later replace individual pieces.
+The first evolving project is the *Search Library* described in the book's Project 1 map.  Its implementation lives in =../code/search/=.  We start deliberately small: no framework dependency, no opaque priority-queue package, and no hidden global state.  The implementation is ordinary ANSI Common Lisp so that the reader can inspect every state transition and later replace individual pieces.
 
 ** 1. Symbolic state is a contract, not merely a list
 :PROPERTIES:
@@ -269,6 +269,6 @@ Search is a dependency, not the destination.  The next slices will reuse these m
 - explanation will turn parent links and justifications into inspectable derivations;
 - the capstone will combine deterministic symbolic mechanisms with a tightly controlled external interface rather than letting an LLM silently become the reasoner.
 
-Two neighboring books own deeper treatments that this one should not flatten into duplicate chapters.  [[file:../../expert-systems/README.org][Expert System Design and Implementation]] owns production-grade rule-engine architecture, RETE-like incremental matching, persistence, and knowledge engineering.  [[file:../../symbolic-ai-prolog/README.org][Symbolic AI in Prolog]] owns relational programming, native Prolog search/backtracking, and meta-interpreters.  Here we will implement enough rule and logic machinery in Common Lisp to understand the mechanisms, then cross-link when the specialized books go deeper.
+Two neighboring books own deeper treatments that this one should not flatten into duplicate chapters.  [[https://github.com/lost-rob0t/chatgpt-books/blob/main/books/expert-systems/README.org][Expert System Design and Implementation]] owns production-grade rule-engine architecture, RETE-like incremental matching, persistence, and knowledge engineering.  [[https://github.com/lost-rob0t/chatgpt-books/blob/main/books/symbolic-ai-prolog/README.org][Symbolic AI in Prolog]] owns relational programming, native Prolog search/backtracking, and meta-interpreters.  Here we will implement enough rule and logic machinery in Common Lisp to understand the mechanisms, then cross-link when the specialized books go deeper.
 
 The Search Library itself is still an evolving project.  Passing this slice means only that the first reusable graph-search core, tests, research record, and teaching explanation agree.  It does not make the book—or even Project 1—finished.
