@@ -57,13 +57,37 @@ Result:
 - DOCUMENTED: =module/2= plus =use_module/[1,2]= provides explicit namespace/public-interface composition, not a security sandbox.
 - DOCUMENTED: the debugger exposes call/exit/redo/fail as the core beginner trace vocabulary; SWI also has additional ports. Debug mode changes optimization/choice-point retention, so traces are not performance measurements.
 - DOCUMENTED: PL-Unit accepts =all(...)=, =set(...)=, =nondet=, =fail=, =throws(...)=, and timeout options. When answers are the contract, this book prefers =all= or =set= over merely marking a test =nondet=.
-- UNTESTED pending branch CI: the new =ready_task/2= enumeration, =first_ready_task/2= first-answer boundary, and =task_report= consumer-module regressions.
+- TESTED by merged milestone B: =ready_task/2= enumeration, =first_ready_task/2= first-answer commitment, and =task_report= public-API composition were exercised by the accepted Project 1 suite. Exact accepted runs remain in PR #49 and STATUS history.
 
 Detailed evidence and teaching decisions: [[file:control-modules-debugging.org][control-modules-debugging.org]].
 
-Downstream: Chapters 4--5 and Project 1 milestone B. No model/provider behavior is introduced.
+Downstream: Chapters 4--5 and Project 1 milestone B. No model/provider behavior was introduced.
+
+* 2026-09-16 -- DCG task-command boundary
+Questions:
+- how does current SWI document DCG expansion and the relationship to difference lists;
+- what exact contract distinguishes =phrase/2= from =phrase/3=;
+- what input/remainder type checking is SWI-specific;
+- how should the course separate atom-token parsing from strings/code lists;
+- why does DCG notation not itself provide a permission/security boundary?
+
+Sources inspected:
+- current official SWI-Prolog =DCG Grammar rules= manual section;
+- current official =library(dcg)= / =library(dcg/basics)= documentation index.
+
+Result:
+- DOCUMENTED: =-->/2= grammar rules expand with two list-state arguments; terminals, nonterminals, and ={Goal}= escapes have distinct roles.
+- DOCUMENTED: =phrase/2= is the complete-input case of =phrase/3= with an empty remainder; =phrase/3= exposes unconsumed input.
+- DOCUMENTED, SWI-SPECIFIC: =phrase/3= checks list-shaped state and SWI provides =call_dcg/3= for arbitrary state; SWI's post-version-7 string values are not direct list arguments to =phrase/3=.
+- DOCUMENTED premise / repository-local safety conclusion: ={Goal}= executes ordinary Prolog, so a DCG is not an authorization boundary. The milestone parser therefore emits only a closed data vocabulary and a separate explicit dispatcher maps those terms to allowlisted relations.
+- UNTESTED pending branch CI: new =task_language.pl= parsing/dispatch and its PL-Unit regressions.
+
+Detailed evidence and teaching decisions: [[file:dcg-task-language.org][dcg-task-language.org]].
+
+Downstream: Chapter 6 and Project 1 milestone C. CLP(FD), general meta-programming, and model/provider behavior remain out of scope.
 
 * Next research sessions
-- DCG, CLP(FD), and safe meta-programming semantics for Chapter 6.
+- CLP(FD) propagation, labeling/search, reification, and a genuine Project 1 scheduling subproblem.
+- Safe meta-programming/meta-call/reflection boundaries after the parser and constraint baseline.
 - Current structured-output and tool-call documentation for any provider used in runnable examples.
 - Primary neuro-symbolic systems beyond RLM and evaluation methodology for verifier-assisted/recursive systems.
