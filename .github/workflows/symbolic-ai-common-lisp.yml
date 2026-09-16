@@ -43,6 +43,25 @@ jobs:
             --eval '(asdf:load-asd (truename "books/symbolic-ai-common-lisp/code/search/symbolic-ai-search.asd"))' \
             --eval '(asdf:test-system "symbolic-ai-search/tests")'
 
+      - name: Formal Reasoning Workbench executable tests
+        run: sbcl --script books/symbolic-ai-common-lisp/code/formal/run-tests.lisp
+
+      - name: Formal Reasoning Workbench ASDF test operation
+        shell: bash
+        run: |
+          set -euo pipefail
+          sbcl --noinform --non-interactive \
+            --eval '(require :asdf)' \
+            --eval '(asdf:load-asd (truename "books/symbolic-ai-common-lisp/code/formal/symbolic-ai-formal.asd"))' \
+            --eval '(asdf:test-system "symbolic-ai-formal/tests")'
+
+      - name: Validate editable diagrams
+        shell: bash
+        run: |
+          set -euo pipefail
+          dot -Tsvg books/symbolic-ai-common-lisp/assets/search-frontier.dot >/dev/null
+          dot -Tsvg books/symbolic-ai-common-lisp/assets/formal-verification-flow.dot >/dev/null
+
       - name: Build and validate Symbolic AI in Common Lisp
         env:
           EPUBCHECK_JAR: .cache/epubcheck-5.3.0/epubcheck.jar
