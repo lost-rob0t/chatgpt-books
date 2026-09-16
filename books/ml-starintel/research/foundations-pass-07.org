@@ -1,0 +1,184 @@
+#+title: Machine Learning for StarIntel -- Foundational Research Pass 07
+#+date: 2026-08-17
+
+* Status
+RESEARCH. Phase 1 remains open.
+
+This pass closes the Project 1 public-source provenance blocker that remained after pass 06. It acquires and hashes GLEIF's official current-format JSON sample bundle, proves that the illustrative sample is not entity-closed for the selected fund relationships, maps that Tier A sample honestly with unresolved StarIntel relation endpoints, then acquires a factual as-of snapshot from the primary GLEIF API and executes full Experiment D offline against a frozen Tier B fixture.
+
+=TESTED= below means the named GitHub Actions commands actually ran and their logs/results were inspected. It does not mean GLEIF relationships are timeless, that Experiments A--C have run, or that cross-language StarIntel conformance is proven.
+
+* Exact research questions
+1. Can the official GLEIF current-format JSON sample archive be fetched through CI, and what are its exact archive/member identities?
+2. Does the official sample bundle itself contain Level 1 entity records for both endpoints of the selected =IS_FEEDER_TO= and =IS_FUND-MANAGED_BY= relationship records?
+3. How should canonical StarIntel 0.9 represent a relationship whose endpoint exists as an external LEI but has no corresponding Level 1 record in the selected source bundle?
+4. Does GLEIF's primary API expose both the current target LEI record and relationship-record resource for the feeder's master-fund and fund-manager relationships?
+5. Can those factual as-of API responses be frozen, hashed, transformed entirely offline into entity-closed StarIntel =org= + =relation= documents, validated against the pinned StarIntel 0.9 schema, and retain reconstructable source/transform provenance?
+
+* Retrieval date
+2026-08-17.
+
+* Sources inspected
+** GLEIF primary sources
+- GLEIF Supporting Documents / official current-format samples:
+  https://www.gleif.org/en/lei-data/access-and-use-lei-data/supporting-documents
+- GLEIF API:
+  https://www.gleif.org/en/lei-data/gleif-api/
+- GLEIF API Changes documentation, especially fund relationship links.
+- GLEIF RR-CDF 2.1 format and documentation.
+- Primary API resources under =https://api.gleif.org/api/v1/= for LEI =6354009BJOFO62XYIX17= and the API-returned master-fund/fund-manager relationship links.
+
+** StarIntel primary implementation sources
+- Locked schema revision:
+  =lost-rob0t/starintel-gpt-auto-dig@ff814ff63868286d68e21502122832802cd5e361/schemas/starintel-doc-v0.9.0.schema.json=
+- Locked schema construction/spec implementation at the same commit:
+  =starintel_doc/spec.py=
+- Relevant canonical fact: a =relation= requires =subject=, =predicate=, and =object=; relation endpoints may carry external identifiers and an explicit =unresolved= state. No new StarIntel schema fields were invented for this pass.
+
+* Tier A -- official sample archive acquisition
+The previous execution environment could resolve the ZIP URL but could not download binary bytes. GitHub Actions provided the missing binary-capable path.
+
+Official archive:
+=2021-11-23_lei-cdf-3.1-and-rr-cdf-2.1-and-repex-cdf-2.1-json-samples_v1.1-final.zip=
+
+Observed in =ml-starintel-research= run 33 and re-observed in run 50:
+- size: 6454 bytes
+- SHA-256: =7b49ee2c8fbe8e2a10f60165dd12ab3bf212eb95418c229218ea24d425b15237=
+
+Canonical JSON members:
+| Member | Bytes | SHA-256 |
+| =JSON/GoldenCopy_lei.json= | 33621 | =7330d63725f3884113564dd90122683452271095071d8a2c8dc2564cf14e83ae= |
+| =JSON/GoldenCopy_repex.json= | 2186 | =5577cd0f198f9cd33e535de6b1225a2377377661f73c7d2e6c75aa8c4bff0247= |
+| =JSON/GoldenCopy_rr.json= | 5404 | =978e3181c04fecd628654b7ae0e9d9c0cb07450de14480dd6587b4e455aa7882= |
+
+The archive also contains =__MACOSX/JSON/._*= AppleDouble metadata files. The acquisition helper records those as failed JSON parses rather than silently pretending they are data records.
+
+Observed relationship types in =GoldenCopy_rr.json=:
+- =IS_DIRECTLY_CONSOLIDATED_BY=
+- =IS_ULTIMATELY_CONSOLIDATED_BY=
+- =IS_FEEDER_TO=
+- =IS_FUND-MANAGED_BY=
+
+* Tier A closure result -- sample bundle is not entity-closed
+For feeder LEI =6354009BJOFO62XYIX17=, the official RR sample contains:
+- =IS_FEEDER_TO= -> =635400VZ8GQJUZ3L3H12=
+- =IS_FUND-MANAGED_BY= -> =635400Z5LRZZSML7CV16=
+
+The feeder has a Level 1 sample record, but neither target LEI appears as a Level 1 record in the same official JSON sample bundle. A relationship-only sample is therefore useful for format/adapter coverage but is not a self-contained factual entity graph.
+
+This corrected an earlier research assumption that a smallest self-contained Level 1 + RR subset necessarily existed inside the sample bundle.
+
+* D2A -- Tier A adapter-shape experiment
+A frozen extract was added as:
+=projects/project-01-investigation-dataset-pipeline/research-harness/fixtures/gleif-official-json-sample-feeder-v1.extract.json=
+
+Frozen extract SHA-256:
+=2e150c9ab4573c8788d47e4ed210b6964f154037e59674d99fb838cdc3ed31c3=
+
+The narrow adapter maps:
+- the feeder to one canonical StarIntel =org=;
+- =IS_FEEDER_TO= and =IS_FUND-MANAGED_BY= to two canonical StarIntel =relation= documents;
+- source endpoint as resolved;
+- target endpoints as =unresolved: true= with their LEIs preserved as external identifiers;
+- relationship period/status and GLEIF registration/validation metadata into canonical fields or namespaced qualifiers/provenance.
+
+D2A is =TESTED=. In run 50:
+- all generated StarIntel documents validated against pinned schema 0.9.0;
+- relationship types were preserved;
+- missing endpoint closure was represented explicitly rather than by inventing phantom entities;
+- source member/archive hash lineage was preserved;
+- JSON round trip preserved the documents.
+
+This remains =TIER_A_ADAPTER_SHAPE=. It is not the factual public-source Experiment D.
+
+* Tier B -- factual primary API acquisition
+GLEIF documents that its API is based on Golden Copy data and that LEI records expose Level 2 links where available. Its API changes documentation specifies =fund-manager= and =master-fund= LEI-record and relationship-record links, present when the corresponding relationship is declared.
+
+The CI acquisition helper followed only allowlisted HTTPS =api.gleif.org/api/v1/= links returned by the feeder resource.
+
+Source LEI:
+=6354009BJOFO62XYIX17= -- AlbaCore Partners I Feeder ICAV.
+
+The primary API returned both required relationship resources and target LEI resources:
+
+| Resource | Resource ID / target | Raw SHA-256 | Canonical JSON SHA-256 |
+| feeder LEI | =6354009BJOFO62XYIX17= | =62c28fab384aec17416abbcc2d8a4923118ccfed1cbaa24951e5449b23ba2973= | =a95068fb21a3329299c80cdc5c8977cc3979663eac972c1bb64cafe7cb1fdd38= |
+| fund manager LEI | =635400Z5LRZZSML7CV16= | =285a8d4da1e8158c6ab89dd970d465be2057452f575520f1bbbf9674e8e57872= | =f781559f899aa7ac7c221036251768ceb45fefa55fadd3e85b12a2ce467e1cb2= |
+| =IS_FUND-MANAGED_BY= RR | feeder -> =635400Z5LRZZSML7CV16= | =be83cf7f5307c2c967778442a991095208cf66b9a02625602298799feec998b7= | =f841cf722ac5c6b90b0a32c858554d828ea8ebeb257a35cc3c45e9f68d80cb50= |
+| master fund LEI | =635400VZ8GQJUZ3L3H12= | =543da27c676e5a409c686abcec09aaa6fa6cccbaa0290afa16676aa872811f2e= | =35a2a0f636b84376727143d4251d111450d4c8ca9364945e7251948e0214c37c= |
+| =IS_FEEDER_TO= RR | feeder -> =635400VZ8GQJUZ3L3H12= | =0eac2960016a003e027f2538a1e706bcb5d9c854127f722dcb5aa74654658b72= | =43574dbb1c307910ed17e611d3afbaada9274532b8aad1e227e5c8a94d7b3445= |
+
+The API responses carried Golden Copy publication time =2026-08-17T08:00:00Z=. Two separate acquisition runs during this pass produced the same raw and canonical hashes for the five selected resources while retrieval timestamps changed. This is useful evidence for this short observation window, not a promise of future immutability.
+
+The canonical parsed JSON snapshots and manifest are frozen under:
+=research-harness/fixtures/gleif-live-2026-08-17/=
+
+The manifest keeps source URL, retrieval time, raw response hash, canonical snapshot hash, resource ID/type and Golden Copy publication time. Exact raw response bytes remain in the acquisition CI artifact; committed deterministic inputs are canonical parsed JSON snapshots.
+
+* Full Experiment D -- TESTED
+Implementation:
+=research-harness/run_full_provenance_experiment.py=
+
+Test module:
+=research-harness/test_full_provenance_experiment.py=
+
+Full D runs entirely from the frozen Tier B files after the canonical StarIntel schema has been materialized. It does not perform a live GLEIF fetch.
+
+Observed in =ml-starintel-research= run 50 (workflow run =32055669406=, =project1-foundations= job =95465128301=):
+- 16 research-harness unit tests passed;
+- full D status =TESTED=;
+- 3 canonical StarIntel =org= documents generated;
+- 2 canonical StarIntel =relation= documents generated;
+- all 5 documents validated against pinned StarIntel schema 0.9.0;
+- all relationship endpoints were resolved to the frozen entity set;
+- source graph was entity-closed;
+- =IS_FEEDER_TO= and =IS_FUND-MANAGED_BY= predicates were preserved;
+- canonical source hashes matched their frozen values;
+- document source/provenance entries retained the requested source URL, retrieval time, canonical hash and raw-response hash;
+- provenance reconstruction checks passed;
+- JSON round trip preserved all generated documents.
+
+Run 50 also re-ran Experiment E, D0, D1 and D2A successfully, then acquired a fresh primary GLEIF API snapshot. The fresh response hashes were unchanged from the frozen Tier B observation even though the retrieval times changed.
+
+* Claim-status table
+| Claim | Status |
+| official current-format GLEIF sample ZIP archive/member byte identities | TESTED |
+| selected Tier A sample is not entity-closed for feeder master/fund-manager targets | TESTED |
+| canonical StarIntel relation endpoints can represent missing external entities as unresolved without schema invention | DOCUMENTED + TESTED |
+| D2A Tier A sample -> StarIntel org/relation mapping | TESTED |
+| GLEIF API documents fund-manager/master-fund links on LEI records | DOCUMENTED |
+| primary API returned feeder + fund manager + master fund + both relationship records during the recorded window | TESTED |
+| frozen Tier B canonical source hashes and raw-response hash lineage | TESTED |
+| full Experiment D entity-closed offline provenance round trip | TESTED |
+| all five full-D StarIntel documents validate against schema 0.9.0 | TESTED |
+| relationships remain true forever | NOT CLAIMED |
+| leakage Experiments A--C | UNTESTED |
+| cross-language StarIntel conformance equivalence | UNTESTED |
+
+* Implementation implications
+1. Project 1 should preserve three fixture tiers:
+   - Tier A: official illustrative/format fixtures for parser/adapter edge cases;
+   - Tier B: frozen primary factual as-of observations for provenance/integration examples;
+   - Tier C: deterministic synthetic fixtures for controlled ML ground truth and leakage experiments.
+2. Missing source-graph closure must be explicit. Do not synthesize entity facts merely to make a graph look complete.
+3. Full-D ordinary tests are offline. Live GLEIF acquisition is a separate refresh/integration action.
+4. Source provenance keeps both raw-response hashes and a deterministic canonical-JSON hash; the committed source identity is the canonical parsed snapshot.
+5. StarIntel remains =schema_version: "0.9.0"= with separate integer document =version: 1=. This work does not imply or create StarIntel 1.0.
+6. No CouchDB, RabbitMQ, actor supervision, generic ingest, or generic StarIntel validation semantics were copied into the book project.
+
+* Remaining uncertainty
+- Experiments A--C have not measured leakage yet.
+- The exact entity-group + temporal-cutoff precedence rule still needs to be frozen before measurement.
+- The near-duplicate cluster algorithm/threshold must be predeclared before it is allowed to influence a split.
+- The book-wide transitive dependency lock remains incomplete.
+- Cross-language Python/Nim/Common Lisp StarIntel conformance is outside this experiment and remains UNTESTED.
+- A larger public dataset strategy beyond this tiny pedagogical fixture remains future Project 1 work.
+
+* Next research slice
+The provenance/fixture prerequisite is now satisfied. The next highest-value slice is to implement and execute leakage Experiments A--C under predeclared split rules:
+
+A. random split versus entity-group split;
+B. random split versus strict temporal split with future-information controls;
+C. exact/near-duplicate contamination across splits.
+
+Build the controls deterministically, write tests before the experiment implementation, report real measured metrics/plots only after execution, and keep the synthetic ground truth separate from the factual Tier B GLEIF snapshot.

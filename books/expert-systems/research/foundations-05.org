@@ -1,0 +1,113 @@
+#+title: Expert Systems Research -- Assumptions, Contradictions, and Counterevidence
+:PROPERTIES:
+:ID:       2a0d05e8-71a2-4e20-acb3-5f6ec4adac67
+:END:
+
+* Scope
+This record supports Project 1 milestone E and Chapter 18 only: explicit assumption identity, declarative contradiction patterns, grounded counterevidence, temporal observation keys, and a course-local halt-versus-report consistency policy layered over the accepted milestone-D justification system.
+
+It does *not* establish an ATMS implementation, assumption-set labels/environments, nogood propagation, default logic, automatic belief preference, certainty factors, fuzzy inference, probabilistic ranking, diagnosis, persistence, concurrency, or a production safety certification.
+
+* Primary lineage: Doyle 1979 and revisable assumptions
+Source: Jon Doyle, “A Truth Maintenance System,” /Artificial Intelligence/ 12(3), 1979, pp. 231--272, DOI =10.1016/0004-3702(79)90008-0= [cite:@doyle1979tms].
+
+Primary MIT AIM-521 metadata/abstract inspected through MIT DSpace. The abstract explicitly describes reasoning programs making assumptions and revising them when later discoveries contradict them, while the TMS records and maintains reasons for beliefs.
+
+DOCUMENTED claim used here: an assumption is not the same thing as an irrevocable fact. It is a support commitment a reason-maintenance architecture may need to revise.
+
+Course boundary: milestone E does not copy Doyle's belief-revision procedure. It makes assumption support explicit, exposes contradiction reports, and lets a caller withdraw a named assumption. Winner selection remains outside this milestone.
+
+* Primary ATMS lineage: de Kleer 1986
+Source: Johan de Kleer, “An Assumption-Based TMS,” /Artificial Intelligence/ 28(2), March 1986, pp. 127--162, DOI =10.1016/0004-3702(86)90080-9= [cite:@dekleer1986atms].
+
+Publisher metadata and abstract inspected on 2026-09-16. The abstract says the ATMS manipulates assumption sets in addition to justifications and is designed to work with inconsistent information while supporting multiple problem-solving contexts.
+
+DOCUMENTED claims used here:
+- assumption sets can be first-class reasoning objects rather than invisible defaults;
+- maintaining inconsistent alternatives is a legitimate reason-maintenance problem rather than something every engine must solve by immediately deleting one side.
+
+Critical boundary: this course implementation is *not* an ATMS. It has no environment labels, minimal assumption sets, nogood database, context switching algorithm, or simultaneous solution-space exploration. The paper supplies lineage and design pressure only.
+
+* Current technical fixture: systemd unit ActiveState
+Source: current systemd D-Bus Unit API manual, =org.freedesktop.systemd1= [cite:@systemd-dbus-unit].
+
+The current upstream documentation describes =ActiveState= as the unit's high-level activation-state property and documents high-level states including =active= and =failed=. It also distinguishes =SubState= as a finer-grained state from the same unit state machine.
+
+For this milestone the systemd source grounds only the meaning of the state field. The book adds an explicit observation epoch to the teaching fact:
+
+#+begin_example
+(unit-active-state api-service active 42)
+#+end_example
+
+The epoch is *course-local provenance/context*, not a systemd =ActiveState= field. It exists because two observations at different times are not contradictory merely because their state values differ.
+
+Derived consistency declaration used in tests/lab:
+
+#+begin_example
+left:  (unit-active-state ?unit active ?epoch)
+right: (unit-active-state ?unit failed ?epoch)
+#+end_example
+
+This is a course-local modeling constraint: for one modeled unit at one modeled observation epoch, these two high-level-state observations cannot both represent the same current state. The constraint is not presented as a quotation from systemd and does not imply that a unit cannot transition from one state to the other over time.
+
+* Derived implementation contract
+** Assumption identity is exact occurrence identity
+Milestone D already distinguishes stable fact ID from working-memory occurrence stamp. Milestone E keeps that rule.
+
+An =assumption-network= wraps one =truth-maintained-network= and stores exact assumption occurrence stamps separately from the truth-maintenance layer's base-support stamps. Therefore:
+- an ordinary base occurrence is =:evidence=;
+- an explicitly assumed base occurrence is =:assumption=;
+- a current non-base occurrence is =:derived=;
+- an absent ID is =:absent=.
+
+The classification is descriptive, not a confidence ordering. An assumption does not automatically lose to evidence. A derived conclusion does not automatically lose to either. Such preference policy requires additional domain semantics and is deliberately deferred.
+
+** Assumption withdrawal reuses support semantics
+An assumption is also a milestone-D base-support source. Withdrawing it removes that exact base-support stamp through =truth-maintained-retract-base-fact=.
+
+If another current justification still grounds the same exact occurrence, the occurrence remains and its classification becomes =:derived=. If no other grounding remains, the accepted dependency-directed cascade removes it and any newly unsupported descendants.
+
+This is important: “withdraw assumption” is not an unconditional delete command.
+
+** Contradictions are declared, not guessed
+A =contradiction-spec= has:
+- stable ID;
+- left condition pattern;
+- right condition pattern;
+- provenance.
+
+Both patterns use the accepted matcher language. Bindings from the left match are carried into the right match, turning shared variables into an explicit consistency key.
+
+A contradiction report is created only when:
+- two distinct exact current occurrences match the two sides;
+- shared bindings are consistent;
+- both occurrences are recursively grounded by milestone-D semantics.
+
+The report preserves both fact IDs/stamps, support classifications, shared bindings, specification identity, and specification provenance. It does not retract a side or manufacture a narrative explanation.
+
+** Time belongs in the consistency key when the domain is temporal
+The systemd lab intentionally includes =?epoch= on both sides. Without it, an =active= observation at time 42 and =failed= observation at time 43 would look inconsistent even though a state transition is ordinary.
+
+This is a general knowledge-engineering lesson: contradiction logic is only as good as the modeled context dimensions. Tenant, host, source scope, software version, observation interval, and configuration generation may all matter in later Project 2 rules.
+
+** Counterevidence is preserved
+Milestone E uses contradictions as inspectable counterevidence. It provides two execution policies:
+
+- =:halt= -- before every next firing, detect contradictions; if any exist, return a =:contradiction= result while leaving all counterevidence in working memory and the next agenda inspectable;
+- =:report-only= -- continue normal truth-maintained forward chaining while attaching the current contradiction set to the result.
+
+=:report-only= is an inspection/debugging policy, *not* a claim that reasoning from contradictory information is safe for arbitrary actions.
+
+A contradiction produced by one firing is caught before the next firing under =:halt=. That boundary is executable and testable; it is not a transaction or rollback mechanism.
+
+* Claim-state ledger
+- DOCUMENTED: Doyle 1979 treats assumptions as revisable commitments in a truth-maintenance architecture and connects reasons to revision.
+- DOCUMENTED: de Kleer 1986 presents an ATMS based on manipulating assumption sets and explicitly motivates reasoning in the presence of inconsistent information.
+- DOCUMENTED: current systemd documentation exposes a high-level unit =ActiveState= property and distinguishes it from finer-grained =SubState=.
+- COURSE-LOCAL: explicit assumption stamps layered over milestone-D base support; contradiction specifications as matcher pattern pairs; observation epoch as a consistency-key field; support-kind labels; halt/report-only policy.
+- TESTED only after exact-head CI passes: same-epoch contradiction detection, different-epoch non-contradiction, assumption/evidence classification, assumption withdrawal, mixed assumption+derived support demotion, counterevidence preservation, pre-firing halt behavior, post-firing contradiction halt, report-only continuation, and preservation of all earlier inference-engine regressions.
+- UNTESTED / NOT IMPLEMENTED: preference among contradictory sources, ATMS environment labels/nogoods, uncertainty weights, automatic assumption retraction, negative conditional elements, distributed consistency, persistent contradiction indexes, concurrent mutation, external action rollback, production performance.
+- NO BENCHMARK CLAIM: the milestone introduces no timing, throughput, memory, or scaling claim.
+
+* Verification plan
+Run the entire existing Common Lisp engine suite plus the new assumption/contradiction regressions. Validate the editable contradiction-flow diagram. Then run =make book BOOK=expert-systems=, =make check BOOK=expert-systems=, the focused =expert-systems-book= workflow including its Nix job, and generic =books-ci=. Only successful exact-head evidence may move this worker slice to editorial review.

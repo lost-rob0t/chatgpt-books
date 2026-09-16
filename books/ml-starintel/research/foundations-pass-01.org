@@ -1,0 +1,143 @@
+#+title: Machine Learning for StarIntel -- Foundational Research Pass 01
+:PROPERTIES:
+:ID:       45cbbcf9-ea26-49d2-8eec-b3943fa5d43a
+:END:
+
+* Status
+- Date: 2026-08-13
+- Parent issue: #7
+- Scope: Chapters 1--5, Project 1 foundations, current toolchain baseline, and the current StarIntel integration boundary.
+- Claim status: DOCUMENTED unless explicitly marked otherwise. No code, benchmark, or runtime experiment in this pass is marked TESTED.
+
+* Research questions
+** What definition of machine learning should anchor Chapter 1?
+Tom Mitchell's =Machine Learning= (McGraw-Hill, 1997) describes machine learning in terms of computer algorithms improving automatically through experience. For this book, that definition is useful as a historical/teaching anchor, but the chapter should immediately operationalize it as a system with an explicit task, observations/data, objective or evaluation criterion, learned state/model, and evaluation on data not used to fit that state.
+
+Implication for the manuscript: do not define ML as "AI that finds patterns" or imply that every statistical rule, heuristic, database query, expert-system rule, or optimization routine is itself machine learning. The boundary should be explained through what state is learned from experience/data and how improvement/generalization is evaluated.
+
+Source inspected:
+- https://www.cs.cmu.edu/~tom/book.html
+
+** What workflow should Chapters 2--5 teach before model families?
+The current scikit-learn 1.9 documentation makes the core workflow concrete:
+- split before learning preprocessing state;
+- keep the test set out of fitting and model-selection decisions;
+- use pipelines to bind preprocessing to estimators and reduce leakage risk;
+- distinguish fit-time state from transform/predict-time application;
+- treat randomness configuration as part of experimental design rather than decoration.
+
+This directly supports Chapters 2--5 and Project 1. The first accumulating project should begin with a deliberately small public/synthetic dataset and force the reader to build a split/provenance boundary before training a useful model.
+
+Sources inspected:
+- https://scikit-learn.org/stable/getting_started.html
+- https://scikit-learn.org/stable/modules/cross_validation.html
+- https://scikit-learn.org/stable/common_pitfalls.html
+- https://scikit-learn.org/stable/whats_new/v1.9.html
+
+Version note: scikit-learn 1.9.0 is the current stable documentation observed on 2026-08-13; its 1.9.0 release notes are dated June 2026. Any code examples added later must pin/test the actual environment used by the book rather than silently relying on =stable= forever.
+
+** What provenance discipline should Project 1 adopt?
+=Datasheets for Datasets= provides a strong primary-source rationale for documenting motivation, composition, collection process, intended/recommended uses, and other dataset properties. The book does not need to copy that template verbatim. It should adapt the idea into a StarIntel-specific dataset/provenance record that is useful for reproducible investigations and ML experiments.
+
+Minimum Project 1 provenance fields to research and then implement:
+- dataset identity and version;
+- source/public-or-synthetic origin;
+- collection/generation method;
+- retrieval/generation date;
+- transformations and feature derivations;
+- label origin and labeling procedure;
+- split policy and split seed/parameters where applicable;
+- known exclusions/limitations;
+- schema/document version;
+- code/environment version used to produce the processed artifact.
+
+Source inspected:
+- https://arxiv.org/abs/1803.09010
+
+** What reproducibility claims are safe for the current deep-learning toolchain?
+PyTorch's reproducibility documentation explicitly warns that complete reproducibility is not guaranteed across releases, commits, platforms, or even CPU/GPU execution with identical seeds. PyTorch 2.13 was released 2026-07-08.
+
+Implication for the manuscript: "set a seed and get identical results everywhere" is not an acceptable claim. The book should record software/hardware environment, seed sources, deterministic-algorithm settings when used, and the scope within which a result was reproduced.
+
+Sources inspected:
+- https://docs.pytorch.org/docs/stable/notes/randomness.html
+- https://pytorch.org/blog/pytorch-2-13-release-blog/
+
+Version note: PyTorch 2.13 is the current release observed in this pass. Later GPU/performance chapters must re-check the current supported CUDA/ROCm/platform matrix instead of inheriting this date's assumptions.
+
+** What is the current StarIntel integration boundary?
+The current =lost-rob0t/starintel-server= documentation shows a deliberate transition boundary:
+- canonical strict StarIntel 0.9.0 is schema-driven;
+- parts of the server and actor examples still use legacy flat 0.8.0 constructors;
+- HTTP/RabbitMQ ingest currently does not enforce the strict 0.9 validator;
+- the server is responsible for persistent ingest/storage/search/routing while higher layers and external actors remain separate.
+
+For this book, ML code should not own or duplicate StarIntel storage/routing semantics. Project code should work against a small adapter boundary and public/synthetic StarIntel-style documents. The capstone can then swap the adapter onto the actual server surface.
+
+The book must not present "accepted by current ingest" as equivalent to "conforms to StarIntel 0.9". Validation should be explicit before training/evaluation data is admitted to a dataset.
+
+Sources inspected:
+- https://github.com/lost-rob0t/starintel-server/blob/master/README.org
+- https://github.com/lost-rob0t/starintel-server/blob/master/docs/document-spec.org
+
+Current documented 0.9 envelope properties relevant to the book include =schema_version=, canonical =dtype=, =_id=, =dataset=, =sources=, typed =data=, and =extensions=. The exact schema remains upstream truth and must be re-verified before code is frozen.
+
+** Which later-project sources should be seeded now but not overused in foundations?
+Entity resolution: Fellegi and Sunter's 1969 record-linkage paper establishes a probabilistic matching framework and the link/non-link/possible-link decision framing. This belongs primarily to Chapter 14 and Project 2, not Chapter 1.
+
+Source inspected:
+- DOI: 10.1080/01621459.1969.10501049
+- https://www.tandfonline.com/doi/abs/10.1080/01621459.1969.10501049
+
+Semantic retrieval: Sentence-BERT is a key source for sentence embeddings used with similarity search; HNSW is a key source for approximate nearest-neighbor indexing. These should seed Chapter 12/15 and Project 3 research, but no benchmark from those papers should be repeated as a claim about this book's implementation.
+
+Sources inspected:
+- https://arxiv.org/abs/1908.10084
+- https://arxiv.org/abs/1603.09320
+
+* Claims requiring reproduction rather than citation alone
+The following must become TESTED experiments before manuscript prose presents concrete behavior or numbers:
+
+1. Leakage demonstration on StarIntel-style records, including a case where duplicate/related entities cross a naive random split.
+2. Comparison of random, grouped-by-entity, and time-aware split policies on a controlled synthetic/public dataset.
+3. Provenance round-trip: raw StarIntel-style records -> validated dataset -> feature table -> split artifacts -> quality report, preserving traceable source/document IDs.
+4. Pipeline leakage guard: verify preprocessing is fitted only on training folds/data.
+5. Reproducibility envelope: repeat selected scikit-learn and PyTorch experiments under the pinned Nix/Python environment and document what is and is not identical.
+6. StarIntel 0.9 validation round-trip against the actual canonical schema/validator used by the project at implementation time.
+7. Benchmark claims for entity-resolution blocking/matching, ANN retrieval, graph ML, and GPU acceleration only after reproducible harnesses exist.
+
+* Project 1 research-derived architecture direction
+#+begin_example
+Public/synthetic inputs
+        |
+        v
+StarIntel-style adapter
+        |
+        v
+Strict document/schema validation
+        |
+        v
+Canonical dataset snapshot + provenance manifest
+        |
+        +--> quality report
+        +--> split policy (random/group/time as appropriate)
+        |
+        v
+Feature/label transforms fitted only on training data
+        |
+        v
+Versioned train/validation/test artifacts
+        |
+        v
+Evaluation harness + provenance links back to source document IDs
+#+end_example
+
+This is a research direction, not yet a tested implementation.
+
+* Next research pass
+Priority order:
+1. inspect the canonical StarIntel 0.9 schema and validator repository currently used by =star-cl=;
+2. define the exact public/synthetic fixture shape for Project 1;
+3. research split strategies for correlated/grouped/time-ordered intelligence-style records;
+4. pin the initial Python/NumPy/scikit-learn environment in the book's reproducible project scaffold;
+5. turn the first leakage/provenance questions into executable experiments before Chapter 2--5 prose is drafted.
