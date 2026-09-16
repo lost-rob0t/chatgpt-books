@@ -41,6 +41,9 @@ jobs:
       - name: Run OTP worker application tests
         run: bash ./books/erlang/code/otp-worker/run-tests.sh
 
+      - name: Run release construction and boot tests
+        run: bash ./books/erlang/code/release-lab/run-tests.sh
+
       - name: Validate Chapter 13 lifecycle diagram source
         shell: bash
         run: |
@@ -51,6 +54,17 @@ jobs:
           grep -q 'application_controller' /tmp/otp-application-lifecycle.svg
           grep -q 'otp_worker_sup' /tmp/otp-application-lifecycle.svg
           grep -q 'otp_worker' /tmp/otp-application-lifecycle.svg
+
+      - name: Validate Chapter 14 release diagram source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s books/erlang/assets/release-boot-flow.dot
+          test -s books/erlang/assets/release-boot-flow.svg
+          dot -Tsvg books/erlang/assets/release-boot-flow.dot > /tmp/release-boot-flow.svg
+          grep -q 'systools:make_script/2' /tmp/release-boot-flow.svg
+          grep -q 'otp_worker_release.rel' /tmp/release-boot-flow.svg
+          grep -q 'otp_worker_sup' /tmp/release-boot-flow.svg
 
       - name: Build Erlang book
         run: make book BOOK=erlang

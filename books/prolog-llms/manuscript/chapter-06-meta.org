@@ -1,0 +1,612 @@
+* Project 1 Lab -- Meta-Programming Without Handing Data the Keys
+:PROPERTIES:
+:ID:       9ec68a9c-d46c-4587-8426-e183bfabc86e
+:END:
+
+The last two Project 1 labs gave us two boundaries that matter later:
+
+- the DCG turns tokens into a *closed data term* and an explicit dispatcher
+  decides which symbolic relation that data may request;
+- the CLP(FD) worksheet separates a *constraint model* from the later search
+  operation that grounds a solution.
+
+There is still one uncomfortable Prolog fact to face before we introduce a
+language model: Prolog makes it very easy to treat terms as code.
+
+That is not a defect.  It is one of the language's most useful powers.  Higher
+order utilities, test harnesses, interpreters, callback frameworks, search
+combinators, and development tools all benefit from meta-calls and term
+inspection.  The problem begins when a program confuses two different claims:
+
+#+begin_example
+“This value describes something callable.”
+
+and
+
+“This caller is authorized to choose what we execute.”
+#+end_example
+
+Those are not the same relation.
+
+This lab derives a small meta-programming layer without weakening the Project 1
+boundary.  We will learn =call/N=, predicate indicators, term decomposition,
+and runtime reflection.  Then we will deliberately *refuse* the tempting
+implementation that turns an incoming name into a goal.
+
+No LLM appears in this lab.  If we cannot make the authority boundary obvious
+with four deterministic task capabilities, adding probabilistic text generation
+would only make the design harder to inspect.
+
+Current SWI-Prolog documents meta-call predicates as a mechanism for calling
+terms constructed at runtime, with =call/1= as the basic operation and
+=call(Goal, ExtraArg1, ...)= as the closure form that appends arguments before
+calling the result [cite:@swi-metacall].  That capability is exactly why we need
+to decide *who constructs the callable term*.
+
+** Start from the dispatcher we already trust
+
+The DCG milestone did not execute arbitrary syntax.  It produced one of four
+AST forms and then matched those forms with ordinary clauses:
+
+#+begin_src prolog
+execute_task_command(tasks(owner(Owner)), Results) :-
+    ...
+execute_task_command(tasks(status(Status)), Results) :-
+    ...
+execute_task_command(tasks(tag(Tag)), Results) :-
+    ...
+execute_task_command(dependency_path(Task, Dependency), Results) :-
+    ...
+#+end_src
+
+There is no dynamic predicate lookup here.  A source reader can see the whole
+execution vocabulary by reading four clauses.
+
+Now imagine that a later transport wants a more generic request shape:
+
+#+begin_src prolog
+request(tasks_by_owner, [ada])
+request(dependency_path, [publish_report, collect_sources])
+#+end_src
+
+One procedural solution is to write another four-way case statement.  That is
+perfectly respectable.  But this is a Prolog book, and we also need to
+understand the mechanism people reach for when the cases share a shape:
+*closures plus =call/N=*.
+
+We will use that mechanism while keeping the set of possible closures closed.
+
+** Predicate indicators are names for relations, not permission slips
+
+You have already seen notation such as =task/4= and =dependency_path/3=.  A
+*predicate indicator* pairs a predicate name with its arity:
+
+#+begin_example
+task/4
+has_tag/2
+dependency_path/3
+#+end_example
+
+The arity matters because =edge/2= and =edge/3= are different predicates.  A
+predicate indicator is useful in module export lists, documentation,
+reflection, and tooling.  It still does not answer an application-policy
+question like “may this external request invoke that predicate?”
+
+Project 1 therefore has a separate vocabulary:
+
+#+begin_src prolog
+capability(tasks_by_owner, 1).
+capability(tasks_by_status, 1).
+capability(tasks_by_tag, 1).
+capability(dependency_path, 2).
+#+end_src
+
+These are *request capabilities*, not raw runtime predicate indicators.  The
+first number describes how many data arguments the request accepts.  Internally
+we map each tag to a repository-authored handler.
+
+The distinction is subtle but important:
+
+#+begin_example
+runtime predicate vocabulary:   everything the Prolog process can call
+Project 1 capability vocabulary: exactly what this boundary permits a request
+#+end_example
+
+The second set should not accidentally grow because someone imported a new
+library.
+
+** The dangerous shortcut: turn the tag into a goal
+
+Suppose a request arrives as =request(Name, Arguments)=.  It is tempting to do
+something like this in a scratch file:
+
+#+begin_src prolog
+% Do not use this as an external request boundary.
+unsafe_execute(request(Name, Arguments)) :-
+    Goal =.. [Name|Arguments],
+    call(Goal).
+#+end_src
+
+This code is short.  That is its only virtue in this context.
+
+==../2=, traditionally called *Univ*, can decompose a term into a list whose
+first element is its functor and whose remainder is the argument list, or it can
+construct a term from such a list.  SWI marks =../2= as ISO and documents
+zero-arity-compound caveats; SWI also provides =compound_name_arguments/3= as a
+more uniform compound-term interface [cite:@swi-term-analysis].
+
+The unsafe example takes request data =Name= and uses it as the functor of the
+thing passed to =call/1=.  The request has therefore selected executable
+control.
+
+If =Name = halt= and the argument shape happens to match something dangerous,
+the program has no meaningful application-level capability boundary left.  A
+parser that checks “this is a syntactically valid atom” does not repair the
+problem.  Valid Prolog syntax is a much larger set than authorized operations.
+
+This book's later typed gateway will treat model output as untrusted data.  So
+we reject this pattern now, before a model exists.
+
+** Derive a closed capability table
+
+The implementation keeps an explicit private mapping:
+
+#+begin_src prolog
+capability_handler(tasks_by_owner, 1, run_tasks_by_owner).
+capability_handler(tasks_by_status, 1, run_tasks_by_status).
+capability_handler(tasks_by_tag, 1, run_tasks_by_tag).
+capability_handler(dependency_path, 2, run_dependency_path).
+#+end_src
+
+The public =capability/2= relation merely projects that table.  This gives us a
+small, auditable vocabulary:
+
+#+begin_src prolog
+capability(Name, Arity) :-
+    capability_handler(Name, Arity, _).
+#+end_src
+
+Notice what is missing.  We do not ask =current_predicate/1= which predicates
+happen to exist and then call one whose name matches the request.
+
+Current SWI documents =current_predicate/1= and =predicate_property/2= as
+program-introspection facilities with module/import/autoload behavior
+[cite:@swi-examine-program].  They are useful tools.  They answer questions
+about the *loaded program*.  Our capability table answers a different question:
+what has this interface intentionally exposed?
+
+Those relations should stay different.
+
+** Validate the data shape before selecting executable control
+
+Project 1 requests have one intentionally tiny schema:
+
+#+begin_src prolog
+request(CapabilityName, Arguments)
+#+end_src
+
+For this synthetic fixture, =CapabilityName= must be an atom and =Arguments=
+must be a proper list of atoms.  The argument count must match the authored
+capability arity.
+
+The core boundary reads almost like its own checklist:
+
+#+begin_src prolog
+execute_capability(request(Name, Arguments), Results) :-
+    atom(Name),
+    proper_atom_list(Arguments),
+    capability_handler(Name, Arity, Handler),
+    exact_arity(Arguments, Arity),
+    call_handler(Arity, Handler, Arguments, Results).
+#+end_src
+
+The order matters conceptually even when the fixture is tiny:
+
+1. verify the outer shape;
+2. verify the argument-domain shape;
+3. resolve the external tag through a *closed* table;
+4. verify exact arity;
+5. only then cross the meta-call boundary with a trusted handler.
+
+#+caption: Project 1 keeps request data, capability policy, and meta-call authority as separate stages.
+#+attr_html: :alt A request data term first passes shape and atom-argument validation, then a closed capability table maps a known tag to a trusted in-module handler. Only that trusted closure reaches call/N and produces structured results. Unknown tags, wrong arities, and callable-looking payloads are rejected. A dotted side path shows term reflection as description only, not execution authority.
+[[file:assets/meta-capability-boundary.svg]]
+
+** Why use =call/N= at all?
+
+Because now we can see exactly what it does.
+
+The handler table yields an atom such as =run_tasks_by_owner=.  That atom did
+not come from the request; it came from trusted source code.  The arity-specific
+adapter then appends the validated request data:
+
+#+begin_src prolog
+call_handler(1, Handler, [Argument], Results) :-
+    call(Handler, Argument, Results).
+call_handler(2, Handler, [Left, Right], Results) :-
+    call(Handler, Left, Right, Results).
+#+end_src
+
+For the first case, if =Handler = run_tasks_by_owner= and =Argument = ada=, the
+meta-call is operationally the same target as:
+
+#+begin_src prolog
+run_tasks_by_owner(ada, Results)
+#+end_src
+
+SWI's current =call/N= documentation describes exactly this closure behavior:
+extra arguments are appended to the closure before it is called
+[cite:@swi-metacall].
+
+This gives us a useful abstraction without letting the request choose an
+arbitrary functor.  The meta-programming mechanism is powerful; the capability
+policy deliberately makes its input boring.
+
+** Trusted handlers can reuse the earlier explicit dispatcher
+
+Milestone E does not replace the DCG milestone with a more clever executor.
+The handlers simply translate the capability into the already-accepted AST
+forms:
+
+#+begin_src prolog
+run_tasks_by_owner(Owner, Results) :-
+    execute_task_command(tasks(owner(Owner)), Results).
+
+run_dependency_path(Task, Dependency, Results) :-
+    execute_task_command(dependency_path(Task, Dependency), Results).
+#+end_src
+
+This layering is intentionally redundant enough to be obvious:
+
+#+begin_example
+request data
+  -> closed capability tag
+  -> trusted handler
+  -> closed Project 1 command AST
+  -> explicit symbolic dispatcher
+  -> relational solver
+#+end_example
+
+A production system might collapse some layers after its contracts are stable.
+A teaching system benefits from seeing where authority changes hands.
+
+** Work three requests by hand
+
+*** A permitted one-argument capability
+
+Input:
+
+#+begin_src prolog
+request(tasks_by_owner, [ada])
+#+end_src
+
+- =tasks_by_owner= is an atom.
+- =[ada]= is a proper list of atoms.
+- the closed table says =tasks_by_owner= has request arity 1 and maps to
+  =run_tasks_by_owner=.
+- the list has exactly one element.
+- =call/3= invokes the trusted closure with =ada= and the output variable.
+- the wrapper constructs =tasks(owner(ada))= and uses the earlier explicit
+  dispatcher.
+
+The final value is structured task-result data.  Nothing in the input becomes
+a predicate name.
+
+*** A permitted two-argument capability
+
+Input:
+
+#+begin_src prolog
+request(dependency_path, [publish_report, collect_sources])
+#+end_src
+
+The same flow selects =run_dependency_path= and uses =call/4= to append the two
+validated atoms plus the output argument.  The trusted wrapper asks the accepted
+=dependency_path(...,...)= command relation for results.
+
+*** An atom with a scary name
+
+Input:
+
+#+begin_src prolog
+request(tasks_by_owner, [halt])
+#+end_src
+
+This is valid *data*.  The single argument is the owner atom =halt=.  The fixed
+handler asks for tasks owned by that atom and the synthetic fixture has none, so
+the expected result is an empty list.
+
+No =halt/0= goal is constructed.  A good boundary does not need a blacklist of
+every dangerous predicate name when data is never interpreted as a predicate
+name in the first place.
+
+That is a much stronger design habit than “reject the string =halt=”.
+
+** Callable is a type fact, not a capability fact
+
+Prolog lets us ask questions about a term's structure.  Current SWI documents
+=functor/3= and =arg/3= as ISO operations and =compound_name_arguments/3= as a
+SWI interface that decomposes or constructs compound terms, including SWI's
+zero-arity compound terms [cite:@swi-term-analysis].
+
+Project 1 exposes a deliberately harmless teaching helper:
+
+#+begin_src prolog
+describe_term(Term, term_shape(Name/Arity, Arguments)) :-
+    nonvar(Term),
+    compound(Term),
+    compound_name_arguments(Term, Name, Arguments),
+    length(Arguments, Arity).
+#+end_src
+
+So this relation can describe:
+
+#+begin_src prolog
+call(halt)
+#+end_src
+
+as data shaped like:
+
+#+begin_example
+term_shape(call/1, [halt])
+#+end_example
+
+That result proves only that we can inspect the compound.  =execute_capability/2=
+does not accept a =call(halt)= request, and the tag =call= is not in the closed
+capability table.
+
+A term can be callable in the Prolog language while still being unauthorized by
+our application.
+
+** =functor/3= and =arg/3=: inspect one layer at a time
+
+Suppose we have:
+
+#+begin_src prolog
+Request = request(tasks_by_owner, [ada]).
+#+end_src
+
+At a REPL, =functor(Request, Name, Arity)= can relate it to the outer functor
+=request/2=.  =arg(1, Request, Capability)= selects the first argument and
+=arg(2, Request, Arguments)= selects the second.
+
+This can be useful when writing generic tooling.  It is also more machinery than
+our simple boundary needs.  Pattern matching in the clause head already states
+the expected outer shape more clearly:
+
+#+begin_src prolog
+execute_capability(request(Name, Arguments), Results) :-
+    ...
+#+end_src
+
+Meta-programming is not a contest to replace every direct pattern with
+reflection.  Use reflection when the program genuinely needs to reason about
+term structure as data.
+
+** ==../2= can construct code-shaped terms -- that still does not execute them
+
+Try this as an isolated REPL exercise:
+
+#+begin_src prolog
+Term =.. [task, collect_sources, ada, ready, [research,prolog]].
+#+end_src
+
+You have constructed a compound term.  You have not proved it.  You have not
+asserted it into the database.  You have not called it.
+
+Those are separate operations:
+
+#+begin_example
+construct a term != assert a clause != call a goal != authorize a caller
+#+end_example
+
+Keeping those verbs separate will matter when a later language model emits
+structured output.  A model may eventually propose a term-shaped candidate.
+That proposal remains data until the typed gateway validates it and a symbolic
+policy explicitly decides what may happen next.
+
+** Runtime reflection is broader than our interface
+
+SWI can inspect the loaded program through predicates including
+=current_predicate/1= and =predicate_property/2= [cite:@swi-examine-program].
+Development tools need this.  Generic libraries need this.  Debugging tools
+need this.
+
+It would be a mistake to define authorization as:
+
+#+begin_src prolog
+% Wrong boundary for external capability selection.
+allowed(Name/Arity) :-
+    current_predicate(Name/Arity).
+#+end_src
+
+Why?  Because loading a new helper module could silently expand the set of
+operations an external caller is allowed to request.  The policy would depend
+on process composition rather than an explicit interface decision.
+
+Project 1 instead asks =capability/2=.  That relation has exactly four answers
+because the repository has exactly four capability facts.  Tests assert the
+complete answer list, not merely that one desired capability happens to exist.
+
+This is an important testing pattern for allowlists: test the *negative space*.
+
+** Failure lab -- three ways to accidentally erase the boundary
+
+*** Failure 1: call the request directly
+
+Bad scratch code:
+
+#+begin_src prolog
+unsafe(Request) :-
+    call(Request).
+#+end_src
+
+This gives the producer of =Request= control over the goal term.  A schema that
+only says “must be callable” is not an allowlist.
+
+Repair: treat the request as a data structure, match a closed capability tag,
+and call only a source-selected handler.
+
+*** Failure 2: construct the goal from a validated atom
+
+Bad scratch code:
+
+#+begin_src prolog
+unsafe(Name, Arg) :-
+    atom(Name),
+    Goal =.. [Name, Arg],
+    call(Goal).
+#+end_src
+
+The =atom(Name)= check validates representation, not authority.  There are many
+perfectly valid atoms that name operations this interface must never expose.
+
+Repair: validate the *semantic capability tag* against an explicit table and
+never use the external atom as the handler functor.
+
+*** Failure 3: use runtime discovery as the allowlist
+
+Bad scratch design:
+
+#+begin_src prolog
+unsafe_allowed(Name/Arity) :-
+    current_predicate(Name/Arity).
+#+end_src
+
+The set now changes when program composition changes.
+
+Repair: keep =capability_handler/3= explicit.  Runtime reflection can still be
+used by diagnostics, but diagnostics do not define request authority.
+
+** Failure lab -- wrong arity should not “try something close”
+
+This request is malformed:
+
+#+begin_src prolog
+request(tasks_by_owner, [ada, extra])
+#+end_src
+
+Project 1 does not drop =extra=, guess another predicate, or try alternate
+arities.  The capability table says =tasks_by_owner= accepts exactly one data
+argument; =exact_arity/2= rejects the request before a meta-call.
+
+This is intentionally less “helpful” than fuzzy command interpretation.  At a
+control boundary, silent repair can turn malformed input into surprising
+authority.  Later, a model-facing layer may *propose* a repair, but the symbolic
+acceptance boundary will still validate the repaired request as a fresh value.
+
+** Tests prove more than the happy path
+
+The milestone adds a named PL-Unit group with contracts for both positive and
+negative space:
+
+- the entire capability vocabulary is exactly the four authored tag/arity
+  pairs;
+- a one-argument owner query returns the same structured result expected from
+  the accepted explicit dispatcher;
+- a two-argument dependency query returns the expected path;
+- an unknown capability tag fails;
+- a known capability with the wrong request arity fails;
+- the atom =halt= remains harmless owner data and returns an empty result list;
+- a compound argument such as =call(halt)= is rejected by the atom-only fixture
+  schema;
+- =describe_term/2= can describe =call(halt)= while capability execution still
+  refuses the =call= tag;
+- a malformed outer request such as =call(halt)= is not accepted at all.
+
+The top-level runner also requires the named test unit before executing the
+suite.  A missing file cannot produce a false green by silently running only
+older tests.
+
+Earlier Project 1 regressions stay in the same run.  A meta-programming lesson
+is not allowed to weaken the relations, recursion, provenance, control,
+module, DCG, dispatcher, or CLP(FD) contracts that came before it.
+
+** What this does -- and does not -- prove
+
+If the milestone tests pass, we have TESTED one small repository implementation
+of a closed capability dispatcher.  We have not proved a general sandbox.
+
+In particular, this lab does not test:
+- operating-system isolation;
+- module privacy as a security boundary;
+- untrusted Prolog source loading;
+- dynamically asserted clauses;
+- arbitrary provider/model output;
+- denial-of-service resistance;
+- time, inference, memory, or process limits;
+- a live Prolog-RLM runtime.
+
+Those are separate mechanisms and later chapters must give them separate
+evidence.
+
+The narrower result is still valuable: *external data does not select a
+callable goal merely because Prolog makes goal construction convenient*.
+
+** Exercises
+
+1. *Add a capability without reflection.*  Add =tasks_by_status/1= to a scratch
+   copy only by extending the explicit table and trusted wrapper.  Explain why
+   no change to =current_predicate/1= should be necessary.
+2. *Break the negative-space test.*  Add a fifth capability fact but forget to
+   update the expected complete vocabulary.  Why is the failing test useful?
+3. *Compare patterns with =functor/3=.*  Write two versions of an outer request
+   shape check: direct =request(Name, Args)= matching and reflection with
+   =functor/3= plus =arg/3=.  Which is clearer for this fixed protocol?  When
+   would the reflective version become justified?
+4. *Use Univ only for data.*  Decompose =dependency_path(a,b)= with ==../2=,
+   transform the list into a descriptive JSON-like association list, and do
+   not call the reconstructed term.  Label each step as construction,
+   transformation, or execution.
+5. *Make arguments richer safely.*  Replace the atom-only owner argument with a
+   tagged value such as =owner(ada)=.  Write explicit validation and keep the
+   handler fixed.  Do not introduce generic =call/1=.
+6. *Reject a callable-looking value.*  Add a regression for
+   =request(tasks_by_tag, [consult])=.  Explain why the atom is safe *as tag
+   data* even though another predicate named =consult/1= may exist elsewhere.
+7. *Separate capability from predicate visibility.*  At a real SWI top level,
+   inspect a few =current_predicate/1= answers after loading Project 1.  Compare
+   that broad set with the four =capability/2= answers.  Record your actual
+   runtime instead of copying an invented transcript.
+8. *Add a bounded diagnostic.*  Design a data result for “unknown capability”
+   rather than simple failure.  Keep it non-executable.  What provenance would
+   you want before sending that diagnostic to a later repair model?
+9. *Think ahead to provider output.*  Sketch a transport schema whose
+   =capability= field is an enum over the four tags and whose =arguments= field
+   has tag-specific shapes.  Explain why provider-side schema enforcement would
+   still not replace the Prolog-side capability check.
+10. *Audit the authority transition.*  Draw a vertical line through the diagram
+    at the point where data becomes executable control.  Which facts must be
+    true immediately before crossing that line?
+
+** Project 1 checkpoint
+
+Project 1 has now accumulated a complete model-free learning chain:
+
+#+begin_example
+relations and unification
+  -> recursive queries and termination discipline
+  -> backtracking and explicit commitment
+  -> modules, tests, and debugging
+  -> DCG tokens to a closed AST
+  -> CLP(FD) constraints separated from search
+  -> closed capabilities separated from meta-call authority
+#+end_example
+
+That is enough machinery to begin discussing an LLM without asking readers to
+accept “the model generated some Prolog and we ran it.”
+
+The next project changes the threat model.  A model is an external, fallible
+process whose output may be malformed, stale, contradictory, truncated, or
+adversarially influenced.  Project 2 therefore begins with schemas, parsing,
+validation, provenance, deadlines, deterministic fake adapters, and explicit
+rejection.  This lab contributes one invariant to that later system:
+
+#+begin_quote
+Model-produced data may request a capability.  It never becomes a callable goal
+merely by containing a predicate-shaped name or term.
+#+end_quote
+
+That invariant is architectural.  The tests in this milestone cover the current
+four-capability teaching implementation; later chapters must test every new
+boundary they add.

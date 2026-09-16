@@ -1,0 +1,23 @@
+digraph relational_planning_flow {
+  graph [rankdir=LR, bgcolor="transparent", margin=0.1];
+  node [shape=box, style="rounded", fontname="sans-serif", fontsize=11];
+  edge [fontname="sans-serif", fontsize=10];
+
+  schema [label="schema(Id, Action, Preconditions, Add, Delete)"];
+  fresh [label="copy_term/2\nfresh schema variables"];
+  bind [label="match preconditions\nagainst current ground state"];
+  ground [label="require ground\nAction/Add/Delete"];
+  effects [label="delete effects\nthen add effects"];
+  canon [label="canonical ground\nsuccessor state"];
+  frontier [label="BFS frontier\nnode(State, Steps, States, Depth)"];
+  reject [shape=octagon, label="reject unsafe instance\n(instantiation error)"];
+
+  schema -> fresh;
+  fresh -> bind;
+  bind -> ground [label="applicable"];
+  bind -> schema [label="try another grounding", constraint=false];
+  ground -> effects [label="ground"];
+  ground -> reject [label="nonground"];
+  effects -> canon;
+  canon -> frontier [label="NextState != State"];
+}

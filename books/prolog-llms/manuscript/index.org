@@ -7,3 +7,4 @@
 #+include: "foundation.inc" :lines "7-"
 #+include: "chapter-06-dcg.org"
 #+include: "chapter-06-clpfd.org"
+#+include: "chapter-06-meta.org"

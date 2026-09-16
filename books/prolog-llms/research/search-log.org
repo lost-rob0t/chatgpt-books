@@ -110,7 +110,30 @@ Detailed evidence and teaching decisions: [[file:clpfd-scheduling.org][clpfd-sch
 
 Downstream: Chapter 6 Project 1 constraint lab / milestone D. General meta-programming and model/provider behavior remain out of scope.
 
+* 2026-09-16 -- bounded meta-programming and capability authority
+Questions:
+- what exactly does current SWI document for =call/1= and the closure form =call/N=;
+- which term analysis/construction operations are marked ISO and which convenient compound-term operations are SWI-specific;
+- what do =current_predicate/1= and =predicate_property/2= say about the loaded program;
+- how should Project 1 teach meta-programming without letting external request data select arbitrary executable goals?
+
+Sources inspected:
+- current official SWI-Prolog =Meta-Call Predicates= manual section at =https://www.swi-prolog.org/pldoc/man?section=metacall=;
+- current official SWI-Prolog =Analysing and Constructing Terms= manual section at =https://www.swi-prolog.org/pldoc/man?section=manipterm=;
+- current official SWI-Prolog =Examining the program= manual section at =https://www.swi-prolog.org/pldoc/man?section=examineprog=;
+- accepted repository-local Project 1 parser/dispatcher and CLP(FD) modules, used as the mechanism this slice extends rather than replaces.
+
+Result:
+- DOCUMENTED: =call/1= invokes a goal not necessarily known at compile time; =call(Goal, ExtraArg1, ...)= appends extra arguments to the closure and invokes the resulting goal.
+- DOCUMENTED: =functor/3=, =arg/3=, and ==../2= are marked ISO by the current manual, with SWI-specific details/modes and zero-arity-compound caveats. =compound_name_arguments/3= is the SWI compound-term interface used by the teaching helper.
+- DOCUMENTED: =current_predicate/1= and =predicate_property/2= expose facts about predicates visible in the loaded/module/autoload environment. They are introspection facilities, not an application capability policy.
+- REPOSITORY DESIGN: Project 1 keeps an explicit four-tag capability table. Request data is shape-checked, resolved through that table, checked for exact authored arity, and only then passed as arguments to a trusted in-module closure with =call/N=. The request term, tag, and arguments never become an arbitrary goal.
+- UNTESTED pending branch CI: exact capability enumeration, one-/two-argument dispatch, malformed/unknown/callable-looking rejection cases, retained milestones A--D, book/check, and Nix gates.
+
+Detailed evidence and teaching decisions: [[file:meta-capability-boundary.org][meta-capability-boundary.org]].
+
+Downstream: final model-free Chapter 6 mechanism / Project 1 milestone E. A typed model gateway remains a later project and requires fresh provider/schema/deadline/provenance research.
+
 * Next research sessions
-- Safe meta-programming/meta-call/reflection boundaries after the parser and constraint baseline.
 - Current structured-output and tool-call documentation for any provider used in runnable examples.
 - Primary neuro-symbolic systems beyond RLM and evaluation methodology for verifier-assisted/recursive systems.
