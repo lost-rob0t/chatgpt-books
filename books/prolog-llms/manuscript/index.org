@@ -5,7 +5,7 @@
 #+bibliography: ../references.bib
 
 * Reader contract
-This book is standalone. It teaches enough Prolog to build, inspect, test, and debug the symbolic side of every later integration rather than asking the reader to treat Prolog as an opaque verifier. The sibling [[file:../../prolog/README.org][Prolog for Beginners: Thinking in Relations]] remains the deeper pure-Prolog course; this volume does not require it.
+This book is standalone. It teaches enough Prolog to build, inspect, test, and debug the symbolic side of every later integration rather than asking the reader to treat Prolog as an opaque verifier. The sibling volume /Prolog for Beginners: Thinking in Relations/ remains the deeper pure-Prolog course; this volume does not require it.
 
 The second contract is stricter: language-model output is untrusted external input. A model may eventually propose terms, facts, queries, plans, or explanations only through an explicit interface that can reject malformed, unsupported, contradictory, stale, or over-budget work. Fluency is not evidence. Text that merely looks like Prolog is still text.
 
@@ -97,7 +97,7 @@ The explanation is a term, not a generated paragraph. Later a model may summariz
 
 #+caption: Project 1 keeps deterministic symbolic evidence and explanation ahead of the later model boundary.
 #+attr_html: :alt Synthetic task facts and query terms feed unification, optional dependency traversal, and structured explanation; the later typed model gateway enters only through validation gates.
-[[file:../assets/project1-foundation-flow.svg]]
+[[file:assets/project1-foundation-flow.svg]]
 
 *** 1.6 Failure lab -- break the relation, not the prompt
 Make a temporary copy of the project source and introduce one defect at a time: write =Ada= where you intended =ada=; reverse one =depends_on/2= edge; change a call from =task/4= to =task/3=; misspell a predicate; remove a clause-ending full stop. Before running each copy, predict syntax error, arity/existence error, clean logical failure, or surprising success. “Prolog is weird” is not a diagnosis.
