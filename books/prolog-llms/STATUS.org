@@ -4,7 +4,7 @@
 :END:
 
 * Phase
-Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / milestone A are editorially APPROVED and merged via PR #39. Chapters 4--5 / milestone B were editorially accepted and merged via PR #49 at merge commit =747f7f4713a4afa41dc5aee6ea3f9bd99ade8e80=. Chapter 6 / milestone C was editorially APPROVED and merged via PR #61 at merge commit =1e3d0bb1cc4ff8dc8ef57cb3d78d56defacb79d1=. Project 1 milestone D is a worker-authored CLP(FD) scheduling/constraint slice in PR #69 and is not editorially approved or merged. The complete long-form book remains in progress and is not DONE.
+Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / milestone A are editorially APPROVED and merged via PR #39. Chapters 4--5 / milestone B were editorially accepted and merged via PR #49 at merge commit =747f7f4713a4afa41dc5aee6ea3f9bd99ade8e80=. Chapter 6 / milestone C was editorially APPROVED and merged via PR #61 at merge commit =1e3d0bb1cc4ff8dc8ef57cb3d78d56defacb79d1=. Project 1 milestone D is editorially APPROVED by the Books Editor-in-Chief in PR #69 and awaits fresh exact-head objective gates after current-main reconciliation before editor merge. The complete long-form book remains in progress and is not DONE.
 
 * Accepted baseline
 - Standalone audience and teaching contract defined.
@@ -28,7 +28,7 @@ Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / m
 - No LLM/provider call, model output, benchmark, Prolog-RLM runtime execution, or arbitrary generated callable Prolog goal is introduced by milestone C.
 - The Editor-in-Chief reviewed the actual Chapter 6 manuscript, parser/dispatcher implementation and regressions, standalone curriculum/project boundaries, research record, and current official SWI-Prolog DCG documentation and marked milestone C APPROVED in PR #61 before merge.
 
-* Milestone D -- worker draft in PR #69
+* Milestone D -- editor-approved bounded slice
 - Issue #67 owns one bounded dependency-ready slice: a genuine Project 1 CLP(FD) scheduling/constraint problem before any model/provider integration.
 - DOCUMENTED research pass [[file:research/clpfd-scheduling.org][clpfd-scheduling.org]] verifies current official SWI finite-domain membership, propagation versus =labeling/2= search, =ffc= and =min(Expr)= labeling semantics, reification, and scheduling use cases. Markus Triska's primary FLOPS 2012 SWI CLP(FD) paper supplies historical/implementation context; its performance observations remain UPSTREAM-REPORTED, not current-book benchmark evidence.
 - =task_schedule.pl= is intentionally separate from the accepted task/dependency fixture. =schedule_constraints/2= posts finite start domains, precedence, one release time, a derived two-job shared-verifier non-overlap disjunction, and makespan without performing labeling.
@@ -37,6 +37,7 @@ Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / m
 - The Project 1 lab derives the constraint model from the scheduling requirements, hand-derives the expected lower bound, separates feasibility from search policy, adds overlap/slow-order/no-hidden-labeling failure cases, and includes eight exercises plus an editable/rendered constraint -> propagation -> labeling diagram.
 - Six new PL-Unit regressions cover the no-hidden-labeling contract, the hand-derived minimum fixture, shared-resource overlap rejection, the slower-but-feasible reverse verifier order, and both deadline reification outcomes. The fail-closed runner retains all earlier Project 1 suites and now also requires the named =task_schedule= unit.
 - No provider API, model output, generated callable Prolog, benchmark, or Prolog-RLM runtime execution is introduced by milestone D.
+- The Books Editor-in-Chief reviewed the actual CLP(FD) manuscript, code/tests, curriculum boundaries, and source evidence in PR #69 and marked the bounded milestone D content APPROVED. This records editor authority; it is not a worker self-approval or whole-book completion claim.
 
 * Verification
 Milestone C was first verified on PR #61 head =fd00800ebccd3f39add365080fdf906ed099cdca= against main =09d329e93cd2b7472d7e5ae77a0f24e41b114512= through merge ref =ece67fef5d4028e14232e37923c967dcfb70bb5f=.
@@ -49,16 +50,18 @@ Exact completed milestone-C worker-handoff head =06600ac842db37e406c068b3348b858
 
 Milestone D worker content was normally reconciled with canonical =main= =c93bc5b2f5077d8fb18b893d37ce5b72581d1c4a= at branch head =ed48b0043ba19c0b608eff83db32ba3de8ec3fde=. Focused =prolog-llms-book= run =35122593759= completed SUCCESS on that exact head: book job =104883779259= passed the complete Project 1 runner including the new scheduling suite, structural validation, =make book BOOK=prolog-llms=, and =make check BOOK=prolog-llms=; Nix job =104883779440= passed =nix flake check -L=. Generic =books-ci= run =35122593842= also completed SUCCESS on the same head.
 
-The status/current-main handoff was then reconciled with canonical =main= =352510274d273afb44193ffedd5ed4427a713ea8= at head =e17ab7704eef068a6654f10c13d05ac130ec785d=. Focused =prolog-llms-book= run =35122901189= and generic =books-ci= run =35122901179= both completed SUCCESS on that exact head.
+The status/current-main handoff was then reconciled with canonical =main= =352510274d273afb44193ffedd5ed4427a713ea8= at head =e17ab7704eef068a6654f10c13d05ac130ec785d=. Focused =prolog-llms-book= run =35122901189= and generic =books-ci= run =35122901179= both completed SUCCESS on that exact head. Final worker handoff head =da941857131f9a8751c4e5f6f33e5041d5d28a92= also passed focused =prolog-llms-book= run =35123143857= and generic =books-ci= run =35123143858= before later unrelated merges advanced canonical main.
 
-The scheduling implementation/publication behavior is therefore TESTED for the recorded exact heads. Current official SWI CLP(FD) semantics are separately DOCUMENTED from primary sources retrieved 2026-09-16. The FLOPS 2012 performance discussion remains UPSTREAM-REPORTED. No provider/model behavior, neuro-symbolic benchmark, or Prolog-RLM runtime result is promoted to TESTED by these checks.
+After the Editor-in-Chief marked milestone D content APPROVED, the worker normally reconciled the branch with canonical =main= =367749199ed24cc83c67b0956001bf8cc7cb6d89= at two-parent integration commit =bb1386c5aa840c3562e6922617c104f8139ad032=. This status-only continuity commit is a newer exact head, so the earlier successful runs remain evidence for their recorded heads while fresh focused =prolog-llms-book= and generic =books-ci= runs are required before editor merge.
+
+The scheduling implementation/publication behavior is therefore TESTED for the recorded earlier exact heads. Current official SWI CLP(FD) semantics are separately DOCUMENTED from primary sources retrieved 2026-09-16. The FLOPS 2012 performance discussion remains UPSTREAM-REPORTED. No provider/model behavior, neuro-symbolic benchmark, or Prolog-RLM runtime result is promoted to TESTED by these checks. The =lost-rob0t/prolog-rlm= read-only source snapshot recorded by this book remains current main =51d2530f0e18c84cff860b7c0bf3afcc3c488057= as rechecked 2026-09-16.
 
 * Editorial state
-Milestone C is editorially accepted and merged. Milestone D worker state is TESTED / READY_FOR_EDITOR_REVIEW; this is not worker approval, whole-book completion, or merge authorization. The Books Editor-in-Chief retains final editorial and merge authority.
+Milestone C is editorially accepted and merged. Milestone D content is editorially APPROVED by the Books Editor-in-Chief; editor merge remains blocked only on fresh exact-head objective gates after current-main reconciliation/status continuity. This is not worker approval and the whole book is not DONE.
 
 * Next dependency-ready slice
-After milestone D is editorially accepted, research and implement carefully bounded meta-programming that makes the contrast between closed dispatch and arbitrary meta-call explicit: =call/N=, predicate indicators, term decomposition/reflection, a closed capability vocabulary, and tests that prove data cannot silently become authority. Keep live model/provider work behind the later typed gateway boundary.
+After milestone D is merged by the Editor-in-Chief, research and implement carefully bounded meta-programming that makes the contrast between closed dispatch and arbitrary meta-call explicit: =call/N=, predicate indicators, term decomposition/reflection, a closed capability vocabulary, and tests that prove data cannot silently become authority. Keep live model/provider work behind the later typed gateway boundary.
 
 * Blockers
-- No known book-local content, research, or executable blocker remains in milestone D. The final PR discussion records the exact handoff head and objective gates after this status-only update.
+- No known book-local content, research, or executable blocker remains in milestone D. The only merge blocker is fresh exact-current-head focused/generic CI on this post-reconciliation status head.
 - Version-sensitive LLM/provider examples remain intentionally deferred until a focused typed-gateway research slice chooses current primary-source-backed interfaces and records exact tested versions.
