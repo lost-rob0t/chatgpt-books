@@ -57,7 +57,9 @@ Every selected rule is copied before head unification. Without that freshening s
 
 The guarded runner's budget counts *object-language rule selections*. It is not SWI-Prolog's stack depth, inference count, wall-clock timeout, or resource limiter. Path-local variant detection is also intentionally incomplete as a termination method; it catches repeated variants, while growing terms are stopped only by the explicit budget.
 
-=Either/2= itself consumes no rule unit. Each alternative starts from the same incoming rule budget because alternatives are separate search branches. The proof node =choice(Side,Proof)= records which branch succeeded but contributes no provenance rule ID of its own.
+=Either/2= itself consumes no rule unit. Each alternative starts from the same incoming rule budget because alternatives are separate search branches. Two regressions protect different parts of that contract: =guarded_either_cycle_does_not_hide_other_branch= proves a diagnostic outcome on the left does not suppress the right branch, while =guarded_either_resets_budget_for_right_branch= deliberately exhausts the left branch's two-rule budget and then requires the right branch to spend the full original two-rule budget to succeed. An implementation that threaded the left branch's remaining budget into the right branch would fail the second test.
+
+The proof node =choice(Side,Proof)= records which branch succeeded but contributes no provenance rule ID of its own.
 
 * Proof, search report, and runtime trace are different artifacts
 - A proof tree records the successful object rules that justify one answer.
@@ -73,3 +75,4 @@ Do not call the search report a complete debugger trace. It omits non-unifying r
 4. Add a second rule with the same provenance ID. The proof search can still run, but explanation/provenance is now ambiguous. Restore unique IDs and keep the regression.
 5. Compare a successful proof tree, =search_report/4=, and SWI's debugger trace for the same ground query. Identify which evidence belongs only to each artifact.
 6. Temporarily commit to the first =either/2= solution or first matching rule with =once/1=. Run the multiplicity regressions and explain which alternatives were erased.
+7. Temporarily thread the left branch's remaining guarded budget into the right branch of =either/2=. Run =guarded_either_resets_budget_for_right_branch= and explain why charging sibling branches for one another's work changes the declared search policy.
