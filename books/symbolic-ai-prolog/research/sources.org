@@ -79,3 +79,25 @@ URLs:
 Authority: official SWI-Prolog distribution/documentation pages.
 Relevant material: stable 10.0.2 manual availability and stable/development channel policy.
 Affects: version-sensitive baseline and CI evidence wording.
+
+** Fikes and Nilsson -- STRIPS
+Citation: Richard E. Fikes and Nils J. Nilsson, “STRIPS: A New Approach to the Application of Theorem Proving to Problem Solving,” =Artificial Intelligence= 2(3--4), 189--208, 1971. DOI: 10.1016/0004-3702(71)90010-5.
+Primary copies/records inspected:
+- SRI Technical Note 43 / ADA459687 crawler-accessible report record and abstract.
+- original-paper copy indexed by CiteSeerX, headed “October 1970 ... Artificial Intelligence Group ... Technical Note 43”.
+- DOI/journal metadata cross-check through bibliographic indexes for the published 1971 article.
+Authority: original authors' technical report/article plus DOI journal record.
+Relevant material: search over world models; parameterized operator schemata; applicability conditions; add/delete effect descriptions; distinction between problem-solving operator descriptions and external action routines; use of theorem proving and GPS-style means-ends analysis in the historical system.
+Affects: Chapter 8's deliberately narrow STRIPS-style representation and the explicit warning not to equate the course-local BFS planner with the complete historical STRIPS algorithm.
+
+** SWI-Prolog Reference Manual -- =copy_term/2=
+URL: https://www.swi-prolog.org/pldoc/man?predicate=copy_term/2
+Authority: official current SWI-Prolog predicate documentation, retrieved 2026-09-16.
+Relevant material: creation of a version of a term with renamed fresh variables; attributed-variable and ground-subterm notes.
+Affects: fresh action-schema instances for Project 2 milestone B.
+
+** SWI-Prolog Reference Manual -- =sort/2=
+URL: https://www.swi-prolog.org/pldoc/man?predicate=sort/2
+Authority: official current SWI-Prolog predicate documentation, retrieved 2026-09-16.
+Relevant material: ISO =sort/2= sorts by standard term order and removes duplicates; page warning that later binding nonground terms can invalidate the ordering relation.
+Affects: Project 2 milestone-B canonical ground planning-state representation and explicit rejection of nonground state facts before sorting.
