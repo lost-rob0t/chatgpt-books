@@ -76,6 +76,19 @@ Supported requests are =#(route Event)=, =#(replace-rules Rules)=, =get-rules=, 
 
 The public client helper is =actor-router:request/3=. The envelope atom remains =call= because it is protocol data; the function itself is not named =call= because that name collides with an LFE core form.
 
+The correlation receive binds the tuple reference under a new name and compares it with the request's outer reference in a guard:
+
+#+begin_src lfe
+(receive
+  ((tuple 'reply reply-ref result)
+   (when (=:= reply-ref ref))
+   result)
+  (after timeout
+    (tuple 'error 'timeout)))
+#+end_src
+
+This shape is intentional. The executable gate demonstrated that writing =ref= directly in the receive-clause pattern introduces a clause binding rather than pinning the outer lexical value, so a stale reply could satisfy the request. Correlation therefore uses an explicit equality guard.
+
 State transition is represented by recursive process-loop arguments: after =replace-rules= the process calls =loop= with a new immutable rule-list term. No mutable object, process dictionary, ETS table, registry, or persistence layer is introduced.
 
 * FAILED -- first executable attempt exposed a core-form collision
@@ -85,14 +98,34 @@ Focused =lfe-book= workflow run =35110542289= checked out PR #51 integration com
 books/lfe/code/actor-router/src/actor-router.lfe:15: redefining core form call
 #+end_example
 
-The attempted helper name =call/3= was invalid because =call= is an LFE core form. The correction renames the helper to =request/3= while deliberately retaining the =call= atom inside protocol tuples. No Project 2 test claim is promoted from this failed run; the corrected head requires a fresh workflow execution.
+The attempted helper name =call/3= was invalid because =call= is an LFE core form. The correction renamed the helper to =request/3= while deliberately retaining the =call= atom inside protocol tuples. No Project 2 test claim is promoted from this failed run.
 
 The same workflow's independent Nix job passed its flake check, but later book/diagram steps in the failed =lfe-and-book= job were skipped after the compiler failure.
 
+* FAILED -- second executable attempt caught false correlation
+Focused =lfe-book= workflow run =35111067806= checked out PR #51 integration commit =2a5b636e8fcf0882a25fb6a642d722c87a88b7cb= for authored head =6e3f55929022b3bc5274bf50e22c8354bb2969e5=. The same pinned LFE v2.2.2 toolchain built successfully; Project 1 passed and the corrected Actor Router compiled. The stale-reply regression then failed:
+
+#+begin_example
+{'assertion-failed','selective-receive-correlation',{ok,pager},stale}
+#+end_example
+
+The failing implementation used this receive clause:
+
+#+begin_src lfe
+((tuple 'reply ref result)
+ result)
+#+end_src
+
+Even though =ref= was also the name of an outer =let= binding, the receive-clause pattern bound its own =ref= and therefore accepted the stale reply. The correction uses =reply-ref= in the clause and an explicit guard =(when (=:= reply-ref ref))=. The tests use the same guarded pattern whenever they correlate a received reply with a previously created reference.
+
+This failure is valuable curriculum evidence: do not casually transfer Erlang's visual “already-bound variable in a pattern” intuition into an LFE clause without checking LFE's binding rules. The book now teaches the explicit guard actually exercised by the implementation.
+
+The run's independent Nix job again passed. Diagram, book-build, and book-check steps were skipped after the actor regression failed. No Project 2 result from this run is marked TESTED.
+
 * UNTESTED -- corrected checkpoint acceptance plan
-The corrected implementation is not TESTED until a fresh focused LFE workflow executes it. The gate must prove:
+The guard-corrected implementation is not TESTED until a fresh focused LFE workflow executes it. The gate must prove:
 1. Project 1 routing semantics survive the process boundary.
-2. a fresh correlation ref prevents a stale reply from satisfying a new request;
+2. a fresh correlation ref plus explicit receive guard prevents a stale reply from satisfying a new request;
 3. rule replacement becomes the next loop state;
 4. same-sender request order is observed by the actor;
 5. caller timeout can occur while the target process remains alive;
