@@ -73,6 +73,17 @@
     (is-equal right left)
     (is (= 2 (length left)))))
 
+(deftest planning-boundary-rejects-ungrounded-world-facts
+  (let ((x (v 'x)))
+    (signals ungrounded-world-fact
+      (make-planning-problem `((at robot ,x))
+                             '((at robot dock))
+                             '()))
+    (signals ungrounded-world-fact
+      (make-planning-problem '((at robot dock))
+                             `((at robot ,x))
+                             '()))))
+
 (deftest repeated-variable-bindings-must-be-consistent
   (let* ((x (v 'x))
          (schema (make-action-schema
@@ -91,20 +102,20 @@
       (is-equal '(inspect crate) (ground-action-name (first actions))))))
 
 (deftest delete-effects-run-before-add-effects
-  (let* ((from (v 'from))
-         (to (v 'to))
-         (schema (make-action-schema
-                  'move
-                  (list from to)
-                  `((at robot ,from) (connected ,from ,to))
-                  `((at robot ,to))
-                  `((at robot ,from))))
-         (state '((at robot dock) (connected dock hall)))
+  (let* ((schema (make-action-schema
+                  'refresh
+                  '()
+                  '((flag ready))
+                  '((flag ready) (audit refreshed))
+                  '((flag ready))))
+         (state '((flag ready)))
          (action (first (instantiate-applicable-actions schema state)))
          (next (apply-ground-action state action)))
-    (is (member '(at robot hall) next :test #'equal))
-    (is (not (member '(at robot dock) next :test #'equal)))
-    (is (member '(connected dock hall) next :test #'equal))))
+    ;; The overlapping FLAG effect distinguishes delete-then-add from the
+    ;; opposite order: FLAG must be present in the successor.
+    (is (member '(flag ready) next :test #'equal))
+    (is (member '(audit refreshed) next :test #'equal))
+    (is (= 2 (length next)))))
 
 (deftest unbound-effect-variable-fails-before-state-mutation
   (let* ((x (v 'x))
