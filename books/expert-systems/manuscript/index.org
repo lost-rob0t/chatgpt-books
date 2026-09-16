@@ -480,7 +480,7 @@ That is a join.
 
 #+caption: Milestone A join trace. Each condition scans the frozen fact set, carries an immutable binding environment forward, and retains the stable IDs of supporting facts.
 #+attr_html: :alt Facts with stable IDs and provenance flow through three service conditions, producing service equals api, then dependent equals frontend, while retaining three support fact IDs.
-[[file:../assets/matcher-join.svg]]
+[[file:assets/matcher-join.svg]]
 
 The editable Graphviz source is =books/expert-systems/assets/matcher-join.dot=.
 
