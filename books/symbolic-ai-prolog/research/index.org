@@ -9,5 +9,6 @@
 * Records
 - [[file:meta-interpreter-foundations-01.org][Research 01 -- Meta-Interpretation, Search, and Trace Semantics]] -- DOCUMENTED primary-source foundation for Project 1 milestone A; executable claims remain separately TESTED/UNTESTED.
 - [[file:rule-freshening-02.org][Research 02 -- Fresh Rule Invocations]] -- DOCUMENTED reason stored object rules must receive fresh variables on each selection.
+- [[file:control-and-search-tracing-03.org][Research 03 -- Explicit Choice and Search-Attempt Diagnostics]] -- DOCUMENTED host control/debugger semantics plus the project-defined milestone-B boundary between proofs, bounded object search reports, and runtime traces.
 - [[file:sources.org][sources.org]] -- inspected source inventory.
 - [[file:search-log.org][search-log.org]] -- dated research activity and unresolved questions.

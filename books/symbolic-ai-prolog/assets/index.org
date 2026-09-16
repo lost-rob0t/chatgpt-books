@@ -8,5 +8,8 @@
 - screenshots only when real UI teaches something
 - generated illustration provenance records when used
 - unique cover background/motif + deterministic typography
+* Project 1 assets
+- =proof-tree.dot= / =proof-tree.svg= -- successful derivation/provenance structure for multi-hop reachability.
+- =search-attempts.dot= / =search-attempts.svg= -- failed matching-rule attempt, backtracking, and later successful attempt; explicitly diagnostic rather than proof structure.
 * Rule
 Do not add decorative assets merely to inflate the book. Every informative figure gets caption + alt text.

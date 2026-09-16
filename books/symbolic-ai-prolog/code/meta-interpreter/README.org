@@ -1,23 +1,27 @@
-#+title: Project 1 -- Meta-Interpreter, Milestone A
+#+title: Project 1 -- Meta-Interpreter, Milestones A and B
 :PROPERTIES:
 :ID:       b05bc1fb-9974-42d1-bf13-6f7258335c5b
 :END:
 
-* What this milestone builds
+* What this project slice builds
 A deliberately small object-language interpreter whose program is ordinary Prolog data:
 
 #+begin_src prolog
 rule(RuleId, Head, Body)
 #+end_src
 
-The engine makes normally implicit machinery inspectable: selecting a rule, freshening its variables, satisfying conjunctions, backtracking to alternatives, producing a proof tree, carrying provenance labels, detecting path-local recursive variants, and bounding interpreted rule applications.
+Milestone A made normally implicit machinery inspectable: selecting a rule, freshening its variables, satisfying conjunctions, backtracking to alternatives, producing a proof tree, carrying provenance labels, detecting path-local recursive variants, and bounding interpreted rule applications.
 
-It is a teaching interpreter, not a replacement for SWI-Prolog's compiler, module system, debugger, tabling engine, or full control language.
+Milestone B adds two deliberately narrow mechanisms:
+- explicit object-language choice as =either(Left,Right)=, with branch identity recorded in =choice(Side,Proof)=;
+- =search_report/4=, a deterministic bounded diagnostic for one ground ordinary goal that records matching top-level rule attempts, body failure, and guarded outcomes.
+
+This remains a teaching interpreter, not a replacement for SWI-Prolog's compiler, module system, debugger, tabling engine, or full control language.
 
 * Files
-- =meta_interpreter.pl= -- naive proof search plus the guarded runner and provenance traversal.
+- =meta_interpreter.pl= -- proof search, guarded execution, explicit choice, bounded top-level search diagnostics, and provenance traversal.
 - =programs.pl= -- synthetic incident knowledge plus deliberately hostile looping/growing programs.
-- =test_meta_interpreter.pl= -- PL-Unit semantic regressions.
+- =test_meta_interpreter.pl= -- PL-Unit semantic regressions for milestones A and B.
 - =../run-tests= -- book-local executable test runner.
 
 * Run
@@ -37,16 +41,38 @@ For an interactive proof:
 
 Use =proof_rule_ids/2= to project one successful proof into its ordered provenance labels. Use =prove_guarded/4= when a lab intentionally introduces a recursive cycle or a growing term and you want the object's rule budget/cycle policy to be explicit.
 
+For the milestone-B diagnostic:
+
+#+begin_src prolog
+?- incident_program(P),
+   search_report(P, reachable(gateway, database), 8, Report).
+#+end_src
+
+=search_report/4= is intentionally narrower than either proof search or SWI's debugger. Its public goal must be ground and must be an ordinary object goal rather than =true=, conjunction, or =either/2=. It lists only stored rules whose freshened heads unify with that top-level goal. =attempt(Id,failed)= means the rule head matched but its body produced no guarded outcome; =attempt(Id,outcomes(Outcomes))= preserves =proved=/=cycle=/=exhausted= outcomes.
+
 * Semantic boundary
-The object language currently owns only =true=, conjunction, and goals resolved by =rule/3= data. There is no interpreted cut, negation, disjunction, exception handling, arithmetic, native predicate reflection, module qualification, tabling, or I/O yet. Later project milestones may add selected mechanisms only after their semantics and failure behavior are taught.
+The object language currently owns =true=, conjunction, =either/2=, and goals resolved by =rule/3= data. There is still no interpreted cut, negation, if-then-else, exception handling, arithmetic, native predicate reflection, module qualification, tabling, arbitrary =call/1=, or I/O. Later project milestones may add selected mechanisms only after their semantics and failure behavior are taught.
 
 Every selected rule is copied before head unification. Without that freshening step, variables stored in a list of rule terms can accidentally retain bindings across repeated uses of the same rule in one proof. The regression =recursive_rule_variables_are_fresh_per_use= exists specifically to keep this subtle meta-programming bug dead.
 
-The guarded runner's budget counts *object-language rule selections*. It is not SWI-Prolog's stack depth, inference count, wall-clock timeout, or resource limiter. Path-local variant detection is also intentionally incomplete as a termination method; it catches repeated variants, while growing terms are stopped only by the explicit budget in this milestone.
+The guarded runner's budget counts *object-language rule selections*. It is not SWI-Prolog's stack depth, inference count, wall-clock timeout, or resource limiter. Path-local variant detection is also intentionally incomplete as a termination method; it catches repeated variants, while growing terms are stopped only by the explicit budget.
+
+=Either/2= itself consumes no rule unit. Each alternative starts from the same incoming rule budget because alternatives are separate search branches. Two regressions protect different parts of that contract: =guarded_either_cycle_does_not_hide_other_branch= proves a diagnostic outcome on the left does not suppress the right branch, while =guarded_either_resets_budget_for_right_branch= deliberately exhausts the left branch's two-rule budget and then requires the right branch to spend the full original two-rule budget to succeed. An implementation that threaded the left branch's remaining budget into the right branch would fail the second test.
+
+The proof node =choice(Side,Proof)= records which branch succeeded but contributes no provenance rule ID of its own.
+
+* Proof, search report, and runtime trace are different artifacts
+- A proof tree records the successful object rules that justify one answer.
+- A search report records top-level matching object rules that were attempted under the bounded teaching policy, including a body that failed before a later success.
+- SWI-Prolog's debugger trace records runtime ports and implementation events that this project does not reproduce.
+
+Do not call the search report a complete debugger trace. It omits non-unifying rules, nested port chronology, host unification ports, redo timing, exceptions, indexing behavior, and engine state.
 
 * Failure labs
 1. Temporarily remove =copy_term/2= from rule selection and run the tests. Explain why a multi-hop proof that reuses =r_reach_step= fails.
-2. Query the naive =prove/3= against =diagnostic_program/1= and =unstable(sensor)= under an external SWI depth guard. Then compare with =prove_guarded/4=.
+2. Query naive =prove/3= against =diagnostic_program/1= and =unstable(sensor)= under an external SWI depth guard. Then compare with =prove_guarded/4=.
 3. Lower the guarded rule budget until a known reachable goal reports =exhausted(...)=. Do not call this logical falsity.
 4. Add a second rule with the same provenance ID. The proof search can still run, but explanation/provenance is now ambiguous. Restore unique IDs and keep the regression.
-5. Compare a successful proof tree with SWI's debugger trace. List the operational events the proof tree intentionally omits, especially failed alternatives and redo ports.
+5. Compare a successful proof tree, =search_report/4=, and SWI's debugger trace for the same ground query. Identify which evidence belongs only to each artifact.
+6. Temporarily commit to the first =either/2= solution or first matching rule with =once/1=. Run the multiplicity regressions and explain which alternatives were erased.
+7. Temporarily thread the left branch's remaining guarded budget into the right branch of =either/2=. Run =guarded_either_resets_budget_for_right_branch= and explain why charging sibling branches for one another's work changes the declared search policy.
