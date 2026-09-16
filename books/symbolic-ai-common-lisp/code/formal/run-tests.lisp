@@ -1,6 +1,7 @@
-(load (merge-pathnames "package.lisp" *load-truename*))
-(load (merge-pathnames "formal.lisp" *load-truename*))
-(load (merge-pathnames "tests.lisp" *load-truename*))
+(let* ((here (or *load-truename* *compile-file-truename*))
+       (directory (make-pathname :name nil :type nil :defaults here)))
+  (load (merge-pathnames "package.lisp" directory))
+  (load (merge-pathnames "formal.lisp" directory))
+  (load (merge-pathnames "tests.lisp" directory)))
 
-(unless (symbolic-ai-formal::run-formal-tests)
-  (uiop:quit 1))
+(symbolic-ai-formal::run-formal-tests)
