@@ -273,10 +273,10 @@ Two neighboring books own deeper treatments that this one should not flatten int
 
 The Search Library itself is still an evolving project.  Passing this slice means only that the first reusable graph-search core, tests, research record, and teaching explanation agree.  It does not make the book—or even Project 1—finished.
 
-* Formal Systems and Software Verification
-
-#+include: "formal-methods.org" :lines "7-" :minlevel 2
-
 * Pattern Matching and Unification
 
 #+include: "pattern-unification.org" :lines "7-" :minlevel 2
+
+* Formal Systems and Software Verification
+
+#+include: "formal-methods.org" :lines "7-" :minlevel 2
