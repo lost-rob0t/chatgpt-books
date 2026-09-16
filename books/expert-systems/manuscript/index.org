@@ -73,7 +73,7 @@ Project 1 therefore starts with the least clever implementation we can trust. It
 
 - represent facts with stable identity and provenance;
 - match literal conditions;
-- introduce variables and immutable binding environments;
+- introduce variables and binding environments that are extended without mutating earlier bindings;
 - join several conditions by carrying bindings from left to right.
 
 There is no agenda in this milestone. There is no rule firing. There is no RETE network. That absence is a feature. Later optimizations get compared against a small implementation whose behavior is obvious enough to trace by hand.
@@ -203,7 +203,7 @@ This is slower than inventing a clever DSL on day one. It is much faster than de
 ** 3.1 A fact set is enough to learn matching
 The architecture roadmap eventually needs a real =WorkingMemory=: assertion, retraction, change propagation, duplicate policy, indexes, and event identity. We do not need those semantics to test our first matcher.
 
-For milestone A, “working memory” is simply an ordered Common Lisp list of immutable =fact= records supplied to =match-conditions=. This is deliberately weaker than the final abstraction. It gives us a frozen input against which we can reason exactly.
+For milestone A, “working memory” is simply an ordered Common Lisp list of ordinary =fact= structures supplied to =match-conditions=. =DEFSTRUCT= gives those records writable accessors, and their =arguments= and =provenance= slots can refer to ordinary mutable Lisp data, so this implementation does *not* promise deep immutability. The narrower contract is a frozen-input discipline: while a match is running, the caller does not mutate the supplied fact list, fact records, or nested values, and the matcher itself does not mutate them. This is deliberately weaker than the final working-memory abstraction, but it gives us a stable input against which we can reason exactly.
 
 The fixture lives in =fixtures.lisp=:
 
@@ -223,7 +223,7 @@ The fixture lives in =fixtures.lisp=:
 Using a fixed list gives us two important properties while we learn:
 
 - the same fact order produces the same trace;
-- no test failure can be blamed on concurrent or hidden mutation.
+- no test failure can be blamed on concurrent or hidden mutation *when the frozen-input discipline is respected*.
 
 Later, those comforts will disappear one at a time.
 
@@ -478,7 +478,7 @@ A successful match needs one =?service= value that satisfies all three. In our f
 
 That is a join.
 
-#+caption: Milestone A join trace. Each condition scans the frozen fact set, carries an immutable binding environment forward, and retains the stable IDs of supporting facts.
+#+caption: Milestone A join trace. Each condition scans the frozen fact set, carries a binding environment forward by non-destructive extension, and retains the stable IDs of supporting facts.
 #+attr_html: :alt Facts with stable IDs and provenance flow through three service conditions, producing service equals api, then dependent equals frontend, while retaining three support fact IDs.
 [[file:assets/matcher-join.svg]]
 
