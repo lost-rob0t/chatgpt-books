@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="520" viewBox="0 0 720 520" role="img" aria-labelledby="title desc">
+  <title id="title">Vector projection geometry</title>
+  <desc id="desc">Vector v is decomposed into its projection onto u and an orthogonal residual from the projection endpoint to v.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="currentColor" />
+    </marker>
+  </defs>
+  <rect width="100%" height="100%" fill="white" />
+  <g color="#111" font-family="sans-serif">
+    <line x1="50" y1="430" x2="680" y2="430" stroke="currentColor" stroke-width="1" />
+    <line x1="100" y1="470" x2="100" y2="50" stroke="currentColor" stroke-width="1" />
+    <text x="360" y="32" text-anchor="middle" font-size="22">projection: v = proj_u(v) + residual</text>
+    <line x1="100.000" y1="430.000" x2="400.000" y2="330.000" stroke="currentColor" stroke-width="3" marker-end="url(#arrow)" />
+    <text x="408.000" y="322.000" font-size="20">u</text>
+    <line x1="100.000" y1="430.000" x2="200.000" y2="130.000" stroke="currentColor" stroke-width="3" marker-end="url(#arrow)" />
+    <text x="174.000" y="122.000" font-size="20">v</text>
+    <line x1="100.000" y1="430.000" x2="280.000" y2="370.000" stroke="currentColor" stroke-width="3" marker-end="url(#arrow)" />
+    <text x="288.000" y="394.000" font-size="20">proj_u(v)</text>
+    <line x1="280.000" y1="370.000" x2="200.000" y2="130.000" stroke="currentColor" stroke-width="3" marker-end="url(#arrow)" />
+    <text x="254.000" y="246.000" font-size="20">residual</text>
+  </g>
+</svg>

@@ -76,7 +76,10 @@ jobs:
             -o /tmp/formal-methods.html
           test -s /tmp/formal-methods.html
 
-      - name: Build and validate Symbolic AI in Common Lisp
+      - name: Build Symbolic AI in Common Lisp
+        run: make book BOOK=symbolic-ai-common-lisp
+
+      - name: Validate Symbolic AI in Common Lisp
         env:
           EPUBCHECK_JAR: .cache/epubcheck-5.3.0/epubcheck.jar
         run: make check BOOK=symbolic-ai-common-lisp
