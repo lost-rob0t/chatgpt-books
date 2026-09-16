@@ -74,7 +74,7 @@ supervisor_restarts_crashed_worker_and_state_resets_test() ->
         Worker1 = await_registered_worker(undefined, 1000),
         ?assertEqual({ok, 1}, otp_worker:publish(otp_worker, <<"ephemeral">>, <<"before">>)),
         Mon = erlang:monitor(process, Worker1),
-        _ = catch otp_worker:crash(otp_worker, boom),
+        expect_exit(fun() -> otp_worker:crash(otp_worker, boom) end),
         receive
             {'DOWN', Mon, process, Worker1, boom} -> ok
         after 1000 ->
@@ -120,11 +120,20 @@ crash_and_await_replacement(Worker, Reason) ->
 
 crash_without_waiting_for_replacement(Worker, Reason) ->
     Mon = erlang:monitor(process, Worker),
-    _ = catch otp_worker:crash(otp_worker, Reason),
+    expect_exit(fun() -> otp_worker:crash(otp_worker, Reason) end),
     receive
         {'DOWN', Mon, process, Worker, Reason} -> ok
     after 1000 ->
         ?assert(false)
+    end.
+
+expect_exit(Fun) ->
+    try Fun() of
+        Unexpected ->
+            ?assertEqual(expected_exit, {unexpected_return, Unexpected})
+    catch
+        exit:_Reason ->
+            ok
     end.
 
 await_registered_worker(Previous, Timeout) ->
