@@ -57,13 +57,13 @@ Affects: distinction between domain proof trees and runtime trace instrumentatio
 ** SWI-Prolog Reference Manual -- Comparison and Unification of Terms
 URL: https://www.swi-prolog.org/pldoc/man?section=compare
 Authority: official SWI-Prolog reference documentation.
-Relevant material: variant relation =@=/2, term identity = ==/2 =, and the standard term order used by ordered sets.
+Relevant material: variant relation =@=/2, term identity written =Term1 == Term2=, and the standard term order used by ordered sets.
 Affects: path-local cycle guard in Project 1 milestone A; ground-state identity boundary in Project 2 milestone A.
 
 ** SWI-Prolog =library(ordsets)=
 URL: https://www.swi-prolog.org/pldoc/doc/_SWI_/library/ordsets.pl
 Authority: official SWI-Prolog library documentation.
-Relevant material: ordered-set representation, =ord_memberchk/2= membership using = ==/2 =, and deterministic ordered-set insertion.
+Relevant material: ordered-set representation, =ord_memberchk/2= membership using term identity (=Term1 == Term2=), and deterministic ordered-set insertion.
 Affects: explicit closed-set representation and duplicate-expansion policy in Project 2 milestone A.
 
 ** SWI-Prolog =library(plunit)=
