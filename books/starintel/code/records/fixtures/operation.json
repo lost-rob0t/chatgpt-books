@@ -6,7 +6,14 @@
   "version": 1,
   "date_added": "2026-09-16T12:00:00Z",
   "date_updated": "2026-09-16T12:00:00Z",
-  "sources": ["synthetic:book-demo"],
+  "sources": [
+    {
+      "kind": "synthetic",
+      "name": "StarIntel book demo",
+      "accessed_at": "2026-09-16T12:00:00Z",
+      "notes": "Synthetic fixture; no investigation data."
+    }
+  ],
   "evidence": [],
   "data": {
     "mission": "Demonstrate operation support in the StarIntel 0.9.1 release profile.",
