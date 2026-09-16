@@ -5,11 +5,11 @@
 #+bibliography: ../references.bib
 
 * How this book works
-This is a book about *building reasoning machinery in Prolog*. It assumes that facts, rules, queries, unification, recursion, lists, and ordinary backtracking are already familiar. If those ideas still feel like punctuation rather than tools, work through [[file:../../prolog/README.org][Prolog for Beginners: Thinking in Relations]] first. We will recap a prerequisite when it is essential to a symbolic-AI mechanism, but we will not hollow the foundations book out by teaching them badly a second time.
+This is a book about *building reasoning machinery in Prolog*. It assumes that facts, rules, queries, unification, recursion, lists, and ordinary backtracking are already familiar. If those ideas still feel like punctuation rather than tools, work through *Prolog for Beginners: Thinking in Relations* first. We will recap a prerequisite when it is essential to a symbolic-AI mechanism, but we will not hollow the foundations book out by teaching them badly a second time.
 
 The projects here make normally implicit things explicit. We will build interpreters that turn proof search into data, planners whose state transitions can be inspected, knowledge graphs with provenance, abductive engines that distinguish evidence from assumptions, explanation systems that expose their justifications, production-rule engines that contrast with Prolog's native backward chaining, and a capstone that composes symbolic subsystems without pretending one inference strategy solves every problem.
 
-The standalone sibling [[file:../../prolog-llms/README.org][Prolog + LLMs: Neuro-Symbolic Systems from First Principles]] owns the explicit LLM, neuro-symbolic, and RLM arc. Classical meta-interpretation, search, planning, provenance, constraints, abduction, and expert-system architecture stay here because they are useful whether or not an LLM exists; the two books cross-link shared foundations without deleting independent explanations.
+The standalone sibling *Prolog + LLMs: Neuro-Symbolic Systems from First Principles* owns the explicit LLM, neuro-symbolic, and RLM arc. The repository-level README and research notes cross-link the two volumes; the packaged manuscript names the sibling without a relative file link that would escape this EPUB. Classical meta-interpretation, search, planning, provenance, constraints, abduction, and expert-system architecture stay here because they are useful whether or not an LLM exists.
 
 Examples target SWI-Prolog and mark implementation-specific behavior. Documentation is not execution evidence: when this book says a behavior is TESTED, the exact runtime and command belong in the repository's verification record rather than being inferred from a manual page.
 
