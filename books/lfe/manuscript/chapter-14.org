@@ -229,11 +229,14 @@ but the release resource says:
 
 The release is describing a component version that its application resource does not provide.
 
-The lab creates exactly that broken =.rel= and requires =systools:make_script/2= to return an error tuple. We intentionally do not assert the human-formatted error string. Human diagnostics can improve between OTP versions without changing the important contract: construction must reject the mismatch.
+The lab creates exactly that broken =.rel=. It does *not* pass merely because =systools:make_script/2= returned some error. The oracle requires ={error,systools_make,Errors}= and searches =Errors= for the structured reason ={error_reading,{otp_router,{no_valid_version,_}}}=. Current tagged OTP 29.1 =systools_make= code and the upstream =systools_SUITE= use this semantic category; the research pass also checked the corresponding OTP 25.3.2.8 implementation used to bound compatibility with the older CI lineage. [cite:@erlang-systools-make-source-29;@erlang-systools-suite-29]
+
+We intentionally do not assert the human-formatted =format_error/1= text. Diagnostic prose can improve without changing the important contract: construction must fail *because the requested application version is unavailable*, not because an unrelated path or syntax bug happened first.
 
 This test teaches a general rule for failure assertions:
 
 - assert a stable semantic failure category when one exists;
+- assert the subject of the failure when the structure exposes it;
 - do not freeze incidental prose unless the prose itself is the public contract.
 
 * Failure lab 2: make the application require a dependency the release omits
@@ -245,7 +248,7 @@ Next, keep the release unchanged but alter a disposable copy of the application 
 
 The release still contains only Kernel, STDLIB, and =otp_router=.
 
-Now the component declaration and whole-system declaration disagree about the dependency closure. =systools:make_script/2= must reject the construction. [cite:@erlang-systools-29]
+Now the component declaration and whole-system declaration disagree about the dependency closure. The lab requires =systools:make_script/2= to return ={error,systools_make,{undefined_applications,Apps}}= *and* requires =crypto= to be a member of =Apps=. The tagged OTP implementation research supports that structured category; the test therefore cannot go green because of some unrelated release-construction error. [cite:@erlang-systools-29;@erlang-systools-make-source-29]
 
 This is more useful than memorizing “put crypto in the release if you use crypto.” The mechanism is the lesson:
 
@@ -353,8 +356,8 @@ After this chapter, the Project 3 line should have evidence for all of the follo
 - a =.rel= is constructed from the runtime's actual ERTS/Kernel/STDLIB versions;
 - =systools:make_script/2= produces nonempty =.script= and =.boot= artifacts;
 - a fresh =erl -boot= VM starts the application and routes a real event;
-- a =.rel= /=.app= version mismatch fails construction;
-- a dependency declared by =.app= but omitted by =.rel= fails construction;
+- a =.rel= /=.app= version mismatch is rejected with the expected =no_valid_version= category for =otp_router=;
+- a dependency declared by =.app= but omitted by =.rel= is rejected as an undefined application and names =crypto= in the injected failure case;
 - =systools:make_tar/2= emits a package with the expected application/release shape.
 
 Checkpoint C still does *not* claim distribution, persistence, hot upgrades, target installation on another host, bundled-runtime portability, OS integration, production configuration, or performance.
@@ -374,6 +377,6 @@ That restraint is the setup for Chapter 15. Distribution is much easier to reaso
 10. ★★★ Design the acceptance gate you would require before calling a release “deployable on another Linux host.” Include runtime, filesystem/layout, configuration, secrets, service manager, startup, health, failure, and rollback evidence. Do not implement it in this checkpoint.
 
 * Source checkpoint
-Release/Packaging Pass 06 is grounded in the official OTP 29.1 release record plus the official application, =app=, release-structure, =rel=, and =systools= documentation. [cite:@erlang-otp-29-1-release;@erlang-application-29;@erlang-app-resource-29;@erlang-release-structure-29;@erlang-rel-29;@erlang-systools-29]
+Release/Packaging Pass 06 is grounded in the official OTP 29.1 release record, the official application, =app=, release-structure, =rel=, and =systools= documentation, plus tagged OTP 29.1 =systools_make= implementation/regression evidence for the structured negative-test oracles. [cite:@erlang-otp-29-1-release;@erlang-application-29;@erlang-app-resource-29;@erlang-release-structure-29;@erlang-rel-29;@erlang-systools-29;@erlang-systools-make-source-29;@erlang-systools-suite-29]
 
 The detailed claim/evidence ledger is in =../research/release-06.org=. Executable claims become *TESTED* only when the focused branch runs the actual LFE/application/release lab; documentation alone never upgrades them.
