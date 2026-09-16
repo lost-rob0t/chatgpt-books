@@ -1,0 +1,20 @@
+digraph search_frontier {
+  graph [rankdir=LR, bgcolor="transparent", fontname="sans-serif"];
+  node [shape=box, fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  problem [label="Problem\ninitial / goal? / successors / key"];
+  frontier [label="Frontier\nstack · FIFO · min-heap"];
+  best [label="Duplicate table\nseen or best g"];
+  expand [label="Expand one admitted node"];
+  goal [label="Goal?", shape=diamond];
+  result [label="SearchResult\npath / cost / counters"];
+
+  problem -> frontier [label="root"];
+  frontier -> best [label="pop + key"];
+  best -> goal [label="not stale"];
+  goal -> result [label="yes"];
+  goal -> expand [label="no"];
+  expand -> frontier [label="admitted successors"];
+  expand -> best [label="seen / improved g"];
+}

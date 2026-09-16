@@ -1,0 +1,43 @@
+#+title: Search Library Research -- Graph Search, A*, and Common Lisp State Keys
+:PROPERTIES:
+:ID:       e89bfb5a-9cea-45d5-90a9-7ba5adfca634
+:END:
+
+* Scope
+This note supports issue #22 and the first staged implementation of the Search Library.  It records claims used by the manuscript and code; it is not a survey of every search algorithm.
+
+* Verified claims
+** Shortest-path search and uniform cost
+Dijkstra's 1959 paper states the minimum-path problem for a finite graph with positive edge lengths and gives a method that permanently labels vertices in nondecreasing distance from the source.  The teaching implementation uses the same best-known-path-cost idea, but presents it as uniform-cost graph search over generated problem states rather than as a graph-specific vertex-labeling routine. [cite:@dijkstra1959]
+
+The AIMA fourth-edition search chapter describes uniform-cost search as selecting the node with lowest path cost and breadth-first search as the equal-step-cost specialization.  That supports keeping BFS and UCS visibly separate in the code: BFS teaches FIFO frontier mechanics; UCS introduces path-cost ordering and replacement of worse routes. [cite:@russellnorvig2020]
+
+** A* and repeated states
+Hart, Nilsson, and Raphael introduced the A* family as minimum-cost graph search using heuristic information and prove optimality properties under stated assumptions. [cite:@hart1968]
+
+For a teaching graph-search implementation, the repeated-state rule matters as much as the formula =f(n)=g(n)+h(n)=.  AIMA's fourth-edition heuristic-search material distinguishes admissibility from consistency and notes that graph search must not permanently discard a later cheaper path when the heuristic is inconsistent.  The implemented A* therefore records the best =g= seen for each key, enqueues a replacement when =g= improves, and treats older frontier entries as stale when they are eventually popped. [cite:@russellnorvig2020]
+
+This is intentionally different from a simplistic "closed forever after first visit" implementation.  With a consistent heuristic, =f= is nondecreasing along a path and the re-open case normally disappears; with an admissible but inconsistent heuristic, allowing a lower-=g= rediscovery preserves the important graph-search invariant.
+
+** Common Lisp state-key contract
+ANSI Common Lisp requires =MAKE-HASH-TABLE= implementations to support =EQ=, =EQL=, =EQUAL=, and =EQUALP= tests.  =EQUAL= is a useful default for symbolic list/tree state keys.  The HyperSpec also makes a crucial warning explicit: after an object is used as a hash-table key, visibly modifying it with respect to that table's equivalence test makes later key operations unspecified.
+
+The Search Library therefore accepts a =KEY= function and stores its result in an =EQUAL= hash table.  The caller owns a simple contract: a key must remain stable while the search uses it.  This avoids pretending that arbitrary mutable CLOS objects have portable structural hashing, and it lets later chapters teach canonical symbolic representations explicitly rather than hiding equality policy inside the engine.
+
+** Common Lisp implementation context
+Peter Norvig's PAIP source distribution is an inspected historical Common Lisp implementation reference.  It includes reusable search utilities alongside pattern matching, unification, knowledge representation, constraint work, and expert-system material. [cite:@norvig1992]
+
+This project does not copy PAIP code.  The relevant lesson is curricular: build small reusable mechanisms, expose them to tests and traces, and then reuse them in larger symbolic systems.  Production-rule-engine depth belongs in the sibling Expert Systems book; native relational/backtracking semantics belong in Symbolic AI in Prolog.
+
+* Current implementation/toolchain observation
+Retrieved 2026-09-16: the SBCL project lists 2.6.8 (released 2026-08-28) as its current release.  The Search Library intentionally uses ANSI Common Lisp facilities only; SBCL is the concrete test compiler, not a source-language dependency.
+
+* Acceptance consequences
+- DFS and BFS have deterministic successor-order behavior and terminate on finite cyclic graphs via duplicate detection.
+- UCS rejects negative step costs and returns the cheapest discovered solution under its nonnegative-cost contract.
+- A* uses =g+h= ordering, supports improved paths to previously discovered keys, and discards stale heap entries without expansion.
+- Instrumentation makes expansions, generated nodes, duplicate prunes, stale pops, and maximum frontier size observable so later chapters can compare algorithms without invented benchmark claims.
+- Symbolic state identity is explicit through =KEY= and =EQUAL=, with mutation of stored keys documented as invalid caller behavior.
+
+* Sources inspected
+See [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]] for URLs, retrieval date, and source authority.
