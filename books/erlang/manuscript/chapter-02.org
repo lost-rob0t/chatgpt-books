@@ -1,0 +1,95 @@
+** Chapter 2 -- Pattern Matching Is Executable Structure
+:PROPERTIES:
+:ID:       9dc0a384-4079-406f-8b13-57edf052272a
+:END:
+
+Pattern matching is Erlang's main tool for turning unstructured input into explicit
+cases. The official reference lists matching at function calls, =case=, =receive=,
+=try=, and match expressions. [cite:@erlang-patterns] Those are not separate tricks.
+They are one mechanism used at several control-flow boundaries.
+
+*** Destructure instead of indexing
+
+Suppose a message is represented as:
+
+#+begin_src erlang
+{publish, <<"ops">>, <<"disk almost full">>}
+#+end_src
+
+A conventional language might inspect element zero, compare it with a string, then cast
+or index the remaining fields. Erlang can name the fields and validate the outer shape in
+one pattern:
+
+#+begin_src erlang
+handle({publish, Topic, Payload}) ->
+    store(Topic, Payload).
+#+end_src
+
+If the tuple does not have three elements or the first element is not the atom =publish=,
+that clause simply is not the matching clause.
+
+Nested patterns work the same way:
+
+#+begin_src erlang
+#{id := Id, meta := #{source := Source}} = Event.
+#+end_src
+
+The =:== map-pattern operator requires that a key already exist in the value being
+matched. This is different from constructing or updating a map, where ==>= and =:== have
+different roles. Treat patterns as contracts on shape, not as a loose query language.
+
+*** Repeated variables express equality
+
+A variable may appear more than once in a pattern only if all occurrences match the
+same value. That lets structure express invariants directly.
+
+#+begin_src erlang
+same_topic({publish, Topic, _}, {history, Topic}) ->
+    true;
+same_topic(_, _) ->
+    false.
+#+end_src
+
+There is no extra equality test in the first clause. The second occurrence of =Topic=
+is already bound by the first occurrence and must match it.
+
+*** Guards refine shape with cheap predicates
+
+Patterns answer "what structure is this?" Guards answer a narrower question such as
+"is this field a non-negative integer?"
+
+#+begin_src erlang
+accept({retry, Count}) when is_integer(Count), Count >= 0 ->
+    {ok, Count};
+accept(Request) ->
+    {error, {invalid_request, Request}}.
+#+end_src
+
+A useful design rule is to make protocol tags and outer structure visible in patterns,
+then use guards for type/range facts. This keeps failure behavior easy to audit.
+
+*** Match failures are information
+
+A failed top-level match expression raises ={badmatch, Value}= as a runtime error.
+[cite:@erlang-errors] In ordinary domain validation that might be too violent; return a
+tagged error instead. In startup code, tests, or internal invariant checks, a crash can be
+exactly right: continuing with impossible state can be more dangerous than terminating a
+small process and letting its supervisor restart it.
+
+This distinction will recur throughout the book:
+
+- /expected bad input/ should usually remain data;
+- /violated internal invariant/ often deserves process failure;
+- /failure recovery policy/ belongs outside the failing worker, usually in supervision.
+
+That is the beginning of "let it crash" without the slogan. The useful idea is not to
+crash randomly. It is to stop local code from pretending that corrupted assumptions are
+fine, while arranging a separate process to decide what recovery means.
+
+*** Exercises
+
+1. ★ Match a three-field event tuple and return only its payload.
+2. ★★ Write a function whose first clause accepts two commands only when they name the
+   same binary topic.
+3. ★★★ Create a nested map pattern for an event with =id=, =payload=, and
+   =meta.source=. Test the exact failure you get when =meta= exists but =source= does not.
