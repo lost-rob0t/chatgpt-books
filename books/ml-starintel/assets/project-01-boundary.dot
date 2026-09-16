@@ -1,0 +1,21 @@
+digraph project1_boundary {
+  graph [rankdir=LR, bgcolor="transparent", pad=0.25, nodesep=0.45, ranksep=0.65];
+  node [shape=box, style="rounded", fontname="sans-serif", fontsize=11];
+  edge [fontname="sans-serif", fontsize=10];
+
+  source [label="Frozen source evidence\nbytes + hashes + retrieval metadata"];
+  canonical [label="Canonical StarIntel documents\nschema-valid representation"];
+  contract [label="Experiment contract\nunit + prediction time + target"];
+  admissible [label="Admissibility checks\nprovenance + time + must-link rules"];
+  split [label="Stable train/test IDs\ncomposite groups or strict cutoff"];
+  fit [label="Training-only fitted state\nfeatures + model"];
+  audit [label="Evaluation + failure analysis\nmetrics + contamination audit"];
+
+  source -> canonical [label="source-specific transform"];
+  canonical -> contract [label="select task-facing rows"];
+  contract -> admissible [label="declare what may cross"];
+  admissible -> split [label="fail closed on conflict"];
+  split -> fit [label="fit on train only"];
+  fit -> audit [label="evaluate held-out IDs"];
+  audit -> contract [label="revise question, not history", style=dashed];
+}

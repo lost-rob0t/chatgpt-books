@@ -1,0 +1,182 @@
+#+title: Machine Learning for StarIntel -- Foundational Research Pass 09
+#+date: 2026-08-18
+
+* Status
+RESEARCH. This pass specifies the composite leakage-constraint planner for Project 1 from primary/official sources and the current StarIntel runtime boundary. The planner design is DOCUMENTED/PROPOSED; it has not yet been executed on a non-synthetic public corpus and is therefore UNTESTED as a real-data diagnostic.
+
+* Scope
+Define how Project 1 should compile several leakage constraints into one deterministic train/test policy without duplicating StarIntel server/runtime/storage behavior.
+
+This pass covers entity identity, exact/near-duplicate components, source/document lineage, optional graph grouping, temporal cutoff, and point-in-time feature availability. It deliberately does not claim production model performance.
+
+* Exact research questions
+1. When several records must remain together for different reasons, what deterministic representation composes those constraints without allowing one constraint to silently override another?
+2. Which constraints should be treated as hard equivalence/grouping constraints versus temporal admissibility checks?
+3. When is graph connectivity a justified grouping boundary, and when would whole-component grouping make evaluation useless by collapsing a large investigation graph into one group?
+4. How should the resulting planner interact with scikit-learn grouped splitters while remaining explicit about their semantics?
+5. Which facts belong in the Project 1 dataset-build manifest, and which runtime/storage concerns must remain behind the StarIntel adapter?
+6. What contamination diagnostics must be emitted before any model score is interpreted?
+
+* Retrieval date
+2026-08-18.
+
+* Primary/authoritative sources inspected
+- scikit-learn 1.9 =GroupKFold= documentation: train/test folds can be constructed so the same caller-provided group does not occur in both partitions.
+- scikit-learn 1.9 =GroupShuffleSplit= documentation: arbitrary domain-specific group labels are accepted; =test_size= and =train_size= refer to groups rather than rows; a fixed integer =random_state= makes randomized group splitting reproducible.
+- scikit-learn 1.9 cross-validation user guide: ordinary i.i.d. assumptions fail for dependent samples and grouped validation should hold out entire groups when generalization to unseen groups is the target.
+- scikit-learn common leakage guidance already recorded in earlier passes: learned preprocessing must fit only on training data and information unavailable at prediction time is leakage.
+- current =lost-rob0t/starintel-server= =master= inspected at commit =7df7fce9b95146a72c7b1e9c6ed7655e9f4b0bae=: the server owns persistent ingest/storage/search/routing/dataflow and exposes StarIntel service/adaptor boundaries. Book 1 must not reproduce CouchDB, RabbitMQ, actor supervision, or server ingest semantics inside the dataset pipeline.
+- current Book 1 Experiments A--C from pass 08: repeated-entity, future-information, and exact/near-duplicate controls already demonstrate that each individual leakage path can invalidate row-random evaluation on deterministic fixtures.
+
+No new bibliography entry was added in this pass because the scikit-learn and StarIntel sources are versioned web/repository documentation already represented by the research record; no unverified paper metadata was invented merely to make the bibliography look busy.
+
+* Result: composite planner contract
+** 1. Separate hard grouping constraints from admissibility constraints
+The planner should model two classes of rules.
+
+Hard grouping rules state that two records MUST receive the same split assignment. Initial Project 1 rules:
+- same canonical entity identity;
+- same exact-duplicate identity;
+- same frozen near-duplicate component;
+- same source/document lineage component when the lineage means one derived/copied observation could reveal another;
+- same explicitly selected graph grouping key when the evaluation question requires generalization across graph regions rather than within one region.
+
+Admissibility rules determine whether a record/features may participate in a particular partition at all:
+- temporal cutoff / train-before-test ordering;
+- point-in-time feature availability;
+- label availability when labels are resolved after observation time;
+- any later task-specific embargo/window rule.
+
+A temporal rule therefore must not be faked by merely adding =year= to the grouping key. Time constrains which observations/features are valid; grouping constrains which observations must move together.
+
+** 2. Compile hard grouping rules by equivalence closure
+Represent records as vertices in a constraint graph. Add an undirected edge whenever an enabled hard rule says the two records must share a partition. The deterministic composite group is the connected component induced by the transitive closure of those edges.
+
+Canonical component ID rule for Project 1 research harness:
+1. normalize record IDs to their canonical manifest string representation;
+2. compute connected components over enabled hard-constraint edges;
+3. assign each component the lexicographically smallest canonical record ID as =composite_group_id=;
+4. emit the full edge provenance that caused each union, rather than retaining only the final opaque group ID.
+
+This means entity grouping and duplicate grouping compose monotonically. If A shares an entity with B and B is a near-duplicate of C, A/B/C are one indivisible split component. No later splitter may separate them.
+
+The implementation may use union-find/disjoint-set or an equivalent connected-component algorithm. The research contract is the resulting equivalence relation and deterministic IDs, not a dependency on a particular graph library.
+
+** 3. Graph grouping is opt-in and task-specific
+Do NOT automatically union every pair of StarIntel records connected by any relation. A real investigation graph may contain a giant connected component; blanket graph closure could reduce the entire corpus to one split group and make evaluation impossible.
+
+Graph-derived hard grouping is justified only when the task definition identifies a leakage path that follows a specific relation or bounded structural unit. Examples to research/test later include:
+- holding out all observations belonging to one known organization/family/case component;
+- keeping edges from the same source document together;
+- link-prediction evaluation where reciprocal/duplicate edge facts must not cross partitions.
+
+The manifest must therefore record =graph_group_policy= with the exact relation types, direction handling, traversal depth/component rule, and reason. Default is no graph union beyond other explicitly enabled constraints.
+
+** 4. Apply temporal and point-in-time rules before interpreting scores
+For a declared cutoff =T=:
+- training observations must satisfy the task's training-time rule;
+- test observations must satisfy the task's evaluation-time rule;
+- no feature may be emitted for an observation when =feature.available_at > prediction_at=;
+- components that straddle an otherwise strict train/test cutoff require an explicit deterministic policy rather than silent row movement.
+
+Proposed first policy for Project 1 research: =reject_straddling_component=. If a hard composite component contains observations on both sides of a strict cutoff, mark the requested split infeasible and emit the offending component/constraints. This is safer for teaching and provenance than silently assigning the whole component to train or test and changing the requested evaluation window.
+
+Alternative policies such as an embargo, dropping pre/post-cutoff rows, or assigning whole components by first/last observation remain task-specific and must be separately declared/tested before use.
+
+** 5. scikit-learn is the splitter, not the policy compiler
+Once =composite_group_id= exists, =GroupShuffleSplit= or =GroupKFold= can consume that single group label. Their job is to assign groups; they do not discover entity equivalence, duplicates, lineage, graph leakage, temporal validity, or feature availability for us.
+
+Therefore Project 1 must not pass raw =entity_id= to =GroupShuffleSplit= and pretend the other constraints disappeared. The book layer compiles the domain constraints into one group vector first, then invokes the upstream splitter.
+
+** 6. Required manifest/provenance fields
+The dataset-build/split manifest should record at minimum:
+- planner schema/version owned by Book 1;
+- deterministic seed when a randomized group splitter is used;
+- enabled hard-constraint rule names and parameters;
+- exact duplicate normalization/hash rule;
+- near-duplicate algorithm, threshold, and candidate-generation version;
+- source/document lineage rule;
+- graph grouping policy or explicit =none=;
+- component-ID algorithm;
+- temporal cutoff/window and timezone convention;
+- point-in-time feature-availability policy;
+- straddling-component policy;
+- upstream splitter class + version-sensitive parameters;
+- counts of rows, entities, composite groups and partitions;
+- contamination diagnostics and infeasibility diagnostics;
+- immutable source/fixture identities already required by earlier provenance passes.
+
+StarIntel document validation/serialization remains behind the existing Book 1 StarIntel adapter. CouchDB revisions, queues, RabbitMQ routing, actor supervision, durable ingest and server search are not part of this manifest and must stay in =starintel-server=.
+
+* Required contamination diagnostics before model evaluation
+A split result is not ready for scoring until the harness reports these diagnostics:
+- entity IDs shared across train/test;
+- exact hashes shared across train/test;
+- near-duplicate component IDs shared across train/test;
+- source-lineage component IDs shared across train/test;
+- enabled graph-group IDs shared across train/test;
+- hard composite group IDs shared across train/test;
+- maximum training observation/prediction time and minimum test observation/prediction time for strict temporal tasks;
+- count of emitted features whose availability exceeds their prediction time (must be zero);
+- count/list of cutoff-straddling composite groups;
+- per-partition class/label counts when labels exist;
+- number and proportion of rows excluded by admissibility rules.
+
+The first six overlap counts must be zero for their enabled hard constraints. A nonzero result is a split-construction failure, not an interesting model result.
+
+* Proposed deterministic planner phases
+#+begin_example
+records + provenance
+        |
+        v
+normalize identities
+        |
+        v
+build hard-constraint edges
+(entity / exact dup / near dup / lineage / selected graph rule)
+        |
+        v
+transitive closure -> composite_group_id
+        |
+        v
+apply temporal + point-in-time admissibility
+        |
+        +--> infeasible? emit diagnostic, do not score
+        |
+        v
+upstream grouped splitter
+        |
+        v
+contamination audit
+        |
+        +--> overlap? fail split, do not score
+        |
+        v
+fit train-only preprocessing/model -> evaluate
+#+end_example
+
+* Claim status
+| Claim | Status |
+| scikit-learn grouped splitters can keep caller-provided groups non-overlapping within a train/test fold | DOCUMENTED |
+| =GroupShuffleSplit= sizes refer to groups rather than rows and fixed integer random state gives reproducible group assignments | DOCUMENTED |
+| current =starintel-server= owns persistent ingest/storage/search/routing/runtime dataflow rather than Book 1 | DOCUMENTED from repository at inspected commit |
+| hard entity/duplicate/lineage constraints can be represented as an equivalence closure before splitting | PROPOSED design; UNTESTED in Book 1 real-data harness |
+| graph connectivity should always be a hard grouping constraint | REJECTED / NOT CLAIMED |
+| strict cutoff-straddling composite groups should initially make a split infeasible | PROPOSED policy; UNTESTED |
+| this planner eliminates every possible form of ML leakage | NOT CLAIMED |
+| this planner improves production StarIntel model performance | NOT CLAIMED |
+
+* Results
+The foundational design gate is narrower now. Project 1 no longer needs to invent precedence rules such as "entity beats duplicate beats time." Hard must-link constraints compose by transitive closure; temporal and feature-availability rules remain explicit admissibility constraints; upstream grouped splitters receive one compiled group vector.
+
+The design also preserves the StarIntel boundary: the research pipeline owns dataset/split provenance and canonical adapter calls, while =starintel-server= continues to own runtime persistence, routing and dataflow semantics.
+
+* Remaining uncertainty
+- The proposed =reject_straddling_component= policy has not yet been exercised on factual public data.
+- Near-duplicate candidate generation remains O(n^2) in the small deterministic control; scalable MinHash/LSH or embedding-assisted candidate generation is still unresolved.
+- A real public fixture large enough to exercise entity + lineage + time simultaneously must be selected without implying its size supports meaningful production performance estimation.
+- Task-specific graph grouping rules for relationship ML/link prediction remain a later-project research question.
+- Cross-language StarIntel conformance and the final transitive dependency lock remain separate work.
+
+* Next research slice
+Implement the composite planner behind a small pure dataset-build API and tests, then run a contamination-only dry run on a non-synthetic public fixture. The dry run should report component construction, cutoff-straddling behavior and overlap diagnostics; it must not present model scores as meaningful if the fixture is too small. After that, the next unresolved foundation is scalable near-duplicate candidate generation and the Project 1 dependency-lock/reproducibility contract.

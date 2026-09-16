@@ -42,4 +42,13 @@
 - Important boundary: exhaustive finite exploration may prove an invariant of the supplied finite model; bounded exploration is not proof, and model correctness does not automatically establish implementation refinement.
 - Remaining uncertainty: exact ACL2 CI pin; first Hoare-language shape; reproducible solver choice; depth of LTL/CTL treatment; later implementation-conformance/refinement story.
 
+** 2026-09-16 -- Project 3 explicit state-space planning
+- Question: Which original planning sources justify the historical STRIPS lineage, which parts are safe to teach as a small add/delete state-space subset, and how should Project 3 compose the already-accepted Search and Unification APIs without importing their representations?
+- Queries: Fikes Nilsson 1971 STRIPS original paper/DOI; Fikes Nilsson 1993 STRIPS retrospective; Bylander 1994 propositional STRIPS planning complexity; current repository Search Library transition/problem API; current Project 2 unifier/substitution API.
+- Inspected: publisher/DOI metadata for Fikes and Nilsson 1971 (=10.1016/0004-3702(71)90010-5=); Elsevier record for Fikes and Nilsson 1993 (=10.1016/0004-3702(93)90190-M=); Bylander journal/DOI metadata (=10.1016/0004-3702(94)90081-7=); the exact current Common Lisp Search and Pattern/Unifier source interfaces already merged in this repository.
+- Result: freeze milestone A as a course-local STRIPS-style subset: finite canonical sets of ground facts; positive preconditions; explicit parameters; add/delete effects; nonnegative action costs; repeated-precondition joins through public =UNIFY=; grounding through public =APPLY-SUBSTITUTION=; and successor transitions delegated to the existing Search Library.  The manuscript explicitly avoids claiming full historical STRIPS, PDDL, modern planner equivalence, or a benchmark.
+- Important boundary: Bylander's complexity results are properties of formally stated propositional STRIPS planning decision problems/restrictions, not measured behavior of this Common Lisp implementation.  The project records no timing, memory, or scalability claim.
+- Executable evidence: pending on the exact branch head.  Until focused direct/ASDF planner tests and book gates pass, implementation behavior remains UNTESTED even though the source and test fixtures are committed.
+- Remaining uncertainty: later milestone research must justify planner heuristics, explanation/provenance, and any richer constraint/action-language features before implementation.
+
 No foundational book-wide research is marked complete by these slices.

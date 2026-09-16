@@ -1,0 +1,255 @@
+{
+  "fixture_id": "gleif-official-json-sample-feeder-v1",
+  "fixture_tier": "A-illustrative-format",
+  "known_absent_level1_endpoint_leis": [
+    "635400VZ8GQJUZ3L3H12",
+    "635400Z5LRZZSML7CV16"
+  ],
+  "level1_record": {
+    "Entity": {
+      "EntityCategory": {
+        "$": "FUND"
+      },
+      "EntityCreationDate": {
+        "$": "2016-10-28T01:00:00+01:00"
+      },
+      "EntityStatus": {
+        "$": "ACTIVE"
+      },
+      "HeadquartersAddress": {
+        "@xml:lang": "en",
+        "AdditionalAddressLine": {
+          "$": "10 Earlsfort Terrace"
+        },
+        "City": {
+          "$": "Dublin"
+        },
+        "Country": {
+          "$": "IE"
+        },
+        "FirstAddressLine": {
+          "$": "c/o AlbaCore Capital Limited"
+        },
+        "PostalCode": {
+          "$": "Dublin 2"
+        },
+        "Region": {
+          "$": "IE-D"
+        }
+      },
+      "LegalAddress": {
+        "@xml:lang": "en",
+        "AdditionalAddressLine": {
+          "$": "10 Earlsfort Terrace"
+        },
+        "City": {
+          "$": "Dublin"
+        },
+        "Country": {
+          "$": "IE"
+        },
+        "FirstAddressLine": {
+          "$": "Arthur Cox Building"
+        },
+        "PostalCode": {
+          "$": "Dublin 2"
+        },
+        "Region": {
+          "$": "IE-D"
+        }
+      },
+      "LegalForm": {
+        "EntityLegalFormCode": {
+          "$": "2GV9"
+        }
+      },
+      "LegalJurisdiction": {
+        "$": "IE"
+      },
+      "LegalName": {
+        "$": "AlbaCore Partners I Feeder ICAV",
+        "@xml:lang": "en"
+      },
+      "RegistrationAuthority": {
+        "RegistrationAuthorityEntityID": {
+          "$": "C158455"
+        },
+        "RegistrationAuthorityID": {
+          "$": "RA000404"
+        }
+      }
+    },
+    "Extension": null,
+    "LEI": {
+      "$": "6354009BJOFO62XYIX17"
+    },
+    "Registration": {
+      "InitialRegistrationDate": {
+        "$": "2016-11-24T01:00:00+01:00"
+      },
+      "LastUpdateDate": {
+        "$": "2020-07-24T12:36:06.399+02:00"
+      },
+      "ManagingLOU": {
+        "$": "635400DZBUIMTBCXGA12"
+      },
+      "NextRenewalDate": {
+        "$": "2020-11-24T01:00:00+01:00"
+      },
+      "RegistrationStatus": {
+        "$": "ISSUED"
+      },
+      "ValidationAuthority": {
+        "ValidationAuthorityEntityID": {
+          "$": "C158455"
+        },
+        "ValidationAuthorityID": {
+          "$": "RA000404"
+        }
+      },
+      "ValidationSources": {
+        "$": "FULLY_CORROBORATED"
+      }
+    }
+  },
+  "relationship_records": [
+    {
+      "RelationshipRecord": {
+        "Registration": {
+          "InitialRegistrationDate": {
+            "$": "2020-07-24T12:36:06.399+02:00"
+          },
+          "LastUpdateDate": {
+            "$": "2020-07-24T12:36:06.399+02:00"
+          },
+          "ManagingLOU": {
+            "$": "635400DZBUIMTBCXGA12"
+          },
+          "NextRenewalDate": {
+            "$": "2020-11-24T01:00:00+01:00"
+          },
+          "RegistrationStatus": {
+            "$": "PUBLISHED"
+          },
+          "ValidationDocuments": {
+            "$": "REGULATORY_FILING"
+          },
+          "ValidationReference": {
+            "$": "http://registers.centralbank.ie/ICAVDocuments/C158455/Instrument%20of%20Incorporation%20Updated%2016.10.27.pdf"
+          },
+          "ValidationSources": {
+            "$": "FULLY_CORROBORATED"
+          }
+        },
+        "Relationship": {
+          "EndNode": {
+            "NodeID": {
+              "$": "635400VZ8GQJUZ3L3H12"
+            },
+            "NodeIDType": {
+              "$": "LEI"
+            }
+          },
+          "RelationshipPeriods": {
+            "RelationshipPeriod": {
+              "PeriodType": {
+                "$": "RELATIONSHIP_PERIOD"
+              },
+              "StartDate": {
+                "$": "2016-10-28T01:00:00+01:00"
+              }
+            }
+          },
+          "RelationshipStatus": {
+            "$": "ACTIVE"
+          },
+          "RelationshipType": {
+            "$": "IS_FEEDER_TO"
+          },
+          "StartNode": {
+            "NodeID": {
+              "$": "6354009BJOFO62XYIX17"
+            },
+            "NodeIDType": {
+              "$": "LEI"
+            }
+          }
+        }
+      }
+    },
+    {
+      "RelationshipRecord": {
+        "Registration": {
+          "InitialRegistrationDate": {
+            "$": "2020-07-24T12:36:06.399+02:00"
+          },
+          "LastUpdateDate": {
+            "$": "2020-07-24T12:36:06.399+02:00"
+          },
+          "ManagingLOU": {
+            "$": "635400DZBUIMTBCXGA12"
+          },
+          "NextRenewalDate": {
+            "$": "2020-11-24T01:00:00+01:00"
+          },
+          "RegistrationStatus": {
+            "$": "PUBLISHED"
+          },
+          "ValidationDocuments": {
+            "$": "REGULATORY_FILING"
+          },
+          "ValidationReference": {
+            "$": "http://registers.centralbank.ie/FundRegisterDataPage.aspx?fundReferenceNumber=C158455&register=50"
+          },
+          "ValidationSources": {
+            "$": "FULLY_CORROBORATED"
+          }
+        },
+        "Relationship": {
+          "EndNode": {
+            "NodeID": {
+              "$": "635400Z5LRZZSML7CV16"
+            },
+            "NodeIDType": {
+              "$": "LEI"
+            }
+          },
+          "RelationshipPeriods": {
+            "RelationshipPeriod": {
+              "PeriodType": {
+                "$": "RELATIONSHIP_PERIOD"
+              },
+              "StartDate": {
+                "$": "2016-10-28T01:00:00+01:00"
+              }
+            }
+          },
+          "RelationshipStatus": {
+            "$": "ACTIVE"
+          },
+          "RelationshipType": {
+            "$": "IS_FUND-MANAGED_BY"
+          },
+          "StartNode": {
+            "NodeID": {
+              "$": "6354009BJOFO62XYIX17"
+            },
+            "NodeIDType": {
+              "$": "LEI"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "retrieved_at": "2026-08-17T18:22:46.482728+00:00",
+  "source": {
+    "archive_name": "2021-11-23_lei-cdf-3.1-and-rr-cdf-2.1-and-repex-cdf-2.1-json-samples_v1.1-final.zip",
+    "archive_sha256": "7b49ee2c8fbe8e2a10f60165dd12ab3bf212eb95418c229218ea24d425b15237",
+    "lei_member": "JSON/GoldenCopy_lei.json",
+    "lei_member_sha256": "7330d63725f3884113564dd90122683452271095071d8a2c8dc2564cf14e83ae",
+    "publisher": "Global Legal Entity Identifier Foundation (GLEIF)",
+    "rr_member": "JSON/GoldenCopy_rr.json",
+    "rr_member_sha256": "978e3181c04fecd628654b7ae0e9d9c0cb07450de14480dd6587b4e455aa7882"
+  }
+}

@@ -24,21 +24,35 @@ Used by: Project 1 foundation rationale and incremental matching/RETE-like chapt
 Authority: original TMS author / MIT AI Laboratory primary report plus published-article metadata.
 Primary artifact: https://dspace.mit.edu/entities/publication/5377b306-4ecc-4687-b1f5-78cbb4a0543a
 Published record: /Artificial Intelligence/ 12(3), 231--272, 1979; DOI 10.1016/0004-3702(79)90008-0.
-Inspected material: MIT AIM-521 metadata/abstract, issued June 1 1979. The abstract describes a TMS subsystem that records and maintains reasons for program beliefs, revises beliefs, and uses recorded reasons for explanation and control.
-Used by: Chapter 17 and Project 1 milestone D for truth-maintenance lineage and the separation of problem solving from reason/dependency maintenance. The teaching engine implements only a bounded justification/grounding/cascade subset; it does not claim to reproduce Doyle's richer nonmonotonic assumption-management system.
+Inspected material: MIT AIM-521 metadata/abstract, issued June 1 1979. The abstract describes a TMS subsystem that records and maintains reasons for program beliefs, revises beliefs, and uses recorded reasons for explanation and control. For Chapter 18 the same primary abstract was rechecked for its explicit assumption/revision framing.
+Used by: Chapters 17--18 and Project 1 milestones D/E for truth-maintenance lineage and the separation of problem solving from reason/dependency maintenance. The teaching engine implements only bounded course-local support/assumption/consistency layers; it does not claim to reproduce Doyle's richer nonmonotonic system.
+
+** de Kleer 1986 -- An Assumption-Based TMS
+Authority: original ATMS paper; publisher metadata/abstract inspected via Elsevier/ScienceDirect.
+URL: https://doi.org/10.1016/0004-3702(86)90080-9
+Published record: /Artificial Intelligence/ 28(2), 127--162, March 1986; DOI 10.1016/0004-3702(86)90080-9.
+Inspected material: publisher title/author/date/pages/DOI and abstract. The abstract states that the ATMS manipulates assumption sets in addition to justifications and is designed to work effectively with inconsistent information and multiple problem-solving contexts.
+Used by: Chapter 18 / Project 1 milestone E as lineage and design pressure only. The course does not implement ATMS environments, labels, nogoods, context switching, or simultaneous solution-space exploration.
 
 ** CLIPS 6.4.2 Basic Programming Guide
 Authority: current official CLIPS documentation.
 URL: https://www.clipsrules.net/documentation/v642/bpg642.pdf
 Version/date: 6.4.2, January 16 2025.
 Inspected material: facts/data abstraction; rules; Section 5.2 basic rule-execution cycle; Section 5.3 agenda and conflict-resolution strategies; LHS/pattern conditional elements; Appendix D.1 “Ordering of Patterns on the LHS,” including construction of an LHS pattern network before execution, filtering reactive pattern entities through that network, partial rule instantiation, cross-pattern variable-binding checks, activation after all patterns satisfy constraints, and pattern-order/selectivity considerations. For milestone D, Section 5.4.8 “Logical Conditional Element” was inspected directly: it documents logical support for RHS-created facts/instances, multiple independent support groups, removal after the final support group is invalidated, and unconditional-support behavior.
-Used by: Chapters 3--17 and later comparison notes. CLIPS-specific behavior is not silently copied into the teaching engine. Milestone C uses Appendix D.1 only as maintained official corroboration for the broad filter/partial-match/binding-join/activation model. Milestone D uses Section 5.4.8 only as a maintained-system comparison for support groups and retraction behavior. The teaching engine's per-production alpha ownership, beta-token representation, justification representation, grounding rule, base-support model, refraction, and agenda semantics remain course-local.
+Used by: Chapters 3--18 and later comparison notes. CLIPS-specific behavior is not silently copied into the teaching engine. Milestone C uses Appendix D.1 only as maintained official corroboration for the broad filter/partial-match/binding-join/activation model. Milestone D uses Section 5.4.8 only as a maintained-system comparison for support groups and retraction behavior. The teaching engine's per-production alpha ownership, beta-token representation, justification representation, grounding rule, base-support model, refraction, agenda, assumption, and contradiction semantics remain course-local.
 
 ** systemd.service manual
 Authority: official systemd documentation.
 URL: https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html
 Retrieved: 2026-09-16.
 Used by: synthetic service-diagnosis fixture provenance and later technical KB research. It grounds service terminology, not the fictional incident or derived teaching rules.
+
+** systemd D-Bus Unit API -- org.freedesktop.systemd1
+Authority: official systemd D-Bus API documentation; current upstream manual/source documentation cross-checked 2026-09-16.
+URL: https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.systemd1.html
+Retrieved: 2026-09-16.
+Inspected material: generic Unit =ActiveState= as a high-level unit activation-state property, the documented high-level state vocabulary including =active= and =failed=, and =SubState= as a finer-grained unit-type-specific state mapped to the high-level state machine.
+Used by: Chapter 18's systemd consistency-key lab. The course adds its own observation epoch; no claim is made that systemd's =ActiveState= property contains that epoch or that states cannot legitimately change over time.
 
 ** Linux kernel /proc documentation
 Authority: official Linux kernel documentation.
