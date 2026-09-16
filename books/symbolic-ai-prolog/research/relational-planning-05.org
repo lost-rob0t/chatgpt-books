@@ -1,0 +1,102 @@
+#+title: Symbolic AI in Prolog Research 05 -- Relational Action-Schema Planning
+:PROPERTIES:
+:ID:       14540e86-3ca8-43f2-bc17-06b8ed2c8ae0
+:END:
+
+* Scope
+This record supports Project 2 milestone B / Chapter 8: derive a small forward state-space planner from the explicit frontier/search mechanism already merged in Chapter 7.
+
+Retrieval date: 2026-09-16.
+
+Claim status follows repository policy. DOCUMENTED is used for inspected primary/official sources. TESTED is reserved for observed repository/runtime evidence. This branch begins UNTESTED until the actual SWI-Prolog suite and publishing gates execute.
+
+* Question 1 -- Which parts of the historical STRIPS representation are useful here?
+DOCUMENTED, PRIMARY SOURCE: Richard Fikes and Nils Nilsson's 1971 paper describes world models as collections of formulas and operator schemata that are instantiated for particular objects. An operator description separates conditions under which the operator is applicable from formulas to add to and delete from the world model [cite:@fikes-nilsson-strips-1971].
+
+The paper also makes an important distinction for this book: the operator representation used by the problem solver is not identical to the full mechanism that acts on the external world. It further describes STRIPS as combining this representation with theorem proving and GPS-style means-ends analysis rather than merely performing the simple breadth-first forward search used by our Chapter 8 lab [cite:@fikes-nilsson-strips-1971].
+
+Teaching consequence: call the implementation a *course-local STRIPS-style forward state-space subset*. It borrows the inspectable precondition/add/delete representation but does not claim historical algorithmic equivalence, PDDL compatibility, theorem-prover integration, robot action execution, or modern planner completeness.
+
+Bibliographic metadata was cross-checked against DOI =10.1016/0004-3702(71)90010-5= and the 1971 =Artificial Intelligence= volume 2, issues 3--4, pages 189--208 record.
+
+* Question 2 -- Why freshen every schema before matching it to a state?
+DOCUMENTED, SWI-SPECIFIC IMPLEMENTATION DETAIL: current SWI-Prolog documents =copy_term/2= as producing a version of its input with renamed fresh variables [cite:@swi-copy-term].
+
+The planner stores variable-bearing schemas as reusable data. An applicability attempt therefore copies the complete schema before matching any precondition. Bindings created while grounding one candidate action remain local to that copy. The original schema can be reused for another state or another grounding without carrying bindings from the first attempt.
+
+This is the same variable-hygiene lesson Project 1 taught for stored object rules, now applied to action schemas.
+
+* Question 3 -- What exactly is a state in this milestone?
+DOCUMENTED, SWI-SPECIFIC IMPLEMENTATION DETAIL: current SWI-Prolog =sort/2= sorts a list according to the standard term order and removes duplicates [cite:@swi-sort]. The implementation first requires every fact to be ground, then uses =sort/2= to produce one canonical ordered representation.
+
+Project-defined contract:
+- a state is a finite ground set of positive symbolic facts;
+- duplicate facts are removed by canonicalization;
+- goals are a finite ground conjunction represented by the same set convention;
+- there is no implicit negation, closed-world negation, disjunction, numeric fluent, or conditional effect in this milestone.
+
+The groundness requirement matters because the official =sort/2= documentation explicitly warns that ordering nonground terms can later become invalid when variables are instantiated. Chapter 8 avoids making variable age/order part of planning-state identity by rejecting nonground state facts before sorting.
+
+* Question 4 -- What does applicability mean in the course planner?
+Project-defined semantics:
+1. copy the schema so its variables are fresh;
+2. match its preconditions, in order, against facts already present in the current canonical state;
+3. allow ordinary Prolog unification to carry one variable binding consistently across later preconditions;
+4. after all preconditions match, require the concrete action and every add/delete effect to be ground;
+5. sort the grounded effect lists into canonical ordered sets;
+6. expose the result as inert =instance(Id,Action,Add,Delete)= data.
+
+The planner never turns =Action= into an executable goal and never calls a precondition term. Preconditions are matched only against existing state facts. This preserves the closed data/execution boundary established by the earlier meta-interpreter chapters.
+
+An unsafe schema can mention a variable in its action/effects that no precondition binds. If such a schema otherwise becomes applicable, the implementation raises an instantiation error rather than allowing a nonground successor to enter the frontier.
+
+* Question 5 -- What do add/delete effects mean here?
+Project-defined semantics: canonicalize the current state and effect lists, subtract the grounded delete set, then union the grounded add set. Facts not named by the delete set survive automatically.
+
+This makes an important failure mode visible: an operator that reconstructs a successor from only its add list would silently erase topology, provenance-like domain facts, tickets, permissions, or any other state fact unrelated to the action. The regression fixture therefore carries =ticket_open(inc7)= and network/location relations through the repair plan unless a schema explicitly deletes them.
+
+The milestone deliberately does not implement frame axioms as a separate theorem-proving layer. Preservation follows directly from explicit set difference/union in this small representation.
+
+* Question 6 -- Why use breadth-first planning here instead of adding A* immediately?
+Chapter 7 already derived an explicit BFS/DFS frontier and its finite/unit-edge claim. Chapter 8 changes the successor mechanism: edges are no longer enumerated ahead of time; they are generated by grounding applicable action schemas and applying effects.
+
+Keeping breadth-first frontier policy fixed lets the reader isolate the new semantic obligations:
+- what counts as a complete planning state;
+- what makes an action applicable;
+- what an instantiated operator means;
+- how effects transform state;
+- how a plan records action identity and world-state sequence.
+
+Cost-aware and heuristic policies remain Chapter 9. Constraint propagation remains Chapter 10. This avoids teaching three moving mechanisms as one opaque planner.
+
+* Synthetic field-service fixture
+The executable fixture is deliberately synthetic, not a report about a real infrastructure deployment. It models:
+- one technician initially at a depot;
+- one replacement PSU at that depot;
+- a failed node hosted at another site;
+- bidirectional site connectivity;
+- technician credentials for the failed node;
+- the currently installed old PSU;
+- an incident ticket fact that no action should accidentally erase.
+
+The intended shortest repair sequence is pick up the replacement part, travel to the site, then replace the PSU. A separate impossible goal requests a nonexistent node so finite reachable-state exhaustion can be tested.
+
+No production diagnosis, travel-time, repair-time, risk, reliability, or performance claim is attached to this fixture.
+
+* Verification state
+DOCUMENTED:
+- the historical operator-schema / applicability / add-delete representation and the larger original STRIPS architecture from Fikes and Nilsson 1971;
+- current SWI-Prolog =copy_term/2= fresh-variable semantics;
+- current SWI-Prolog =sort/2= standard-order sorting and duplicate removal.
+
+UNTESTED at authoring time:
+- the new =relational-planner= implementation and PL-Unit suite;
+- the complete combined Project 1 + Project 2 test runner after this change;
+- book build/check, EPUBCheck, Nix, and generic repository publication gates on this branch.
+
+NOT CLAIMED:
+- full historical STRIPS equivalence;
+- PDDL compatibility;
+- negative/conditional effects, numeric fluents, temporal planning, uncertainty, optimal-cost planning, heuristic-search properties, or constraint propagation;
+- production planner performance;
+- any LLM, neuro-symbolic, or Prolog-RLM behavior.

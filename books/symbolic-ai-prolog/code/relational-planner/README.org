@@ -1,0 +1,41 @@
+#+title: Symbolic AI in Prolog -- Relational Planner Lab
+:PROPERTIES:
+:ID:       6ec9d7b8-9620-4e3b-9b7f-72ec652652e0
+:END:
+
+* Purpose
+This directory is the executable Project 2 milestone-B lab for Chapter 8. It derives a small forward state-space planner from explicit symbolic action schemas. It is intentionally a course-local STRIPS-style subset, not an implementation of the full historical STRIPS system and not a PDDL planner.
+
+* Files
+- =planner.pl= -- state canonicalization, schema freshening/applicability, explicit add/delete state transitions, goal tests, and breadth-first plan search.
+- =field_service_domain.pl= -- synthetic technical field-service/recovery teaching domain.
+- =test_planner.pl= -- PL-Unit semantic regressions for binding consistency, freshening, effects, plan provenance, impossible goals, and fail-closed unsafe schemas.
+
+* Data contracts
+A world state is a ground list of symbolic facts canonicalized with =sort/2= into the standard term order with duplicates removed.
+
+An operator is inert data:
+
+#+begin_src prolog
+schema(Id, Action, Preconditions, Add, Delete)
+#+end_src
+
+The planner never calls =Action= or any precondition as a Prolog goal. Preconditions are matched only against facts already present in the canonical state. =copy_term/2= freshens the entire schema before each applicability attempt. After matching, the concrete action and every add/delete fact must be ground or the attempt raises an instantiation error rather than admitting a variable-containing state.
+
+A successful search returns:
+
+#+begin_src prolog
+found(plan([step(SchemaId, ConcreteAction), ...],
+           [State0, State1, ...]))
+#+end_src
+
+Expansion diagnostics are returned separately as =expanded(State,Depth)= records. Cost-aware/heuristic planning and constraints are deliberately deferred to later Project 2 milestones.
+
+* Run
+From the repository root:
+
+#+begin_src sh
+bash books/symbolic-ai-prolog/code/run-tests
+#+end_src
+
+The top-level runner executes this suite together with the earlier Meta-Interpreter and Explicit Search regressions.
