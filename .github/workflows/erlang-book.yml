@@ -38,6 +38,9 @@ jobs:
       - name: Run Erlang foundations tests
         run: bash ./books/erlang/code/foundations/run-tests.sh
 
+      - name: Run Erlang OTP worker tests
+        run: bash ./books/erlang/code/otp-worker/run-tests.sh
+
       - name: Build Erlang book
         run: make book BOOK=erlang
 
