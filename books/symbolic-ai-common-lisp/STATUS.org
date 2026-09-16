@@ -20,6 +20,7 @@ Foundational research plus progressive implementation of the Search Library, For
 - Variables use the explicit reserved term =(:var NAME)=; ordinary atoms/conses remain the finite acyclic term language for this milestone.
 - Matching carries explicit alist bindings and distinguishes literal/shape/repeated-variable failures. Editorial review found and fixed a directionality defect where successful matcher bindings were incorrectly passed through unifier substitution normalization: a literal datum shaped like =(:var NAME)= could therefore be reinterpreted as a project variable. A regression now requires variable-shaped datum to remain literal matcher data.
 - Unification dereferences variable chains, applies/normalizes substitutions, handles variables on either side, and performs a mandatory occurs check rather than silently adopting rational-tree semantics. Editorial review also added the direct successful-unifier oracle promised by the manuscript: applying one returned substitution to both original terms must yield =EQUAL= terms.
+- The publication-order manuscript now places Pattern Matching and Unification after Search and before the later Formal Systems and Software Verification track, matching the intended learning progression.
 - The project keeps caller terms immutable and exposes typed success/failure records. Production RETE/TREAT/workbench depth remains owned by =books/expert-systems=; Prolog-native variables/backtracking/meta-interpretation remain owned by =books/symbolic-ai-prolog=.
 - Research records Robinson 1965, Norvig/PAIP implementation context, and ANSI Common Lisp structural-data semantics. The manuscript includes worked traces, failure labs, exercises, and an editable flow diagram.
 - This slice remains UNTESTED at the current editorial head until exact-head direct/ASDF tests, book build/check, repository tests, Nix checks, and generic =books-ci= complete successfully.
@@ -29,9 +30,9 @@ Foundational research plus progressive implementation of the Search Library, For
 - UNTESTED/RESEARCH: Pattern Matcher/Unifier milestone A at the current editorial head; later proof-obligation generation, temporal checker depth, solver integration, ACL2 CI pin, implementation-refinement claims, planning, rule/KR/explanation, constraint, meta-level, and hybrid-interface work.
 - No performance benchmark is claimed for Search, Formal Reasoning Workbench, or Pattern Matcher/Unifier.
 * Technical/editorial/visual review
-The Search foundation and Formal Reasoning Workbench milestone A have landed. Pattern Matcher/Unifier milestone A remains in EDITORIAL_REVIEW after the matcher-directionality and unifier-oracle fixes above; the whole book is not DONE.
+The Search foundation and Formal Reasoning Workbench milestone A have landed. Pattern Matcher/Unifier milestone A remains in EDITORIAL_REVIEW after the matcher-directionality, unifier-oracle, and publication-order fixes; the whole book is not DONE.
 * Blockers / next dependencies
-- Publication order still needs one editorial correction before approval: the Pattern Matching and Unification include must precede the later Formal Systems and Software Verification track rather than appear after it.
-- Pattern Matcher/Unifier exact-head focused and generic verification must both be green before implementation claims move from UNTESTED to TESTED.
+- Pattern Matcher/Unifier exact-head focused and generic verification must both be green before implementation claims move from UNTESTED to TESTED or this milestone can be APPROVED.
+- The PR branch must be mergeable against current canonical =main= at the merge gate; stale/diverged ancestry is not silently ignored.
 - Do not promote a bounded/model-checking result to a general host-program proof.
 - After Project 2 milestone A is accepted, the next dependency-ready implementation track is substitution/metamorphic strengthening -> Planner -> Rule/KR/Explanation, while later formal stages reuse those components as verification targets.
