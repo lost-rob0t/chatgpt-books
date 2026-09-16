@@ -44,9 +44,11 @@ The maximum is important pedagogically: it avoids summing subgoal estimates that
 ** Bounded evidence state
 A course action schema can construct nested ground terms.  Therefore the relaxed closure need not be finite merely because one concrete fixture is finite.  =ANALYZE-HMAX-RELAXATION= must have a caller-visible iteration bound and distinguish:
 
-- =:REACHED=: propagation reached a fixpoint and every goal has a fact cost;
+- =:REACHED=: all goals already hold initially, or propagation reached a fixpoint and every goal has a fact cost;
 - =:UNREACHABLE=: propagation reached a fixpoint while at least one goal remained without a cost;
 - =:BOUNDED=: the limit stopped propagation before a fixpoint.
+
+The initial-goal shortcut returns zero without claiming a completed closure.  Its justification is the empty plan and nonnegative action costs, not fixed-point exploration.
 
 =:BOUNDED= is not relabeled as an unreachable/dead-end result.  The A*-compatible adapter returns zero for both =:UNREACHABLE= and =:BOUNDED= because the existing Search Library requires a finite nonnegative numeric heuristic.  Readers who need the evidence status call the analyzer directly.
 
@@ -81,6 +83,23 @@ The exact-head suite must cover:
 - replaying a valid result against a schema set that can no longer justify its first transition fails with =INVALID-PLAN-TRACE= instead of producing stale provenance.
 
 Passing those tests is bounded TESTED evidence.  It is not a general proof of admissibility, completeness, termination, scaling, or explanation uniqueness for arbitrary schema sets.
+
+* 2026-09-16 -- Three-cost laboratory research and correction
+** Questions and inspected sources
+Queries: Bonet Geffner Planning as Heuristic Search 2001 PDF; exact relaxed cost versus atom-cost maximum; current Fast Downward evaluator max/additive properties.
+
+Re-inspected the author-hosted text at [[https://bonetblai.github.io/reports/hsp-aij.pdf][Bonet's publication archive]], Section 4, PDF pages 4--5 (not journal pagination), on 2026-09-16.  The opening of Section 4 separates optimal delete-relaxed cost from its atom-cost approximation.  Equations 1--2 describe propagation to stabilization; equations 4--5 distinguish sum and maximum aggregation.  The publisher record confirms the DOI and journal metadata above.  The PDF text was accessible; the browser's screenshot request failed, so no new image/figure inspection is claimed.
+
+Inspected [[https://www.fast-downward.org/latest/documentation/search/Evaluator/][Fast Downward's official evaluator documentation]] on 2026-09-16.  The max entry supports action costs and qualifies admissibility/consistency for tasks without axioms; the additive entry does not claim those two properties.  This is current implementation-documentation context, not evidence that Fast Downward was executed or that the course implementation inherits its guarantees.
+
+** Derived correction and bounded implementation
+The warehouse's =h_max= estimate of three must not be explained solely by ignoring deletes: the exact sequential delete-relaxed optimum is also four.  Pickup, two directed moves, and drop remain required.  The maximum combination loses joint work.  Add a three-way oracle using the existing UCS and a separate add-only successor function, preserving all public grounding and cost interfaces.
+
+The oracle declares a finite vocabulary and raises =LAB-VOCABULARY-ESCAPE= for an outside fact; it never silently truncates transitions.  It shares UCS with the real solver, so agreement is not independent verification of UCS.  The inherited warehouse schema's untyped package variable remains unchanged and visible in the vocabulary.
+
+Twelve additional named regressions cover warehouse (3/4/4), independent work (3/5/5), shared work (4/4/4) and a naive sum counterexample of seven, consumable resources (1/2/no real plan), rejection of relaxed traces as real explanations, preservation of original delete semantics, tentative goal cost ten versus true cost three, the required no-change pass, two update orders, zero-cost cycles, zero-budget/initial-goal distinctions, and fail-closed vocabulary escape.  The three numbers are ordered as max estimate / exact relaxed cost / real cost.  These are authored fixture assertions until the exact revision passes CI, not invented observations.
+
+The new manuscript derives each example, includes a reader script that computes its output, and adds an editable comparison diagram.  Required evidence remains direct and ASDF tests, reader-script execution, citation/diagram and EPUB-inclusion checks, =make book=, =make check=, repository tests, and Nix.  Exact run IDs belong on PR #111 after execution; prior-green revisions cannot certify these additions.  No benchmark, full additive planner, richer action language, or general host-program proof is claimed.
 
 * Curriculum boundaries
 - =books/expert-systems= owns production matching networks, conflict resolution, truth maintenance, and production knowledge engineering.

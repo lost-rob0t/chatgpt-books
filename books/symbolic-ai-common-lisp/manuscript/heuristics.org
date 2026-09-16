@@ -167,11 +167,11 @@ Finally =DROP(package-17, office)= needs =(at robot office)= at cost two and =(c
 cost((at package-17 office)) = 3
 #+end_example
 
-The real optimal plan in the fixture costs four because the real transition system cannot keep the robot simultaneously at earlier locations and cannot keep all deleted resource facts forever.
+The real optimal plan costs four, but so does the exact sequential delete-relaxed plan: both still require a pickup, two moves, and a drop.  The three-versus-four gap in this fixture comes from =MAX= combining the separate carrying and location costs, not from delete effects alone.  Ignoring deletes changes the transition model; approximating joint achievement through individual fact costs is a second simplification.
 
-That difference is the teaching point.  The relaxation is useful because it forgets some constraints, not because it secretly solves the original problem.
+The laboratory later in this chapter keeps all three quantities visible: =h_max= estimate three, exact relaxed optimum four, real optimum four.  It also supplies a consumable-resource fixture where ignoring deletes really does change solvability.  That comparison prevents a plausible but incorrect explanation of the warehouse gap.
 
-The permanent suite requires the relaxed warehouse estimate to be three and the real UCS solution cost to be four.  Those numbers count as TESTED evidence only on an exact revision whose recorded test run actually passed; source assertions by themselves are not observed results.
+The permanent suite requires these fixture values.  They count as TESTED evidence only on an exact revision whose recorded test run actually passed; source assertions by themselves are not observed results.
 
 ** 7.6 An estimate should carry its derivation
 
@@ -219,9 +219,11 @@ The analyzer therefore accepts =MAX-ITERATIONS= and returns an explicit status:
 
 | Status | Meaning |
 |--------+---------|
-| =:REACHED= | propagation reached a fixpoint and all goal facts have costs |
+| =:REACHED= | all goals already hold initially, or propagation reached a fixpoint with costs for all goals |
 | =:UNREACHABLE= | propagation reached a fixpoint and at least one goal has no cost |
 | =:BOUNDED= | the configured limit stopped propagation before a fixpoint |
+
+The initial-goal shortcut returns zero without enumerating the relaxed closure: doing nothing already satisfies the goals, and costs are nonnegative.  The laboratory tests this separately from the zero-budget case where the goals do not yet hold.
 
 Only =:UNREACHABLE= says that this completed relaxed closure did not reach the goal.  =:BOUNDED= says the computation stopped early.  Turning the latter into “dead end” would be the same epistemic mistake we avoided in the Formal Reasoning Workbench when distinguishing bounded exploration from proof.
 
@@ -262,7 +264,7 @@ The planner passes each grounded action name into the Search Library as a transi
 
 That is convenient for presentation, but a label is not necessarily a unique identity.
 
-Imagine two schemas both named =FINISH=.  Both are applicable in the same state.  Both produce =(done)=.  Search may keep one successor after duplicate pruning and return the action label:
+Imagine two schemas both named =FINISH=. Both are applicable in the same state.  Both produce =(done)=.  Search may keep one successor after duplicate pruning and return the action label:
 
 #+begin_example
 (finish)
@@ -351,3 +353,5 @@ Exact-head passing tests are what upgrade the concrete fixture/API assertions in
 Even with those tests green, this milestone does not establish a general proof that every caller-supplied course schema yields an admissible or terminating heuristic computation.  It does not establish a benchmark.  It does not turn an ambiguous action label into unique provenance.  It does not implement FF, LM-cut, PDDL, or a production planner.
 
 What it does give the reader is more valuable than a recipe: one explicit example of how symbolic representations can generate search guidance, how evidence status prevents an approximation from becoming a fake proof, and how explanation can be checked against the same semantics that produced the plan.
+
+#+include: "heuristic-laboratory.org" :lines "7-" :minlevel 2

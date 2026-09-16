@@ -1,0 +1,250 @@
+#+title: Heuristic Laboratory -- Three Costs, Two Approximations
+:PROPERTIES:
+:ID:       4c27ef65-13e7-4731-99c3-28a9f7dc83ae
+:END:
+#+bibliography: ../references.bib
+
+* Laboratory: Three Costs, Two Approximations
+:PROPERTIES:
+:ID:       79e516a7-1954-4810-846b-6ec74cb1e649
+:END:
+
+The warehouse estimate is three, while its real plan costs four. It is tempting to explain the entire difference by saying that the heuristic ignores deletes. That explanation skips a mechanism. Even with every delete list ignored, this warehouse still needs four sequential actions. The extra loss comes from combining fact costs with =MAX= rather than finding a cheapest sequence that achieves the facts together.
+
+This laboratory makes those two approximations separately observable. It extends the existing planner project; it does not replace the planner or import another search framework. The deliverable is a small diagnostic instrument that answers three different questions about the same fixture, followed by adversarial cases that show when its answers must not be interchanged.
+
+The source distinction matters. Bonet and Geffner first introduce the optimal cost of the delete-relaxed problem, then approximate that cost through individual atom costs and their aggregation [cite:@bonetgeffner2001]. The relaxed problem and the approximation used to estimate it are not the same object. Here we derive that distinction with executable Common Lisp and hand-checkable examples rather than borrowing an upstream performance result.
+
+** Name the question before naming the number
+
+For one initial state, one goal set, and one fixed set of schemas, keep three quantities separate:
+
+| Quantity | What must be achieved? | What computation answers it here? |
+|----------+-----------------------+----------------------------------|
+| Real optimum | All goals together under the original add/delete transitions | Existing UCS over =MAKE-PLANNING-PROBLEM= |
+| Exact relaxed optimum | All goals together, but deletes do nothing | Existing UCS over a separate relaxed successor function |
+| =h_max= estimate | Propagated individual fact costs, with =MAX= at conjunctions | =ANALYZE-HMAX-RELAXATION= after its convergence boundary |
+
+The second row still pays for every action in a sequential plan. Removing deletes does not make two separately charged actions into one. The third row can forget that separate pieces of work must both be paid for. Conversely, replacing =MAX= with a sum can charge twice for work that one action performs once.
+
+We use the notation =h*= for the real optimum and =h+= for the exact delete-relaxed optimum in this laboratory. These are names for optimization problems, not new function names or a promise that either optimization is cheap. The paper uses its own notation for the exact relaxed value. Always read the definition attached to a symbol rather than assuming that similar typography identifies the same algorithm.
+
+When real search exhausts a finite fixture without a plan, the report prints =NOT-FOUND=. It does not print zero. Zero means no additional cost is required; absence of a solution is a different kind of result. A table that quietly substitutes zero for a missing cost would make an impossible problem look easier than a solved one.
+
+** Build the relaxed oracle from the transition boundary
+
+The real transition takes a state, removes delete effects, inserts add effects, and canonicalizes the result. To construct a delete-relaxed successor, change exactly that transition. Do not change grounding, action costs, the goal predicate, duplicate detection, or the search algorithm.
+
+The central expression is small:
+
+#+begin_src lisp
+(canonical-state
+ (append (ground-action-add-effects action) state))
+#+end_src
+
+The existing =INSTANTIATE-APPLICABLE-ACTIONS= has already checked the preconditions through the public unification interface. Its result supplies a grounded add list, a display action name, and a declared cost. The relaxed adapter builds an ordinary Search Library transition from those fields. It never looks inside the unifier's substitution alist or the search heap.
+
+The executable adapter in =code/planner/heuristic-labs.lisp= is:
+
+#+begin_src lisp
+(defun lab-relaxed-successors (schemas vocabulary state)
+  (loop for schema in schemas append
+    (loop for action in (instantiate-applicable-actions schema state)
+          for next = (canonical-state
+                      (append (ground-action-add-effects action) state))
+          collect
+          (symbolic-ai.search:make-transition
+           (check-lab-vocabulary next vocabulary)
+           :action (ground-action-name action)
+           :cost (ground-action-cost action)))))
+#+end_src
+
+This code lives in the planner's test/laboratory system. It is an intentionally small semantic oracle for declared finite fixtures, not a newly supported public planning API. The normal =SOLVE-PLAN= and =APPLY-GROUND-ACTION= retain their accepted behavior. A regression runs the relaxed oracle and then applies an original action, requiring its delete effect still to occur. Alternate semantics must not leak back into the real planner through mutated schemas or a dynamic mode flag.
+
+We then pass the relaxed successor function to the existing =UNIFORM-COST-SEARCH=. That gives us an exact optimum for the finite relaxed fixture under the Search Library's nonnegative-cost contract. There is no second frontier loop to trust. There is also no claim that two runs of the same UCS independently verify UCS itself. Their purpose is to isolate the domain-semantics difference while holding search policy fixed.
+
+** A finite oracle needs an explicit universe
+
+The ordinary course term language permits nested ground terms. Therefore a small list of schemas does not, by itself, imply a finite set of reachable facts. The earlier =SEED/NEXT= example can generate endlessly larger terms without using deletes.
+
+For this laboratory, the caller supplies a finite vocabulary of permitted ground facts. Initial facts and goals must belong to it. Every generated relaxed successor is checked against it. A generated fact outside the vocabulary raises =LAB-VOCABULARY-ESCAPE=; it is not silently discarded.
+
+That last choice is essential. Suppose the true path to a goal leaves a guessed vocabulary. If the adapter silently removes that edge, UCS may exhaust the truncated graph and report failure. The answer would be correct about the graph we accidentally constructed, not about the intended fixture. An explicit error exposes the modeling mistake instead of laundering it into a search conclusion.
+
+Within a vocabulary of =n= distinct facts there are at most =2^n= distinct fact-set states. This counting argument says why the state space is finite; it is not a promise that enumerating it is practical. The oracle is useful because the fixtures are deliberately small. It is not our proposed way to evaluate every heuristic call in a large planner.
+
+The wrapper reuses =MAKE-PLANNING-PROBLEM= for the existing public input validation before constructing the alternate search problem. The ordinary finite-acyclic-term precondition still applies. The vocabulary guard is a semantic scope boundary, not a parser or a sandbox for hostile cyclic Lisp objects.
+
+For the inherited warehouse fixture, the vocabulary also includes =(carrying robot robot)=. That looks odd because the original teaching schema has no package-type predicate: its package variable can bind to any matching object. The oracle must cover what the accepted schema actually permits, not quietly add the typing restriction we wish it had. The delivery-cost assertion below survives this deliberately visible limitation. A richer typed domain belongs to a later action-language change and its own tests.
+
+** Revisit the warehouse without changing its model
+
+The intended delivery uses:
+
+#+begin_example
+pickup(package-17, dock)
+move(dock, hall)
+move(hall, office)
+drop(package-17, office)
+#+end_example
+
+Each action costs one. Why does the exact relaxed optimum also cost four?
+
+The package is not initially at the office. In the existing schemas, a =DROP= instance is required to add that goal fact. Such a drop needs the robot at the office and the package being carried. Reaching the office requires the two directed moves: the initial connection facts offer no one-step dock-to-office move. Carrying the package requires a pickup. Thus a successful sequence must include a pickup, two moves, and a drop. Ignoring deletes does not remove any of those four requirements. The displayed sequence supplies the matching upper bound by achieving the goal in four actions.
+
+The =h_max= recurrence counts differently. Carrying gets cost one; the robot-at-office fact gets cost two. At the drop, it computes:
+
+#+begin_example
+1 + max(1, 2) = 3
+#+end_example
+
+This combination retains the more expensive prerequisite estimate but does not add the separate pickup cost to the two movement costs. The goal therefore receives three even though every sequential relaxed solution still contains four paid actions.
+
+This is a useful debugging correction: the real transition system certainly has delete interactions, but their existence does not establish that they caused this particular numerical gap. We need the middle measurement to identify the source of the gap. A plausible causal story is not a substitute for comparing the right computations.
+
+The regression =LAB-WAREHOUSE-SEPARATES-MAX-FROM-EXACT-RELAXATION= requires the row:
+
+#+begin_example
+(:case :warehouse :hmax 3 :relaxed-cost 4 :real-cost 4)
+#+end_example
+
+It computes all three values rather than treating this printed row as input data.
+
+** Isolate lost independent work
+
+Now strip the example down until there are no deletes at all. Start with =(ready)=. One action establishes =(left-done)= at cost two. Another establishes =(right-done)= at cost three. The goal requires both facts.
+
+#+begin_src lisp
+(list
+ (make-action-schema 'left '() '((ready))
+                     '((left-done)) '() :cost 2)
+ (make-action-schema 'right '() '((ready))
+                     '((right-done)) '() :cost 3))
+#+end_src
+
+The real and relaxed transitions are identical because every delete list is empty. Either action ordering costs five. No action establishes both goals, and neither goal holds initially, so both actions are necessary.
+
+The atom-cost table is nevertheless =left-done -> 2= and =right-done -> 3=. The final goal aggregation takes their maximum, producing three. This fixture removes delete effects as a possible explanation of the underestimate. It exposes the information loss at a conjunction directly.
+
+Do not interpret the value three as a duration or a parallel schedule. Our model assigns scalar action costs and the solver returns sequential action sequences. It has no duration, concurrency, or resource-overlap semantics. A numerical resemblance to a critical path does not authorize a makespan claim.
+
+This kind of controlled simplification is a general debugging technique. Keep the mechanism under investigation, remove competing explanations, and write an assertion whose failure identifies a specific semantic change. A large realistic fixture is valuable for integration; a small discriminating fixture is valuable for understanding why integration behaved as it did.
+
+** Isolate double-counted shared work
+
+Now change the example in the opposite direction. One =PREPARE= action costs three and adds both =(a)= and =(b)=. A =FINISH= action requires both and costs one. The goal is =(done)=. Again there are no deletes.
+
+The real plan and exact relaxed plan are both =PREPARE, FINISH= with total cost four. Each prerequisite fact receives individual cost three because the same preparation action establishes each of them. Combining those fact costs with a sum at =FINISH= gives:
+
+#+begin_example
+1 + 3 + 3 = 7
+#+end_example
+
+The expression charges for preparation twice. The =MAX= combination gives =1 + max(3,3) = 4= on this fixture.
+
+The laboratory deliberately calls seven a /naive sum candidate/. It is a local counterexample to blindly replacing the combining operation, not an implementation or evaluation of a complete =h_add= planner. The calculation uses the computed costs of =(a)= and =(b)= and compares its result with the actual UCS optimum. It does not assert that summation is always wrong: in the preceding independent-work fixture, summing the two final goal costs happens to give the correct total.
+
+The two examples explain why neither “always add” nor “always keep only the maximum” captures arbitrary joint achievement exactly. To reason more precisely about the interaction, a representation must preserve information about which work is shared or independent. Later graph/constraint techniques can make some of that structure explicit; changing one arithmetic operator does not recover information that the current fact table has discarded.
+
+** Isolate the effect of ignoring a consumable resource
+
+The next fixture restores a delete interaction. There is one token. Either of two actions consumes it and records a different completed task. No action replaces the token. The goal requires both completed tasks.
+
+#+begin_src lisp
+(list
+ (make-action-schema 'left '() '((token))
+                     '((left-done)) '((token)))
+ (make-action-schema 'right '() '((token))
+                     '((right-done)) '((token))))
+#+end_src
+
+In the real model, firing either action removes the only precondition of both actions. The second task cannot then be completed. The reachable states are the initial state and the two one-task states; neither one-task state satisfies the whole goal.
+
+In the delete-relaxed model, the first action leaves the token present. The second can fire, so the exact relaxed solution costs two. The =h_max= estimate is one because both individual goal facts have a unit-cost support from the initial token and their conjunction is combined with =MAX=.
+
+Now both simplifications are visible: ignoring the delete changes an impossible real task into a solvable relaxed task, and the atom-cost maximum lowers its estimated cost from two to one. This is a different causal pattern from the warehouse's three-versus-four gap.
+
+A positive relaxed answer therefore is not a certificate of real solvability. The relaxed path also contains states that preserve the consumed token. Passing it to =EXPLAIN-PLAN-RESULT= with the original schemas must fail: those before/after states are not real transitions. The regression catches a tempting misuse of an explanation API that would otherwise turn a model change into an authoritative-looking story.
+
+#+caption: Two distinct approximations are visible only when the exact relaxed problem is kept between the real problem and the atom-cost estimate. These are synthetic fixture expectations enforced by the lab tests, not benchmark measurements.
+#+attr_html: :alt Three columns compare real UCS, exact delete-relaxed UCS, and h-max fact-cost propagation. Warehouse costs are 4, 4, and 3; independent work costs are 5, 5, and 3; shared work costs are 4, 4, and 4; the consumable-token task is not found in the real model but has relaxed cost 2 and h-max estimate 1.
+[[file:assets/heuristic-three-costs.svg]]
+
+** Inspect a tentative answer before convergence
+
+So far every reported heuristic has converged. Now deliberately stop the analyzer early.
+
+Give the analyzer these schemas in this order:
+
+| Schema | Precondition | Added fact | Cost |
+|--------+--------------+------------+------|
+| =DIRECT= | =(ready)= | =(done)= | 10 |
+| =FINISH= | =(middle)= | =(done)= | 1 |
+| =ADVANCE= | =(started)= | =(middle)= | 1 |
+| =START= | =(ready)= | =(started)= | 1 |
+
+No action deletes anything. The cheap solution is =START, ADVANCE, FINISH= at total cost three. The expensive direct solution costs ten.
+
+In this implementation, a pass visits schemas in declaration order and updates available facts as it proceeds. During the first pass, =DIRECT= gives the goal a cost of ten. =FINISH= cannot yet match its precondition. =ADVANCE= cannot either. Only the last schema adds =(started)= with cost one.
+
+The goal has been discovered, but its cost has not stabilized. During pass two, =ADVANCE= adds =(middle)= with cost two; =FINISH= was visited earlier in that pass, so it still has not supplied the cheap goal support. Pass three improves the goal cost to three. Pass four makes no change and establishes this implementation's convergence condition.
+
+| Completed pass limit | Goal's diagnostic cost | Public status | Public estimate |
+|----------------------+------------------------+---------------+-----------------|
+| 0 | absent | =:BOUNDED= | =NIL= |
+| 1 | 10 | =:BOUNDED= | =NIL= |
+| 2 | 10 | =:BOUNDED= | =NIL= |
+| 3 | 3 | =:BOUNDED= | =NIL= |
+| 4 | 3 | =:REACHED= | 3 |
+
+The values in this table are fixture expectations, checked by executable regressions and printed from actual analyzer results by the reader script. They are not a general pass-count bound for arbitrary schema sets.
+
+This trace explains why the analyzer exposes both diagnostic fact costs and a separately typed estimate. Ten is a useful piece of debugging history. It is not a valid lower bound on the actual optimum of three. A client that extracts it from =RELAXED-ANALYSIS-FACT-COSTS= and sends it to A* has bypassed the evidence boundary even though it used only numeric data.
+
+The =MAKE-HMAX-HEURISTIC= adapter returns zero for this bounded result. Zero sacrifices guidance rather than treating unfinished analysis as a certified estimate. The actual optimum is three here, so the regression can demonstrate the error in the tentative value with an exact comparison, not merely an assertion that “early stopping might be dangerous.”
+
+** Order, strict improvement, and the zero-cost corner
+
+Reverse the schema declaration order. =START= now supplies a fact before =ADVANCE= is visited, and =ADVANCE= supplies one before =FINISH=. The cheaper goal support appears in the first pass, and the second pass makes no changes. The final estimate is still three, but the number of passes changes from four to two.
+
+This does not make declaration order part of the planning task's cost semantics. It is part of this implementation's update schedule. Tests should distinguish an algorithm's mathematical answer from an implementation's observable trace. Both are worth checking, but they support different claims. These two controlled orders are not a proof of order independence for every possible schema language.
+
+Zero-cost actions make another implementation detail visible. Consider a zero-cost cycle between =(ready)= and =(awake)=, with a cost-two finish action from =(awake)=. Once each reachable fact has its best cost, discovering an equal-cost support must not count as an improvement forever. The analyzer updates an existing fact only when the candidate cost is strictly lower. The zero-cost-cycle regression requires convergence and a final estimate of two.
+
+There is also a legitimate shortcut before any pass: if all goals already hold in the input state, the estimate is zero even with =MAX-ITERATIONS= set to zero. This is not a claim that the entire relaxed closure has been enumerated. It is a direct goal test: with nonnegative costs, doing nothing achieves the goal at cost zero. An unachieved goal with the same zero iteration budget instead returns =:BOUNDED= and no estimate.
+
+The distinction prevents another false equivalence: “no iterations performed” does not always mean “no conclusion possible.” What matters is which argument justifies the conclusion, not whether a particular loop ran.
+
+** Run, inspect, and break the instrument
+
+From the repository root, execute the whole planner suite:
+
+#+begin_src sh
+sbcl --script books/symbolic-ai-common-lisp/code/planner/run-tests.lisp
+#+end_src
+
+Then print the reader-facing comparison rows and convergence trace:
+
+#+begin_src sh
+sbcl --script books/symbolic-ai-common-lisp/code/planner/run-heuristic-labs.lisp
+#+end_src
+
+The second script loads the same ASDF test/laboratory system but calls =RUN-HEURISTIC-LABS= rather than replacing the test suite with a canned transcript. It recomputes each row. The first script and the ASDF test operation both load the new named regressions. Publication checks additionally require this laboratory to appear in the rendered EPUB, because an unexpanded include can hide a chapter while leaving the source tree apparently complete.
+
+When a regression fails, first ask which boundary changed. A warehouse relaxed cost of three implicates the exact-relaxation adapter, the action costs, or the search contract: it is not a reason to edit the expected table to match. A bounded estimate of ten implicates the analyzer's evidence contract. A successful real replay of the consumable relaxed path implicates transition validation. An outside-vocabulary fact reported as =NOT-FOUND= implicates the oracle's model boundary.
+
+For a deliberate failure lab, change exactly one mechanism locally. Make the relaxed adapter call =APPLY-GROUND-ACTION= and watch the consumable relaxed solution disappear. Return the first recorded goal cost as the estimate and watch the late-support counterexample expose an overestimate. Replace strict improvement with non-strict replacement and watch equal-cost cyclic supports consume the iteration budget. Filter out unknown vocabulary facts instead of raising the condition and explain why the remaining graph no longer answers the original question.
+
+Do not retain these broken implementations in the normal code path. Keep the failing examples and the assertions that catch them. A regression suite is a durable memory of mistakes; a collection of hidden runtime modes is not.
+
+** Exercises and the next extension boundary
+
+1. ★ For each comparison row, identify whether ignoring deletes changes the optimum and whether maximum aggregation loses additional information. Explain why the two questions need separate columns.
+2. ★ Trace the late-support case with the ordering =START, DIRECT, FINISH, ADVANCE=. Predict the first pass containing the cheap support and the first no-change pass before running it.
+3. ★★ Add a second warehouse package without changing the accepted schema language. Declare a finite vocabulary first. Compare real cost, exact relaxed cost, and the max estimate; explain any newly exposed resource interaction without claiming a benchmark.
+4. ★★ Add a case with two equal-cost supports for the same fact. Test cost equality separately from the chosen support record. Which part of the output depends on declaration order?
+5. ★★ Make an intentionally incomplete vocabulary omit one necessary intermediate fact. Require =LAB-VOCABULARY-ESCAPE= rather than a successful result or ordinary search exhaustion. Explain why increasing a search budget would not fix this modeling defect.
+6. ★★★ Draw the shared-work fixture as an AND/OR dependency graph: one action requires all its preconditions, while a fact may have alternative supporting actions. Explain exactly which information an atom-to-number table erases.
+7. ★★★ Design a finite generated family of ground operator sets for the three-way comparison. State the fixed atom vocabulary, cost range, and treatment of unsolvable cases before executing it. Agreement with the shared UCS machinery must not be described as an independent proof of that machinery.
+
+The project now has a diagnostic pattern worth reusing: vary one semantic component, retain typed outcomes, keep a small exact oracle, and convert plausible explanations into discriminating tests. Later rule systems, knowledge representations, and hybrid interfaces will need the same discipline, but they do not need to duplicate this planner. The specialized production-engine and Prolog-native treatments remain in the sibling books.
