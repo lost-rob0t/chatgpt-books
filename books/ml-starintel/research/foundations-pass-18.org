@@ -2,7 +2,7 @@
 #+date: 2026-09-16
 
 * Status
-DOCUMENTED / IMPLEMENTED / LOCAL-TESTED; pinned Project 1 CI pending at initial draft time.
+DOCUMENTED / IMPLEMENTED / TESTED.
 
 This pass begins the first supervised-model chapter after the Editor-in-Chief approved and merged Project 1 foundations. It adds no production StarIntel model, no analyst-productivity claim, no new StarIntel runtime behavior, and no production benchmark.
 
@@ -85,9 +85,17 @@ The implementation was exercised before repository handoff in the available loca
 - command equivalent: =python -m unittest -v test_chapter06_regression.py=;
 - result: 8 tests ran, 8 passed.
 
-This is LOCAL-TESTED only. The repository's authoritative Project 1 environment remains CPython 3.12.3 with the committed dependency lock, including scikit-learn 1.9.0 and matplotlib 3.11.1. Pinned CI must re-run the suite before the pass may be promoted to TESTED.
+This local run is retained only as LOCAL-TESTED development evidence. The repository's authoritative Project 1 environment remains CPython 3.12.3 with the committed dependency lock, including scikit-learn 1.9.0 and matplotlib 3.11.1.
 
 The local frozen control produced a lower OLS held-out RMSE than the training-mean baseline and a high synthetic-control R^2, but those local numbers are intentionally not promoted into the manuscript because the pinned repository environment is the evidence gate.
+
+* Pinned repository verification
+The first complete pull-request verification of the implementation head =d1f3f9970fc776f3105bd50efb01cb79f2fb1b24= succeeded:
+
+- =ml-starintel-research= run =35156487117= / job =104997050133= recreated the committed CPython 3.12.3 dependency lock, passed the existing research harness, passed the reader-facing Project 1 checkpoint including all 8 Chapter 6 regression tests, regenerated the Chapter 6 JSON/SVG evidence, reran the frozen public-corpus benchmark and factual GLEIF acquisition, validated the editable Graphviz source, and passed =make book BOOK=ml-starintel= plus =make check BOOK=ml-starintel=;
+- =books-ci= run =35156487077= / job =104997049738= passed structural validation, Pandoc Org parsing, deterministic assets/fixture generation, EPUBCheck 5.3.0, publication/citation regressions, ERT, real Org-roam DB synchronization, and artifact upload.
+
+A later manuscript-index correction keeps Chapter 6 inside the already-declared Foundations part. That correction is prose structure only and must also be green on the final PR head before editorial handoff.
 
 * Reproducible artifacts
 The chapter script writes:
@@ -101,9 +109,8 @@ The manuscript also has an editable Graphviz source =assets/chapter-06-regressio
 * Claim boundaries
 - DOCUMENTED: current scikit-learn OLS/metric behavior cited from official 1.9.1 docs.
 - IMPLEMENTED: first-principles one-feature OLS, manual regression metrics, deterministic grouped control, scikit-learn multi-feature OLS, residual/failure artifacts.
-- LOCAL-TESTED: the nine executable invariants above in the non-pinned local environment.
-- UNTESTED until focused repository CI completes: exact behavior under the committed CPython 3.12.3 / scikit-learn 1.9.0 lock and publication/build gates for the new chapter.
+- TESTED: the nine executable invariants above under the committed CPython 3.12.3/scikit-learn 1.9.0 environment, plus the book/publication gates recorded above.
 - NOT CLAIMED: real analyst effort model, production accuracy, production throughput, cross-platform equivalence, causal interpretation of coefficients, robustness to arbitrary shift/outliers, deployment integration, or StarIntel runtime behavior.
 
 * Next evidence gate
-The focused =ml-starintel-research= workflow must add =test_chapter06_regression.py= and run =chapter06_regression.py= under the existing locked environment, validate the editable diagram, execute =make book BOOK=ml-starintel= and =make check BOOK=ml-starintel=, and upload the Chapter 6 report/plots. Generic =books-ci= must remain green on the exact PR head.
+The exact final PR head must retain green focused and generic publication CI after the manuscript-index/status reconciliation. After that, the worker state is TESTED / READY FOR EDITOR-IN-CHIEF REVIEW, not editorially APPROVED or DONE.
