@@ -1,0 +1,236 @@
+* Project 2 Lab A.1 -- Dependency Is Not One Relation
+:PROPERTIES:
+:ID:       b1d129df-1163-476a-8f75-a09927f98dd4
+:END:
+
+Project 1 gave us a matcher, an agenda, incremental alpha/beta state, truth maintenance, contradictions, and a current explanation graph. That is enough machinery to build an expert system. It is not enough knowledge to build a *useful* expert system.
+
+Project 2 starts the harder job: turning authoritative technical documentation and explicit observations into rules that do not lie.
+
+The first domain is deliberately narrow. We will diagnose one class of systemd service-start blockage. Narrow is good here. The goal is not to encode every systemd directive in one chapter. The goal is to learn how to move from documentation to a source-backed knowledge model while keeping missing evidence, temporal context, and provenance visible.
+
+** The trap: treating every dependency as “depends on”
+A lot of troubleshooting prose compresses configuration into a vague sentence such as:
+
+#+begin_quote
+Frontend depends on API, API failed, therefore frontend failed because API failed.
+#+end_quote
+
+That sentence hides several different questions.
+
+1. Does starting =frontend.service= pull in =api.service=?
+2. If both are started, which one is ordered first?
+3. Did =api.service= actually fail during the same modeled activation attempt?
+4. Which configuration generation defined the dependency edges?
+5. What exactly does the source documentation let us conclude from that combination?
+
+Current systemd documentation keeps requirement and ordering dependencies separate. =Wants== is a weak requirement: the wanted unit is pulled in, but failure to start it does not invalidate the transaction as a whole. =Requires== is stronger. Even then, start ordering is configured independently with =After== or =Before==. The =Requires== documentation gives the specific combination we need: if a required unit fails to activate and an =After== ordering dependency on that unit is set, the requiring unit will not be started [cite:@systemd-unit].
+
+That is much more precise than a generic =depends-on= edge.
+
+** Start with typed evidence, not a clever rule
+Project 1's early synthetic fixture used a generic =depends-on= fact because its purpose was to teach joins, not systemd. Project 2 replaces that shortcut with explicit relations.
+
+#+begin_src lisp
+(unit-start-request frontend attempt-17 config-3)
+(unit-requirement frontend api requires config-3)
+(unit-ordering frontend api after config-3)
+(unit-activation api failed attempt-17 config-3)
+#+end_src
+
+Each row answers a different question.
+
+- =unit-start-request= gives the modeled activation attempt and configuration generation. This is course-local context, not a systemd property.
+- =unit-requirement= records the actual requirement kind. We do not collapse =requires= and =wants=.
+- =unit-ordering= records =after= separately. =After== is not silently inferred from =Requires==.
+- =unit-activation= records a synthetic high-level state observation. The vocabulary is grounded in systemd's high-level unit state interface; the fictional observation itself is explicitly synthetic [cite:@systemd-dbus-unit].
+
+This separation is already a debugging tool. If an incident report says only “A depends on B,” the knowledge engineer can ask which relation is actually known rather than letting the engine guess.
+
+** Why attempt and configuration identity are part of the join
+Imagine this evidence:
+
+#+begin_example
+frontend start request: attempt-17 / config-3
+api failed:             attempt-18 / config-3
+#+end_example
+
+Those facts may both be true. Joining them would still be wrong. The failure belongs to another modeled attempt.
+
+Now imagine:
+
+#+begin_example
+frontend request:       attempt-17 / config-3
+Requires/After edges:   config-3
+api failed:             attempt-17 / config-4
+#+end_example
+
+Again, every row may be individually true while the combined diagnosis is unsupported. A configuration reload or edit may have changed the graph.
+
+Project 2 therefore carries both =?attempt= and =?config= through the production. This is the same lesson Chapter 18 taught with contradiction epochs: temporal and configuration context are not metadata decorations when they determine whether evidence can legitimately be combined.
+
+** Derive exactly one source-backed rule
+The first Project 2 production is intentionally boring:
+
+#+begin_example
+(unit-start-request ?service ?attempt ?config)
+(unit-requirement ?service ?dependency requires ?config)
+(unit-ordering ?service ?dependency after ?config)
+(unit-activation ?dependency failed ?attempt ?config)
+-----------------------------------------------------
+(startup-blocked-by-required-dependency
+  ?service ?dependency ?attempt ?config)
+#+end_example
+
+The code gives that production a stable identity:
+
+#+begin_src lisp
+"rule.systemd.required-after-failure"
+#+end_src
+
+Its provenance names the current =systemd.unit= manual and a bounded documented-claim identifier. Its conclusion is labelled a =:derived-hypothesis= rather than masquerading as a raw host observation.
+
+This distinction matters. The rule is supported by documentation, but its *inputs* still decide whether it applies to a particular modeled incident.
+
+** Trace one complete activation
+Using the fixture in =code/inference-engine/service-kb.lisp=, the matcher must carry one environment through four conditions.
+
+| Condition | New constraint | Support ID |
+|-----------+----------------+------------|
+| start request | =?service=frontend=, =?attempt=attempt-17=, =?config=config-3= | =obs.frontend.start.attempt-17= |
+| requirement | =?dependency=api= and literal =requires= | =cfg.frontend.requires.api.config-3= |
+| ordering | same service/dependency/config and literal =after= | =cfg.frontend.after.api.config-3= |
+| activation | same dependency/attempt/config and literal =failed= | =obs.api.failed.attempt-17= |
+
+Only after all four rows agree does the production propose:
+
+#+begin_example
+(startup-blocked-by-required-dependency
+ frontend api attempt-17 config-3)
+#+end_example
+
+The working-memory layer gives that conclusion a stable ID. The truth-maintenance layer records all four exact support occurrences. The explanation layer can then show the rule provenance and the four source evidence leaves without reconstructing a story from firing order.
+
+#+caption: Project 2 milestone A keeps requirement, ordering, and runtime evidence separate until an explicit source-backed production joins them.
+#+attr_html: :alt Systemd dependency diagnosis graph showing a start request, Requires edge, After edge, and failed dependency observation joining through a source-backed rule into one derived startup-blocked hypothesis.
+[[file:../assets/systemd-dependency-diagnosis.svg]]
+
+** Explanation is part of the domain interface
+After the rule fires, ask for the current explanation of the derived fact. The useful answer is not merely “rule 12 fired.” It must expose:
+
+- the exact derived fact occurrence;
+- stable production ID;
+- production provenance pointing to the inspected systemd documentation;
+- the complete variable bindings;
+- four exact support occurrence stamps;
+- provenance for each synthetic configuration/observation fact.
+
+The executable regression requires all four base support sources to appear in the explanation graph. If one support is later removed and truth maintenance retracts the conclusion, the old firing record remains history but is no longer a current support proof.
+
+This gives Project 2 a useful design rule:
+
+#+begin_quote
+If an operator recommendation cannot show the evidence and rule provenance that currently ground it, it is not ready to leave the debugging workbench.
+#+end_quote
+
+That rule is stricter than “the engine produced an answer.” Good.
+
+** Failure Lab A -- =Requires== without =After==
+Remove the ordering fact while retaining the start request, =Requires== edge, and dependency failure.
+
+The source-backed production must not fire.
+
+Why? Because the current documentation explicitly treats requirement and ordering dependencies as independent. A model that silently inserts =After== would teach the wrong semantics [cite:@systemd-unit].
+
+Do not translate this non-firing into “frontend definitely started.” We know only that this particular rule lacks one required premise.
+
+*** Debugging checklist
+1. Inspect the current configuration generation.
+2. Verify whether an =After== edge really exists rather than assuming it from =Requires==.
+3. Inspect the agenda. The production should have no complete activation.
+4. Do not add a fallback rule merely to make the test produce a diagnosis.
+
+** Failure Lab B -- =After== without a requirement
+Now keep =After=api.service= but remove the requirement edge.
+
+Again, the rule must not fire. Ordering controls relative start/stop ordering when relevant jobs exist; it is not itself the requirement that pulls the other unit in [cite:@systemd-unit].
+
+This failure catches a common modeling error: turning a scheduling relation into a dependency-existence relation.
+
+** Failure Lab C -- =Wants== is not =Requires==
+Replace the =requires= fact with =wants=.
+
+The wanted unit is still a meaningful dependency, but current systemd documentation explicitly states that failure to start a wanted unit does not invalidate the transaction as a whole [cite:@systemd-unit]. Our one production therefore has a literal =requires= term and must not match =wants=.
+
+We are not saying that a wanted unit can never matter operationally. We are saying that *this rule* does not get to invent stronger semantics than its source supports.
+
+** Failure Lab D -- stale incident context
+Keep all semantic relations, but change the failed dependency observation to =attempt-18= while the start request remains =attempt-17=.
+
+No activation should exist.
+
+Repeat with the failure observation carrying =config-4= while the request and dependency edges use =config-3=. Again, no activation should exist.
+
+These tests protect the KB from one of the nastiest failure modes in operational reasoning: joining individually plausible evidence across incompatible contexts.
+
+** Human-readable status is not a data contract
+The current =systemctl= manual describes =status= as human-readable output and explicitly points consumers that need computer-parsable output toward =show=. It also distinguishes current/most-recent runtime state retained by the manager from older invocations available through the journal [cite:@systemctl].
+
+That matters for the future collector architecture.
+
+A bad collector would scrape colored =systemctl status= output and feed loosely parsed strings into rules.
+
+A better collector will obtain typed values from machine-oriented interfaces, attach host/boot/attempt/config/source identity, validate them, and only then assert facts.
+
+This milestone implements neither collector. It defines the data contract that a future collector must satisfy.
+
+** Structured provenance is not a confidence score
+Every fixture fact carries a provenance property list. For example, a configuration observation records that it is synthetic, identifies the represented directive, names the authoritative documentation URL, and records the retrieval date used by the course research.
+
+The production has separate provenance describing the documented rule boundary.
+
+None of those fields says “confidence 0.97.” We have not researched or implemented a justified uncertainty model yet. Chapter 19 remains a separate research track precisely because attaching arbitrary numbers to source metadata would make the system look more rigorous while making it less honest.
+
+** What this first KB slice still cannot diagnose
+A serious troubleshooting KB will eventually need much more than dependency edges:
+
+- service result and exit semantics;
+- restart policy and rate limiting;
+- implicit/default dependencies;
+- actual dependency graph collection;
+- journal evidence and boot identity;
+- process/resource observations;
+- socket and D-Bus activation;
+- configuration drop-ins and precedence;
+- counterevidence from successful probes;
+- version-specific behavior;
+- source disagreement and source preference policy.
+
+Those are not TODO decorations. Each one changes what the system is allowed to infer. Project 2 will add them incrementally with the same discipline: source first, explicit representation, adversarial tests, explanation, then wider integration.
+
+** Project exercise -- inspect the source boundary
+Open the current =systemd.unit= documentation and find the sections for =Wants==, =Requires==, =Before==, and =After==. Write four statements:
+
+1. one behavior the manual explicitly documents;
+2. one behavior people often assume but the manual does not establish from that directive alone;
+3. the exact fact relation you would use to represent the documented behavior;
+4. the regression that would fail if your rule became too broad.
+
+Do not implement the rule until those four statements are reviewable.
+
+** Exercises
+1. ★ Explain why =Requires== and =After== are separate facts instead of one =depends-on= edge.
+2. ★ Explain why a non-firing rule is not proof of the opposite conclusion.
+3. ★ Why are =attempt= and =config-generation= variables part of the production rather than free-form provenance only?
+4. ★★ Add a test in which the same dependency fails in two attempts and prove only the matching attempt can support the diagnosis.
+5. ★★ Add a second service with its own dependency and show that bindings cannot leak across service identities.
+6. ★★ Inspect the explanation graph and list the production provenance and four exact support sources.
+7. ★★ Write a fixture with =Wants== + =After== + failed wanted unit and explain precisely why the current production does not activate.
+8. ★★★ Design a collector record for =systemctl show= data that includes host, boot ID, unit, property, value, observation time, and collector version. Do not write the parser yet.
+9. ★★★ Research =BindsTo== from current upstream documentation. Propose a new fact vocabulary and tests, but keep it separate from =Requires== until its semantics are sourced.
+10. ★★★ Design a future why-not report for the =Requires== without =After== case. Identify what partial-match state would need to be stored without pretending absence is falsehood.
+11. ★★★ Construct a counterexample showing how a configuration reload between observation and inference can invalidate a diagnosis if configuration generation is omitted.
+12. ★★★ Propose a source-versioning policy for rules whose upstream documentation changes. Separate rule identity, rule version, documentation revision, and activation history.
+
+** Milestone boundary
+This lab is source-backed and executable, but tiny compared with the final Technical Troubleshooting Knowledge Base. It makes no claim of real-host diagnosis quality, production completeness, causal certainty, benchmark performance, or safety certification. Its value is that the first real domain rule is narrow enough to explain, test, and distrust productively.
