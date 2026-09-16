@@ -27,10 +27,11 @@ lfec -pa "$BUILD" -o "$BUILD" \
   "$PROJECT/src/event-rules-example.lfe" \
   "$PROJECT/test/event-rules-tests.lfe"
 
-# The regression module invokes lfe_macro directly to inspect one expansion
-# step, so the pinned LFE runtime modules must be present alongside the project
-# beams. The production router itself has no LFE-runtime dependency beyond its
-# normally compiled BEAM code.
+# The regression module invokes lfe_macro directly to inspect the exported
+# macro's repeated top-level expansion via expand_expr/2, so the pinned LFE
+# runtime modules must be present alongside the project beams. The production
+# router itself has no LFE-runtime dependency beyond its normally compiled
+# BEAM code.
 erl -pa "$LFE_EBIN" -pa "$BUILD" -noshell -eval '
   case '\''event-rules-tests'\'':run() of
     ok -> halt(0);
