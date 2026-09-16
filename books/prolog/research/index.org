@@ -10,7 +10,8 @@
 - [[file:foundations-01.org][Foundations 01 -- relations, terms, and unification]] :: Chapters 1--3 and Project 1 milestone 1; primary-source research and explicit SWI portability boundaries.
 - [[file:recursion-lists-backtracking.org][Backtracking, recursion, lists, and termination]] :: Chapters 4--6 / Project 1 milestone 2; current SWI =once/1=, list-library, and timeout-guard boundaries plus the finite-graph termination argument.
 - [[file:arithmetic-evaluation.org][Arithmetic evaluation, modes, and the later constraint boundary]] :: Chapter 7 / Project 1 milestone 3; current SWI =is/2=, arithmetic comparison, expression-evaluation mode requirements, and the explicit forward boundary to CLP(FD).
+- [[file:cut-control.org][Cut, scope, and explicit commitment]] :: Chapter 8 / Project 1 milestone 4; current SWI =!/0= scope, =once/1= boundary, qualify-before-commit derivation, and executable failure-lab targets.
 - [[file:sources.org][sources.org]] :: inspected source inventory.
 - [[file:search-log.org][search-log.org]] :: dated research queries and remaining uncertainty.
 * Research still open
-Foundational research for cut, negation, modules, DCGs, search beyond the beginner traversal, CLP(FD) implementation, meta-programming, persistence/integration, debugging, testing beyond the current PL-Unit surface, and indexing/performance remains open. Completion of the Chapter 7 arithmetic record must not be read as completion of Phase 1 or as implementation of the later constraint curriculum.
+Foundational research for negation, modules, DCGs, search beyond the beginner traversal, CLP(FD) implementation, meta-programming, persistence/integration, debugging, testing beyond the current PL-Unit surface, and indexing/performance remains open. Completion of the Chapter 8 cut record must not be read as completion of Phase 1 or as a general treatment of conditional control, negation, or search optimization.

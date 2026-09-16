@@ -6,3 +6,4 @@
 
 #+include: "foundation.org" :lines "7-"
 #+include: "control-and-search.org"
+#+include: "explicit-search.org"

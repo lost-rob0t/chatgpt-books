@@ -1,0 +1,215 @@
+#+title: Service Trace Pass 05 -- Real HTTP/Ingest Persistence and Broker-Outage Evidence
+:PROPERTIES:
+:ID:       5f82de85-f2d6-46c8-b271-a09662f5714e
+:END:
+
+* Scope
+Research date: 2026-09-16.
+
+Primary implementation snapshot:
+- =lost-rob0t/starintel-server=
+- revision =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=
+
+This pass turns the next executable gate from Passes 02--04 into a bounded
+book-controlled integration experiment.  It does not fork the StarIntel stack.
+The experiment reuses the exact current upstream =scripts/stack-test.sh= and
+adds one fail-closed observation hook before that script's normal final success
+message, while its disposable authenticated stack is still live.
+
+A fresh repository check on 2026-09-16 after execution confirmed that
+=1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= remained the current
+=lost-rob0t/starintel-server= =master= head.  The observations below therefore
+refer to the current server snapshot, not a historical approximation.
+
+* Source audit before execution
+At the pinned server revision, =scripts/stack-test.sh= already owns the
+following deployment behavior:
+
+- writes disposable CouchDB/RabbitMQ/Valkey/authentication secrets to a
+  temporary credential directory with mode 0600;
+- assigns randomized local ports and a unique Compose project name;
+- loads the repository's Nix-built images;
+- validates and starts the current Compose stack;
+- bootstraps a one-time administrator credential;
+- checks authentication/authorization denials and scoped reads;
+- inserts several search fixtures directly into CouchDB for the upstream
+  search/authorization contract;
+- restarts the stack and verifies document, credential, and search persistence;
+- captures product diagnostics on failure and destroys the Compose stack and
+  volumes at exit.
+
+That is useful deployment infrastructure, but it is not itself the book's
+missing Project 2 proof: the inspected upstream script does not submit a valid
+canonical document through =POST /new/document/:dtype= and then wait for the
+same document through the authorized =GET /document/:id= route.  Its write
+fixtures for search are inserted directly into CouchDB.
+
+The book therefore adds only the missing observation, using the already-merged
+thin =code/ingest-adapter/=.  Product configuration, authorization, RabbitMQ,
+consumer, persistence, health, and teardown remain upstream-owned.
+
+* Experiment design
+** Baseline full-path observation
+Create a fresh synthetic copy of Project 1's canonical person fixture with a
+run-unique =_id=.  Submit it through the existing book adapter using the
+upstream stack's disposable administrator credential.  Require two separate
+observations:
+
+1. =submission.state=http_publish_boundary_returned=;
+2. a later authorized read reports =persistence.state=observed=.
+
+If both occur, the book may classify a bounded
+HTTP -> RabbitMQ -> ingest consumer -> CouchDB -> authorized-read path as TESTED
+for the exact pinned stack.  The result still does not expose which individual
+broker durability mechanism completed inside that interval.
+
+** RabbitMQ outage
+After the baseline succeeds, stop the Compose =rabbitmq= service and inspect the
+container state.  The fault precondition is valid only if Docker reports the
+RabbitMQ container is not running.  With RabbitMQ held down:
+
+- probe =/auth/context= to record whether the HTTP service remains reachable;
+- submit a second fresh synthetic document through the same adapter;
+- do not prescribe a particular HTTP status;
+- if the POST returns success, poll only for a bounded interval and require
+  that the unique fault document is not observed durable during that outage;
+- if the adapter returns an HTTP or transport failure, retain only its
+  classification/status, not the raw body.
+
+A unique fault document becoming durable while the verified broker outage is
+held would contradict the assumed fault boundary.  The book classifier fails
+closed rather than explaining that away.
+
+** Explicit operator recovery
+This experiment intentionally does not claim transparent reconnect.  It starts
+RabbitMQ, explicitly restarts =star-server=, waits for the upstream stack health
+contract, submits a third fresh document, and again requires separate HTTP and
+authorized persistence observations.
+
+That recovery scope is important.  A successful final observation means the
+pinned deployment can be returned to service by this explicit sequence.  It is
+not evidence that no restart would have been required.
+
+* Evidence hygiene
+The committed code and published CI artifact retain no disposable bearer
+credential.  The sanitizer emits only:
+
+- exact server revision;
+- baseline submission/read-back states and HTTP statuses;
+- verified =rabbitmq_running=false= during the fault;
+- whether the HTTP auth-context probe remained reachable;
+- one bounded fault-outcome classification;
+- explicit operator recovery action and final submission/read-back states;
+- a list of claims the experiment does not prove.
+
+Raw fault response bodies and stderr are temporary inputs to the sanitizer and
+are not copied into the book artifact.
+
+* Execution evidence
+The corrected experiment first executed in =starintel-book= workflow run
+=35115201190=, service-backed job =104858737649=, against exact book head
+=1e0ad4e802ea390823a9a5cc04858eb03d2c8ba4=.  The first attempt had failed
+closed before stack startup because the audited upstream final marker has no EOF
+newline and the injector had initially assumed one; the corrected byte-faithful
+marker is covered by the nine hermetic service-trace regressions.
+
+That successful service-backed run emitted schema
+=starintel-book-service-trace-v1= with =claim_status=TESTED=.  Its bounded
+observations were:
+
+- *happy path:* submission state =http_publish_boundary_returned=, POST HTTP
+  status 200, authorized persistence =observed= on read attempt 1, read-back
+  HTTP status 200;
+- *verified RabbitMQ outage:* =rabbitmq_running=false= and the HTTP service
+  remained alive; a fresh submission still returned HTTP 200, but persistence
+  was =not_observed_before_deadline= across nine read attempts, with final
+  read-back HTTP status 404.  The sanitizer classified this as
+  =http_returned_without_persistence_observation=;
+- *explicit operator recovery:* action
+  =start_rabbitmq_then_restart_star_server=, then a fresh submission returned
+  HTTP 200 and authorized persistence was =observed= on read attempt 1 with
+  read-back HTTP 200.
+
+Its retained workflow artifact is =starintel-service-trace=, artifact ID
+=10454487856=, size 626 bytes, digest
+=sha256:e21dbf5fbc880afd80e29f41530702451a82c3b96c4f4a5fde17280076af9bca=.
+The artifact contains only the sanitized schema above, not credentials, raw
+bodies, container identifiers, or raw stderr.
+
+The exact execution head also passed the focused book job: Project 1 7/7,
+ingest adapter 8/8, service-trace hermetic suite 9/9, ambiguous-bulk 8/8,
+bulk-job-lifetime 11/11, =make book BOOK=starintel=,
+=make check BOOK=starintel=, EPUBCheck with 0 fatals / 0 errors / 0 warnings /
+0 infos, and the separate Nix job.  Generic =books-ci= run =35115201346= also
+succeeded.
+
+A second service-backed execution after normal reconciliation with then-current
+=main= repeated the experiment at book head
+=c09f88fdd2b9dd7df48f48777b32bbf316ba3c65=.  =starintel-book= run
+=35121092016= succeeded: service-backed job =104878765097=, records-and-book
+job =104878765479=, and Nix job =104878765492= all completed successfully.
+Generic =books-ci= run =35121091999= also succeeded.  The second sanitized
+artifact is ID =10458031216=, size 631 bytes; the uploaded ZIP SHA-256 reported
+by =actions/upload-artifact= is
+=a8725dbb3e847c05108f49114a63c551242f2228abeafc9d5e3905ee0011a26d=.
+
+The second run reproduced the same qualitative boundary.  Baseline POST returned
+HTTP 200 and persistence was observed with read-back HTTP 200, this time on read
+attempt 2 rather than attempt 1.  With RabbitMQ verified stopped, the HTTP
+service remained alive, the fresh fault POST again returned HTTP 200, and
+persistence was again not observed across nine reads with final status 404.
+After the same explicit operator recovery, a fresh POST returned HTTP 200 and
+persistence was observed on read attempt 1.  The baseline 1-versus-2 attempt
+variation is recorded as run evidence; it is not a performance benchmark or a
+service-level guarantee.
+
+* Interpreting the outage without overclaiming
+The outage result matters precisely because HTTP 200 and durable read-back
+diverged under a verified broker fault.  Across both runs, the HTTP boundary
+returned while the fresh fault document remained unobservable through the
+authorized read route for the entire bounded polling interval.  That is direct
+reproduced evidence that an HTTP success at this boundary is not, by itself,
+evidence of durable persistence.
+
+It is *not* a publisher-confirm experiment.  The runs did not separately
+instrument broker confirm state, consumer settlement, delivery attempts, or an
+outbox crash window.  They also did not test transparent reconnect: recovery
+explicitly restarted StarIntel after starting RabbitMQ.
+
+* Why the upstream stack script is injected rather than copied
+Copying =docker-compose.yml=, server secrets/bootstrap logic, or the current
+stack-test into =chatgpt-books= would immediately create a second deployment
+implementation and a drift problem.  The hook approach keeps the current
+StarIntel repository authoritative.
+
+=inject_probe.py= also uses an exact audited marker from the pinned script.  If
+the upstream script changes shape, injection fails and forces a new source
+audit rather than silently placing the hook in an arbitrary control-flow
+location.
+
+* Claim status after execution
+- *DOCUMENTED:* the current upstream stack-test lifecycle and exact hook method,
+  from source at =1ac298...=.
+- *TESTED BY THIS BOOK:* hermetic injector/evidence-classifier behavior; repeated
+  baseline HTTP-to-authorized-read observations; repeated verified RabbitMQ-down
+  behavior in which POST returned HTTP 200 but persistence was not observed
+  before the bounded deadline; and repeated recovery after the explicit
+  RabbitMQ-start plus StarIntel-restart operator sequence.
+- *UNTESTED BY THIS BOOK:* publisher-confirm acceptance, deliberately induced
+  settlement failure/redelivery, the CouchDB outbox crash window, transparent
+  broker reconnect without an operator restart, heap behavior, performance,
+  and actor dispatch.
+- *FAILED DEVELOPMENT GATE:* the first hook attempt assumed a newline after the
+  pinned upstream script's final marker.  Injection failed closed; the marker
+  was corrected byte-for-byte before the successful service-backed executions.
+
+* Primary source inspected
+- =lost-rob0t/starintel-server= revision
+  =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=, =scripts/stack-test.sh=,
+  =docker-compose.yml= service names as exercised by that script, and the
+  current HTTP/ingest boundaries already audited in Passes 01--04.
+
+External transport/database semantics remain sourced from the RabbitMQ 4.3 and
+Apache CouchDB 3.5 primary documentation recorded in =sources.org=.  This pass
+does not use generic vendor documentation to substitute for observed StarIntel
+behavior.
