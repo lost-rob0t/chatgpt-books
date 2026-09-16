@@ -66,34 +66,43 @@ adapter failure fails closed.  A unique fault document becoming durably
 observable while RabbitMQ is verified stopped is treated as contradictory
 probe evidence and also fails closed.
 
-* Observed reference run
+* Observed reference executions
 Workflow run =35115201190=, service-backed job =104858737649=, executed this
 lab against exact book head =1e0ad4e802ea390823a9a5cc04858eb03d2c8ba4= and
 upstream StarIntel Server revision =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=.
-It observed:
+A second run, =35121092016= / job =104878765097=, repeated the experiment after
+normal reconciliation with then-current =main= at book head
+=c09f88fdd2b9dd7df48f48777b32bbf316ba3c65=.
 
-- baseline POST HTTP 200, then authorized read-back HTTP 200 on attempt 1;
+Both runs observed the same qualitative boundary:
+
+- baseline POST HTTP 200 followed by authorized read-back HTTP 200; the first
+  run observed persistence on read attempt 1 and the second on attempt 2;
 - RabbitMQ verified not running while the HTTP service remained alive;
 - during that outage a fresh POST still returned HTTP 200, but the fresh record
-  was not observed before the bounded deadline after nine read attempts (final
-  read status 404);
+  was not observed before the bounded deadline after nine read attempts in
+  either run (final read status 404);
 - after =start RabbitMQ -> restart StarIntel -> wait healthy=, another fresh
-  POST returned HTTP 200 and authorized read-back observed it on attempt 1.
+  POST returned HTTP 200 and authorized read-back observed it on attempt 1 in
+  both runs.
 
-The retained artifact is =starintel-service-trace= (ID =10454487856=, SHA-256
-=e21dbf5fbc880afd80e29f41530702451a82c3b96c4f4a5fde17280076af9bca=).
-These values are evidence from one pinned run, not a timeless API guarantee.
+The first retained artifact is =starintel-service-trace= (ID =10454487856=,
+SHA-256 =e21dbf5fbc880afd80e29f41530702451a82c3b96c4f4a5fde17280076af9bca=).
+The second artifact is ID =10458031216=; =actions/upload-artifact= reported ZIP
+SHA-256 =a8725dbb3e847c05108f49114a63c551242f2228abeafc9d5e3905ee0011a26d=.
+The one-versus-two baseline read-attempt difference is evidence from separate
+runs, not a latency benchmark or API/service-level guarantee.
 
 * Honest boundary
-The successful run proves only the bounded observations made at the pinned
-revision.  It does *not* prove publisher-confirm acceptance, settlement-failure
+The successful runs prove only the bounded observations made at the pinned
+revision.  They do *not* prove publisher-confirm acceptance, settlement-failure
 redelivery, the CouchDB outbox crash window, transparent reconnect without an
 operator restart, production latency, or production availability.
 
 Those distinctions matter because the server's current source still does not
 evidence a publisher-confirm wait in the inspected publish path.  A successful
 HTTP return and a later authorized durable read-back remain separate facts.
-The outage run makes that distinction executable: HTTP returned 200 while
+The outage runs make that distinction executable: HTTP returned 200 while
 persistence was not observed during the verified broker outage.
 
 * Hermetic tests
@@ -103,8 +112,9 @@ The evidence classifier and injection guard are independently unit-tested:
 bash books/starintel/code/live-stack/run-tests
 #+end_src
 
-These tests do not start external services.  The exact execution head passed
-9/9 service-trace hermetic regressions before the service-backed job ran.
+These tests do not start external services.  Both successful execution heads
+passed 9/9 service-trace hermetic regressions before their service-backed jobs
+ran.
 
 * Service-backed run
 The service-backed trace requires Docker/Compose, Nix with flakes, Git, jq,
@@ -122,7 +132,7 @@ workflow artifact; it is not committed as if one run were timeless source.
 * Status
 - DOCUMENTED :: method and exact upstream pin described above; the upstream
   stack harness is current primary source at the recorded revision.
-- TESTED :: hermetic classifier/injector behavior and the bounded baseline,
+- TESTED :: hermetic classifier/injector behavior and repeated bounded baseline,
   verified-broker-outage, and explicit-restart-recovery observations recorded
   above.
 - UNTESTED :: publisher confirms, settlement-failure redelivery, outbox crash
