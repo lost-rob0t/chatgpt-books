@@ -95,3 +95,25 @@ connection_path_(Current, Goal, Seen, Path) :-
 % The underlying relation remains nondeterministic.
 first_connection_path(Start, Goal, Path) :-
     once(connection_path(Start, Goal, Path)).
+
+% Chapter 7 arithmetic contract: path_hops(+Path, -Hops).
+% Path is expected to be a finite, proper, non-empty path list.  This
+% intentionally uses low-level arithmetic evaluation so its mode boundary is
+% visible before later CLP(FD) chapters introduce relational integer constraints.
+path_hops([_], 0).
+path_hops([_|Tail], Hops) :-
+    Tail = [_|_],
+    path_hops(Tail, TailHops),
+    Hops is TailHops + 1.
+
+% Preserve the underlying path relation and attach a derived numeric property.
+% This is path annotation, not shortest-path search.
+connection_with_hops(Start, Goal, Path, Hops) :-
+    connection_path(Start, Goal, Path),
+    path_hops(Path, Hops).
+
+% Supported teaching mode: connection_within_hops(+Start,+Goal,+Limit,-Path,-Hops).
+% Limit must already be numeric because =</2 evaluates both arithmetic operands.
+connection_within_hops(Start, Goal, Limit, Path, Hops) :-
+    connection_with_hops(Start, Goal, Path, Hops),
+    Hops =< Limit.

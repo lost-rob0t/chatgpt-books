@@ -1,0 +1,25 @@
+digraph arithmetic_flow {
+  rankdir=LR;
+  graph [fontname="DejaVu Sans", bgcolor="transparent", pad="0.25", nodesep="0.4", ranksep="0.65"];
+  node [shape=box, style="rounded", fontname="DejaVu Sans", fontsize=11];
+  edge [fontname="DejaVu Sans", fontsize=10];
+
+  path [label="proven simple path\n[ada,lina,ben]"];
+  recurse [label="path_hops/2\nrecurse on the tail"];
+  expr [label="TailHops + 1\narithmetic expression"];
+  eval [label="Hops is TailHops + 1\nevaluate, then unify"];
+  hops [label="Hops = 2\nnumeric property"];
+  filter [label="Hops =< Limit\nground arithmetic filter"];
+  accepted [label="path kept"];
+  rejected [label="path rejected"];
+  unbound [label="TailHops unbound", shape=box, style="rounded,dashed"];
+  error [label="instantiation error\n(no reverse solving)", shape=box, style="rounded,dashed"];
+  clpfd [label="later: CLP(FD)\nrelational integer constraints", shape=box, style="rounded,dashed"];
+
+  path -> recurse -> expr -> eval -> hops -> filter;
+  filter -> accepted [label="true"];
+  filter -> rejected [label="false"];
+  unbound -> eval [label="wrong mode", style=dashed];
+  eval -> error [label="cannot evaluate", style=dashed];
+  error -> clpfd [label="Chapter 16 contrast", style=dashed];
+}
