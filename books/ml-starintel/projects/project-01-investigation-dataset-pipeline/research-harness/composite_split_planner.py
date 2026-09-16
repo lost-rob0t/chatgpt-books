@@ -163,6 +163,142 @@ def audit_overlap(records, train_ids, test_ids, groups, hard_rule_fields=()):
     }
 
 
+def _prepare_grouped_split(records, edges):
+    record_ids = [_canon(row["record_id"]) for row in records]
+    if len(record_ids) != len(set(record_ids)):
+        raise ValueError("record IDs must be unique before grouped splitting")
+    groups, components = compile_composite_groups(record_ids, edges)
+    feature_violations = validate_feature_availability(records)
+    if feature_violations:
+        raise SplitInfeasible(
+            {
+                "future_feature_violation_count": len(feature_violations),
+                "future_feature_violations": feature_violations,
+            }
+        )
+    return record_ids, [groups[record_id] for record_id in record_ids], groups, components
+
+
+def _materialize_grouped_splits(
+    records,
+    record_ids,
+    group_labels,
+    groups,
+    components,
+    splitter,
+    mode,
+    hard_rule_fields=(),
+):
+    splits = []
+    # The splitters only need a sample count plus the group vector. Domain features
+    # remain outside this boundary so the planner cannot accidentally fit a model.
+    samples = list(range(len(record_ids)))
+    for fold, (train_index, test_index) in enumerate(
+        splitter.split(samples, groups=group_labels)
+    ):
+        train_ids = [record_ids[int(index)] for index in train_index]
+        test_ids = [record_ids[int(index)] for index in test_index]
+        audit = audit_overlap(records, train_ids, test_ids, groups, hard_rule_fields)
+        hard_overlap = any(
+            result["overlap_count"] for result in audit["hard_rule_overlaps"].values()
+        )
+        if audit["composite_group_overlap_count"] or hard_overlap:
+            raise SplitInfeasible(
+                {
+                    "mode": mode,
+                    "fold": fold,
+                    "contamination": audit,
+                }
+            )
+        splits.append(
+            {
+                "fold": fold,
+                "train_ids": sorted(train_ids),
+                "test_ids": sorted(test_ids),
+                "train_group_ids": sorted({groups[record_id] for record_id in train_ids}),
+                "test_group_ids": sorted({groups[record_id] for record_id in test_ids}),
+                "contamination": audit,
+            }
+        )
+    return {
+        "mode": mode,
+        "groups": groups,
+        "components": components,
+        "splits": splits,
+    }
+
+
+def plan_group_shuffle(
+    records,
+    edges,
+    *,
+    n_splits=5,
+    test_size=0.2,
+    random_state=1729,
+    hard_rule_fields=(),
+):
+    """Plan reproducible non-temporal holdouts over composite groups.
+
+    ``test_size`` is passed to scikit-learn's GroupShuffleSplit and therefore
+    denotes a fraction/count of groups, not samples. This function validates
+    point-in-time feature availability but does not impose chronological order.
+    Use ``plan_strict_cutoff`` when the evaluation question is temporal.
+    """
+    from sklearn.model_selection import GroupShuffleSplit
+
+    record_ids, group_labels, groups, components = _prepare_grouped_split(records, edges)
+    splitter = GroupShuffleSplit(
+        n_splits=n_splits,
+        test_size=test_size,
+        random_state=random_state,
+    )
+    return _materialize_grouped_splits(
+        records,
+        record_ids,
+        group_labels,
+        groups,
+        components,
+        splitter,
+        "group-shuffle",
+        hard_rule_fields,
+    )
+
+
+def plan_group_kfold(
+    records,
+    edges,
+    *,
+    n_splits=5,
+    shuffle=True,
+    random_state=1729,
+    hard_rule_fields=(),
+):
+    """Plan grouped cross-validation without weakening composite constraints.
+
+    Each composite group is handed to GroupKFold as one group label. Temporal
+    ordering is intentionally not inferred here; strict temporal holdouts remain
+    the responsibility of ``plan_strict_cutoff``.
+    """
+    from sklearn.model_selection import GroupKFold
+
+    record_ids, group_labels, groups, components = _prepare_grouped_split(records, edges)
+    splitter = GroupKFold(
+        n_splits=n_splits,
+        shuffle=shuffle,
+        random_state=random_state if shuffle else None,
+    )
+    return _materialize_grouped_splits(
+        records,
+        record_ids,
+        group_labels,
+        groups,
+        components,
+        splitter,
+        "group-kfold",
+        hard_rule_fields,
+    )
+
+
 def plan_strict_cutoff(
     records,
     edges,
