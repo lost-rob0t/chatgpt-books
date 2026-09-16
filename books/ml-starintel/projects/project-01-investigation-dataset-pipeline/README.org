@@ -119,7 +119,9 @@ Then run the reader checkpoint tests after the pinned schema cache exists:
 
 =chapter06_regression.py= is the first supervised-model layer built on the accepted Project 1 boundary. It does not ingest production StarIntel records. Instead it creates a deterministic Tier C grouped control so the mechanics of fitting and evaluation are observable without turning a fabricated workload into an empirical claim.
 
-The lab derives a one-feature OLS line from centered sums, then uses the pinned scikit-learn =LinearRegression= implementation for a three-feature fit. It compares that model with a training-only mean baseline on the same held-out case groups and emits MAE, RMSE, R^2, residuals, a controlled outlier failure injection, and one explicitly unscored extrapolation probe.
+The lab derives a one-feature OLS line from centered sums, then uses the pinned scikit-learn =LinearRegression= implementation for a three-feature fit. It compares that model with a training-only mean baseline on the same held-out case groups and emits MAE, RMSE, R^2, residuals, a controlled outlier failure injection, one explicitly unscored extrapolation probe, and a rank-deficiency probe that duplicates one predictor without adding information.
+
+The duplicate-predictor probe records dense-design rank and singular values for the original and augmented fits. It checks that the augmented design loses full column rank while held-out predictions remain equivalent and the two duplicate-feature coefficients sum to the original feature's coefficient. The individual duplicate-feature coefficients are deliberately not treated as unique explanations.
 
 Run:
 
@@ -136,7 +138,7 @@ artifacts/chapter06/chapter-06-predicted-vs-actual.svg
 artifacts/chapter06/chapter-06-residuals.svg
 #+end_example
 
-The tests enforce training/test group separation and prove that mutating held-out target values cannot change the fitted intercept or coefficients. The outlier and extrapolation cases are debugging exercises, not performance benchmarks.
+The tests enforce training/test group separation and prove that mutating held-out target values cannot change the fitted intercept or coefficients. They also require the exact duplicate predictor to create a rank-deficient augmented design without materially changing the held-out prediction vector. The outlier, extrapolation, and rank-deficiency cases are debugging exercises, not performance benchmarks.
 
 * Boundaries
 
