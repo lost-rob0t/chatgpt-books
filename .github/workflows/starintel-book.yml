@@ -46,13 +46,11 @@ jobs:
           git -C .cache/starintel-doc checkout --detach FETCH_HEAD
           test "$(git -C .cache/starintel-doc rev-parse HEAD)" = "5857914a1e34ad18a6956b8ff0df5349de0ca099"
 
-          mkdir -p .cache/starintel-schema
-          git -C .cache/starintel-schema init
-          git -C .cache/starintel-schema remote add origin https://github.com/lost-rob0t/starintel-gpt-auto-dig.git
-          git -C .cache/starintel-schema fetch --depth=1 origin 6479c0a9dc88ce9fed183515fc4df5d245de0b3a
-          git -C .cache/starintel-schema checkout --detach FETCH_HEAD
-          test "$(git -C .cache/starintel-schema rev-parse HEAD)" = "6479c0a9dc88ce9fed183515fc4df5d245de0b3a"
-          test -f .cache/starintel-schema/schemas/starintel-doc-v0.9.0.schema.json
+          mkdir -p .cache/starintel-schema/schemas
+          curl --fail --location --retry 3 \
+            --output .cache/starintel-schema/schemas/starintel-doc-v0.9.0.schema.json \
+            https://raw.githubusercontent.com/lost-rob0t/starintel-gpt-auto-dig/6479c0a9dc88ce9fed183515fc4df5d245de0b3a/schemas/starintel-doc-v0.9.0.schema.json
+          test -s .cache/starintel-schema/schemas/starintel-doc-v0.9.0.schema.json
 
           python3 -m pip install .cache/starintel-doc
 
