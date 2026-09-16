@@ -61,6 +61,34 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Relevant to :: all runnable projects; Chapter 19.
 - Used for :: =begin_tests/1=, =end_tests/1=, and =run_tests/0= surface.
 
+* SWI-Prolog Reference Manual -- =once/1=
+- URL :: https://www.swi-prolog.org/pldoc/doc_for?object=once/1
+- Authority :: Official SWI-Prolog documentation.
+- Retrieved :: 2026-09-16.
+- Relevant to :: Chapter 4; Project 1 milestone 2.
+- Used for :: explicit first-success commitment around a nondeterministic relation; the book keeps the underlying =connection_path/3= multi-answer and names the committed wrapper =first_connection_path/3=.
+
+* SWI-Prolog =library(lists)= -- =member/2=
+- URL :: https://www.swi-prolog.org/pldoc/doc_for?object=member/2
+- Authority :: Official SWI-Prolog library documentation.
+- Retrieved :: 2026-09-16.
+- Relevant to :: Chapter 6; Project 1 milestone 2.
+- Used for :: membership as a backtrackable relation, SWI's last-element determinism note, and the warning that open-list queries can generate unbounded alternatives.
+
+* SWI-Prolog =library(lists)= -- =reverse/2=
+- URL :: https://www.swi-prolog.org/pldoc/doc_for?object=reverse/2
+- Authority :: Official SWI-Prolog library documentation.
+- Retrieved :: 2026-09-16.
+- Relevant to :: Chapter 6; Project 1 milestone 2.
+- Used for :: maintained list reversal behavior and the proper-list/partial-list mode boundary against which the finite teaching =list_reverse/2= relation is compared.
+
+* SWI-Prolog =library(time)= -- =call_with_time_limit/2=
+- URL :: https://www.swi-prolog.org/pldoc/doc_for?object=call_with_time_limit/2
+- Authority :: Official SWI-Prolog library documentation.
+- Retrieved :: 2026-09-16.
+- Relevant to :: Chapter 5 failure lab; Project 1 milestone 2 regression harness.
+- Used for :: SWI-specific wall-time test guarding and =time_limit_exceeded= behavior. The configured threshold is not benchmark, latency, complexity, or portability evidence.
+
 * SWI-Prolog stable downloads
 - URL :: https://www.swi-prolog.org/download/stable
 - Authority :: Official SWI-Prolog release channel.
