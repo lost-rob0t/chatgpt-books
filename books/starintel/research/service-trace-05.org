@@ -106,14 +106,14 @@ Raw fault response bodies and stderr are temporary inputs to the sanitizer and
 are not copied into the book artifact.
 
 * Execution evidence
-The corrected experiment executed in =starintel-book= workflow run
+The corrected experiment first executed in =starintel-book= workflow run
 =35115201190=, service-backed job =104858737649=, against exact book head
 =1e0ad4e802ea390823a9a5cc04858eb03d2c8ba4=.  The first attempt had failed
 closed before stack startup because the audited upstream final marker has no EOF
 newline and the injector had initially assumed one; the corrected byte-faithful
 marker is covered by the nine hermetic service-trace regressions.
 
-The successful service-backed run emitted schema
+That successful service-backed run emitted schema
 =starintel-book-service-trace-v1= with =claim_status=TESTED=.  Its bounded
 observations were:
 
@@ -130,7 +130,7 @@ observations were:
   HTTP 200 and authorized persistence was =observed= on read attempt 1 with
   read-back HTTP 200.
 
-The retained workflow artifact is =starintel-service-trace=, artifact ID
+Its retained workflow artifact is =starintel-service-trace=, artifact ID
 =10454487856=, size 626 bytes, digest
 =sha256:e21dbf5fbc880afd80e29f41530702451a82c3b96c4f4a5fde17280076af9bca=.
 The artifact contains only the sanitized schema above, not credentials, raw
@@ -143,17 +143,37 @@ bulk-job-lifetime 11/11, =make book BOOK=starintel=,
 0 infos, and the separate Nix job.  Generic =books-ci= run =35115201346= also
 succeeded.
 
+A second service-backed execution after normal reconciliation with then-current
+=main= repeated the experiment at book head
+=c09f88fdd2b9dd7df48f48777b32bbf316ba3c65=.  =starintel-book= run
+=35121092016= succeeded: service-backed job =104878765097=, records-and-book
+job =104878765479=, and Nix job =104878765492= all completed successfully.
+Generic =books-ci= run =35121091999= also succeeded.  The second sanitized
+artifact is ID =10458031216=, size 631 bytes; the uploaded ZIP SHA-256 reported
+by =actions/upload-artifact= is
+=a8725dbb3e847c05108f49114a63c551242f2228abeafc9d5e3905ee0011a26d=.
+
+The second run reproduced the same qualitative boundary.  Baseline POST returned
+HTTP 200 and persistence was observed with read-back HTTP 200, this time on read
+attempt 2 rather than attempt 1.  With RabbitMQ verified stopped, the HTTP
+service remained alive, the fresh fault POST again returned HTTP 200, and
+persistence was again not observed across nine reads with final status 404.
+After the same explicit operator recovery, a fresh POST returned HTTP 200 and
+persistence was observed on read attempt 1.  The baseline 1-versus-2 attempt
+variation is recorded as run evidence; it is not a performance benchmark or a
+service-level guarantee.
+
 * Interpreting the outage without overclaiming
 The outage result matters precisely because HTTP 200 and durable read-back
-diverged under a verified broker fault.  For this exact run, the HTTP boundary
-returned while the fresh document remained unobservable through the authorized
-read route for the entire bounded polling interval.  That is direct evidence
-that an HTTP success at this boundary is not, by itself, evidence of durable
-persistence.
+diverged under a verified broker fault.  Across both runs, the HTTP boundary
+returned while the fresh fault document remained unobservable through the
+authorized read route for the entire bounded polling interval.  That is direct
+reproduced evidence that an HTTP success at this boundary is not, by itself,
+evidence of durable persistence.
 
-It is *not* a publisher-confirm experiment.  The run did not separately
+It is *not* a publisher-confirm experiment.  The runs did not separately
 instrument broker confirm state, consumer settlement, delivery attempts, or an
-outbox crash window.  It also did not test transparent reconnect: recovery
+outbox crash window.  They also did not test transparent reconnect: recovery
 explicitly restarted StarIntel after starting RabbitMQ.
 
 * Why the upstream stack script is injected rather than copied
@@ -170,18 +190,18 @@ location.
 * Claim status after execution
 - *DOCUMENTED:* the current upstream stack-test lifecycle and exact hook method,
   from source at =1ac298...=.
-- *TESTED BY THIS BOOK:* hermetic injector/evidence-classifier behavior; one
-  baseline HTTP-to-authorized-read observation; verified RabbitMQ-down behavior
-  in which POST returned HTTP 200 but persistence was not observed before the
-  bounded deadline; and recovery after the explicit RabbitMQ-start plus
-  StarIntel-restart operator sequence.
+- *TESTED BY THIS BOOK:* hermetic injector/evidence-classifier behavior; repeated
+  baseline HTTP-to-authorized-read observations; repeated verified RabbitMQ-down
+  behavior in which POST returned HTTP 200 but persistence was not observed
+  before the bounded deadline; and repeated recovery after the explicit
+  RabbitMQ-start plus StarIntel-restart operator sequence.
 - *UNTESTED BY THIS BOOK:* publisher-confirm acceptance, deliberately induced
   settlement failure/redelivery, the CouchDB outbox crash window, transparent
   broker reconnect without an operator restart, heap behavior, performance,
   and actor dispatch.
 - *FAILED DEVELOPMENT GATE:* the first hook attempt assumed a newline after the
   pinned upstream script's final marker.  Injection failed closed; the marker
-  was corrected byte-for-byte before the successful service-backed execution.
+  was corrected byte-for-byte before the successful service-backed executions.
 
 * Primary source inspected
 - =lost-rob0t/starintel-server= revision
