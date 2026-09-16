@@ -19,7 +19,7 @@ recover.
 - FAILED :: an executable attempt failed; preserve the failure before
   correction rather than rewriting history.
 
-At the start of this pass, all new Project 3 implementation claims are
+At the start of this pass, all new Project 3 implementation claims were
 UNTESTED. The current-documentation baseline is Erlang/OTP 29.0.6 while the
 executable workflow records the actual runner OTP independently.
 
@@ -172,24 +172,38 @@ format while avoiding any claim that map syntax itself is an OTP feature.
 The checkpoint includes explicit test-only failure injection. It is not a
 production administration interface.
 
-* UNTESTED -- candidate executable gates
-Before CI runs on the authored branch, the following are hypotheses, not
-results:
+* TESTED -- authored executable gate
+The hypotheses declared at the start of this pass were exercised on exact
+authored head =bf3127496202cc6fc5523cce6c2a300d89d6b145=. Focused workflow
+=lfe-book= run =35124600836= and generic repository =books-ci= run
+=35124600925= both completed SUCCESS.
 
-1. pinned LFE v2.2.2 compiles the =gen_server= and =supervisor= callback
-   modules under the workflow's observed OTP release;
-2. the LFE regression can route, replace/read state, inspect state through
-   =sys:get_state/1=, reject an unknown domain call, and stop cleanly;
-3. an Erlang client can call the compiled LFE =gen_server= directly;
-4. suspending the server with =sys:suspend/1= can force a bounded
-   =gen_server:call/3= timeout while the process remains alive;
-5. the one-for-one supervisor replaces a deliberately crashed worker;
-6. process-local rule state is fresh after replacement rather than silently
-   restored;
-7. a configured restart budget is exceeded by the failure lab and the
-   supervisor terminates with =shutdown=.
+The focused gate established, for this bounded teaching implementation:
 
-Only a successful exact-head executable gate may promote these to TESTED.
+1. pinned LFE v2.2.2 compiled the =gen_server= and =supervisor= callback
+   modules in the workflow environment;
+2. the LFE regression routed events, replaced/read state, inspected state
+   through =sys:get_state/1=, rejected an unknown domain call, and stopped
+   cleanly;
+3. an Erlang client called the compiled LFE =gen_server= directly;
+4. suspending the server with =sys:suspend/1= forced a bounded
+   =gen_server:call/3= timeout while the process remained alive and was then
+   resumed;
+5. the one-for-one supervisor replaced a deliberately crashed worker with a
+   different process;
+6. the replacement started from the child specification's original rule term
+   rather than silently restoring the dead worker's mutated process-local
+   state;
+7. the failure lab exceeded its configured restart budget and observed the
+   supervisor terminate with =shutdown=;
+8. the workflow also reran Projects 1--2, parsed all four editable teaching
+   diagrams, ran =make book BOOK=lfe= and =make check BOOK=lfe=, and passed the
+   separate =nix flake check -L= job.
+
+These are regression results, not a benchmark or a general availability proof.
+After current-main reconciliation or material edits, the PR head still requires
+a fresh exact-head gate before editorial handoff; that later head/run pair is
+recorded on PR #72 rather than backdating this authored-head record.
 
 * Explicit non-claims
 - No throughput, latency, mailbox-scan, scheduler, memory, or availability
