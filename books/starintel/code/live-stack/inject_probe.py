@@ -12,9 +12,11 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+# The pinned upstream script intentionally has no newline after this final line.
+# Keep the marker byte-faithful: source drift should fail rather than guess.
 MARKER = (
     "printf 'Authenticated and authorized Nix-built stack passed scoped denial, "
-    "FTS, and restart persistence checks.\\n'\n"
+    "FTS, and restart persistence checks.\\n'"
 )
 INJECTION = (
     'set_stage "starintel-book-service-trace"\n'
