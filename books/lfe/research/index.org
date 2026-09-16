@@ -6,5 +6,9 @@
 - Which primary sources define the foundational concepts?
 - Which behavior is version-sensitive in the current toolchain?
 - Which claims require reproduction/benchmarking rather than citation alone?
+- Where does LFE syntax end and ordinary Erlang/BEAM semantics begin?
+- Which mailbox, supervision, release, and distribution claims changed across current OTP generations?
+* Active records
+- [[file:foundations-01.org][Foundations Pass 01]] -- LFE v2.2.2 baseline, BEAM terms/patterns, current process-ordering caveat, and Project 1's data-first routing kernel.
 * Records
-Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
+Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]]. Later macro/OTP/release passes must add their own primary-source records rather than treating Foundations Pass 01 as blanket verification.
