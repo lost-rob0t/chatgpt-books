@@ -1,0 +1,107 @@
+#+title: Erlang Research Pass 06 -- Bounded Work, Dynamic Children, and Retry Ownership
+:PROPERTIES:
+:ID:       a57fd348-c2c4-46fa-a31b-720e40a96550
+:END:
+
+* Status
+DOCUMENTED from immutable official Erlang/OTP 29.1 sources. The new Project 3 implementation
+remains UNTESTED until the focused branch CI executes it on strict OTP 29.1. No benchmark,
+durability, availability, or distributed-failure result is inferred from source review.
+
+* Questions
+- How does an ordinary supervisor add dynamic children in current OTP?
+- What exactly does =restart => temporary= mean for a dynamic child and its retained child
+  specification?
+- Which layer should own logical job retry when a worker process crashes?
+- What FIFO and complexity properties does STDLIB =queue= actually document?
+- Which process-monitor facts are language/runtime contracts rather than assumptions from an
+  observed trace?
+- How can the book demonstrate the boundary between supervisor process recovery and recovery
+  of accepted application work?
+
+* Primary sources inspected
+** =supervisor= at immutable tag =OTP-29.1=
+URL: https://github.com/erlang/otp/blob/OTP-29.1/lib/stdlib/src/supervisor.erl
+
+The module documentation says supervisors own child startup, shutdown, monitoring, restart
+strategy, and restart intensity. For ordinary =one_for_one=, =one_for_all=, and
+=rest_for_one= supervisors, =supervisor:start_child/2= dynamically adds a supplied child
+specification and starts the corresponding process. A =temporary= child is never restarted;
+when such a child terminates, its child specification is automatically deleted. The child
+=start= function must create and link the child to the supervisor. These facts justify the
+Project 3 dynamic-worker mechanism, but they do not define job retry semantics.
+
+Claim status: DOCUMENTED.
+
+** =queue= at immutable tag =OTP-29.1=
+URL: https://github.com/erlang/otp/blob/OTP-29.1/lib/stdlib/src/queue.erl
+
+STDLIB documents =queue= as an opaque double-ended FIFO queue. Its front contains the item
+that has waited the longest; =queue:in/2= and =queue:out/1= therefore provide the pending
+work ordering used by the project. The module documentation explicitly states that
+=queue:len/1= is O(n) because the representation does not store length and notes that a caller
+can track length itself when that operation needs to be cheap. Project 3 follows that advice
+with a separate =pending_len= state field because capacity checking is on every submission.
+
+Claim status: DOCUMENTED. No throughput claim is made.
+
+** Processes reference manual at immutable tag =OTP-29.1=
+URL: https://github.com/erlang/otp/blob/OTP-29.1/system/doc/reference_manual/ref_man_processes.md
+
+The reference distinguishes asynchronous signal reception from =receive= execution. A monitor
+establishes a one-way observation relationship; when the monitored process terminates, the
+corresponding =down= signal is converted to a message while the monitor remains active. The
+manual also preserves the signal-ordering/message-queue distinction and the OTP 28+
+priority-message caveat already introduced in the foundation chapters.
+
+Project 3 uses a monitor reference to correlate one worker PID with one active job attempt.
+The monitor reports process termination. It does not say whether retrying the logical job is
+safe; that decision belongs to the project protocol.
+
+Claim status: DOCUMENTED.
+
+* Derived design boundary
+The project intentionally uses two different failure mechanisms:
+
+1. =job_worker_sup= owns temporary worker process lifetime. It can start a dynamic child and
+   tear the subtree down, but it never retries a temporary child.
+2. =job_processor= owns logical job identity and a bounded attempt count. A worker =DOWN=
+   can therefore cause a new /attempt/ of the same logical job without pretending that generic
+   supervisor restart policy understands idempotency or external side effects.
+
+This is a course design built from OTP mechanisms, not an OTP-prescribed scheduler.
+
+* Recovery experiment
+The top supervisor keeps =job_worker_sup= and =job_processor= as =one_for_one= siblings. The
+failure lab starts a gated worker, kills the queue/admission process, observes the supervisor
+replace that process, and then releases the already-running worker. The replacement queue has
+fresh in-memory state and therefore cannot deliver the old job result.
+
+If the executable test passes, that result will establish only this bounded statement:
+/supervision restored the queue process role but did not reconstruct its volatile accepted-work
+ledger/. Durable recovery, replay, exactly-once effects, and distributed failover remain
+separate later mechanisms.
+
+* Production-manuscript recovery discovered in this pass
+Before Project 3 drafting, the canonical =books/erlang/manuscript/index.org= on =main= still
+included Chapters 1--12 and =next.org= only, even though editor-approved Chapters 13 and 14
+were present and merged. =tools/build-book= exports exactly that index file, so prior book
+builds could pass while omitting the accepted application/release chapters from the production
+EPUB.
+
+Issue #106 therefore treats restoration of Chapters 13 and 14 to the canonical include chain
+as a prerequisite. The focused workflow also gains a post-build EPUB-content regression so a
+future accepted chapter cannot silently fall out of the rendered book while =make book= remains
+green.
+
+Claim status: DOCUMENTED repository-state defect. The repair remains UNTESTED until branch CI
+builds the production EPUB and verifies the chapter titles in its XHTML content.
+
+* Explicit non-claims
+- No persistent queue or crash-recovery journal exists in this checkpoint.
+- No exactly-once or at-least-once external-effect guarantee is claimed.
+- No distributed Erlang behavior is exercised.
+- No external broker semantics are inferred.
+- No performance/backpressure capacity number is claimed; =max_active= and =max_queued= are
+  correctness-policy parameters in a teaching implementation.
+- No production security boundary is claimed for local Erlang message terms.
