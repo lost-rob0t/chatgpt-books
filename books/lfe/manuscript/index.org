@@ -90,7 +90,7 @@ This gives us an inspectable contract before we invent syntax. A later macro wil
 
 #+caption: The first Event Routing DSL stage keeps source rules as explicit BEAM data and routes one event to one result before macros or processes are introduced.
 #+attr_html: :alt An event tuple enters an ordered rule list. The first matching rule produces an ok destination result; exhausted or malformed input produces a tagged error.
-[[file:../assets/event-routing.svg]]
+[[file:assets/event-routing.svg]]
 
 *** Failure lab: list string versus binary
 Change the sample payload from =#"disk full"= to ="disk full"=. The router in this chapter does not inspect payload bytes, so routing still ought to work. Then add a clause that calls a binary-only operation on the payload. The representation difference suddenly becomes operational.
@@ -232,7 +232,7 @@ What it intentionally does *not* have yet is just as important: no macro surface
 4. ★★★ Compare the recursive implementation with a hypothetical =lists:foldl= version. Which one makes first-match early termination and malformed-rule behavior easier to see?
 
 * Project 1 -- Event Routing DSL, Foundation Milestone
-The runnable implementation for this milestone lives in [[file:../code/event-rules/README.org][code/event-rules/]]. Treat it as curriculum material: read the module, run the regressions, break the failure labs, then repair them.
+The runnable implementation for this milestone lives in =books/lfe/code/event-rules/=. Treat it as curriculum material: read the module, run the regressions, break the failure labs, then repair them.
 
 The macro chapters will build syntax *on top of* this kernel. That sequencing is deliberate. If a future macro makes the routing semantics harder to explain than these plain terms, the macro is not automatically an improvement just because Lisp can express it.
 
@@ -245,4 +245,4 @@ The macro chapters will build syntax *on top of* this kernel. That sequencing is
 - Erlang current expressions/patterns: https://www.erlang.org/doc/system/expressions.html and https://www.erlang.org/doc/system/patterns.html
 - Erlang current process/signal semantics: https://www.erlang.org/doc/system/ref_man_processes.html
 
-The detailed retrieval record and claim status live in [[file:../research/foundations-01.org][research/foundations-01.org]].
+The detailed retrieval record and claim status live in =books/lfe/research/foundations-01.org=.
