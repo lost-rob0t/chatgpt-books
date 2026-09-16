@@ -4,15 +4,23 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 PROJECT="$ROOT/books/lfe/code/event-rules"
 BUILD="$PROJECT/.build"
+BAD_BUILD="$PROJECT/.bad-build"
+BAD_LOG="$PROJECT/.bad-rules.log"
 
 command -v lfec >/dev/null || { echo "lfec is required" >&2; exit 2; }
 command -v erl >/dev/null || { echo "erl is required" >&2; exit 2; }
 
-rm -rf "$BUILD"
-mkdir -p "$BUILD"
+rm -rf "$BUILD" "$BAD_BUILD" "$BAD_LOG"
+mkdir -p "$BUILD" "$BAD_BUILD"
+trap 'rm -rf "$BAD_BUILD" "$BAD_LOG"' EXIT
 
-lfec -o "$BUILD" \
+# Exported macros must be compiled and available on the code path before a
+# separate module can expand them.
+lfec -o "$BUILD" "$PROJECT/src/event-rules-dsl.lfe"
+
+lfec -pa "$BUILD" -o "$BUILD" \
   "$PROJECT/src/event-rules.lfe" \
+  "$PROJECT/src/event-rules-example.lfe" \
   "$PROJECT/test/event-rules-tests.lfe"
 
 erl -pa "$BUILD" -noshell -eval '
@@ -21,8 +29,21 @@ erl -pa "$BUILD" -noshell -eval '
     Other -> io:format("LFE test module returned ~p~n", [Other]), halt(1)
   end.'
 
+# Invalid DSL syntax is rejected during macro expansion. The fixture is valid
+# LFE apart from one unsupported DSL clause, so a successful compile is a bug.
+if lfec -pa "$BUILD" -o "$BAD_BUILD" "$PROJECT/test/bad-rules.lfe" >"$BAD_LOG" 2>&1; then
+  echo "bad-rules.lfe unexpectedly compiled" >&2
+  cat "$BAD_LOG" >&2
+  exit 1
+fi
+if ! grep -q "bad-event-rule-syntax" "$BAD_LOG"; then
+  echo "bad-rules.lfe failed, but not for the expected DSL syntax error" >&2
+  cat "$BAD_LOG" >&2
+  exit 1
+fi
+
 # Cross-language smoke: Erlang calls the LFE-compiled module directly and
-# exchanges ordinary BEAM terms. This is deliberately not a mock boundary.
+# exchanges ordinary BEAM terms. This remains a runtime boundary, not a mock.
 erl -pa "$BUILD" -noshell -eval '
   Rules = [{ '\''when-level'\'', critical, pager }],
   Event = {event, critical, edge, <<"disk full">>},
@@ -31,4 +52,4 @@ erl -pa "$BUILD" -noshell -eval '
     Other -> io:format("Erlang->LFE interop smoke returned ~p~n", [Other]), halt(1)
   end.'
 
-echo "event-rules: LFE regressions and Erlang interop smoke passed"
+echo "event-rules: kernel, macro expansion, capture lab, invalid-syntax gate, and Erlang interop passed"
