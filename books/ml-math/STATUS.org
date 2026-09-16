@@ -3,14 +3,22 @@
 :ID:       a17cabf5-9a39-5f0c-b427-a240f5719522
 :END:
 * Phase
-Bootstrap curriculum and architecture.
+Foundational research + first progressive Vector/Matrix Toolkit slice.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
+- First source-grounded research pass recorded for the arithmetic-to-vector sequence and current numerical tooling.
+- Chapters 1--5 drafted with derivations, worked examples, exercises, numerical-failure labs, and ML connections.
+- Project 1 checkpoint A source/tests added for vectors, dot products, norms, distance, normalization, cosine similarity, and projection.
+- Reproducible accessible vector-projection SVG generator and checked-in asset added.
 * Active research
-Foundational primary-source research has not yet been declared complete.
+Foundational research remains IN-PROGRESS. Matrices/transformations are the next Project 1 dependency slice; calculus, probability, information theory, optimization, decompositions, and numerical-stability coverage remain later research work.
+* Verification state
+Checkpoint A has executable tests and CI wiring in its focused branch. Exact-head pass/fail evidence belongs in issue/PR records; this status file does not declare unexecuted checks green.
 * Unverified claims
-All version-sensitive implementation details remain RESEARCH/UNTESTED until the relevant issue verifies them.
+- Matrix and transformation behavior is not implemented in checkpoint A.
+- No performance benchmark is claimed.
+- Later regression, optimization, probability, or neural-network project results do not yet exist.
 * Technical/editorial/visual review
-Not started.
+Not started beyond the executable foundation checks and first reproducible teaching figure.
 * Blockers
-Dependency-aware backlog must be executed before chapter prose is promoted to DONE.
+No known book-internal design blocker for the vector foundation slice. Review and exact-head verification must complete before the project moves to its matrix checkpoint.
