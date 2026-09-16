@@ -71,6 +71,7 @@ Project tests for this slice must assert semantics rather than merely loading fi
 - an unsupported goal fails cleanly;
 - a direct cycle is observable in the naive interpreter under an external depth guard;
 - the guarded interpreter reports a cycle without looping;
+- a cycle outcome on one rule does not erase a later successful alternative on backtracking;
 - a too-small object-rule budget reports exhaustion rather than silently failing;
 - provenance extraction returns exactly the rule IDs used by one proof.
 
@@ -103,7 +104,7 @@ The guarded runner additionally returns a status:
 - =cycle(Goal)= when the current path already contains a variant of =Goal=;
 - =exhausted(Goal)= when no rule budget remains before selecting the next rule.
 
-The implementation must preserve normal Prolog backtracking for alternative =rule/3= choices. A successful first proof is not the same thing as uniqueness.
+The implementation must preserve normal Prolog backtracking for alternative =rule/3= choices. A successful first proof is not the same thing as uniqueness, and a cycle outcome for one rule is not a theorem that a later alternative cannot prove the same goal.
 
 * Failure/debugging curriculum
 The manuscript must deliberately expose these failures:
@@ -112,11 +113,12 @@ The manuscript must deliberately expose these failures:
 3. Reuse a provenance ID for two rules and explain why the proof still executes but provenance becomes ambiguous; tests should protect ID uniqueness for the bundled knowledge base.
 4. Treat a proof tree as if it were a full debugger trace and identify the missing information: failed candidates, =redo= events, exceptions, and engine-level unification ports.
 5. Set a rule budget one step below a known proof and distinguish =exhausted(...)= from logical failure.
+6. Put a looping rule before a valid base rule and verify that backtracking can still reach the proof after observing the cycle outcome.
 
 * Cross-book boundary
-=books/prolog= owns the strongest pure Prolog foundation: relations, unification, recursion, control/backtracking, modules, DCGs, CLP(FD), meta-programming, testing, performance, persistence/integration, and debugging. This book may recap prerequisites only as needed to derive symbolic-AI mechanisms.
+[[file:../../prolog/README.org][Prolog for Beginners: Thinking in Relations]] owns the strongest pure Prolog foundation: relations, unification, recursion, control/backtracking, modules, DCGs, CLP(FD), meta-programming, testing, performance, persistence/integration, and debugging. This book may recap prerequisites only as needed to derive symbolic-AI mechanisms.
 
-The user has also defined a separate =prolog-llms= direction for explicit LLM/neuro-symbolic/RLM systems. No canonical =books/prolog-llms= target exists on =chatgpt-books/main= at the inspected revision, so this slice records the conceptual boundary without creating a broken repository link. Meta-interpretation, planning, abduction, provenance, explanation, and rule engines remain here because they are general symbolic-AI techniques independent of LLMs.
+[[file:../../prolog-llms/README.org][Prolog + LLMs: Neuro-Symbolic Systems from First Principles]] owns the explicit LLM/neuro-symbolic/RLM arc. Meta-interpretation, planning, abduction, provenance, explanation, constraints, and rule engines remain here because they are general symbolic-AI techniques independent of LLMs. Cross-link shared foundations where useful without deleting the independent derivations that make this volume coherent on its own.
 
 * Verification state
 DOCUMENTED: the source claims above were checked against official SWI-Prolog documentation on 2026-09-16.
