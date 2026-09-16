@@ -97,9 +97,7 @@ That tiny model already contains the core pieces of supervised learning:
 5. predictions on examples not used to fit the parameter;
 6. an evaluation rule that tells us how bad those predictions are.
 
-The repository includes a pure-Python implementation in
-[[file:../projects/project-01-investigation-dataset-pipeline/chapter01_constant_baseline.py][=chapter01_constant_baseline.py=]].
-It intentionally uses no machine-learning framework. The point is to make "training" concrete before a library performs it for us.
+The repository includes a pure-Python implementation in =projects/project-01-investigation-dataset-pipeline/chapter01_constant_baseline.py=. It intentionally uses no machine-learning framework. The point is to make "training" concrete before a library performs it for us.
 
 #+begin_src python
 model = fit_constant_regressor(training_targets)
@@ -194,7 +192,7 @@ That is deliberate.
 
 #+caption: Project 1 places evidence and experimental contracts upstream of fitted state. Deterministic checks remain explicit instead of being delegated to a model.
 #+attr_html: :alt Evidence flows through canonical StarIntel documents, an experiment contract, admissibility checks, and stable train/test IDs before training-only fitted state and evaluation.
-[[file:../assets/project-01-boundary.svg]]
+[[file:assets/project-01-boundary.svg]]
 
 The reader-facing checkpoint composes already-separated mechanisms into one report:
 
@@ -202,9 +200,7 @@ The reader-facing checkpoint composes already-separated mechanisms into one repo
 python project1.py --offline
 #+end_src
 
-The command lives under
-[[file:../projects/project-01-investigation-dataset-pipeline/README.org][Project 1]].
-It summarizes four boundaries:
+The command lives under =projects/project-01-investigation-dataset-pipeline/README.org=. It summarizes four boundaries:
 
 1. the exact pinned StarIntel document schema was materialized and verified;
 2. a frozen factual GLEIF snapshot can be transformed into canonical documents with reconstructable provenance;
