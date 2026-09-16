@@ -3,4 +3,11 @@
 :ID:       9e6067f5-9009-5cdd-8a70-6c85fcfb42ba
 :END:
 * Entries
-No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.
+** 2026-09-16 -- Project 1 graph-search foundations
+- Question: What primary/authoritative sources support the shortest-path, BFS/UCS, A*, repeated-state, and Common Lisp hash-key semantics used by the first Search Library slice?
+- Queries: Dijkstra 1959 shortest path original paper/DOI; Hart Nilsson Raphael 1968 A* original paper/DOI; AIMA 4th edition Chapter 3/4 graph search; ANSI Common Lisp hash-table key mutation; Norvig PAIP search Common Lisp; current SBCL release.
+- Inspected: Springer DOI record and Dijkstra archive; IEEE record for Hart/Nilsson/Raphael; official AIMA 4e chapter PDFs; LispWorks HyperSpec; Norvig's author-maintained PAIP pages/source index; SBCL official download/news pages.
+- Result: sufficient source basis for the first project slice.  The implementation must separate BFS from cost search, use best-=g= replacement/reopen semantics in UCS/A*, expose stale frontier entries, and document immutable =EQUAL=-comparable state keys.
+- Remaining uncertainty: no performance comparison is claimed yet.  Any timing/memory benchmark belongs to a later executed experiment with recorded compiler/hardware/input.
+
+No foundational book-wide research is marked complete by this slice.

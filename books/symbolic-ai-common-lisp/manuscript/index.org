@@ -4,5 +4,271 @@
 :END:
 #+bibliography: ../references.bib
 
-* Manuscript bootstrap
-This is the canonical manuscript entry point. Long-form drafting begins only after the publishing/research bootstrap and the relevant research issue are ready. See [[file:../OUTLINE.org][OUTLINE.org]].
+* From Symbols to Search
+:PROPERTIES:
+:ID:       367bc727-c0ff-44ca-b31b-e283eeecaf6e
+:END:
+
+Symbolic AI becomes interesting when a program can *name a state, transform it, compare it with other states, and explain how it got there*.  Search is our first serious mechanism because it forces all four concerns into the open.  A toy recursive function can walk a tree.  A useful symbolic search engine must also decide what counts as the same state, remember work already done, order competing possibilities, reconstruct a solution, and make failure inspectable.
+
+This book will build those mechanisms explicitly in Common Lisp before introducing larger planners, rule systems, knowledge representations, and meta-level tools.  The point is not to memorize four search functions.  The point is to acquire a vocabulary of symbolic machinery that later systems can reuse.
+
+The first evolving project is the [[file:../PROJECTS.org::*Project 1 -- Search Library][Search Library]].  Its implementation lives in =../code/search/=.  We start deliberately small: no framework dependency, no opaque priority-queue package, and no hidden global state.  The implementation is ordinary ANSI Common Lisp so that the reader can inspect every state transition and later replace individual pieces.
+
+** 1. Symbolic state is a contract, not merely a list
+:PROPERTIES:
+:ID:       96b7093b-c31d-4f24-bfc6-3427d5386a22
+:END:
+
+A state can be a symbol:
+
+#+begin_src lisp
+'at-office
+#+end_src
+
+or a small tree:
+
+#+begin_src lisp
+'(robot (at loading-dock)
+        (carrying package-17)
+        (battery 63))
+#+end_src
+
+Both are symbolic because their structure and names carry meaning that the program can inspect.  Nothing about symbolic representation requires strings.  In Lisp, symbols, cons cells, vectors, structures, and objects are all available; what matters is that the program defines the semantics of equality and transformation.
+
+Search makes one requirement unavoidable: *a state needs a stable identity while it is in the duplicate table*.  The Search Library therefore asks a problem for a key:
+
+#+begin_src lisp
+(make-problem initial-state
+              goal-p
+              successors
+              :key #'identity)
+#+end_src
+
+The default key is the state itself and the implementation stores keys in an =EQUAL= hash table.  That works naturally for symbols and immutable list/tree representations.  A caller with a larger mutable object can instead return a canonical immutable key, for example:
+
+#+begin_src lisp
+:key (lambda (world)
+       (list (robot-room world)
+             (package-room world)
+             (robot-load world)))
+#+end_src
+
+Why make this policy visible?  ANSI Common Lisp specifies that if an object used as a hash-table key is visibly modified with respect to the table's equality test, later use of that key has unspecified consequences.  A search engine that silently inserts a mutable list and then mutates that list is not merely hard to debug; it has broken the language-level data-structure contract.  The engine therefore treats state keys as immutable during a run and lets the domain choose the right canonicalization boundary.
+
+This is our first recurring design rule: *symbolic representation has operational consequences*.  Later, the same question returns in unification substitutions, working-memory facts, semantic-network nodes, truth-maintenance justifications, and planner states.
+
+** 2. A problem is smaller than an algorithm
+
+The project separates the domain from the traversal policy.  A =PROBLEM= supplies five things:
+
+- an initial state;
+- a goal predicate;
+- a successor function;
+- an optional heuristic;
+- an optional key function.
+
+The successor function returns explicit transitions:
+
+#+begin_src lisp
+(make-transition next-state
+                 :action '(move loading-dock hall)
+                 :cost 1)
+#+end_src
+
+A transition keeps three ideas separate: the next symbolic state, the action that explains the move, and the numeric step cost.  That separation matters later.  A planner will want to return action sequences rather than only states.  An explanation system will want to say *why* a transition existed.  Uniform-cost search cares about cost even when breadth-first search does not use it to order the frontier.
+
+Here is a tiny graph problem without any special graph class:
+
+#+begin_src lisp
+(let ((edges '((s (a :s-a 1) (b :s-b 1))
+               (a (g :a-g 1))
+               (b (c :b-c 1))
+               (c (g :c-g 1)))))
+  (make-problem
+   's
+   (lambda (state) (eql state 'g))
+   (lambda (state)
+     (mapcar (lambda (triple)
+               (destructuring-bind (next action cost) triple
+                 (make-transition next :action action :cost cost)))
+             (cdr (assoc state edges)))))))
+#+end_src
+
+There is no algorithm in that object.  The same problem may be passed to DFS, BFS, uniform-cost search, or A*.  This lets us change one mechanism at a time and compare traces without changing the domain underneath it.
+
+** 3. Tree search is the easy version; graph search is the useful version
+
+A minimal depth-first tree walk needs almost nothing:
+
+#+begin_src lisp
+(defun walk (state goal-p successors)
+  (cond ((funcall goal-p state) (list state))
+        (t
+         (some (lambda (next)
+                 (let ((suffix (walk next goal-p successors)))
+                   (and suffix (cons state suffix))))
+               (funcall successors state)))))
+#+end_src
+
+That function is useful precisely because it is incomplete as an engineering solution.  Give it a cycle and it can recurse forever.  Give two branches the same state and it may repeat a large subproblem.  Ask it what action led to the answer and that information is gone.  Ask how many nodes it expanded and it cannot tell you.
+
+Graph search adds a memory of state identities.  For DFS and BFS in our first implementation, the key is marked seen *when the state is enqueued*.  The important invariant is:
+
+#+begin_example
+for every key in SEEN, at most one corresponding node is waiting
+or has already been removed from the frontier.
+#+end_example
+
+That one line changes the behavior of cyclic state spaces.  Consider =s -> a -> b -> s=.  Tree search can chase the cycle forever.  Graph search sees the second =s= key and prunes it.
+
+#+caption: The Search Library keeps domain semantics outside the engine and makes frontier and duplicate-state machinery explicit.
+#+attr_html: :alt Problem definition feeds a frontier. Popped nodes are checked against duplicate-cost state, tested for the goal, expanded into successors, and admitted back to the frontier. Results contain a path, cost, and instrumentation counters.
+[[file:assets/search-frontier.svg]]
+
+The exact duplicate rule changes for cost-sensitive search, which is why the diagram says “seen *or* best g.”  A single boolean is not sufficient once two paths to the same state can have different costs.
+
+** 4. DFS and BFS differ first in one data structure
+
+Depth-first search uses a stack.  Breadth-first search uses a FIFO queue.  Before heuristics or cost functions enter the picture, those frontier choices already produce different behavior.
+
+Suppose successors are declared in this order:
+
+#+begin_example
+s -> a, b
+a -> c
+c -> g
+b -> g
+#+end_example
+
+The project defines successor ordering as observable and deterministic.  DFS explores =a= first and can return:
+
+#+begin_example
+s -> a -> c -> g
+#+end_example
+
+BFS explores by depth and returns:
+
+#+begin_example
+s -> b -> g
+#+end_example
+
+The DFS implementation has a tiny detail worth debugging: if successors arrive as =(a b)= and we repeatedly =PUSH= them onto a stack in that same order, =b= ends up on top and gets explored first.  The implementation accumulates child nodes in reverse order and then pushes them so that the problem's declared successor order is preserved.  This is not an asymptotic issue.  It is a reproducibility issue: traces and tests become much easier to reason about when tie behavior is deterministic.
+
+The BFS queue is also implemented rather than imported.  It uses a front list, a back list, and a size counter.  Enqueue is a push onto the back list; when the front empties, the back is reversed once.  This avoids the classic beginner mistake of repeatedly using =APPEND= to put one item at the end of a linked list.
+
+** 5. Uniform-cost search introduces the best-g invariant
+
+Breadth-first search is optimal when every step has equal cost.  When costs differ, edge count and path cost are different objectives.  Dijkstra's shortest-path work is the historical foundation for ordering work by the best known path cost [cite:@dijkstra1959], and modern AI presentations describe uniform-cost search in the same cost-first family [cite:@russellnorvig2020].
+
+Consider:
+
+#+begin_example
+s --10--> g
+|
+2
+v
+a --2--> b --2--> g
+#+end_example
+
+BFS can accept the one-edge route with cost 10.  Uniform-cost search must return the three-edge route with cost 6.
+
+That requires replacing =SEEN= with =BEST-G=.  For each state key, the table stores the cheapest path cost discovered so far.  A successor is admitted when either:
+
+1. its key has never been seen; or
+2. its new path cost is strictly lower than the recorded cost.
+
+The second case creates an important implementation problem.  Our small binary heap does not need a decrease-key operation.  Instead, the cheaper node is pushed as a new heap entry and =BEST-G= is updated.  If the old expensive entry later reaches the top, the engine compares its =g= with the table.  If the entry is now worse, it is *stale* and is discarded without expansion.
+
+This is a useful pattern beyond search: sometimes an immutable queued record plus an authoritative current-state table is simpler and safer than mutating an item already buried inside a scheduling structure.
+
+The project counts stale pops explicitly.  A regression test constructs this graph:
+
+#+begin_example
+s --5--> a --10--> g
+ \       ^
+  1     1
+   v   /
+     b
+#+end_example
+
+The expensive =a(g=5)= enters the heap first.  Expanding =b= discovers =a(g=2)= and queues the improvement.  After the cheaper =a= expands, the old =a(g=5)= is eventually popped before the goal; the stale counter must become one.  If a refactor accidentally expands that entry, the test catches the regression.
+
+Negative step costs are rejected with a typed =INVALID-STEP-COST= condition.  This is a boundary rather than a moral judgement about graphs: the algorithms in this project are specified for nonnegative costs.  A later chapter that needs negative edges should choose an algorithm whose proof matches that domain instead of quietly feeding them to UCS.
+
+** 6. A* changes the priority, not the meaning of g
+
+A* combines cost already paid with an estimate of cost remaining:
+
+#+begin_example
+f(n) = g(n) + h(n)
+#+end_example
+
+The classic Hart, Nilsson, and Raphael paper gives the historical formal basis for this family [cite:@hart1968].  The heuristic is domain knowledge; the search engine should not invent it.
+
+Our A* implementation deliberately shares =BEST-G= and stale-entry handling with UCS.  It changes only the priority calculation.  This matters because a common broken graph-search implementation says “once a state has been visited, never admit it again.”  That is safe only under stronger assumptions than beginners often realize.  In particular, an admissible heuristic can still be inconsistent.  AIMA's current treatment separates those concepts and shows why improved paths must not be thrown away in general graph search [cite:@russellnorvig2020].
+
+The Search Library therefore reopens a state when a smaller =g= is discovered.  With a consistent heuristic the =f= values are nondecreasing along a path, so improved post-expansion routes normally disappear.  The more general implementation is only slightly larger and makes the correctness boundary explicit.
+
+A heuristic that returns a negative or non-real value is rejected with =INVALID-HEURISTIC-VALUE=.  The engine does *not* attempt to prove that a supplied heuristic is admissible or consistent.  Those are semantic properties of a problem/heuristic pair, and tests must establish them for a controlled domain when an optimality claim depends on them.
+
+** 7. Instrumentation turns “it worked” into evidence
+
+Every search result records:
+
+| Field | Meaning in this project |
+|--------+-----------------------------------------------|
+| =status= | =:found= or =:not-found= |
+| =path= | initial through goal state, inclusive |
+| =actions= | actions between adjacent states |
+| =cost= | sum of step costs, or NIL on failure |
+| =expanded= | admitted non-goal nodes whose successors were enumerated |
+| =generated= | nodes admitted to the frontier, including the root |
+| =duplicate-pruned= | successors rejected because the current record was at least as good |
+| =stale-popped= | superseded heap entries discarded when popped |
+| =max-frontier= | largest number of queued entries observed |
+
+These definitions are intentionally concrete.  Search literature does not use every counting term identically, so reporting “42 nodes” without specifying what was counted is weak evidence.  Later experiments can add wall-clock measurements, allocation profiles, or larger benchmark domains, but only after those experiments actually run.  This slice makes no invented performance claim.
+
+** 8. Failure cases worth keeping
+
+The test suite is part of the curriculum rather than an appendix.  Each case names a failure mode that a plausible implementation can exhibit:
+
+- an unreachable goal inside a cycle catches tree-search behavior masquerading as graph search;
+- deterministic DFS/BFS paths catch reversed stack insertion or broken FIFO behavior;
+- a cheaper but longer route catches BFS accidentally used as UCS;
+- an admissible but inconsistent A* heuristic catches implementations that refuse to reopen a cheaper path to an already expanded state;
+- a stale expensive heap entry catches missing best-=g= validation at pop time;
+- freshly allocated but =EQUAL= list states catch identity-only duplicate detection;
+- a negative edge catches an unstated cost assumption;
+- a nonnumeric heuristic catches arithmetic failure far away from the problem boundary.
+
+Run the suite from the repository root with an ANSI Common Lisp implementation such as SBCL:
+
+#+begin_src sh
+sbcl --script books/symbolic-ai-common-lisp/code/search/run-tests.lisp
+#+end_src
+
+Or load the ASDF system and invoke its test operation:
+
+#+begin_src lisp
+(asdf:test-system "symbolic-ai-search/tests")
+#+end_src
+
+The source distribution for Peter Norvig's /Paradigms of Artificial Intelligence Programming/ is a useful historical Common Lisp reference for the broader “small tools grow into AI systems” approach [cite:@norvig1992].  This project is an original implementation and intentionally starts with a narrower explicit interface so later chapters can evolve it in public.
+
+** 9. Where this project goes next
+
+Search is a dependency, not the destination.  The next slices will reuse these mechanics rather than replace them:
+
+- pattern matching will make symbolic structure and bindings operational;
+- unification will generalize one-way matching into mutually constrained substitutions;
+- planning will make actions, preconditions, effects, and search states explicit;
+- constraint/graph chapters will compare generic search with specialized propagation;
+- knowledge representation will make identity, relation, inheritance, and provenance first-class;
+- explanation will turn parent links and justifications into inspectable derivations;
+- the capstone will combine deterministic symbolic mechanisms with a tightly controlled external interface rather than letting an LLM silently become the reasoner.
+
+Two neighboring books own deeper treatments that this one should not flatten into duplicate chapters.  [[file:../../expert-systems/README.org][Expert System Design and Implementation]] owns production-grade rule-engine architecture, RETE-like incremental matching, persistence, and knowledge engineering.  [[file:../../symbolic-ai-prolog/README.org][Symbolic AI in Prolog]] owns relational programming, native Prolog search/backtracking, and meta-interpreters.  Here we will implement enough rule and logic machinery in Common Lisp to understand the mechanisms, then cross-link when the specialized books go deeper.
+
+The Search Library itself is still an evolving project.  Passing this slice means only that the first reusable graph-search core, tests, research record, and teaching explanation agree.  It does not make the book—or even Project 1—finished.
