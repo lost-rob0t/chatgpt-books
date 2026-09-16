@@ -1,0 +1,130 @@
+#+title: Expert Systems Foundations Research -- Working Memory to Agenda
+:PROPERTIES:
+:ID:       abbd7e7b-fd0f-4521-9e81-ab491f199c1b
+:END:
+
+* Scope
+This record supports Project 1 milestone B: mutable working memory, stable production identity, complete production instantiations, a conflict set/agenda, deterministic conflict resolution, naive forward chaining, and explicit refraction.
+
+Retrieval date for current web documentation: 2026-09-16.
+
+This milestone remains a semantic reference implementation. Incremental alpha/beta memories, RETE/TREAT, truth maintenance, negative/existential conditions, uncertainty, persistence, externally side-effecting actions, and performance benchmarking are dependency-ordered later work.
+
+* Source-backed production-cycle facts
+** DOCUMENTED -- OPS5 separates working memory, productions, matching, and control
+Forgy's OPS5 material describes a production-system organization in which data live as working-memory elements and productions are selected through matching and conflict resolution [cite:@forgy1981ops5]. The milestone uses that lineage to motivate an explicit cycle rather than burying rule selection in ordinary host-language control flow.
+
+The implementation is not an OPS5 emulator. Its data model and conflict policy below are deliberately course-local and must be judged by their own tests.
+
+** DOCUMENTED -- current CLIPS exposes activation, agenda, salience, and conflict strategy
+The official CLIPS 6.4.2 Basic Programming Guide, version dated 2025-01-16, documents a basic rule-execution cycle in which activated rules are placed on an agenda, deactivated rules are removed, and placement is determined by salience plus the configured conflict-resolution strategy [cite:@clips642bpg]. Section 5.3 describes the agenda as the set/list of rules whose conditions are satisfied and orders newly activated rules first by salience and then by the selected strategy. It documents depth, breadth, simplicity, complexity, LEX, MEA, and random strategies.
+
+This is evidence that agenda policy is a real semantic/operational concern in a maintained production system. It is *not* permission to call this book's ordering “CLIPS semantics.” The teaching engine intentionally uses a smaller deterministic policy so every tie can be explained and regression-tested.
+
+* Frozen semantic contract for milestone B
+** Working-memory identity and occurrence
+A current working-memory entry contains a =fact= plus a monotonic assertion sequence.
+
+- Stable fact ID identifies the logical evidence record inside one engine session.
+- Assertion sequence identifies the current *occurrence* of that record in working memory.
+- Duplicate stable IDs are rejected while one occurrence is present.
+- Equal relation/arguments with distinct stable IDs are allowed. They may represent separate observations; content equality is not silently treated as duplicate evidence.
+- Retraction removes the current occurrence by stable ID.
+- Retraction never rewinds the sequence counter.
+- Reasserting a previously retracted stable ID is allowed and creates a new occurrence with a new sequence.
+
+These choices are *course-local design semantics*, not claims imposed by OPS5 or CLIPS. They are chosen because later explanation and truth-maintenance work needs stable evidence identity while conflict/refraction examples need an explicit notion of “newly asserted again.”
+
+Assertion of a batch validates all IDs/types before mutation. The in-memory milestone therefore has a fail-before-mutation boundary for validation errors. This is not yet a database transaction and says nothing about atomicity of future external side effects.
+
+** Production
+A production has:
+- stable =id=;
+- ordered =conditions= using the milestone-A matcher language;
+- integer =salience=;
+- provenance payload;
+- an =action= function.
+
+Production IDs must be unique inside one engine. An action receives one complete activation and returns a list of new =fact= values. The engine owns assertion of those returned facts. This keeps the teaching boundary inspectable: rule code proposes consequences; working-memory mutation remains centralized.
+
+Common Lisp cannot prevent an arbitrary closure from mutating outside state. Therefore “action has no side effects” is a project contract, not a language-enforced purity theorem. External I/O, retries, and exactly-once/at-least-once semantics remain deferred.
+
+** Activation
+A complete production instantiation records:
+- the production;
+- complete variable bindings;
+- supporting stable fact IDs;
+- support occurrence stamps =(fact-id . assertion-sequence)=;
+- recency = maximum support assertion sequence;
+- structural-specificity score;
+- a refraction key.
+
+The refraction key includes stable production ID, support occurrence stamps, and bindings. If the same support occurrence remains present after firing, that activation is filtered out. If a supporting fact is retracted and later reasserted, its occurrence sequence changes and a new activation can exist even though the stable fact ID is the same.
+
+This is the book engine's explicit refraction contract. We do not claim it is the internal representation used by CLIPS, OPS5, or any other engine.
+
+** Agenda ordering
+Milestone B orders eligible activations by:
+1. higher production salience;
+2. newer support occurrence (larger maximum assertion sequence);
+3. greater *structural specificity*;
+4. lexicographically smaller stable production ID;
+5. stable activation-key rendering as a final deterministic tie-break.
+
+For this engine, structural specificity is simply the number of non-variable terms across all left-hand-side conditions, including relation names. This intentionally simple score exists so the mechanism can be derived and tested. It must not be described as the CLIPS simplicity/complexity strategy or as a universal expert-system definition of specificity.
+
+The stable-ID tie-break is important pedagogically: no correct program should depend on arbitrary rule definition/list order when all earlier policy keys tie. CLIPS documentation itself warns not to depend on arbitrary residual ordering in its own conflict-resolution process [cite:@clips642bpg], but our exact final tie-break is our design.
+
+** Naive forward-chaining cycle
+The semantic oracle performs:
+
+#+begin_example
+working memory
+  -> completely rematch every production
+  -> build complete activations
+  -> filter previously fired activation occurrences
+  -> deterministically order the agenda
+  -> fire the top activation
+  -> validate and assert its proposed facts
+  -> repeat
+#+end_example
+
+Quiescence means no eligible activation remains. A caller-supplied firing limit is reported separately as =:limit= if work remains. Hitting a bound must never be mislabeled as logical quiescence.
+
+The complete rematch is redundant by construction. No performance number is claimed. Later incremental matching is accepted only if it preserves the declared observable semantics for controlled scenarios while reducing repeated work measured by an actually run benchmark.
+
+* Synthetic technical scenario for the forward-chain lab
+The existing =api-start-failure= fixture remains explicitly synthetic. Milestone B adds two synthetic teaching rules:
+
+1. failed dependency + topology relation -> derived =dependency-impact=;
+2. dependency impact + degraded dependent -> derived =needs-investigation=.
+
+The fixture's systemd URL grounds terminology for service state/restart concepts [cite:@systemd-service]; it does not claim that the fictional host or conclusions were observed in production. Derived facts carry =:kind :derived=, stable rule ID, and exact support fact IDs.
+
+These two rules demonstrate *inference mechanics*, not a complete troubleshooting doctrine. The substantial sourced troubleshooting KB remains Project 2 and must add scoped technical rules, counterevidence, temporal validity, and regression scenarios before making real operational recommendations.
+
+* Required regression cases
+- assertion sequences increase monotonically;
+- duplicate stable fact ID is rejected without partial mutation;
+- equal content with different stable IDs remains separate evidence;
+- retraction removes by stable identity;
+- reassertion creates a new occurrence sequence;
+- duplicate production IDs are rejected;
+- activations retain rule identity, bindings, support IDs, and support occurrence stamps;
+- agenda ordering independently exercises salience, recency, structural specificity, and stable-ID tie-breaking;
+- firing refracts the unchanged support occurrence;
+- retract/reassert creates a new eligible occurrence;
+- invalid action output fails before mutation/refraction;
+- the synthetic service scenario requires multiple cycles and reaches genuine quiescence;
+- a one-firing bound reports =:limit= with remaining work rather than quiescence.
+
+* Deferred research
+- negative, existential, and universal conditional elements;
+- explicit modification/update semantics beyond retract+assert;
+- incremental alpha and beta memories and retraction propagation;
+- RETE/TREAT topology and measured workload comparisons;
+- truth maintenance and cascading removal of unsupported derived facts;
+- contradiction/counterevidence policy and uncertainty models;
+- transaction semantics for externally side-effecting actions;
+- persistence, concurrency, and distributed event delivery;
+- benchmarks.
