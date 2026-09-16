@@ -1,0 +1,303 @@
+** Chapter 4 -- Functions Are Interfaces
+:PROPERTIES:
+:ID:       9581719d-cab8-43ce-9792-5b0555aec93c
+:END:
+
+The previous chapters used functions before stopping to study them. That was deliberate: a function is easier to understand after you have watched clauses, patterns, and recursion do real work. Now we can name the design choices that were already present.
+
+*** A function has more than a body
+In a small imperative language, a beginner may picture a function as “some statements with parameters.” In LFE, a useful mental model is richer. A function has an arity, one or more clauses, patterns that define which inputs each clause accepts, and expressions that produce the result. The function boundary is therefore also a data-shape boundary.
+
+The router's public function makes that visible:
+
+#+begin_src lfe
+(defun route
+  ([(= event (tuple 'event _ _ _)) rules]
+   (route-event event rules))
+  ([bad-event _]
+   (tuple 'error (tuple 'bad-event bad-event))))
+#+end_src
+
+The first clause says much more than “take two arguments.” It says that the first argument must have the event tuple shape. The second clause turns every other first argument into an explicit domain error. Pattern matching is part of the interface.
+
+That idea matters later when processes and OTP callbacks enter the course. A callback is not interesting because OTP invokes a magic function name. It is interesting because the function boundary makes a protocol state transition explicit.
+
+*** Named functions, anonymous functions, and function references
+LFE supports ordinary named functions, anonymous =lambda= forms, and references to existing functions. The tagged LFE guide documents function references as first-class values. [cite:@lfe-guide-v2-2-2]
+
+#+begin_src lfe
+(function lists reverse 1)
+#+end_src
+
+A function reference is data you can pass somewhere else. This is the foundation of higher-order code, but “higher order” should not be mistaken for “automatically clearer.” Compare two possible routing implementations:
+
+1. a recursive function whose clauses expose every rule shape and failure case;
+2. a pipeline of higher-order list functions that hides traversal inside library calls.
+
+The second can be shorter. The first currently makes first-match termination, malformed-rule handling, and the empty-list base case easier to audit. Abstraction pays rent only when it removes irrelevant detail without hiding the behavior you still need to reason about.
+
+*** Project technique: keep the semantic function boring
+The macro layer we add in Chapter 6 does not replace =route/2=. It produces data that =route/2= already understands. That means the runtime function remains callable from LFE, Erlang, a future process loop, or a test without invoking macro machinery.
+
+This separation creates a useful debugging question:
+
+- If the explicit rule data is wrong, inspect macro expansion or configuration construction.
+- If the explicit rule data is right but the route result is wrong, inspect the runtime evaluator.
+
+When one abstraction can be peeled off and the lower layer still runs, debugging gets cheaper.
+
+*** Failure lab: hide the protocol behind a callback
+Rewrite the first rule as a function value that closes over its destination. You can make it work. Then try to print, compare, persist, or inspect the rule as ordinary data. Notice what disappeared: the rule's declarative shape is now encoded in executable closure behavior.
+
+That tradeoff is sometimes worthwhile, but it is not free. For Project 1 we want rules that are easy to inspect and later easy to generate. Tuples win that requirement better than opaque callbacks.
+
+*** Exercises
+1. ★ Identify the public contract of =route/2=: arity, accepted event shape, success result, and two error families.
+2. ★★ Write a small anonymous function that converts =#(ok destination)= into =destination= and leaves an error tuple unchanged. Do not change the router itself.
+3. ★★ Explain why a function reference is a BEAM value but an LFE =defun= form is source syntax.
+4. ★★★ Sketch a callback-based rule representation and list two capabilities it gains and two inspectability properties it loses compared with tuples.
+
+** Chapter 5 -- Data Structures Are Protocol Decisions
+:PROPERTIES:
+:ID:       3adc3eb5-8821-4839-8862-1e293bc275e7
+:END:
+
+Lisp makes it easy to build symbolic structures. The BEAM gives us several concrete term families. Neither fact means that every shape is equally good. Once data crosses a module or process boundary, representation becomes part of the protocol.
+
+*** Tuples for tagged fixed-shape values
+Project 1 uses tuples for events, rules, and results:
+
+#+begin_src lfe
+(tuple 'event 'critical 'edge '#"disk full")
+(tuple 'when-level 'critical 'pager)
+(tuple 'ok 'pager)
+(tuple 'error 'no-route)
+#+end_src
+
+The leading atom is a tag. The remaining positions have a meaning determined by that tag. This is a compact fit for small fixed-shape protocol values and maps directly to ordinary Erlang tuples. Erlang's system documentation treats tuples and lists as ordinary compound terms rather than LFE-specific objects. [cite:@erlang-data-types-29]
+
+The cost is positional meaning. If an event grows from four fields to fifteen, a tuple becomes harder to read and evolve. Later chapters will introduce maps where named keys better express evolving configuration and state. The lesson is not “tuples good, maps bad.” It is to choose a shape whose invariants are visible at the point where readers and programs must check them.
+
+*** Lists when order and recursion are semantic
+The rule collection is a list because order matters: first match wins. A set would erase that policy. A map keyed by rule kind would force a different conflict-resolution model. The list is therefore not an arbitrary container choice; it is part of the language semantics.
+
+This is a recurring design habit for symbolic systems: use a data structure that makes the intended algebra obvious. When order matters, preserve order. When uniqueness matters, represent uniqueness. When lookup identity matters, choose a keyed structure. Do not select a collection only because its literal syntax is convenient.
+
+*** Data constructors make the macro target explicit
+Before macros, Project 1's rules are written as:
+
+#+begin_src lfe
+(list
+ (tuple 'when-level 'critical 'pager)
+ (tuple 'when-service 'billing 'billing-queue)
+ (tuple 'otherwise 'archive))
+#+end_src
+
+This is the representation the runtime evaluator consumes. Chapter 6 will let the author write a smaller language, but the expansion target remains this explicit structure. That gives us an unusually strong test oracle for a beginner DSL: macro-generated rules can be compared directly with hand-written rules.
+
+*** Tagged errors are also data
+A domain error such as =#(error no-route)= is not the same thing as a crashed process. Keeping normal negative outcomes in data lets a caller decide what to do. A malformed macro clause, by contrast, is a source-program defect; Chapter 6 rejects it during compilation rather than converting it into a runtime route result.
+
+This is the beginning of a failure taxonomy:
+
+- normal domain outcome: return tagged data;
+- invalid DSL source: fail compilation/expansion;
+- impossible runtime state or broken invariant: later chapters may deliberately crash a process and let supervision decide recovery.
+
+Do not compress these into one vague word, “error.” The BEAM's failure model becomes much easier to reason about when the layer that owns a failure is explicit.
+
+*** Failure lab: unordered rules
+Imagine replacing the ordered rule list with a map from rule tag to destination. Now configure both =when-level critical= and =otherwise=. Which one wins? You have to invent precedence rules that the list already represented directly.
+
+A data-structure refactor can silently become a language-design change. This is why Project 1 freezes behavior in tests before changing syntax.
+
+*** Exercises
+1. ★ For each Project 1 value, state whether its order, field position, or key identity is semantically important.
+2. ★★ Propose a map-shaped event representation. What becomes clearer? What pattern clauses would need to change?
+3. ★★ Explain why the ordered list is part of the DSL contract rather than an implementation accident.
+4. ★★★ Design a versioned rule representation that could evolve without silently changing old meanings. Do not implement it yet.
+
+* Part II -- Building Useful Systems
+** Chapter 6 -- Macros: Move Work to Compile Time
+:PROPERTIES:
+:ID:       e45f8052-75b4-4607-ab94-f9d8a623f714
+:END:
+
+A macro is not a faster function. It operates at a different stage. A function receives runtime values. An LFE macro receives source forms during expansion and returns new source forms for the compiler to continue processing. The tagged LFE v2.2.2 guide describes macros as functions over macro-call arguments plus the current macro environment, and the tagged =lfe_macro= manual exposes the expander directly. [cite:@lfe-guide-v2-2-2;@lfe-macro-v2-2-2]
+
+That staging distinction is why macros can create syntax and why they can also create confusing failures. Before writing one, we should know exactly what source convenience we want and exactly what ordinary program it should become.
+
+*** Project 1 finally earns a macro
+The data-first rule kernel gives us a stable target. We now permit this source:
+
+#+begin_src lfe
+(event-rules-dsl:routes
+ (when-level 'critical 'pager)
+ (when-service 'billing 'billing-queue)
+ (otherwise 'archive))
+#+end_src
+
+The =routes= macro compiles those clauses into the same explicit data we wrote by hand:
+
+#+begin_src lfe
+(list
+ (tuple 'when-level 'critical 'pager)
+ (tuple 'when-service 'billing 'billing-queue)
+ (tuple 'otherwise 'archive))
+#+end_src
+
+The macro does not route events. It does not own state. It does not create a hidden interpreter. It translates one readable source language into a tested runtime representation.
+
+#+caption: Project 1 now has a compile-time syntax layer in front of the same explicit runtime rule data and routing kernel. Invalid DSL clauses are rejected before the runtime evaluator exists.
+#+attr_html: :alt LFE route source enters a compile-time routes macro. Valid clauses become explicit BEAM rule tuples consumed by route/2 and then a tagged result; an unsupported clause instead produces a compile-time bad-event-rule-syntax error.
+[[file:assets/macro-expansion.svg]]
+
+*** Read the macro like a tiny compiler
+The implementation deliberately has separate stages even though it is small:
+
+#+begin_src lfe
+(defmacro routes clauses
+  (compile-routes clauses))
+#+end_src
+
+A compile-time helper maps the whole sequence. Another helper recognizes one allowed clause shape. The final catch-all rejects unsupported syntax with =bad-event-rule-syntax=.
+
+This is not ceremony. It makes three responsibilities visible:
+
+1. parse/recognize the source form;
+2. translate accepted forms into the kernel representation;
+3. reject everything else instead of guessing.
+
+That pattern scales from toy macros to real compilers and protocol translators.
+
+*** Why validate at expansion time?
+Recall Chapter 2's question about a malformed rule after an early matching rule. The runtime evaluator only sees what it reaches, so an invalid later tuple may remain hidden. The macro has a different responsibility: it receives the whole source rule sequence before runtime. A malformed source clause is therefore rejected immediately.
+
+The repository carries a deliberately invalid fixture:
+
+#+begin_src lfe
+(event-rules-dsl:routes
+ (when-level 'critical 'pager)
+ (wat 'nope))
+#+end_src
+
+The test harness requires that compiling this module *fails* and that the diagnostic contains the DSL's syntax-error tag. A compile failure here is a passing acceptance test because the requirement is rejection.
+
+*** Expansion is testable data
+LFE v2.2.2 distinguishes one-step top-level expansion, repeated top-level expansion, and recursive expansion. [cite:@lfe-macro-v2-2-2] Project 1 tests one step with =lfe_macro:expand_expr_1=. Why one step? Because the contract under test is what =routes= emits, not every built-in macro or compiler transformation that may happen afterward.
+
+This gives us two independent assertions:
+
+- structural: the one-step expansion equals the explicit rule list form;
+- behavioral: a separately compiled consumer using the macro produces rule data equal to =event-rules:sample-rules/0= and routes through the original kernel.
+
+A DSL is easier to trust when you can inspect both the translation and the resulting behavior.
+
+*** Exported macros cross a real module boundary
+The upstream LFE v2.2.2 examples export macros with =export-macro=, and the upstream test suite expands module-qualified exported macros. [cite:@lfe-core-macros-v2-2-2;@lfe-examples-suite-v2-2-2] Project 1 mirrors that boundary: =event-rules-dsl= exports =routes=; =event-rules-example= is a different module that consumes it.
+
+The compile order matters. The macro module must already be compiled and available to the compiler that expands the consumer. The tagged =lfec= front end supports =-pa= to add a code path; the book's test script compiles the macro module first and then compiles the consumer with the macro beam directory on that path. [cite:@lfe-lfec-v2-2-2]
+
+That is the first tooling lesson of metaprogramming: compile-time dependencies are dependencies too.
+
+*** Failure lab: make the macro silently accept junk
+Change the catch-all =compile-clause= case so it simply drops unknown clauses. Re-run the invalid fixture. The module now compiles, which means the acceptance test fails.
+
+That failure is useful. “Be liberal in what you accept” is terrible advice for a small language compiler when discarded syntax could conceal a typo. Rejecting unknown source keeps the author close to the mistake.
+
+*** Exercises
+1. ★ Write the exact hand-expanded data form for a two-clause =routes= source form.
+2. ★★ Add a proposed =when-level-and-service= source clause and write its expansion before touching the macro.
+3. ★★ Explain why one-step expansion is a narrower regression oracle than recursive expansion.
+4. ★★★ Add the new clause to both the explicit kernel tests and macro tests. Require the macro-generated form to remain equal to a hand-written form.
+
+** Chapter 7 -- Macro Hygiene, Capture, and the Cost of Cleverness
+:PROPERTIES:
+:ID:       08697273-1ee3-4ac6-8944-1f00a5bc21a3
+:END:
+
+If you know Scheme, the word “macro” may prime you to expect hygienic renaming. Do not transfer that assumption to LFE. The LFE v2.2.2 guide says directly that its macros are not hygienic and identifies a practical hazard: a variable generated by a macro can collide with a variable of the same name in the caller. [cite:@lfe-guide-v2-2-2]
+
+That fact is important enough to test, not just mention.
+
+*** A deliberately unsafe macro
+The regression module contains a teaching macro that introduces the ordinary name =value=:
+
+#+begin_src lfe
+(defmacro unsafe-with-value (expr body)
+  `(let ((value ,expr))
+     ,body))
+#+end_src
+
+Now place it in a context where the caller also uses =value=:
+
+#+begin_src lfe
+(let ((value 'caller))
+  (unsafe-with-value 'macro value))
+#+end_src
+
+The macro expansion places the caller's =value= reference inside the macro-introduced binding. The project regression records the resulting capture behavior. This macro exists specifically as a failure lab. Do not copy it into production code.
+
+*** The production macro avoids the problem structurally
+The =routes= macro does not introduce a runtime binding at all. It produces constructors and the caller-provided forms. Avoiding a binder is stronger than inventing a clever name for one.
+
+This suggests a review hierarchy for macros:
+
+1. Can this be an ordinary function instead?
+2. If syntax transformation is justified, can the expansion avoid introducing bindings?
+3. If bindings are unavoidable, what naming/capture strategy does current LFE support, and where is it tested?
+4. Can a reader inspect a one-step expansion and understand the runtime program?
+
+LFE's own guide suggests unusually named generated variables as a workaround for collisions. [cite:@lfe-guide-v2-2-2] That is a practical technique, not automatic hygiene. A later project that needs generated bindings must test that policy directly instead of treating the workaround as a theorem.
+
+*** Macro debugging starts by removing magic
+When macro-using code fails, inspect the expansion before debugging the runtime behavior. Project 1's layers now give us a repeatable sequence:
+
+1. Is the source clause valid?
+2. What does one-step expansion produce?
+3. Is that explicit data equal to the hand-written kernel representation?
+4. Does =route/2= behave correctly on that data?
+5. Only then inspect later runtime/process behavior.
+
+This is Lisp thinking applied with systems discipline: code is data, but data transformations still need contracts.
+
+*** Failure lab: introduce a binding into =routes=
+Modify =routes= so the expansion creates a local variable named =rules= before returning it. Then call the macro inside a function that already has a meaningful =rules= binding. Inspect the one-step expansion before running anything.
+
+Do not stop at “it seems fine.” Ask which occurrences refer to which binding after expansion. If the answer requires guessing, the macro has made the program harder to review.
+
+*** Cleverness budget
+Macros are attractive because they can make a language look cleaner. The cost arrives in tooling, expansion order, compile-time dependencies, source-location debugging, and capture. Project 1 uses a macro only where it buys something concrete: declarative route syntax with immediate structural validation. The evaluator stays ordinary and testable.
+
+This gives us a standard for later chapters. A macro is successful when it improves the author's source language while leaving an understandable program underneath. Parentheses are not a coupon for complexity.
+
+*** Project 1 checkpoint: source language over a tested kernel
+At the end of Chapter 7, Project 1 now has two intentionally distinct layers:
+
+- *runtime semantic kernel* -- explicit event/rule terms plus =route/2=;
+- *compile-time source layer* -- =event-rules-dsl:routes= translating accepted clauses into that kernel data.
+
+The executable project checks kernel behavior, equality between generated and hand-written rules, one-step expansion shape, a real cross-module macro compile, deliberate non-hygienic capture, invalid-source compile failure, and the existing Erlang-to-LFE runtime interoperability boundary.
+
+What is still absent is equally deliberate: no process owns the router, no mailbox protocol exists, no OTP behaviour is involved, and no supervisor restarts anything. Chapters 8--10 add interoperability and actor semantics without pretending the macro itself provides concurrency.
+
+*** Exercises
+1. ★ Explain in your own words why “LFE macros are Lisp macros” is too vague to predict hygiene behavior.
+2. ★★ Expand =unsafe-with-value= by hand for the capture example and mark the binding/reference relationship.
+3. ★★ Give two ways to reduce capture risk without claiming automatic hygiene.
+4. ★★★ Write a code-review checklist for a macro that introduces temporary bindings. Include an expansion test and at least one adversarial caller name.
+5. ★★★ Decide whether a proposed convenience feature belongs in =routes=, in an ordinary function that constructs rules, or in =route/2=. Defend the layer boundary.
+
+* Project 1 -- Event Routing DSL, Macro Milestone
+Run the same project harness as the foundation milestone:
+
+#+begin_src sh
+books/lfe/code/event-rules/run-tests
+#+end_src
+
+The script compiles the exported macro module first, compiles a separate consumer against it, runs the LFE regression module, requires the deliberately invalid DSL module to fail compilation for the expected reason, and keeps the direct Erlang-to-LFE runtime smoke. The macro milestone therefore adds a compile-time boundary without replacing the runtime boundary already proved in Chapters 1--3.
+
+* Source checkpoints for the macro slice
+The macro chapters are grounded in the pinned LFE v2.2.2 user guide, macro-expander manual, tagged core-macro examples and tests, and the tagged =lfec= front end. [cite:@lfe-v2-2-2;@lfe-guide-v2-2-2;@lfe-macro-v2-2-2;@lfe-core-macros-v2-2-2;@lfe-examples-suite-v2-2-2;@lfe-lfec-v2-2-2]
+
+The detailed source inventory, search log, claim status, and exact executable evidence live under =books/lfe/research/=. Later process, OTP, release, and distribution chapters require fresh research and fresh execution rather than inheriting this macro pass.
