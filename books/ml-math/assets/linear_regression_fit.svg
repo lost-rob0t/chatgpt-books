@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="430" viewBox="0 0 920 430">
+<title>Project 2 affine regression fit, residuals, and optimization trace</title>
+<desc>The left panel shows six training samples, three held-out evaluation samples, a fitted affine line, and dashed training residuals. The right panel shows log base ten mean squared error falling across full-batch gradient-descent steps until the fitted parameters agree closely with the independent centered closed-form solution.</desc>
+<rect width="100%" height="100%" fill="white"/>
+<text x="242.50" y="24" text-anchor="middle" font-size="17" font-weight="bold">data, fit, and residuals</text>
+<line x1="55" y1="365" x2="430" y2="365" stroke="#111"/>
+<line x1="55" y1="45" x2="55" y2="365" stroke="#111"/>
+<line x1="55.00" y1="346.21" x2="430.00" y2="65.01" stroke="#111" stroke-width="3"/>
+<line x1="55.00" y1="345.44" x2="55.00" y2="346.21" stroke="#777" stroke-width="1.5" stroke-dasharray="4 4"/>
+<line x1="101.88" y1="313.44" x2="101.88" y2="311.06" stroke="#777" stroke-width="1.5" stroke-dasharray="4 4"/>
+<line x1="148.75" y1="272.56" x2="148.75" y2="275.91" stroke="#777" stroke-width="1.5" stroke-dasharray="4 4"/>
+<line x1="195.62" y1="244.11" x2="195.62" y2="240.76" stroke="#777" stroke-width="1.5" stroke-dasharray="4 4"/>
+<line x1="242.50" y1="203.22" x2="242.50" y2="205.61" stroke="#777" stroke-width="1.5" stroke-dasharray="4 4"/>
+<line x1="289.38" y1="171.22" x2="289.38" y2="170.46" stroke="#777" stroke-width="1.5" stroke-dasharray="4 4"/>
+<circle cx="55.00" cy="345.44" r="5" fill="#111"/>
+<circle cx="101.88" cy="313.44" r="5" fill="#111"/>
+<circle cx="148.75" cy="272.56" r="5" fill="#111"/>
+<circle cx="195.62" cy="244.11" r="5" fill="#111"/>
+<circle cx="242.50" cy="203.22" r="5" fill="#111"/>
+<circle cx="289.38" cy="171.22" r="5" fill="#111"/>
+<rect x="331.25" y="125.33" width="10" height="10" fill="white" stroke="#111" stroke-width="2"/>
+<rect x="378.12" y="96.89" width="10" height="10" fill="white" stroke="#111" stroke-width="2"/>
+<rect x="425.00" y="56.00" width="10" height="10" fill="white" stroke="#111" stroke-width="2"/>
+<text x="55" y="397" font-size="13">filled circle = training; open square = held-out evaluation</text>
+<text x="55" y="416" font-size="13">dashed vertical segments = training residuals</text>
+<text x="697.50" y="24" text-anchor="middle" font-size="17" font-weight="bold">optimization trace</text>
+<line x1="510" y1="365" x2="885" y2="365" stroke="#111"/>
+<line x1="510" y1="45" x2="510" y2="365" stroke="#111"/>
+<polyline points="510.00,45.00 515.17,319.78 520.33,334.45 525.50,345.53 530.66,353.19 535.83,358.10 540.99,361.07 546.16,362.79 551.32,363.77 556.49,364.32 561.65,364.63 566.82,364.79 571.98,364.89 577.15,364.94 582.31,364.97 587.48,364.98 592.64,364.99 597.81,364.99 602.98,365.00 608.14,365.00 613.31,365.00 618.47,365.00 623.64,365.00 628.80,365.00 633.97,365.00 639.13,365.00 644.30,365.00 649.46,365.00 654.63,365.00 659.79,365.00 664.96,365.00 670.12,365.00 675.29,365.00 680.45,365.00 685.62,365.00 690.79,365.00 695.95,365.00 701.12,365.00 706.28,365.00 711.45,365.00 716.61,365.00 721.78,365.00 726.94,365.00 732.11,365.00 737.27,365.00 742.44,365.00 747.60,365.00 752.77,365.00 757.93,365.00 763.10,365.00 768.26,365.00 773.43,365.00 778.60,365.00 783.76,365.00 788.93,365.00 794.09,365.00 799.26,365.00 804.42,365.00 809.59,365.00 814.75,365.00 819.92,365.00 825.08,365.00 830.25,365.00 835.41,365.00 840.58,365.00 845.74,365.00 850.91,365.00 856.07,365.00 861.24,365.00 866.40,365.00 871.57,365.00 876.74,365.00 881.90,365.00 885.00,365.00" fill="none" stroke="#111" stroke-width="3"/>
+<circle cx="885.00" cy="365.00" r="5" fill="#111"/>
+<text x="510" y="397" font-size="13">x-axis: update step (0 to 726)</text>
+<text x="510" y="416" font-size="13">y-axis: log10(MSE), higher at top</text>
+<text x="522" y="63" font-size="13">initial MSE 47.420</text>
+<text x="522" y="353" font-size="13">final MSE 0.01848</text>
+<text x="67" y="65" font-size="13">GD: y ~= 1.977x + 1.057</text>
+<text x="67" y="84" font-size="13">closed form: y ~= 1.977x + 1.057</text>
+</svg>

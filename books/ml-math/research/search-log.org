@@ -62,3 +62,16 @@ Executable check: the new standard-library calculus lab currently passes 16/16 l
 Result: Chapters 9--12 derive secants -> derivative/local linear model -> partial derivatives -> gradient/directional derivative -> chain rule/computation graph. The regression-loss example is introduced only far enough to derive and check the MSE gradient; model fitting and optimizer behavior remain a later Project 2 slice.
 
 Claim boundary: finite differences are debugging/evidence tools, not proofs of differentiability and not a claimed practical training algorithm. No benchmark or convergence claim is made. A symmetric finite difference returning zero for =abs= at zero is kept as a deliberate counterexample to “numerical estimate implies derivative exists.”
+
+** 2026-09-16 -- Project 2 affine least squares and bounded gradient descent
+Questions: What authoritative material supports the least-squares/model-fitting framing and the direction-plus-step-size form of gradient descent? What current numerical API can independently check the one-feature affine fit without becoming the teaching implementation?
+
+Inspected:
+- Stephen Boyd and Lieven Vandenberghe, /Introduction to Applied Linear Algebra: Vectors, Matrices, and Least Squares/ (2018), using the author-maintained Stanford edition and Cambridge publication metadata for the least-squares/model-fitting context;
+- Boyd and Vandenberghe, /Convex Optimization/ (2004), Chapter 9 material on unconstrained descent methods, step size, and stopping criteria;
+- official NumPy 2.5 =numpy.linalg.lstsq= documentation for the least-squares objective, return contract, and minimum-norm behavior when minimizers are not unique;
+- the already-recorded Python 3.14.7 floating-point guidance for finite-arithmetic failure boundaries.
+
+Result: Project 2 checkpoint A keeps the teaching fit independent of NumPy. It derives the one-feature centered stationary solution, implements explicit full-batch gradient-descent updates with an auditable history and bounded stopping condition, and uses pinned NumPy 2.5.0 =linalg.lstsq= only as an external oracle on the ordinary finite fixture. The manuscript keeps the six-row training fit separate from the three-row held-out calculation and treats that holdout as an engineering evaluation boundary rather than statistical evidence.
+
+Claim boundary: this research pass does not establish a general gradient-descent convergence theorem, a universal learning-rate threshold, statistical generalization, a probabilistic residual model, multivariate or regularized regression, solver-performance equivalence, or a benchmark. Those remain later curriculum work.
