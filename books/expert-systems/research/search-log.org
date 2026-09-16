@@ -21,3 +21,12 @@ Inspected:
 - official Linux kernel =/proc= documentation.
 
 Result: milestone A uses only synthetic service observations, marks them synthetic in provenance, and cites systemd only for the meaning of service configuration/state concepts. No load threshold or real-host observation is claimed.
+
+** 2026-09-16 -- working memory, agenda, and conflict resolution
+Questions: What production-cycle behavior is documented by current primary/official material? Which semantics must the teaching engine define for itself before incremental matching?
+
+Inspected:
+- Forgy, /OPS5: A Rule-Based Programming System/ (1981), for the production-system organization and explicit matching/control boundary.
+- official /CLIPS Reference Manual, Volume I: Basic Programming Guide/ 6.4.2 (2025-01-16), especially Section 5.2 “Basic Cycle Of Rule Execution” and Section 5.3 “Conflict Resolution Strategies.” The current PDF documents activated/deactivated rules, agenda placement by salience plus strategy, top-of-agenda execution, and named depth/breadth/simplicity/complexity/LEX/MEA/random strategies.
+
+Result: milestone B does not clone CLIPS. It freezes course-local semantics for stable fact identity vs assertion occurrence, duplicate-ID policy, stable production identity, full activations, deterministic salience/recency/structural-specificity/stable-ID ordering, occurrence-aware refraction, complete-rematch forward chaining, and separate =:quiescent= vs =:limit= outcomes. Alpha/beta/RETE, truth maintenance, external side effects, uncertainty, and benchmarks remain deferred.
