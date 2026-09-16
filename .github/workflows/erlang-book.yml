@@ -44,6 +44,9 @@ jobs:
       - name: Run release construction and boot tests
         run: bash ./books/erlang/code/release-lab/run-tests.sh
 
+      - name: Run bounded job processor tests
+        run: bash ./books/erlang/code/job-processor/run-tests.sh
+
       - name: Validate Chapter 13 lifecycle diagram source
         shell: bash
         run: |
@@ -66,8 +69,48 @@ jobs:
           grep -q 'otp_worker_release.rel' /tmp/release-boot-flow.svg
           grep -q 'otp_worker_sup' /tmp/release-boot-flow.svg
 
+      - name: Validate Chapter 15 job processor diagram source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s books/erlang/assets/job-processor-flow.dot
+          test -s books/erlang/assets/job-processor-flow.svg
+          dot -Tsvg books/erlang/assets/job-processor-flow.dot > /tmp/job-processor-flow.svg
+          grep -q 'job_processor' /tmp/job-processor-flow.svg
+          grep -q 'job_worker_sup' /tmp/job-processor-flow.svg
+          grep -q 'overloaded' /tmp/job-processor-flow.svg
+          grep -q 'no persisted ledger' /tmp/job-processor-flow.svg
+
       - name: Build Erlang book
         run: make book BOOK=erlang
+
+      - name: Verify accepted chapters are in production EPUB
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import html
+          import re
+          import zipfile
+
+          epub = "books/erlang/dist/erlang.epub"
+          expected = [
+              "Applications: Give the Supervision Tree a System Boundary",
+              "Releases: Turn Applications into a Bootable System",
+              "Bounded Work: Admission, Dynamic Workers, and Retry Ownership",
+          ]
+          with zipfile.ZipFile(epub) as archive:
+              chunks = []
+              for name in archive.namelist():
+                  if name.endswith((".xhtml", ".html", ".htm")):
+                      chunks.append(archive.read(name).decode("utf-8", errors="replace"))
+          text = html.unescape(re.sub(r"<[^>]+>", " ", "\n".join(chunks)))
+          normalized = " ".join(text.split())
+          missing = [heading for heading in expected if heading not in normalized]
+          if missing:
+              raise SystemExit(f"production EPUB is missing accepted chapter(s): {missing}")
+          print("production EPUB contains Chapters 13, 14, and 15")
+          PY
 
       - name: Validate Erlang book
         env:
