@@ -9,15 +9,21 @@ Foundational research and progressive chapter/project drafting.
 - Foundation research pass 01 documents current SWI-Prolog behavior needed by Chapters 1--3: basic load/query workflow, default variable syntax, anonymous variables, atom/string boundary, unification/occurs-check boundary, PL-Unit surface, and current release channels.
 - Chapters 1--3 now have real manuscript material with exercises, debugging work, and Project 1 integration rather than only bootstrap prose.
 - Relational Query System milestone 1 has a synthetic knowledge base and PL-Unit regression suite.
+- A book-scoped CI gate executes the Prolog suite, production EPUB build/check, and Nix flake check for Prolog-book changes.
 * Active research
 Foundational primary-source research is still incomplete for recursion, lists, operational control/backtracking, modules, DCGs, search, constraints/CLP(FD), meta-programming, persistence/integration, debugging tooling, advanced testing, and indexing/performance.
 * Verification
 - Source claims in =research/foundations-01.org= are DOCUMENTED from official SWI-Prolog sources retrieved 2026-09-16.
-- Project 1 code/tests remain UNTESTED until the exact branch is executed with an actual =swipl= binary; no transcript is claimed from source inspection alone.
-- Production EPUB build/check evidence must be recorded from the exact branch before this slice is review-ready.
+- On branch head =845fe5116bbd6cdddacb5ecf4b08ebee186e8ca6=, GitHub Actions =prolog-book= run 35090787106 completed successfully on 2026-09-16.
+- The executed interpreter was =SWI-Prolog version 9.0.4 for x86_64-linux=. The Project 1 PL-Unit suite executed 11 tests successfully with no test warnings in the final run.
+- =make book BOOK=prolog= completed successfully using Pandoc 3.10.1.
+- =make check BOOK=prolog= completed successfully with EPUBCheck 5.3.0 reporting 0 fatals, 0 errors, 0 warnings, and 0 infos.
+- The book-scoped Nix job completed =nix flake check -L= successfully in the same workflow run.
+- Repository-wide =books-ci= remains red at structural validation because the current main book set contains =starlang= while the shared structural expectation is stale. That failure occurs before Prolog publication checks, is not caused by this Prolog slice, and is outside this book-only task; it is not being hidden or weakened here.
 * Coordination
 The pure-Prolog book retains the complete language/runtime foundation. A separate =prolog-llms= volume is expected to build toward LLM/neuro-symbolic applications; no canonical target exists on current repository main yet, so no broken file link is added here.
 * Technical/editorial/visual review
 Not started as a whole-book phase. Individual drafted slices still require technical and editorial review before DONE.
 * Blockers
-No conceptual blocker for the next foundation slice. Execution evidence for the current slice still requires an environment with SWI-Prolog and the production book toolchain.
+- No conceptual blocker for the next foundation slice.
+- The shared repository structural gate has the pre-existing =starlang= book-set mismatch described above. It should be repaired by the owner of shared repository infrastructure, not by this Prolog-only worker.
