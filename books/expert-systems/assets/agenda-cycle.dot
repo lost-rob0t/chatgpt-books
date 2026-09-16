@@ -1,0 +1,28 @@
+digraph agenda_cycle {
+  graph [rankdir=LR, bgcolor="transparent", pad="0.2", nodesep="0.45", ranksep="0.65"];
+  node [shape=box, style="rounded", fontname="DejaVu Sans", fontsize=11, margin="0.12,0.08"];
+  edge [fontname="DejaVu Sans", fontsize=9];
+
+  wm [label="Working memory\nFACT + assertion sequence"];
+  match [label="Complete rematch\nof every production"];
+  activation [label="Complete activations\nbindings + support stamps"];
+  refract [label="Refraction filter\nexact fired occurrences"];
+  agenda [label="Agenda order\n1 salience\n2 recency\n3 specificity\n4 stable rule ID"];
+  fire [label="Fire top activation\nrule proposes facts"];
+  validate [label="Validate whole output batch\nIDs + fact types"];
+  commit [label="Assert batch + record firing\nnew occurrence sequences"];
+  fail [label="Reject firing\nno WM mutation\nno refraction", shape=note];
+
+  wm -> match;
+  match -> activation;
+  activation -> refract;
+  refract -> agenda;
+  agenda -> fire [label="top"];
+  fire -> validate;
+  validate -> commit [label="valid"];
+  validate -> fail [label="invalid"];
+  commit -> wm [label="next cycle"];
+
+  retract [label="Retract by stable fact ID\nreassert => new sequence", shape=box, style="rounded,dashed"];
+  retract -> wm [label="state change"];
+}
