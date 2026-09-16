@@ -1,0 +1,39 @@
+#+title: LFE Project 3 -- OTP Router checkpoint A
+
+This directory is the executable teaching implementation for Chapters 11--12.
+
+It deliberately reuses the accepted Project 1 semantic kernel at
+=../event-rules/src/event-rules.lfe=. The LFE module =otp-router= implements the
+ordinary Erlang =gen_server= callback contract; =otp-router-sup= implements the
+ordinary Erlang =supervisor= callback contract. There is no book-specific OTP
+runtime.
+
+Run from the repository root after =lfec= and =erl= are available:
+
+#+begin_src sh
+bash books/lfe/code/otp-router/run-tests
+#+end_src
+
+The gate compiles the LFE callback modules and then checks:
+
+- routing and state replacement through =gen_server:call/3=;
+- =sys:get_state/1= visibility into callback state;
+- tagged domain rejection for an unknown call;
+- direct Erlang calls into the compiled LFE behaviour module;
+- a suspended server causing a real =gen_server:call/3= timeout exit;
+- one-for-one replacement after an intentional callback crash;
+- the replacement starts from the supervisor's original child-spec arguments,
+  proving restart is not state recovery;
+- clean supervisor shutdown through the project helper, including child
+  termination and name cleanup on the observed OTP runner;
+- restart-intensity escalation shuts the supervisor down after the configured
+  budget is exceeded.
+
+The supervisor helper deliberately uses =gen_server:stop/1=. Current OTP 29
+adds =supervisor:stop/1= as a convenience API, but the executable book gate
+still runs on OTP 25; this checkpoint tests the compatibility helper it actually
+ships instead of presenting an OTP-29-only call as though the runner had it.
+
+The crash calls exist only for failure injection. This checkpoint intentionally
+does not add application packaging, releases, distribution, persistence, or a
+production registry. Those belong to later project slices.

@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
+PROJECT="$ROOT/books/lfe/code/otp-router"
+EVENT_RULES="$ROOT/books/lfe/code/event-rules/src/event-rules.lfe"
+BUILD="$PROJECT/.build"
+
+command -v lfec >/dev/null || { echo "lfec is required" >&2; exit 2; }
+command -v erlc >/dev/null || { echo "erlc is required" >&2; exit 2; }
+command -v erl >/dev/null || { echo "erl is required" >&2; exit 2; }
+
+rm -rf "$BUILD"
+mkdir -p "$BUILD"
+
+lfec -o "$BUILD" \
+  "$EVENT_RULES" \
+  "$PROJECT/src/otp-router.lfe" \
+  "$PROJECT/src/otp-router-sup.lfe" \
+  "$PROJECT/test/otp-router-tests.lfe"
+
+erlc -o "$BUILD" "$PROJECT/test/otp_router_interop_tests.erl"
+
+erl -pa "$BUILD" -noshell -eval '
+  case '\''otp-router-tests'\'':run() of
+    ok -> halt(0);
+    Other -> io:format("otp-router-tests returned ~p~n", [Other]), halt(1)
+  end.'
+
+# The interoperability/failure labs live in a compiled Erlang module rather
+# than a long erl -eval expression. That makes the acceptance boundary a real
+# Erlang client calling the compiled LFE behaviour modules, while avoiding
+# evaluator-only restrictions that are unrelated to OTP semantics.
+erl -pa "$BUILD" -noshell -eval '
+  case otp_router_interop_tests:run() of
+    ok -> halt(0);
+    Other -> io:format("otp_router_interop_tests returned ~p~n", [Other]), halt(1)
+  end.'
+
+echo "otp-router: callbacks, sys state, Erlang interop, timeout, supervised restart, fresh state, and restart intensity passed"
