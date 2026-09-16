@@ -174,3 +174,14 @@ Authority: official Erlang/OTP SASL documentation.
 Version inspected: current 29-series documentation retrieved 2026-09-16.
 Relevant material: =make_script/2= release/application validation, =.script=/=.boot= construction, =local= path behavior, =make_tar/2= release packaging and options.
 Affects: Chapter 14 and Project 3 checkpoint C. The chapter treats a generated archive only as package-construction evidence, not deployment proof.
+
+* Inspected 2026-09-17
+** Erlang/OTP systools implementation and regression tests
+URLs:
+- https://github.com/erlang/otp/blob/OTP-25.3.2.8/lib/sasl/src/systools_make.erl
+- https://github.com/erlang/otp/blob/OTP-29.1/lib/sasl/src/systools_make.erl
+- https://github.com/erlang/otp/blob/OTP-29.1/lib/sasl/test/systools_SUITE.erl
+Authority: official Erlang/OTP repository, tagged implementation and upstream regression suite.
+Versions inspected: OTP 25.3.2.8 and OTP 29.1.
+Relevant material: =make_script/2= silent error structure; application version mismatch represented by nested =no_valid_version= under =error_reading=; missing application closure represented by ={undefined_applications, Apps}=; current upstream test pattern-matches the version-mismatch structure.
+Affects: Chapter 14 and Project 3 checkpoint C failure-injection oracle. The book asserts structured categories rather than human-formatted diagnostic prose.
