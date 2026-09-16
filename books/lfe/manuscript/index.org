@@ -240,3 +240,5 @@ The macro chapters will build syntax *on top of* this kernel. That sequencing is
 The first slice is grounded in the official LFE v2.2.2 release and guide, the upstream recurring-pattern and recursion examples, and current Erlang term/pattern documentation. [cite:@lfe-v2-2-2;@lfe-guide-v2-2-2;@lfe-pattern-test-v2-2-2;@lfe-fizzbuzz-v2-2-2;@erlang-data-types-29;@erlang-expressions-29;@erlang-patterns-29]
 
 The detailed retrieval record, exact source URLs, and claim status live in =books/lfe/research/foundations-01.org=. The executable workflow records the actual OTP runtime used for each test run separately from the current-documentation baseline.
+
+#+include: "chapter-04-07.org"
