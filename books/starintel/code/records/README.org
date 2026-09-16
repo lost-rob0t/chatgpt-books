@@ -6,16 +6,22 @@
 * Purpose
 This project exercises the *real* current Python StarIntel document boundary. It deliberately does not copy or reimplement schema validation inside the book.
 
-The executable dependency is pinned to:
+Two upstream revisions are pinned because the Python package records the schema authority but does not vendor the schema file itself:
 
 #+begin_example
-lost-rob0t/starintel-doc
-5857914a1e34ad18a6956b8ff0df5349de0ca099
-package release: 0.9.1
-wire schema_version: 0.9.0
+adapter:
+  lost-rob0t/starintel-doc
+  5857914a1e34ad18a6956b8ff0df5349de0ca099
+  package release: 0.9.1
+
+canonical schema source recorded by that adapter lock:
+  lost-rob0t/starintel-gpt-auto-dig
+  6479c0a9dc88ce9fed183515fc4df5d245de0b3a
+  schemas/starintel-doc-v0.9.0.schema.json
+  wire schema_version: 0.9.0
 #+end_example
 
-The distinction is intentional: 0.9.1 is the coordinated package/release profile while =schema_version="0.9.0"= identifies the wire-schema family.
+The distinction is intentional: 0.9.1 is the coordinated package/release profile while =schema_version="0.9.0"= identifies the wire-schema family. The schema-source checkout is used only as a pinned data dependency for this book test; this project does not run Auto-Dig or modify that repository.
 
 * Run
 From the repository root:
@@ -23,11 +29,15 @@ From the repository root:
 #+begin_src sh
 git clone https://github.com/lost-rob0t/starintel-doc .cache/starintel-doc
 git -C .cache/starintel-doc checkout 5857914a1e34ad18a6956b8ff0df5349de0ca099
+
+git clone https://github.com/lost-rob0t/starintel-gpt-auto-dig .cache/starintel-schema
+git -C .cache/starintel-schema checkout 6479c0a9dc88ce9fed183515fc4df5d245de0b3a
+
 python3 -m pip install .cache/starintel-doc
 bash books/starintel/code/records/run-tests
 #+end_src
 
-The focused CI workflow performs the same pinning automatically.
+The focused CI workflow performs the same exact-revision pinning automatically. =run-tests= also honors explicit =STARINTEL_DOC_ROOT=, =STARINTEL_SCHEMA_ROOT=, and =STARINTEL_SCHEMA= paths for an already-prepared disposable environment.
 
 * What the tests prove
 - the synthetic =person= fixture validates against the imported upstream schema;
