@@ -2,6 +2,7 @@
 
 :- use_module(cost_search, [a_star_plan/6]).
 :- use_module(heuristic_audit).
+:- use_module(planner, [canonical_state/2]).
 :- use_module(weighted_recovery_domain).
 
 test(audited_table_passes_complete_finite_closure) :-
@@ -42,14 +43,16 @@ test(admissible_but_inconsistent_table_is_distinguished) :-
     weighted_recovery_initial_state(Start),
     weighted_recovery_goal(Goal),
     weighted_recovery_heuristic(
-        table([ estimate(StartState, _),
-                estimate(SiteState, _),
+        table([ estimate(RawStartState, _),
+                estimate(RawSiteState, _),
                 estimate(RemoteGoalState, _),
                 estimate(SiteGoalState, _)
               ])),
+    canonical_state(RawStartState, StartState),
+    canonical_state(RawSiteState, SiteState),
     Heuristic =
-        table([ estimate(StartState, 11),
-                estimate(SiteState, 0),
+        table([ estimate(RawStartState, 11),
+                estimate(RawSiteState, 0),
                 estimate(RemoteGoalState, 0),
                 estimate(SiteGoalState, 0)
               ]),
@@ -84,16 +87,18 @@ test(overestimating_table_reports_exact_remaining_cost_violation) :-
     weighted_recovery_initial_state(Start),
     weighted_recovery_goal(Goal),
     weighted_recovery_heuristic(
-        table([ estimate(StartState, _),
-                estimate(SiteState, _),
+        table([ estimate(RawStartState, _),
+                estimate(RawSiteState, _),
                 estimate(RemoteGoalState, _),
-                estimate(SiteGoalState, _)
+                estimate(RawSiteGoalState, _)
               ])),
+    canonical_state(RawSiteState, SiteState),
+    canonical_state(RawSiteGoalState, SiteGoalState),
     Heuristic =
-        table([ estimate(StartState, 0),
-                estimate(SiteState, 100),
+        table([ estimate(RawStartState, 0),
+                estimate(RawSiteState, 100),
                 estimate(RemoteGoalState, 0),
-                estimate(SiteGoalState, 0)
+                estimate(RawSiteGoalState, 0)
               ]),
     audit_heuristic(
         Costed,
