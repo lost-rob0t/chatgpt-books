@@ -1,14 +1,38 @@
 * Where the book goes next
 
-The next chapters add links, monitors, exit signals, and =process_flag(trap_exit, true)= as explicit failure relationships, then separate those low-level mechanics from OTP behaviours. Project 2 converts the messaging service into an OTP application with =gen_server=; Project 3 introduces a real supervision tree, restart strategy and intensity, queue/admission decisions, and telemetry. Later projects add releases, distributed Erlang, persistence boundaries, testing, tracing, observability, and production debugging.
+We now have the low-level failure vocabulary needed to stop treating OTP as magic. Project
+1 has explicit request/reply protocols, timeouts that do not pretend to be cancellation,
+monitor-based failure observation, link-based shared fate, exit trapping, and controlled
+failure injection. The next chapters ask what changes when those mechanics are given
+standard ownership and lifecycle contracts.
 
-The progression is deliberate: syntax first, then explicit process mechanics, then OTP. The goal is to understand why the platform's abstractions work well enough to know when you are using them correctly -- and to recognize when a green process is merely hiding a bad protocol.
+Chapter 10 introduces OTP design principles as conventions around process ownership and
+system structure. Chapter 11 converts the messaging service into Project 2's
+=gen_server=-based worker service, including callback boundaries, synchronous and
+asynchronous requests, system messages, termination, and testing. Chapter 12 then adds a
+real supervisor and makes restart strategy/intensity executable rather than rhetorical.
+Applications and releases follow only after those local lifecycle boundaries are concrete.
 
-Before moving on, the reader should be able to answer four questions about Project 1 without hand-waving:
+Before moving on, the reader should be able to answer these questions without hand-waving:
 
-1. Which ordering property does the runtime actually guarantee, and which order is assigned only by our server after reception?
-2. What exactly has happened when a caller times out? In particular, what has /not/ happened to work already accepted by the server?
-3. What information does a monitor give the caller after server death, and why is that observation not yet a restart policy?
-4. Which state is owned by the server process, and what would be lost if that process died right now?
+1. Why is a link a different architectural claim from a monitor?
+2. Which facts determine whether an incoming exit signal is dropped, terminates a process,
+   or becomes an =EXIT= message?
+3. Why does =process_flag(trap_exit, true)= not make a process a supervisor?
+4. What does =demonitor(Ref, [flush])= protect the caller mailbox from after a request
+   finishes?
+5. Why can starting a replacement process restore availability while still losing all of
+   the old process's in-memory state?
+6. Which failures in Project 1 are observed, which propagate automatically, and which have
+   no recovery policy yet?
 
-Those questions become the bridge into fault semantics. A link is not just “a stronger monitor,” trapping exits is not supervision, and a supervisor is not persistence. The following project stages will keep those boundaries separate and then show how OTP composes them into a system whose failure behavior can be stated and tested.
+Those questions become the checklist for OTP. We will keep the manual implementation as a
+small executable reference, then replace ad-hoc lifecycle machinery with standard
+behaviours one boundary at a time. The point is not that OTP hides processes. The point is
+that it gives recurring process relationships names, callback contracts, ownership, and
+well-tested operational policy.
+
+Later projects continue outward: applications/releases, distributed Erlang and connection
+failure, explicit persistence/recovery boundaries, Common Test, tracing and runtime
+observability, mailbox/backpressure experiments, and production debugging. Each layer must
+state what it adds and what failure uncertainty remains.
