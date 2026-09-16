@@ -244,7 +244,7 @@ Later an LLM may turn that structure into readable prose. If its prose invents a
 *** 3.5 Tests are executable claims
 SWI-Prolog's =library(plunit)= provides named test units and =run_tests= entry points [cite:@swi-plunit]. Project 1 uses a dedicated runner that first checks that the named test unit actually loaded, then runs it. A missing suite must not look green merely because the interpreter exited successfully.
 
-The opening suite checks relation direction, shared-variable joins, list-tag queries, direct/transitive paths, missing-path failure, provenance-bearing explanations, sound occurs-check unification, and the current SWI cyclic-term boundary. Tests assert results; merely calling a predicate is not protection.
+The opening suite checks relation direction, shared-variable joins, list-tag queries, direct/transitive paths, missing-path failure, provenance-bearing explanations, sound occurs-check unification, the current SWI cyclic-term boundary, and bounded termination for an unreachable query in the presence of a two-node dependency cycle. That last regression matters because “we carry a visited set” is only an implementation story until a cyclic fixture actually tries to break it. Tests assert results; merely calling a predicate is not protection.
 
 *** 3.6 Failure lab -- three recursion bugs
 Use temporary experimental copies, not canonical project code. Remove the base case from =list_contains/2=. Then change the recursive call to recurse on the original list instead of =Rest=. Finally replace =dependency_path/3= with the naive relation above, add a two-node cycle, and run the experiment under an explicit time limit. Explain each failure in terms of structural progress and visited state.
