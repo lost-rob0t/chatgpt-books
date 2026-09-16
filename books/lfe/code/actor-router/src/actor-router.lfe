@@ -1,7 +1,7 @@
 (defmodule actor-router
   "Pre-OTP process wrapper around the Event Routing DSL kernel."
   (export (start 1)
-          (call 3)
+          (request 3)
           (route 3)
           (replace-rules 3)
           (get-rules 2)
@@ -12,7 +12,7 @@
 (defun start (rules)
   (spawn 'actor-router 'loop (list rules)))
 
-(defun call (pid request timeout)
+(defun request (pid request timeout)
   (let ((ref (erlang:make_ref)))
     (! pid (tuple 'call (self) ref request))
     (receive
@@ -22,16 +22,16 @@
         (tuple 'error 'timeout)))))
 
 (defun route (pid event timeout)
-  (call pid (tuple 'route event) timeout))
+  (request pid (tuple 'route event) timeout))
 
 (defun replace-rules (pid rules timeout)
-  (call pid (tuple 'replace-rules rules) timeout))
+  (request pid (tuple 'replace-rules rules) timeout))
 
 (defun get-rules (pid timeout)
-  (call pid 'get-rules timeout))
+  (request pid 'get-rules timeout))
 
 (defun stop (pid timeout)
-  (call pid 'stop timeout))
+  (request pid 'stop timeout))
 
 (defun crash (pid reason)
   (! pid (tuple 'cast (tuple 'crash reason)))
