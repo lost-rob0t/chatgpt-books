@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="260" viewBox="0 0 1100 260" role="img" aria-labelledby="title desc">
+  <title id="title">Event routing data flow</title>
+  <desc id="desc">An event tuple enters an ordered rule list. The first matching rule returns an ok destination. Non-matching rules recurse over the tail; exhaustion or malformed input returns a tagged error.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z"/>
+    </marker>
+  </defs>
+  <g fill="none" stroke="currentColor" stroke-width="2" font-family="sans-serif" font-size="16">
+    <rect x="25" y="80" width="190" height="75" rx="10"/>
+    <rect x="285" y="65" width="230" height="105" rx="10"/>
+    <polygon points="650,70 740,118 650,166 560,118"/>
+    <rect x="825" y="35" width="235" height="65" rx="10"/>
+    <rect x="825" y="155" width="235" height="70" rx="10"/>
+    <line x1="215" y1="118" x2="280" y2="118" marker-end="url(#arrow)"/>
+    <line x1="515" y1="118" x2="555" y2="118" marker-end="url(#arrow)"/>
+    <line x1="740" y1="100" x2="820" y2="72" marker-end="url(#arrow)"/>
+    <line x1="740" y1="138" x2="820" y2="185" marker-end="url(#arrow)"/>
+    <path d="M825 205 C690 250, 430 240, 400 175" marker-end="url(#arrow)"/>
+  </g>
+  <g fill="currentColor" font-family="sans-serif" font-size="15" text-anchor="middle">
+    <text x="120" y="108">event term</text><text x="120" y="133">#(event level service payload)</text>
+    <text x="400" y="95">ordered rule list</text><text x="400" y="120">when-level / when-service</text><text x="400" y="145">/ otherwise</text>
+    <text x="650" y="113">first matching</text><text x="650" y="136">rule?</text>
+    <text x="942" y="65">#(ok destination)</text>
+    <text x="942" y="184">#(error no-route)</text><text x="942" y="208">or tagged bad input</text>
+    <text x="780" y="76">yes</text><text x="780" y="155">no</text><text x="585" y="238">known non-match: recurse on tail</text>
+  </g>
+</svg>

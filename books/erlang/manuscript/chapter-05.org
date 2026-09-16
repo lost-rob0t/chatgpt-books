@@ -1,0 +1,102 @@
+** Chapter 5 -- Mailboxes, Ordering, and Selective Receive
+:PROPERTIES:
+:ID:       76b23f1c-a5a8-4efe-a7b7-e8a80fd29da7
+:END:
+
+Every process receives messages through its mailbox. The convenient mental model is a
+queue, but a correct mental model needs two qualifications: =receive= can selectively
+scan past messages that do not match, and modern Erlang can opt into priority-message
+handling that changes how certain messages are inserted into the queue. The Project 1
+protocol does not enable priority messages, so ordinary queue semantics apply.
+
+*** The ordering guarantee is per sender/destination
+
+The processes reference manual gives one signal-ordering guarantee: if one entity sends
+multiple signals to the same destination entity, their order is preserved; delivery can
+still fail across a broken distribution channel. [cite:@erlang-processes]
+
+That does /not/ define a total order across independent senders.
+
+Imagine clients A and B:
+
+#+begin_example
+A ---- publish #1 ----\
+                       >---- server mailbox
+B ---- publish #2 ----/
+#+end_example
+
+If A sends =a1= then =a2= to the same server, the server will not observe =a2= arriving
+before =a1= under the ordinary signal-ordering guarantee. If B concurrently sends =b1=,
+there is no language-level promise that =b1= sits before, between, or after A's messages.
+Your application must not invent such an order unless the server assigns one after
+reception.
+
+*** Selective receive
+
+A =receive= checks messages from the front of the queue and chooses the first one that
+matches a clause. Nonmatching messages remain available. That enables correlation:
+
+#+begin_src erlang
+receive
+    {reply, Ref, Result} ->
+        Result
+end.
+#+end_src
+
+If an unrelated message is already in the mailbox, this receive can scan past it. Our
+EUnit regression deliberately puts a noise message in the caller mailbox, performs a
+correlated request, and then verifies that the noise is still there.
+
+Selective receive is powerful but can become expensive. The efficiency guide notes that
+fetch cost can require searching the queue until a matching message is found.
+[cite:@erlang-process-efficiency] A process with a huge mailbox and a receive pattern that
+usually matches near the end can burn time scanning stale traffic. Mailbox growth is thus
+not merely a memory problem; it can alter latency.
+
+*** Mailbox pressure is part of the protocol
+
+Erlang process mailboxes are not a magic backpressure mechanism. A sender can usually
+continue sending faster than a receiver handles work, causing queue growth. A production
+protocol must therefore decide where admission control lives: bounded producer demand,
+explicit credits, a bounded upstream queue, load shedding, or another strategy.
+
+Project 1 intentionally starts without a sophisticated backpressure layer so the failure
+mode is visible. In Project 3 we will add a supervised job processor with explicit queue
+and admission semantics rather than hiding pressure behind an unbounded mailbox.
+
+*** Priority messages are version-sensitive
+
+OTP 28 introduced process priority-message reception. The OTP 29 process reference
+explains that accepted priority messages can be inserted ahead of ordinary messages while
+preserving ordering within the priority and ordinary classes. [cite:@erlang-processes]
+This means a blanket statement such as "the mailbox always exactly reflects signal arrival
+order" is no longer correct for a process that enables this feature.
+
+For beginner code, the safe rule is simpler: do not use priority messages until you can
+state exactly why the protocol needs them and which ordering assumptions remain valid.
+
+*** Timeouts stop waiting, not work
+
+=receive ... after T -> ... end= gives the receiving process a local deadline. It does
+not retract a request that was already sent. A server may still be computing and can send
+a reply later.
+
+This is one of the easiest request/reply bugs to miss. If the caller gives up after 5 ms
+and retries, the original request might still mutate server state. Now there can be two
+logical attempts. Correlation references keep replies distinguishable, but they do not
+create cancellation or idempotency.
+
+The first project contains a test named =timeout_is_not_cancellation_test=. It sends a
+request whose handler deliberately sleeps, proves that an earlier local wait can expire,
+and then observes the late correlated reply. The lesson is architectural: deadlines,
+cancellation, idempotency, and deduplication are separate protocol features.
+
+*** Exercises
+
+1. ★ Send an unrelated message to yourself, then selectively receive another tagged
+   message. Verify the unrelated one remains.
+2. ★★ Start two senders. Have each send a numbered sequence to one receiver and record the
+   observed interleaving. Repeat; distinguish per-sender order from global order.
+3. ★★★ Build an intentionally slow receiver and measure =process_info(Pid,
+   message_queue_len)= while a producer outruns it. Do not call the result a benchmark;
+   treat it as a failure demonstration.

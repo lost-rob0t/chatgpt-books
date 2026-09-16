@@ -1,0 +1,95 @@
+#+title: Prolog Foundations Research 01 -- Relations, Terms, and Unification
+:PROPERTIES:
+:ID:       dc7d7e0f-e71d-4ed2-9998-3b3f68e9b890
+:END:
+
+* Scope
+This record supports Chapters 1--3 of *Prolog for Beginners: Thinking in Relations* and the first milestone of the Relational Query System project. It does not declare the rest of the book's foundational research complete.
+
+Retrieval date: 2026-09-16.
+
+Claim-status vocabulary follows the repository policy: DOCUMENTED means supported by an inspected source; TESTED means reproduced by this project; UNTESTED means not yet reproduced here.
+
+* Questions
+** What is the minimum useful execution model for a beginner?
+DOCUMENTED: SWI-Prolog's normal command-line executable is =swipl=. Source can be loaded using =consult/1= or the bracket abbreviation such as =[file]=. At the top level a query may have multiple solutions, which the user can request interactively; failure is reported when no solution exists.
+
+Teaching consequence: Chapter 1 starts with a tiny knowledge base and immediately separates three things that imperative-language tutorials often blur together: clauses describe relations, a query asks whether/where a relation holds, and the engine searches for proofs/answers. We do not explain Prolog as a database with magic syntax or as a sequence of assignments.
+
+Source: SWI-Prolog Reference Manual, “Getting started quickly” and command-line documentation.
+- https://www.swi-prolog.org/pldoc/man?section=quickstart
+- https://www.swi-prolog.org/pldoc/man?section=cmdline
+
+** What are terms, variables, atoms, and anonymous variables in the teaching subset?
+DOCUMENTED: under the default syntax, an identifier beginning with an uppercase letter or underscore denotes a variable. SWI-Prolog also has a per-module =var_prefix= option that changes this rule; its default is =false= and therefore supports the standard convention.
+
+DOCUMENTED: =_= is the anonymous variable. Separate occurrences of =_= do not share a variable. A named underscore-prefixed variable such as =_Country= is still a named variable and repeated occurrences share.
+
+DOCUMENTED, SWI-SPECIFIC: since SWI-Prolog 7, double-quoted text is by default the SWI string type, not an atom and not a list of character codes. Atoms are identifiers and are the appropriate representation for the symbolic constants used by the first project. The book therefore uses atoms such as =ada= and =harbor= in early relation examples and postpones text-processing representation choices until the DCG/text chapters.
+
+Sources:
+- https://www.swi-prolog.org/pldoc/man?section=syntax
+- https://www.swi-prolog.org/FAQ/SingletonVar.html
+- https://www.swi-prolog.org/pldoc/man?section=string
+
+** What exactly should Chapter 3 claim about unification?
+DOCUMENTED: SWI-Prolog =(/2)= is the built-in unification predicate; it succeeds when its two terms can be unified. Head matching also performs unification implicitly.
+
+DOCUMENTED, PORTABILITY BOUNDARY: =unify_with_occurs_check/2= provides sound unification and is ISO-tagged by the SWI manual. SWI-Prolog normally allows cyclic/rational terms under =(/2)= because the =occurs_check= flag defaults to =false=. The global flag can change the behavior of =(/2)= and implicit head unification. This is important implementation behavior, but it is not the beginner's mental model for ordinary finite data.
+
+Teaching consequence: Chapter 3 first teaches finite first-order terms and substitution mechanically. Cyclic terms then appear in a boxed “implementation boundary” exercise so readers learn why an occurs check exists without making rational-tree behavior the center of their first encounter with unification.
+
+Sources:
+- https://www.swi-prolog.org/pldoc/man?section=compare
+- https://www.swi-prolog.org/pldoc/doc_for?object=unify_with_occurs_check/2
+- https://www.swi-prolog.org/pldoc/man?section=flags
+
+** What testing interface should project code use?
+DOCUMENTED, SWI-SPECIFIC: SWI-Prolog's =library(plunit)= provides =begin_tests/1=, =end_tests/1=, and =run_tests/0= among its unit-testing interface.
+
+Teaching consequence: every executable project milestone gets PL-Unit regression tests. Early chapters show tests as executable questions about relations rather than postponing testing until the dedicated testing chapter; Chapter 19 later explains fixtures, nondeterminism, options, and larger suite organization.
+
+Source: https://www.swi-prolog.org/pldoc/doc/_SWI_/library/ext/plunit/index.html
+
+* Version-sensitive baseline
+DOCUMENTED as retrieved 2026-09-16:
+- The official stable download channel lists SWI-Prolog 10.0.2 and describes the 10.0 line as the latest stable release.
+- The official development channel lists SWI-Prolog 10.1.14.
+- SWI's download policy says development snapshots are released roughly every two to four weeks and are recommended for most users, while stable releases are intended for predictable deployment.
+
+Sources:
+- https://www.swi-prolog.org/download/stable
+- https://www.swi-prolog.org/download/devel
+- https://www.swi-prolog.org/Download.md
+
+Course policy for this slice: examples use a conservative core that should not require development-only features. We record the exact interpreter used whenever examples are actually executed. We do not describe a result as TESTED merely because the manual documents it.
+
+* Project 1 research decisions
+The Relational Query System begins as an original synthetic “community knowledge graph” rather than a family-tree-only toy. Its first milestone has people, neighborhoods, mentoring, and project participation as independent binary relations. Derived predicates answer “same neighborhood”, “project peer”, and “mentor of” questions.
+
+Why this shape:
+- the data is small enough to inspect completely;
+- query direction and variable binding are visible;
+- several relations can share variables, so unification matters immediately;
+- later recursion can add multi-hop reachability without replacing the domain;
+- later modules, indexing, persistence, and explanation can evolve the same application rather than abandoning it for disconnected examples.
+
+The dataset is synthetic. No external/private data or domain truth is implied.
+
+* Required failure/debugging cases for Chapters 1--3
+- Accidentally capitalize a symbolic constant and observe that it becomes a variable under the default syntax.
+- Reverse a directed relation such as =mentor(Mentor, Student)= and explain why the reversed query fails.
+- Use =_= twice and verify that the occurrences do not mean “the same unknown value”.
+- Write a query whose shared variable forces two goals to agree on one term.
+- Contrast =X = node(X)= with =unify_with_occurs_check(X, node(X))= as an explicitly SWI/implementation-boundary example.
+- Distinguish an atom such as =harbor= from the SWI string ="harbor"=.
+
+* Verification state
+DOCUMENTED: source claims above were checked against the cited official SWI-Prolog pages on 2026-09-16.
+
+UNTESTED IN THIS RECORD: project code and query transcripts until an actual SWI-Prolog executable runs them. Build/test results belong in the issue/PR evidence and STATUS, not invented here.
+
+* Coordination with =prolog-llms=
+The user has defined a separate =prolog-llms= book direction. No canonical =books/prolog-llms= target exists on current =chatgpt-books/main= at this revision, so this document deliberately does not create a broken file/ID link.
+
+Boundary: this book keeps the full pure-Prolog foundation, including search, constraints, meta-programming, testing, performance, persistence, and debugging. The future/parallel =prolog-llms= volume may assume or recap these ideas but should use them in LLM/neuro-symbolic projects rather than hollowing this book into a prerequisite pamphlet.

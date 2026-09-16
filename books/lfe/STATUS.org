@@ -3,14 +3,26 @@
 :ID:       892d2db3-009e-5775-9ed1-183e882114a5
 :END:
 * Phase
-Bootstrap curriculum and architecture.
+Foundational research and progressive project-backed manuscript drafting.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
+- Foundations Pass 01 records a current LFE v2.2.2 baseline plus primary-source BEAM term/pattern/process semantics.
+- Chapters 1--3 contain substantive manuscript material tied to the Event Routing DSL foundation kernel.
+- Project 1 has a data-first LFE implementation, regression module, direct Erlang interoperability smoke, editable diagram source, and book-local run instructions.
+- Version-sensitive manuscript claims in the accepted slice use canonical Org citations backed by verified bibliography entries rather than raw narrative URLs.
+- PR #23 was editorially APPROVED for this bounded milestone and merged to canonical main as =93ddcde1c9a8943af507d61ebf4cd0a79b61c2e2=.
 * Active research
-Foundational primary-source research has not yet been declared complete.
+Macro expansion/hygiene, processes/message passing, OTP behaviours/supervision, release tooling, distribution and production packaging remain dependency-gated future passes. Foundational research as a whole is not declared complete.
+* Verification status
+- Final reviewed PR head =0707aec3d2e249ef62a8eee2f3d68a9a15e6edf5= passed =lfe-book= run =35094433564= and generic =books-ci= run =35094433649= before merge.
+- The focused gate built pinned LFE v2.2.2, ran the LFE regression module and a direct Erlang -> compiled-LFE interoperability smoke, built and validated the production EPUB, and passed =nix flake check -L=.
+- The recorded execution environment for the foundation research distinguishes the OTP 29 documentation baseline from the observed OTP 25 execution runner; later version-sensitive surfaces require their own fresh gates.
+- EPUBCheck 5.3.0 reported zero findings on the accepted foundation slice.
+- The previous repository-wide fixed-book-set structural failure is RESOLVED by issue #27 / PR #29; it is no longer an LFE blocker.
 * Unverified claims
-All version-sensitive implementation details remain RESEARCH/UNTESTED until the relevant issue verifies them.
+All later version-sensitive implementation details remain RESEARCH/UNTESTED until their owning slice verifies them.
 * Technical/editorial/visual review
-Not started.
+- Chapters 1--3 / Event Routing DSL foundation milestone: editorially APPROVED as a bounded slice.
+- Whole book: not DONE and not in final technical/editorial/visual review.
 * Blockers
-Dependency-aware backlog must be executed before chapter prose is promoted to DONE.
+No repository-wide CI blocker for the next LFE slice. The next dependency-ordered work is primary-source research and executable teaching for macros/hygiene, then process/message semantics and OTP boundaries; later supervision, applications/releases, debugging and production packaging remain future milestones.

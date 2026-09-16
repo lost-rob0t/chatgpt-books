@@ -8,6 +8,10 @@ A serious independent technical book, eventually about 300--700 rendered EPUB pa
 Programmers new to logic programming and relational problem solving.
 * Prerequisites
 Basic programming; examples target SWI-Prolog and mark SWI-specific behavior.
+* Teaching method
+The book is project-driven rather than a syntax reference. Each language idea is introduced through a question the current project cannot yet answer, followed by a small relational model, executable examples, tests, deliberate failure/debugging work, and a project extension. Declarative meaning and operational search behavior are kept distinct instead of describing Prolog as “magic search.”
+
+The progression must leave the reader capable of designing and debugging nontrivial Prolog systems: facts/rules/queries, terms and unification, recursion and lists, backtracking/control, modules, DCGs, search, constraints and CLP(FD), meta-programming, testing, indexing/performance, persistence/integration, debugging, and explanation all remain first-class topics.
 * Learning outcomes
 The reader should be able to explain the core ideas, implement important mechanisms, debug failures, evaluate tradeoffs, and extend the systems built in the major projects.
 * Major projects
@@ -17,7 +21,9 @@ The reader should be able to explain the core ideas, implement important mechani
 - [[id:3cbaa532-1f40-53c0-97bd-1ad3328cbeda][Search and Planning Engine]] -- Model a meaningful state space and compare search strategies.
 - [[id:02a9690d-93f5-5c05-8e77-107a0c9f510d][Mini Expert System]] -- Build an explainable rule-based system as a bridge to the Expert Systems book.
 - [[id:8f3171d0-c943-5fb9-b6dc-81ec3344f9f9][Prolog Knowledge Application]] -- Capstone combining modules, constraints, indexing, meta-programming, testing, and external persistence/integration.
+* Relationship to =prolog-llms=
+This volume remains the strongest pure-Prolog foundation. The standalone sibling [[file:../prolog-llms/README.org][Prolog + LLMs: Neuro-Symbolic Systems from First Principles]] teaches only the local foundation it needs before focusing on typed LLM/Prolog boundaries, retrieval plus symbolic verification, bounded repair, neuro-symbolic evaluation, and a Prolog-RLM capstone. Cross-link concepts when useful, but do not move core Prolog teaching out of this book merely to avoid repetition; a reader should be able to become capable in Prolog without reading the LLM volume.
 * Research
 Record primary-source work under =research/= and bibliography metadata in =references.bib=. Never let version-sensitive prose outrun current documentation.
 * Build
-From repository root: =make book BOOK=prolog= and =make check BOOK=prolog=. Bootstrap manuscripts are outlines, not release-ready books.
+From repository root: =make book BOOK=prolog= and =make check BOOK=prolog=. Run the book's SWI-Prolog tests with =bash books/prolog/code/run-tests=. Bootstrap manuscripts are outlines, not release-ready books.

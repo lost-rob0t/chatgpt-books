@@ -44,6 +44,16 @@ jobs:
       - name: Publication regression assertions
         run: python3 ./tools/check-epub-fixture dist/bootstrap-fixture.epub
 
+      - name: Per-book citation rendering regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          make book BOOK=prolog
+          python3 ./tools/check-book-citations \
+            books/prolog/dist/prolog.epub \
+            swi-stable-download \
+            'SWI-Prolog stable downloads'
+
       - name: Install Org-roam for ERT
         shell: bash
         run: |

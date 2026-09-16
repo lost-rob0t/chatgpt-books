@@ -3,4 +3,26 @@
 :ID:       ac86e2b6-a9f8-5be1-9734-53a1b9255980
 :END:
 * Entries
-No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.
+** 2026-09-16 -- Foundations 01
+Questions:
+- What does current SWI-Prolog document as the basic =swipl= / consult / query workflow?
+- What are the default variable and anonymous-variable rules?
+- What SWI-specific atom/string behavior must a beginner not mistake for portable Prolog?
+- What exactly does the current manual say about =(/2)=, cyclic terms, and occurs checking?
+- What is the current PL-Unit entry surface?
+- Which stable/development SWI versions are current today?
+
+Queries/search paths:
+- official SWI manual sections for quickstart, syntax, strings, comparison/unification, flags, and PL-Unit;
+- official SWI FAQ for singleton/anonymous variables;
+- official stable/development download pages and download-channel policy.
+
+Result:
+- recorded inspected sources in [[file:sources.org][sources.org]];
+- recorded bounded claims and teaching consequences in [[file:foundations-01.org][foundations-01.org]];
+- observed official stable 10.0.2 and development 10.1.14 release listings on the retrieval date;
+- froze the early-course portability boundary: atoms for symbolic identifiers; SWI strings explicitly marked; default finite-term unification taught first, cyclic/rational trees as an implementation-boundary exercise; PL-Unit used from the first runnable project milestone.
+
+Remaining uncertainty:
+- no claim yet about recursion optimization, indexing heuristics, tabling, module edge cases, DCG expansion, CLP(FD) propagation/labeling behavior, persistence libraries, foreign-language integration, or performance; each requires its own later primary-source/reproduction pass;
+- exact course support matrix across SWI versions remains open until the project examples have been executed in controlled environments.
