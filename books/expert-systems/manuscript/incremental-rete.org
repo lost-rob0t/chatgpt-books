@@ -290,7 +290,8 @@ right: newly or previously accepted alpha items
 A join node connects one beta depth to one alpha condition and writes compatible extensions into the next beta memory.
 
 #+caption: Milestone-C positive-pattern network. Solid edges show assertion propagation; dashed edges emphasize occurrence-based retraction invalidation. The exact topology is course-local and deliberately simpler than a full production RETE implementation.
-[[file:../assets/rete-positive.svg]]
+#+attr_html: :alt Working-memory assertion and retraction deltas feed two local alpha memories, then ordered beta joins extend an empty token into a complete production token before existing agenda and refraction policy; retraction removes dependent tokens by support occurrence.
+[[file:assets/rete-positive.svg]]
 
 ** 14.1 Assertion can arrive from either side
 There are two ways a previously impossible combination can become possible:
@@ -442,7 +443,7 @@ This design gives us a clean testing trick: build an engine from arbitrary initi
 The milestone regression suite covers more than the happy path:
 
 | Scenario | What must agree |
-|-
+|----------+-----------------|
 | Initial synthetic service facts | ordered activation keys |
 | Add missing second-condition fact | new complete activation |
 | Retract a support occurrence | activation disappears |
