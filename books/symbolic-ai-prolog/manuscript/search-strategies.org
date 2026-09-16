@@ -361,7 +361,8 @@ If your debugger cannot tell those cases apart, duplicate-state behavior tends t
 
 ** 9.12 The same planner kernel under three policies
 #+caption: Chapter 8 supplies state/action semantics. Chapter 9 changes the frontier objective and adds explicit best-cost/heuristic data. Editable source: =assets/search-strategy-frontiers.dot=.
-[[file:../assets/search-strategy-frontiers.svg]]
+#+ATTR_HTML: :alt Diagram showing the same Chapter 8 successor kernel feeding BFS by depth, uniform-cost search by accumulated g, and A* by g plus a validated heuristic table, with a best-known-cost map and stale queue entries.
+[[file:assets/search-strategy-frontiers.svg]]
 
 The diagram is intentionally asymmetric. BFS needs no cost map because its Chapter 8 contract was a finite unit-edge teaching search with a closed-on-expansion policy. UCS and A* are solving a different objective and therefore maintain best-known accumulated costs.
 
