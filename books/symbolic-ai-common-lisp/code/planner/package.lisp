@@ -18,6 +18,7 @@
    #:make-action-schema
    #:make-planning-problem
    #:solve-plan
-   #:ungrounded-action))
+   #:ungrounded-action
+   #:ungrounded-world-fact))
 
 (in-package #:symbolic-ai.planner)
