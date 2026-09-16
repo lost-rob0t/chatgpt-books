@@ -35,7 +35,7 @@ This separation matters to hackers because ownership predicts where a bug belong
 *** The current architecture at a glance
 #+caption: Current document flow for the foundation slice. The diagram intentionally distinguishes request acceptance, message transport, persistence, and actor fan-out.
 #+attr_html: :alt A StarIntel document moves from a client through HTTP validation and authorization, RabbitMQ ingest, an ingest consumer, CouchDB persistence, a documents.new event, and actors that may derive documents which re-enter ingest.
-[[file:../assets/document-flow.svg]]
+[[file:assets/document-flow.svg]]
 
 The diagram is a teaching model verified against the current server source at revision =d4e8447c6049eaed65a93e81668ae1ec4b65c25c=. It is not a claim that every historical or future StarIntel path has exactly these nodes. One of the habits this book will build is attaching an architectural statement to the revision that made it true.
 
