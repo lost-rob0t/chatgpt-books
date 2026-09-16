@@ -8,7 +8,8 @@
 (asdf:defsystem #:symbolic-ai-search/tests
   :depends-on (#:symbolic-ai-search)
   :serial t
-  :components ((:file "tests"))
+  :components ((:file "tests")
+               (:file "metamorphic-tests"))
   :perform (asdf:test-op (operation component)
              (declare (ignore operation component))
              (uiop:symbol-call '#:symbolic-ai.search.tests '#:run-tests)))

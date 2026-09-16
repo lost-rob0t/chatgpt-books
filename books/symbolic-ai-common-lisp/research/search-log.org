@@ -10,4 +10,11 @@
 - Result: sufficient source basis for the first project slice.  The implementation must separate BFS from cost search, use best-=g= replacement/reopen semantics in UCS/A*, expose stale frontier entries, and document immutable =EQUAL=-comparable state keys.
 - Remaining uncertainty: no performance comparison is claimed yet.  Any timing/memory benchmark belongs to a later executed experiment with recorded compiler/hardware/input.
 
-No foundational book-wide research is marked complete by this slice.
+** 2026-09-16 -- Project 1 cross-algorithm validation
+- Question: Which algorithm relationships are strong enough to become executable regression oracles instead of isolated example outputs?
+- Queries: AIMA fourth edition uniform-cost equal step costs breadth-first; A* zero heuristic uniform-cost; ANSI Common Lisp hash-key mutation.
+- Inspected: official AIMA fourth-edition Chapter 3 PDF; the existing Project 1 A* derivation; LispWorks-hosted ANSI Common Lisp HyperSpec section 18.1.2.
+- Result: AIMA explicitly states that UCS is identical to BFS when all step costs are equal.  Since this implementation defines A* priority as =g+h= and shares UCS's =BEST-G=, stale-entry, and stable tie-break machinery, =h=0= is a direct executable equivalence oracle for the two code paths.  Added a dedicated research note so the test relationship and its limits remain reviewable.
+- Remaining uncertainty: the BFS/UCS test deliberately uses a controlled deterministic graph; it does not claim every independently implemented BFS/UCS pair will expose identical traces or counters under arbitrary tie policies.
+
+No foundational book-wide research is marked complete by these slices.
