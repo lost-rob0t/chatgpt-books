@@ -5,11 +5,11 @@
 #+bibliography: ../references.bib
 
 * How this book works
-This is a book about *building reasoning machinery in Prolog*. It assumes that facts, rules, queries, unification, recursion, lists, and ordinary backtracking are already familiar. If those ideas still feel like punctuation rather than tools, work through *Prolog for Beginners: Thinking in Relations* first. We will recap a prerequisite when it is essential to a symbolic-AI mechanism, but we will not hollow the foundations book out by teaching them badly a second time.
+This is a book about *building reasoning machinery in Prolog*. It assumes that facts, rules, queries, unification, recursion, lists, and ordinary backtracking are already familiar. If those ideas still feel like punctuation rather than tools, work through [[file:../../prolog/README.org][Prolog for Beginners: Thinking in Relations]] first. We will recap a prerequisite when it is essential to a symbolic-AI mechanism, but we will not hollow the foundations book out by teaching them badly a second time.
 
 The projects here make normally implicit things explicit. We will build interpreters that turn proof search into data, planners whose state transitions can be inspected, knowledge graphs with provenance, abductive engines that distinguish evidence from assumptions, explanation systems that expose their justifications, production-rule engines that contrast with Prolog's native backward chaining, and a capstone that composes symbolic subsystems without pretending one inference strategy solves every problem.
 
-A separate =prolog-llms= book direction owns the explicit LLM, neuro-symbolic, and RLM arc. No canonical =books/prolog-llms= target exists on this repository's inspected main revision, so this volume does not invent a broken link to it. Classical meta-interpretation, search, planning, provenance, constraints, abduction, and expert-system architecture stay here because they are useful whether or not an LLM exists.
+The standalone sibling [[file:../../prolog-llms/README.org][Prolog + LLMs: Neuro-Symbolic Systems from First Principles]] owns the explicit LLM, neuro-symbolic, and RLM arc. Classical meta-interpretation, search, planning, provenance, constraints, abduction, and expert-system architecture stay here because they are useful whether or not an LLM exists; the two books cross-link shared foundations without deleting independent explanations.
 
 Examples target SWI-Prolog and mark implementation-specific behavior. Documentation is not execution evidence: when this book says a behavior is TESTED, the exact runtime and command belong in the repository's verification record rather than being inferred from a manual page.
 
@@ -357,7 +357,9 @@ That asymmetry is intentional:
 Collapsing all four to false would throw away exactly the diagnostic information we introduced the guarded interpreter to obtain.
 
 ** 4.6 Backtracking still matters after a guarded outcome
-Suppose the first rule for a goal recurses immediately, but a later rule is a valid base case. Reporting =cycle(...) = for the recursive branch must not silently erase the later rule. The implementation therefore keeps rule selection nondeterministic. Backtracking can ask for another outcome and may discover a proof through a different rule.
+Suppose the first rule for a goal recurses immediately, but a later rule is a valid base case. Reporting =cycle(...)= for the recursive branch must not silently erase the later rule. The implementation therefore keeps rule selection nondeterministic. Backtracking can ask for another outcome and may discover a proof through a different rule.
+
+This is a semantic contract, not just prose: the test =guarded_cycle_does_not_hide_later_rule= constructs exactly that ordering and requires both the cycle outcome and the later proof to remain observable.
 
 This makes a subtle API point: a cycle *outcome* describes one explored branch under this policy. It is not necessarily a theorem that the goal can never be proved.
 
@@ -375,6 +377,7 @@ The project uses SWI-Prolog's =library(plunit)= [cite:@swi-plunit]. Each regress
 - repeated recursive rule use receives fresh variables each time;
 - unsupported goals fail cleanly;
 - direct recursive variants are reported as cycles by the guarded runner;
+- a cycle outcome does not suppress a later successful rule on backtracking;
 - growing recursion reaches explicit budget exhaustion;
 - a normal recursive proof still works under a sufficient budget;
 - provenance IDs appear in the expected preorder sequence;
@@ -422,8 +425,9 @@ Checkpoint tasks:
 3. Draw one proof tree by hand before asking Prolog for it.
 4. Construct a direct recursive cycle and predict the guarded outcome.
 5. Construct a growing recursive goal that avoids variant detection and predict the exact exhausted goal for a chosen budget.
-6. Explain why making every rule ID equal to its head predicate loses provenance information.
-7. Explain why using arbitrary =call/1= inside the object language would expand the trust/semantic boundary.
+6. Put a looping rule before a valid base rule and collect both the cycle outcome and the later proof.
+7. Explain why making every rule ID equal to its head predicate loses provenance information.
+8. Explain why using arbitrary =call/1= inside the object language would expand the trust/semantic boundary.
 
 Only after those mechanisms are comfortable should Project 1 grow into reflective native clauses, explicit tracing events, additional control forms, and explanation policies.
 
