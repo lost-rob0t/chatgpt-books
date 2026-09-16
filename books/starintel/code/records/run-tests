@@ -4,17 +4,19 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 STARINTEL_DOC_ROOT="${STARINTEL_DOC_ROOT:-$REPO_ROOT/.cache/starintel-doc}"
+STARINTEL_SCHEMA_ROOT="${STARINTEL_SCHEMA_ROOT:-$REPO_ROOT/.cache/starintel-schema}"
+STARINTEL_SCHEMA="${STARINTEL_SCHEMA:-$STARINTEL_SCHEMA_ROOT/schemas/starintel-doc-v0.9.0.schema.json}"
 
 [[ -f "$STARINTEL_DOC_ROOT/starintel_doc/v090.py" ]] || {
   echo "missing pinned starintel-doc checkout: $STARINTEL_DOC_ROOT" >&2
   exit 2
 }
-[[ -f "$STARINTEL_DOC_ROOT/schema/starintel-doc-v0.9.0.schema.json" ]] || {
-  echo "missing pinned StarIntel schema under: $STARINTEL_DOC_ROOT/schema" >&2
+[[ -f "$STARINTEL_SCHEMA" ]] || {
+  echo "missing pinned canonical StarIntel schema: $STARINTEL_SCHEMA" >&2
   exit 2
 }
 
 export PYTHONPATH="$STARINTEL_DOC_ROOT${PYTHONPATH:+:$PYTHONPATH}"
-export STARINTEL_SCHEMA="$STARINTEL_DOC_ROOT/schema/starintel-doc-v0.9.0.schema.json"
+export STARINTEL_SCHEMA
 
 python3 "$SCRIPT_DIR/test_records.py"
