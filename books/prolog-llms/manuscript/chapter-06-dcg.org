@@ -1,0 +1,544 @@
+* Chapter 6 -- A Small Language with a Hard Boundary
+:PROPERTIES:
+:ID:       43b9a524-72c4-4a1c-81b4-009ad3e02cc7
+:END:
+
+By the end of Chapter 5 we have a useful symbolic core, but its interface still
+assumes that the caller already knows which Prolog predicate to invoke.  That
+is a bad place to attach an LLM.  A model that can choose an arbitrary predicate
+name has crossed from proposing data into controlling the runtime.
+
+This chapter adds a smaller interface first: a deliberately tiny command
+language.  It accepts token lists such as
+
+#+begin_src prolog
+[tasks, owned, by, ada]
+[tasks, tagged, validation]
+[dependency, path, from, publish_report, to, collect_sources]
+#+end_src
+
+and parses them into closed data terms such as
+
+#+begin_src prolog
+tasks(owner(ada))
+tasks(tag(validation))
+dependency_path(publish_report, collect_sources)
+#+end_src
+
+The parser does not call those terms.  A second predicate inspects the parsed
+term and dispatches only the constructors that the program explicitly knows
+how to handle.  This is the first executable version of a principle that will
+matter throughout the rest of the book:
+
+#+begin_quote
+Parse untrusted input into data.  Validate the data against a closed contract.
+Only then hand the accepted data to code that has explicit permission to act.
+#+end_quote
+
+No model is involved yet.  That is intentional.  We want to understand the
+boundary while every input and output is deterministic enough to test.
+
+** 6.1 A parser is a relation over sequence state
+
+Suppose the input is the list
+
+#+begin_src prolog
+[tasks, tagged, prolog]
+#+end_src
+
+A parser for the first word can be imagined as a relation between two list
+states:
+
+#+begin_example
+before: [tasks, tagged, prolog]
+after:  [tagged, prolog]
+#+end_example
+
+A parser for the next word relates
+
+#+begin_example
+before: [tagged, prolog]
+after:  [prolog]
+#+end_example
+
+and a parser that accepts the final identifier relates
+
+#+begin_example
+before: [prolog]
+after:  []
+value:   prolog
+#+end_example
+
+Nothing about that story requires a hidden mutable cursor.  The state before
+and after each parser step can be represented by two list arguments.  Compose
+several steps by making one step's output list the next step's input list.
+
+Write the mechanism explicitly for one fixed phrase:
+
+#+begin_src prolog
+tagged_command(Tag, [tasks, tagged, Tag|Rest], Rest) :-
+    atom(Tag).
+#+end_src
+
+The relation has three visible pieces of information: the identifier it parsed,
+the list before parsing, and the unconsumed remainder.  A complete parse is just
+the special case where the final remainder is =[]=.
+
+This “input list minus remainder” representation is the reason *difference
+lists* appear in explanations of Prolog grammars.  A difference list is not a
+special runtime type.  It is a pair of terms that denotes a list segment by
+sharing a tail.  DCGs let us write the sequence relation without threading those
+two arguments by hand through every grammar rule.
+
+** 6.2 DCG notation hides plumbing, not semantics
+
+SWI-Prolog's current manual describes Definite Clause Grammar rules as an
+interface to difference lists [cite:@swi-dcg].  A DCG rule uses =-->= instead of
+=:-=.  Nonterminals are written as ordinary callable terms, terminal symbols as
+lists, and an ordinary Prolog goal can appear inside braces.
+
+Our hand-written parser can become:
+
+#+begin_src prolog
+tagged_command(Tag) -->
+    [tasks, tagged],
+    identifier(Tag).
+
+identifier(Value) -->
+    [Value],
+    { atom(Value) }.
+#+end_src
+
+The grammar still consumes list state.  The two extra list arguments are now
+implicit in the notation.  SWI documents =expand_term/2= as the interface that
+can expose the translated form [cite:@swi-dcg].  That is useful for learning,
+but application code should normally use the public DCG interface rather than
+calling the generated predicates by their implementation arity.
+
+Try this in a scratch REPL:
+
+#+begin_src prolog
+?- expand_term((tagged_command(Tag) --> [tasks, tagged], identifier(Tag)),
+               Expanded).
+#+end_src
+
+Read the result for structure, not as source you should copy into the project.
+Find the two sequence-state arguments.  Then answer two questions:
+
+1. Which variable represents the state after =[tasks, tagged]= has been
+   consumed?
+2. Which variable connects that state to the call of =identifier//1=?
+
+The point is to demystify the notation.  A DCG is pleasant syntax for a
+relation whose state threading you could have written explicitly.
+
+** 6.3 phrase/2 means “consume the whole input”
+
+Project 1 exposes two parser wrappers:
+
+#+begin_src prolog
+parse_task_command(Tokens, Command) :-
+    token_list(Tokens),
+    phrase(task_command(Command), Tokens).
+
+parse_task_command_prefix(Tokens, Command, Rest) :-
+    token_list(Tokens),
+    phrase(task_command(Command), Tokens, Rest).
+#+end_src
+
+Current SWI documentation defines =phrase(Body, Input)= as the complete-input
+case of =phrase(Body, Input, [])= [cite:@swi-dcg].  That gives the two wrappers
+different contracts.
+
+The normal boundary requires complete consumption:
+
+#+begin_src prolog
+?- parse_task_command([tasks, tagged, prolog], Command).
+Command = tasks(tag(prolog)).
+#+end_src
+
+The teaching helper exposes the remainder:
+
+#+begin_src prolog
+?- parse_task_command_prefix(
+       [tasks, tagged, prolog, trailing, tokens],
+       Command,
+       Rest).
+Command = tasks(tag(prolog)),
+Rest = [trailing, tokens].
+#+end_src
+
+That distinction is not parser trivia.  If a security-sensitive boundary
+accepts a valid prefix and silently ignores what follows, then the caller and
+the callee can disagree about what was accepted.  Project 1's public command
+boundary therefore uses the full-input form.  The prefix form exists because
+seeing the remainder is one of the best ways to understand what a DCG is doing.
+
+A regression test makes this contract concrete: the complete parser must reject
+=[tasks, tagged, prolog, trailing]= while the prefix parser must return
+=[trailing]= as unconsumed input.
+
+** 6.4 The grammar constructs a closed AST
+
+Here is the entire command vocabulary for this milestone:
+
+#+begin_src prolog
+task_command(tasks(owner(Owner))) -->
+    [tasks, owned, by],
+    identifier(Owner).
+
+task_command(tasks(status(Status))) -->
+    [tasks, with, status],
+    identifier(Status).
+
+task_command(tasks(tag(Tag))) -->
+    [tasks, tagged],
+    identifier(Tag).
+
+task_command(dependency_path(Task, Dependency)) -->
+    [dependency, path, from],
+    identifier(Task),
+    [to],
+    identifier(Dependency).
+#+end_src
+
+The important output is not English.  It is the *abstract syntax tree*, or AST:
+a term from a small vocabulary that the rest of the program can inspect.
+
+For this milestone, the permitted outer shapes are exactly:
+
+#+begin_example
+tasks(owner(Owner))
+tasks(status(Status))
+tasks(tag(Tag))
+dependency_path(Task, Dependency)
+#+end_example
+
+The identifier positions contain atoms, but those atoms are data.  If the input
+contains =halt= in an identifier position, the atom =halt= does not suddenly
+become a call to =halt/0=.  The constructor around a value tells the next stage
+what role the value has.
+
+This separation becomes especially useful once a model exists.  A future model
+may propose an owner name or a task identifier.  It still does not get to
+choose a new AST constructor merely by inventing text that looks plausible.
+The parser recognizes the language the program owns, not a language the model
+can extend at runtime.
+
+** 6.5 Syntax acceptance is not execution permission
+
+It would be tempting to turn the parsed term into a goal mechanically.  For
+example, a reckless interface might accept a term, extract a functor, and pass
+the result to =call/1=.  Project 1 does not do that.
+
+Instead, =execute_task_command/2= is boring on purpose:
+
+#+begin_src prolog
+execute_task_command(tasks(owner(Owner)), Results) :-
+    must_be(atom, Owner),
+    findall(result(task(Task), owner(Owner), status(Status), tags(Tags)),
+            task(Task, Owner, Status, Tags),
+            Results).
+
+execute_task_command(tasks(tag(Tag)), Results) :-
+    must_be(atom, Tag),
+    findall(result(task(Task), owner(Owner), status(Status), tags(Tags)),
+            ( task(Task, Owner, Status, Tags),
+              has_tag(Task, Tag)
+            ),
+            Results).
+#+end_src
+
+There are analogous explicit clauses for status and dependency-path queries.
+There is no catch-all clause that says “call whatever term arrived.”  Therefore
+this term:
+
+#+begin_src prolog
+call(halt)
+#+end_src
+
+is simply outside the dispatcher language and fails to dispatch.
+
+This is a small example of *capability by construction*.  The dispatcher can
+perform only the operations represented by its clauses.  Adding a fifth
+operation requires a source change, a reviewable clause, and tests.  A random
+atom from input cannot create a fifth capability.
+
+Do not overstate the guarantee.  This is application-level permissioning, not a
+proof that the whole Prolog process is sandboxed.  Trusted source code in the
+same process can still call whatever its module/import/runtime context permits.
+The useful property is narrower and testable: *this external command path has
+no rule that converts arbitrary input into an arbitrary callable goal*.
+
+#+caption: Project 1 parses a token list into a closed data term, then crosses a second explicit dispatcher boundary before any symbolic query runs.
+#+attr_html: :alt Atom tokens enter a trusted DCG grammar. Malformed syntax or trailing tokens are rejected. A closed AST is handed explicitly to an allowlisted dispatcher; unknown AST constructors are rejected. Fixed dispatcher clauses query Project 1 relations and return structured result terms. There is no direct path from input tokens to arbitrary Prolog goals.
+[[file:assets/project1-dcg-boundary.svg]]
+
+** 6.6 Curly braces are an escape hatch, not a sandbox
+
+Our =identifier//1= rule contains this:
+
+#+begin_src prolog
+identifier(Value) -->
+    [Value],
+    { atom(Value) }.
+#+end_src
+
+SWI documents a goal inside ={...}= as an ordinary Prolog call from the grammar
+rule [cite:@swi-dcg].  Here the call is trusted source code and does one small
+thing: it checks that the token captured as an identifier is an atom.
+
+That syntax is useful, but it also gives us a warning for later integration.
+A DCG is not safe merely because its source contains grammar notation.  If you
+splice an untrusted term into a brace goal, or accept an arbitrary DCG body and
+pass it to =phrase/3=, you have changed the problem from parsing data to
+executing supplied code.
+
+Keep the direction clear:
+
+#+begin_example
+GOOD BOUNDARY
+untrusted tokens
+    -> trusted fixed grammar
+    -> closed AST data
+    -> explicit allowlisted dispatcher
+
+BAD BOUNDARY
+untrusted text/term
+    -> turn it into a Prolog goal/DCG body
+    -> call/phrase it
+#+end_example
+
+The later model gateway will reuse the first shape.  It will not make the second
+shape safe by adding a prompt that says “please only call allowed predicates.”
+
+** 6.7 Token lists are a deliberate simplification
+
+Why does the API accept =[tasks, owned, by, ada]= instead of a natural-language
+string such as ="tasks owned by ada"=?  Because this milestone is about grammar
+state and typed symbolic boundaries, not lexical analysis.
+
+SWI-Prolog's post-version-7 string type is distinct from lists, and the current
+=phrase/3= interface is specified in terms of list-shaped sequence state
+[cite:@swi-dcg].  Code lists are another common text representation.  SWI's
+official =library(dcg/basics)= provides reusable DCG helpers for code-oriented
+text such as blanks, digits, integers, numbers, and remainder handling
+[cite:@swi-dcg-library].
+
+All of that matters in a general parsing course.  This book's Project 1 chooses
+a narrower boundary: some upstream component has already tokenized the command
+into atoms.  The parser then answers a simpler question: *is this token
+sequence one of our allowed command forms, and if so, what closed data term does
+it denote?*
+
+That keeps three concerns separate:
+
+1. *lexing/tokenization* -- bytes or characters become tokens;
+2. *parsing* -- tokens become an AST;
+3. *symbolic dispatch* -- an accepted AST selects one allowlisted operation.
+
+Later, a model adapter may replace or precede the tokenization step.  It still
+must not collapse those three boundaries into “the model returned something
+that looked executable.”
+
+** 6.8 Worked trace -- from tokens to query result
+
+Trace the command
+
+#+begin_src prolog
+[tasks, tagged, validation]
+#+end_src
+
+without running it first.
+
+Start with the complete input as both the parser's available state and the
+remainder we expect to shrink:
+
+#+begin_example
+Step 0
+input     = [tasks, tagged, validation]
+remainder = ?
+AST       = ?
+#+end_example
+
+The production for a tag command begins with the terminal list =[tasks,
+tagged]=.  Consuming those terminals leaves:
+
+#+begin_example
+Step 1
+remainder = [validation]
+#+end_example
+
+Then =identifier(Tag)= consumes one token and checks that it is an atom:
+
+#+begin_example
+Step 2
+Tag       = validation
+remainder = []
+#+end_example
+
+The rule head now determines the AST:
+
+#+begin_example
+Step 3
+AST       = tasks(tag(validation))
+remainder = []
+#+end_example
+
+Because the public wrapper used =phrase/2=, an empty remainder is required.
+Parsing has now finished.  No task record has been queried yet.
+
+Only the explicit next call
+
+#+begin_src prolog
+execute_task_command(tasks(tag(validation)), Results)
+#+end_src
+
+selects the corresponding dispatcher clause.  That clause invokes
+=task/4= and =has_tag/2= and returns structured result terms.  The parser and
+the symbolic query are separate proof obligations and separate debugging
+locations.
+
+Now repeat the trace with
+
+#+begin_src prolog
+[tasks, tagged, validation, please]
+#+end_src
+
+The grammar can recognize a valid prefix, but =phrase/2= cannot establish a
+complete parse because =[please]= remains.  That is a parse-boundary failure,
+not a query that happened to return no tasks.
+
+** 6.9 Failure lab -- four failures that should not look alike
+
+Make temporary calls against the canonical parser and classify each outcome.
+Do not change the project source until you have predicted the layer that should
+reject the input.
+
+*** Failure A -- unknown verb
+
+#+begin_src prolog
+?- parse_task_command([call, halt], Command).
+#+end_src
+
+Expected category: *syntax rejection*.  The grammar contains no production
+beginning with =call=.
+
+*** Failure B -- malformed known phrase
+
+#+begin_src prolog
+?- parse_task_command([tasks, owned, ada], Command).
+#+end_src
+
+Expected category: *syntax rejection*.  The owner form requires =[tasks, owned,
+by, Owner]=.
+
+*** Failure C -- valid prefix plus garbage
+
+#+begin_src prolog
+?- parse_task_command([tasks, tagged, prolog, surprise], Command).
+#+end_src
+
+Expected category: *complete-parse rejection*.  Run the prefix helper only for
+diagnosis and confirm that =Rest = [surprise]=.
+
+*** Failure D -- executable-looking AST
+
+#+begin_src prolog
+?- execute_task_command(call(halt), Results).
+#+end_src
+
+Expected category: *dispatcher rejection*.  The term is perfectly valid Prolog
+data, but it is not one of the four AST constructors the dispatcher accepts.
+
+These failures matter because a future neuro-symbolic trace must say *which
+boundary rejected a candidate*.  Reporting all four as “the AI answer was
+invalid” would throw away information we already know how to preserve.
+
+** 6.10 The tests state the boundary more precisely than the prose can
+
+Milestone C adds a separate PL-Unit group for the command language.  Its useful
+claims are not merely “the parser can parse something.”  The suite checks:
+
+- all four command shapes;
+- rejection of an unknown command and a malformed known command;
+- rejection of trailing tokens by the complete parser;
+- explicit remainder behavior through the prefix parser;
+- exact structured results from owner, status, tag, and dependency dispatch;
+- rejection of =call(halt)= as an unknown AST;
+- a full parse-then-dispatch path in which the AST is compared as data before
+  it is passed to the dispatcher;
+- retention of every earlier Project 1 regression through the shared runner.
+
+The last point matters.  New interface code does not get to erase confidence in
+recursion, provenance, module composition, or the explicit first-answer
+boundary.  The project grows by accumulating executable claims.
+
+There is also a subtle lesson in the test architecture.  The parser tests and
+dispatch tests are separable.  If a parser regression fails, we should not have
+to guess whether =has_tag/2= changed.  If a dispatch result is wrong while the
+AST is correct, the debugging search moves downstream.
+
+** 6.11 Exercise set
+
+1. *Trace the hidden state.*  Expand one simple DCG rule with =expand_term/2= in
+   a scratch REPL.  Label the input-state and output-state arguments.  Do not
+   couple canonical application code to the generated predicate arity.
+2. *Add one syntax form without adding authority.*  Extend a scratch copy of the
+   grammar so =[tasks, with, owner, ada]= maps to the existing
+   =tasks(owner(ada))= AST.  No dispatcher change should be necessary.  Explain
+   why a syntax alias is different from a new operation.
+3. *Show why remainder matters.*  Write a test that uses =phrase/3= directly on
+   a command followed by two extra tokens.  Then change it to =phrase/2= and
+   explain the changed contract.
+4. *Design a rejection.*  Someone proposes a generic grammar
+   =task_command(call(Name, Arg)) --> [call, Name, Arg]=.  Explain why checking
+   that =Name= is an atom does not make this a safe execution interface.  Give
+   a closed AST alternative for one specific useful operation.
+5. *Separate unknown from empty.*  =tasks(owner(mara))= is syntactically valid
+   even if the synthetic fixture contains no Mara-owned task.  Should parsing
+   fail, dispatch fail, or dispatch succeed with an empty result list?  Defend
+   the current project's choice and describe a different API contract that
+   could also be reasonable.
+6. *Representation boundary.*  Convert one token-list command to a code-list
+   text parser in a scratch module using appropriate SWI DCG helpers.  Record
+   which behavior is SWI-specific.  Do not replace the canonical atom-token API
+   in this milestone.
+7. *Threat-model the brace escape.*  Find every ={...}= goal in a scratch
+   grammar and classify whether its arguments can be influenced by external
+   input.  Explain why trusted source plus untrusted *data* is a different
+   boundary from executing an untrusted goal term.
+8. *Property to preserve.*  State, in one sentence suitable for a regression
+   test comment, the invariant that prevents an input token from becoming a
+   predicate name in Project 1.
+
+** 6.12 What Project 1 can honestly claim after this checkpoint
+
+Once the milestone-C branch suite has actually run successfully, Project 1 can
+claim a tested closed DCG command parser, tested full-input versus remainder
+behavior, and tested explicit dispatch from four AST shapes into existing
+symbolic relations.  It can also claim that its authored command path contains
+no arbitrary meta-call fallback and that a regression rejects =call(halt)= as
+an AST.
+
+Those are narrow implementation claims.  They do *not* prove that DCGs are a
+security sandbox, that arbitrary Prolog terms are safe to execute, that token
+limits or resource exhaustion have been solved, or that model output is safe.
+No model/provider behavior is exercised in this checkpoint.
+
+Project 1 still lacks two pieces of the standalone Prolog foundation promised
+before the LLM arrives.  First, it needs a genuine CLP(FD) scheduling problem
+where constraints do useful propagation and labeling rather than merely
+rephrasing arithmetic.  Second, it needs carefully bounded meta-programming so
+we can see exactly why an explicit closed dispatcher is different from
+arbitrary =call/N= or reflection.  Those are the next dependency-ordered
+checkpoints.
+
+* Bridge -- from syntax to constraints
+
+We now have a deterministic path from external-ish tokens to a closed symbolic
+request, but the request language cannot yet express or solve a scheduling
+problem.  That is a useful limitation.  The next slice will add a finite-domain
+model whose constraints are inspectable *before* any model participates.  Only
+after parsing, constraints, and meta-level boundaries are executable will this
+book attach a typed model adapter.
