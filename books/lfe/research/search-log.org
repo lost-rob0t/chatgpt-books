@@ -24,7 +24,7 @@ Remaining uncertainty: priority-message APIs themselves are outside the current 
 ** 2026-09-16 -- LFE macro expansion and hygiene
 Question: What does current pinned LFE actually promise about macro expansion and hygiene?
 Sources inspected: tagged =doc/src/lfe_guide.7.md= and =doc/src/lfe_macro.3.md= at LFE v2.2.2.
-Result: macros run at expansion time with access to the current macro environment. The guide explicitly states that LFE macros are not hygienic. =lfe_macro= distinguishes one-step top-level expansion, repeated top-level expansion, and recursive all-expression expansion. Project 1 should therefore test a one-step expansion contract and teach capture as a real failure mode rather than importing Scheme assumptions.
+Result: macros run at expansion time with access to the current macro environment. The guide explicitly states that LFE macros are not hygienic. =lfe_macro= distinguishes one top-level expansion attempt, repeated top-level expansion, and recursive all-expression expansion. For Project 1's module-qualified exported macro, the acceptance contract is the documented repeated top-level =expand_expr/2= path used by LFE's own exported-macro regression; =expand_expr_1/2= only performs the first normalization step and is not the DSL expansion oracle.
 Remaining uncertainty: no production macro in the current project needs to introduce bindings; if a later macro does, its generated-name policy and capture tests require a fresh design/test slice.
 
 ** 2026-09-16 -- exported macros and compiler path
