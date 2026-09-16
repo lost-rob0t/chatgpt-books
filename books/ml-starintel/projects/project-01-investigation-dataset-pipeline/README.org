@@ -115,20 +115,46 @@ Then run the reader checkpoint tests after the pinned schema cache exists:
 .venv/bin/python -m unittest -v test_project1.py
 #+end_src
 
+* Chapter 6 regression lab
+
+=chapter06_regression.py= is the first supervised-model layer built on the accepted Project 1 boundary. It does not ingest production StarIntel records. Instead it creates a deterministic Tier C grouped control so the mechanics of fitting and evaluation are observable without turning a fabricated workload into an empirical claim.
+
+The lab derives a one-feature OLS line from centered sums, then uses the pinned scikit-learn =LinearRegression= implementation for a three-feature fit. It compares that model with a training-only mean baseline on the same held-out case groups and emits MAE, RMSE, R^2, residuals, a controlled outlier failure injection, and one explicitly unscored extrapolation probe.
+
+Run:
+
+#+begin_src sh
+.venv/bin/python -m unittest -v test_chapter06_regression.py
+.venv/bin/python chapter06_regression.py --output-dir artifacts/chapter06
+#+end_src
+
+The generated artifacts are:
+
+#+begin_example
+artifacts/chapter06/chapter-06-regression-report.json
+artifacts/chapter06/chapter-06-predicted-vs-actual.svg
+artifacts/chapter06/chapter-06-residuals.svg
+#+end_example
+
+The tests enforce training/test group separation and prove that mutating held-out target values cannot change the fitted intercept or coefficients. The outlier and extrapolation cases are debugging exercises, not performance benchmarks.
+
 * Boundaries
 
-The current checkpoint is not Project 1 completion.
+The current checkpoint is not Project 1 completion and the Chapter 6 model is not a production model.
 
-It establishes a coherent reader interface for the already-verified foundational mechanisms. Later Project 1 work still needs to grow the project into a complete dataset-build/quality-report workflow that supports the later supervised-learning chapters without turning this directory into a second StarIntel runtime.
+It establishes a coherent reader interface for the already-verified foundational mechanisms and begins supervised learning without weakening the accepted evidence/split contract. Later Project 1 work still needs to grow the project into a complete dataset-build/quality-report workflow that supports later supervised-learning chapters without turning this directory into a second StarIntel runtime.
 
 The following remain explicitly outside this checkpoint:
 
 - production model accuracy;
+- production analyst-effort modeling;
 - production throughput/capacity;
 - total-process RSS;
 - cross-platform/byte-identical environment reproduction;
 - broader-corpus duplicate-candidate guarantees;
 - cross-language StarIntel conformance equivalence;
+- causal interpretation of fitted regression coefficients;
+- robustness to arbitrary distribution shift or outliers;
 - StarIntel persistence, routing, actor, search, authorization, queue, or storage semantics.
 
 * Research backend
@@ -138,7 +164,7 @@ Historical experiments, acquisition scripts, frozen fixtures, exact measurements
 That separation is intentional:
 
 #+begin_example
-reader interface     -> one coherent checkpoint/report
-research harness     -> detailed evidence, experiments, fixtures, and reproduction
+reader interface       -> coherent checkpoints and teaching reports
+research harness       -> detailed evidence, experiments, fixtures, reproduction
 StarIntel repositories -> product/runtime source of truth
 #+end_example
