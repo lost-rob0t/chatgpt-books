@@ -1,2 +1,3 @@
 #+include: "foundations.org"
 #+include: "working-memory-agenda.org"
+#+include: "incremental-rete.org"
