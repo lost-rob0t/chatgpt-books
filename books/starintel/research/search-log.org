@@ -3,4 +3,20 @@
 :ID:       85646cfc-4148-5e4f-b484-6f9530e8a279
 :END:
 * Entries
-No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.
+** 2026-09-16 -- What is the current release/wire document contract?
+Question: Is the active StarIntel contract 0.9.0 or 0.9.1, and which value belongs in a document?
+Sources inspected: current =lost-rob0t/starintel-doc= schema lock, package metadata, Python validator/tests; current =lost-rob0t/starintel-server= v0.9 runtime/document-spec docs; current =lost-rob0t/star-cl= revision identified by the server lock.
+Result: active coordinated release/profile is 0.9.1 while canonical documents retain wire =schema_version="0.9.0"=. Document integer =version= and CouchDB =_rev= are separate concepts.
+Remaining uncertainty: later release/profile changes require fresh inspection; do not infer release from schema filename.
+
+** 2026-09-16 -- Which StarIntel Server architecture statements are live?
+Question: Which HTTP validation/authorization and runtime components are actually loaded at the current server head?
+Sources inspected: =source/starintel-gserver.asd=, HTTP boundary core/routes, authorization routes, bulk publish boundary, architecture docs, active HTTP authorization runtime docs.
+Result: the current ASDF system loads auth/authorization and later installs authorized route handlers. Strict v0.9 validation occurs before canonical document publication. Stale README/architecture paragraphs saying built-in HTTP auth/authz is absent conflict with current executable load/route evidence and are classified historical/stale in this book pass.
+Remaining uncertainty: this pass did not boot a complete deployment or exercise credentials against a live server.
+
+** 2026-09-16 -- What external semantics matter for the first data-flow chapter?
+Question: Which general standards/docs are necessary to explain schema validation, messaging acceptance, and database revisions without inventing StarIntel behavior?
+Sources inspected: JSON Schema Draft 2020-12 official specification; RabbitMQ 4.3 acknowledgement/publisher-confirm guide; Apache CouchDB 3.5 documentation.
+Result: use these sources for their generic semantics only. RabbitMQ publisher confirms and consumer acknowledgements are separate mechanisms; CouchDB revision identifiers are database revision/MVCC data, not StarIntel's application-level document version; the Python adapter explicitly uses JSON Schema Draft 2020-12 validation.
+Remaining uncertainty: exact StarIntel RabbitMQ confirm/durability settings and CouchDB integration behavior belong to later executable passes.
