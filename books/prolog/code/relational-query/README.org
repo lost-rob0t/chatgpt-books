@@ -1,0 +1,49 @@
+#+title: Relational Query System -- Milestone 1
+:PROPERTIES:
+:ID:       789618ac-5e5c-40a0-8d3b-7455f738ee1d
+:END:
+
+* Purpose
+This directory is the executable seed of Project 1 from [[file:../../PROJECTS.org][PROJECTS.org]]. It grows with the book; later chapters should extend this system rather than replace it with disconnected syntax demos.
+
+The dataset is synthetic and intentionally small enough to inspect by eye.
+
+* Files
+- =community.pl= :: facts and first derived relations.
+- =test_community.pl= :: PL-Unit regression tests for the currently taught contract.
+
+* Run
+From the repository root:
+
+#+begin_src sh
+bash books/prolog/code/run-tests
+#+end_src
+
+The runner prints the installed SWI-Prolog version before executing the tests. A missing =swipl= is a hard failure, not a skipped-success path.
+
+* Milestone 1 contract
+- Facts represent people, neighborhoods, mentoring, and project participation.
+- =mentor(Mentor, Student)= is directed.
+- =same_neighborhood/2= excludes self-pairs.
+- =project_peer/3= reports the shared project and excludes self-pairs.
+- Shared variables across goals constrain those goals to one consistent term.
+- =unify_with_occurs_check/2= is exercised as the explicit sound-unification boundary.
+
+* Failure lab
+Work on a temporary copy and introduce exactly one defect at a time.
+
+1. Capitalize the atom =harbor= in a fact. Decide whether the change introduces a variable and what answers become too broad.
+2. Reverse one =mentor/2= fact. Identify which directionality regression catches it.
+3. Remove =dif(Person, Other)= from =project_peer/3=. Predict the newly admitted self-pairs before running the tests.
+4. Rename only one occurrence of the shared =Person= variable in the two-goal join test. Explain why the query becomes less constrained.
+5. Replace the atom =harbor= in a query with the SWI string ="harbor"=. Explain the clean failure in terms of term type.
+
+For each exercise, record: prediction, observed result, explanation, and fix. Do not keep the broken change.
+
+* Planned evolution
+- recursion adds multi-hop reachability and cycle/termination exercises;
+- lists add path/result structure where lists solve a real query need;
+- modules split data, query logic, and interfaces once the module chapter establishes the semantics;
+- persistence/integration later moves fact storage behind an explicit boundary;
+- indexing/performance revisits the same query shapes at larger synthetic scale;
+- explanation/meta-programming adds proof/explanation output without silently replacing the base relations.

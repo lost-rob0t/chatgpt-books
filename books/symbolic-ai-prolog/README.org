@@ -13,7 +13,7 @@ The reader should be able to explain the core ideas, implement important mechani
 * Scope boundary
 This volume owns classical/general symbolic-AI mechanisms in Prolog: meta-interpretation, explicit search/control, planning, semantic knowledge representation, provenance, abduction, explanation, constraints, production/rule engines, and hybrid symbolic composition.
 
-The separately directed =prolog-llms= volume owns the explicit LLM/neuro-symbolic/RLM arc. A canonical =books/prolog-llms= directory is not present on the inspected repository main revision, so this book records the conceptual boundary without adding a broken file link. General symbolic mechanisms are not removed from this book merely because an LLM-oriented volume may reuse them later.
+The standalone sibling [[file:../prolog-llms/README.org][Prolog + LLMs: Neuro-Symbolic Systems from First Principles]] owns the explicit LLM/neuro-symbolic/RLM arc. Cross-link shared symbolic foundations where useful, but keep the classical mechanisms here complete enough to stand on their own.
 * Major projects
 - [[id:feb3b263-3d59-562d-bc7b-487c3fdf432e][Meta-Interpreter]] -- Develop increasingly capable interpreters with tracing, control, and explanation.
 - [[id:868dd81e-3d0d-5f7b-bd3c-83a9fba898df][Planner]] -- Model goals, states, and actions relationally and compare planning strategies.

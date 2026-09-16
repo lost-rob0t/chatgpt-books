@@ -16,7 +16,7 @@ Foundational research + first progressive Project 1 implementation slice.
 * Verification
 Verification evidence is recorded on the focused issue/PR. A result is TESTED only after an actual SWI-Prolog process executes the current branch head. Publication build/check and Nix status are likewise head-specific.
 * Cross-book boundary
-=books/prolog= remains the full pure-Prolog foundation. Explicit LLM/neuro-symbolic/RLM material belongs to the separately directed =prolog-llms= volume; no canonical directory for it exists on the inspected main revision yet.
+[[file:../prolog/README.org][Prolog for Beginners]] remains the full pure-Prolog foundation. Explicit LLM/neuro-symbolic/RLM material belongs to [[file:../prolog-llms/README.org][Prolog + LLMs]]. This volume keeps classical/general symbolic-AI mechanisms complete and independently useful while cross-linking shared foundations where helpful.
 * Technical/editorial/visual review
 Not complete. One proof-tree figure exists; the whole-book visual and editorial passes remain future phases.
 * Blockers

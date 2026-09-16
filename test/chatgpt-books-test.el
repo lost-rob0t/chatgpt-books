@@ -19,16 +19,32 @@
                    (chatgpt-books-root)))
     (should (file-exists-p (expand-file-name "README.org" (chatgpt-books-root))))))
 
-(ert-deftest chatgpt-books-discovers-nine-books ()
-  (should (= 9 (length (chatgpt-books-book-slugs)))))
+(ert-deftest chatgpt-books-discovers-current-book-set ()
+  (let ((slugs (chatgpt-books-book-slugs)))
+    (dolist (required '("prolog" "prolog-llms" "erlang" "lfe"
+                        "symbolic-ai-common-lisp" "symbolic-ai-prolog"
+                        "expert-systems" "ml-starintel" "ml-math" "starintel"
+                        "starlang"))
+      (should (member required slugs)))
+    (should (= (length slugs)
+               (length (delete-dups (copy-sequence slugs)))))))
+
+(ert-deftest chatgpt-books-project-discovery-excludes-paused-scaffold ()
+  (let ((slugs (chatgpt-books-project-book-slugs)))
+    (should (member "prolog" slugs))
+    (should (member "prolog-llms" slugs))
+    (should-not (member "starlang" slugs))))
 
 (ert-deftest chatgpt-books-roam-db-is-project-local ()
   (should (string-suffix-p "/.cache/org-roam.db" (chatgpt-books-roam-db-location))))
 
 (ert-deftest chatgpt-books-safe-book-paths ()
   (dolist (slug (chatgpt-books-book-slugs))
-    (should-not (string-match-p "\\.\\." slug))
-    (should (file-exists-p (expand-file-name "PROJECTS.org" (expand-file-name slug (chatgpt-books--books-directory)))))))
+    (should-not (string-match-p "\\.\\." slug)))
+  (dolist (slug (chatgpt-books-project-book-slugs))
+    (should (file-exists-p
+             (expand-file-name "PROJECTS.org"
+                               (expand-file-name slug (chatgpt-books--books-directory)))))))
 
 (ert-deftest chatgpt-books-roam-state-roundtrip ()
   (let ((org-roam-directory "/tmp/personal-roam")

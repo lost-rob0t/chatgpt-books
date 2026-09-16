@@ -1,0 +1,37 @@
+#+title: Prolog + LLMs -- Research Index
+:PROPERTIES:
+:ID:       6e2a000c-df37-5ff1-ac41-7b16578bd771
+:END:
+
+* Research policy
+Research for this book must support falsifiable teaching claims rather than decorative citations. Prefer official SWI-Prolog documentation and source, standards/specifications, original papers, original implementation repositories, and vendor documentation for current API behavior. Secondary material may provide context but must not silently become the authority for version-sensitive claims.
+
+Every research pass should record:
+- precise question or claim under test;
+- retrieval date and source revision/version where available;
+- what was DOCUMENTED by the source;
+- what was actually TESTED in this repository;
+- what remains UNTESTED or EXPERIMENTAL;
+- conflicts or negative evidence;
+- downstream chapters/projects affected.
+
+* Priority queues
+** Prolog foundation
+Current SWI-Prolog syntax/term model, unification and occurs-check behavior, module semantics, PL-Unit, DCGs, CLP(FD), meta-call/reflection boundaries, tracing/debugging, resource limits, and safe term parsing/serialization.
+
+** LLM integration boundary
+Current structured-output/schema mechanisms, tool/function calling, streaming/partial result behavior, cancellation/timeouts, deterministic fixture strategies, provider/version identification, and safe treatment of model output as untrusted data.
+
+** Neuro-symbolic systems
+Primary papers and actual implementations for systems that combine neural generation/retrieval with symbolic constraints, proof, program execution, theorem proving, logic programming, or recursive language-model orchestration. Record what each system actually delegates to each component.
+
+** Evaluation
+Methods for comparing direct generation, retrieval augmentation, symbolic verification, repair loops, and recursive orchestration without benchmark leakage or post-hoc metric selection. Track exact datasets/prompts/providers/versions for any measured result.
+
+* Files
+- [[file:search-log.org][search-log.org]] -- dated queries/retrievals and research-session notes.
+- [[file:sources.org][sources.org]] -- verified source inventory and provenance.
+- =../references.bib= -- bibliographic metadata promoted only after verification.
+
+* Current state
+No external factual research pass has been completed in this scaffold. Curriculum decisions in README/OUTLINE/PROJECTS are repository-local design decisions, not evidence that any named external system or provider behaves a certain way. The first worker research slice must populate this index with inspected sources before version-sensitive manuscript prose is promoted.
