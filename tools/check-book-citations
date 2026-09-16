@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+import sys
+import zipfile
+from pathlib import Path
+
+
+def fail(message: str) -> None:
+    raise SystemExit(f"CITATION CHECK FAILED: {message}")
+
+
+def main() -> None:
+    if len(sys.argv) != 4:
+        fail("usage: check-book-citations EPUB CITEKEY EXPECTED_TITLE")
+
+    epub = Path(sys.argv[1])
+    citekey = sys.argv[2]
+    expected_title = sys.argv[3]
+    if not epub.is_file():
+        fail(f"missing EPUB: {epub}")
+
+    with zipfile.ZipFile(epub) as archive:
+        xhtml = "\n".join(
+            archive.read(name).decode("utf-8")
+            for name in archive.namelist()
+            if name.endswith((".xhtml", ".html"))
+        )
+
+    raw = f"[cite:@{citekey}]"
+    if raw in xhtml:
+        fail(f"raw Org citation leaked into EPUB: {raw}")
+    if f'data-cites="{citekey}"' not in xhtml:
+        fail(f"rendered citation for {citekey!r} not found")
+    if 'class="references' not in xhtml:
+        fail("rendered bibliography not found")
+    if expected_title.casefold() not in xhtml.casefold():
+        fail(f"bibliography entry title not found: {expected_title!r}")
+
+    print(f"CITATION OK: {citekey} rendered with bibliography entry")
+
+
+if __name__ == "__main__":
+    main()

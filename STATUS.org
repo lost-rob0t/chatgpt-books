@@ -3,7 +3,7 @@
 :ID:       3aca3fd1-5971-567f-ac81-338155b9ee27
 :END:
 * Phase
-Bootstrap infrastructure is established; multiple books are now in foundational research/authoring while most volumes remain far from release.
+Bootstrap infrastructure is established; multiple books now have editorially accepted foundational slices on canonical main while every volume remains far from a full release.
 
 * Completed infrastructure
 - Principal book directories have substantial curricula and project specifications; the paused StarLang scaffold is tracked separately from the active principal-book contract.
@@ -13,12 +13,18 @@ Bootstrap infrastructure is established; multiple books are now in foundational 
 - Structural validator and CI workflow.
 - Initial cross-book Org-roam nodes and research architecture.
 - Issue #4 publication hardening: explicit EPUB accessibility metadata, Pandoc Org-reader contract checks, deterministic Org-ID-to-XHTML mapping, SVG/PNG/JPEG coverage, and packaged-EPUB regression assertions.
-- Issue #27 scaffold introduces the standalone =prolog-llms= curriculum and removes the obsolete fixed-nine-book assumption from structural validation.
+- Issue #27 / PR #29 added the standalone =prolog-llms= curriculum and removed obsolete fixed-nine-book assumptions from structure validation and book discovery. Exact PR head =5cb37299341ad14cfcdc7d018196b325edd13b54= passed focused book/Nix validation and generic =books-ci= before merge as =54a46a71241ce49b575239b0097ac49724862999=.
+
+* Editorially accepted foundational milestones
+- =prolog=: PR #20 merged as =565ee3993dc446ed5ba373e40c73c558619cca55=. Chapters 1--3 and Relational Query System milestone 1 are editorially APPROVED as a bounded foundation slice; the full book is not DONE.
+- =erlang=: PR #21 merged as =1ca38e64492d163ddaa63fa9aa9ac5477f370679=. Chapters 1--6 and Process-Based Messaging checkpoint A are editorially APPROVED as a bounded foundation slice; the full book is not DONE.
+- =lfe=: PR #23 merged as =93ddcde1c9a8943af507d61ebf4cd0a79b61c2e2=. Chapters 1--3 and Event Routing DSL foundation milestone are editorially APPROVED as a bounded foundation slice; the full book is not DONE.
 
 * Active authoring/editorial work
-- =prolog=, =erlang=, and =lfe= have foundational project-driven draft PRs under editorial review.
 - =symbolic-ai-prolog= has an active Project 1 implementation/draft transaction that is not yet editorially ready.
 - =ml-starintel= has an active research/implementation transaction that remains separate from manuscript completion.
+- =prolog=, =erlang=, and =lfe= are ready for their next dependency-ordered research/project slices after the accepted foundations above.
+- =prolog-llms= is scaffolded and ready for its first primary-source-backed standalone Prolog/project slice; the scaffold itself makes no external benchmark/model-quality claims.
 - Other books remain in earlier research/curriculum phases unless their own STATUS files say otherwise.
 
 * Verification state
@@ -26,11 +32,9 @@ Bootstrap infrastructure is established; multiple books are now in foundational 
 - TESTED on a Nix-capable host: =nix flake check=, =nix develop=, =nix develop --command ./tools/check-structure=, fixture build, EPUBCheck 5.3.0 (=0 fatals / 0 errors / 0 warnings / 0 infos=), and the non-Org-roam ERT suite via =nix develop --command make ert=.
 - TESTED in CI: full ERT including the real project-scoped Org-roam database sync (CI installs =org-roam= before running ERT; that step is the authoritative path for the Org-roam slice).
 - Issue #4 CI independently gates the pinned Pandoc Org-reader AST contract, EPUBCheck 5.3.0, and repository-specific inspection of the final EPUB package/XHTML.
+- The previous repository-wide fixed-book-set failure is RESOLVED. Generic =books-ci= passed on the exact reviewed heads for PRs #29, #20, #21, and #23 before each merge.
 - DOCUMENTED platform limitation: the minimal Nix devShell intentionally does not bundle =org-roam=, so =chatgpt-books-roam-real-database-sync= is skipped under =nix develop= and runs in CI instead. The remaining ERT tests pass under Nix.
 - EPUBCheck is downloaded/validated in CI; local result is recorded only when runnable.
 
-* Current repository-wide blocker being repaired
-Canonical main still carries the historical structural validator that expects the original nine-book set, while =books/starlang= already exists. That makes generic =books-ci= red before later publication checks. Issue #27 repairs this by validating required principal books plus any additional active discovered books while explicitly keeping the paused StarLang scaffold out of the active manuscript gate. The repair is not considered complete until exact-head CI passes and the editorial/infrastructure PR is merged.
-
 * Definition-of-done reminder
-No book is DONE merely because its outline builds or a foundational PR is merged. Finished chapters/projects still require sourced claims, executed significant examples/tests, promised assets/accessibility metadata, and successful production export/check evidence.
+No book is DONE merely because a foundational milestone is editorially approved and merged. Finished chapters/projects still require sourced claims, executed significant examples/tests, promised assets/accessibility metadata, successful production export/check evidence, and the later curriculum/capstone work specified by the book.
