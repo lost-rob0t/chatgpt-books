@@ -5,4 +5,4 @@
 #+bibliography: ../references.bib
 
 * Manuscript bootstrap
-This is the canonical manuscript entry point. Long-form drafting begins only after the publishing/research bootstrap and the relevant research issue are ready. See [[file:../OUTLINE.org][OUTLINE.org]].
+This is the canonical manuscript entry point. Long-form drafting begins only after the publishing/research bootstrap and the relevant research issue are ready. The working chapter plan remains in the book-level =OUTLINE.org= planning document and is deliberately not emitted as an EPUB hyperlink.
