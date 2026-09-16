@@ -1,0 +1,22 @@
+digraph systemd_dependency_diagnosis {
+  rankdir=LR;
+  graph [label="Project 2: source-backed systemd dependency diagnosis", labelloc=t, fontsize=18];
+  node [shape=box, fontsize=11];
+  edge [fontsize=10];
+
+  request [label="start request\nfrontend / attempt-17 / config-3"];
+  requires [label="unit requirement\nfrontend Requires api / config-3"];
+  after [label="unit ordering\nfrontend After api / config-3"];
+  failed [label="activation observation\napi failed / attempt-17 / config-3"];
+
+  rule [shape=diamond, label="rule.systemd.\nrequired-after-failure\nsource: systemd.unit"];
+  diagnosis [shape=ellipse, label="derived hypothesis\nstartup blocked by required dependency\nfrontend / api / attempt-17 / config-3"];
+  explanation [shape=note, label="current explanation\nrule provenance + 4 exact supports"];
+
+  request -> rule [label="uses"];
+  requires -> rule [label="uses"];
+  after -> rule [label="uses"];
+  failed -> rule [label="uses"];
+  rule -> diagnosis [label="derives"];
+  diagnosis -> explanation [label="explain-current-fact"];
+}
