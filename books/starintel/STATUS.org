@@ -23,35 +23,34 @@ Foundational research and the first two project-backed runtime milestones are me
 * Active slice -- Service Trace Pass 05
 PR #58 reuses exact upstream StarIntel Server revision =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= and its own disposable =scripts/stack-test.sh= rather than copying deployment logic into this book. That revision is still the repository's =master= head as of the 2026-09-16 execution audit.
 
-The book's fail-closed observation hook is now TESTED against that real disposable stack. It:
+The book's fail-closed observation hook is TESTED against that real disposable stack. It:
 - submits a fresh synthetic Project 1 document through the current HTTP ingest route and separately requires authorized durable read-back;
 - stops RabbitMQ and verifies the container is actually not running before interpreting the fault;
 - records the client-visible fault outcome without prescribing a status code;
 - starts RabbitMQ, explicitly restarts StarIntel, waits for upstream health, and requires another fresh HTTP/read-back observation;
 - retains only sanitized evidence, never the disposable API key, bearer header, raw response body, container ID, or raw fault stderr.
 
-The successful service-backed run observed a baseline POST HTTP 200 followed by authorized read-back HTTP 200 on the first read attempt. With RabbitMQ verified stopped, the HTTP service remained alive and the fresh fault submission still returned HTTP 200, but persistence was not observed across nine bounded read attempts; the final read status was 404. After the explicit operator sequence =start RabbitMQ -> restart StarIntel -> wait healthy=, a third fresh submission again returned HTTP 200 and authorized read-back observed persistence on the first attempt. These are bounded observations for this exact pinned stack, not stronger broker-durability guarantees.
+Two successful service-backed executions reproduce the same qualitative boundary. In both, baseline POST returned HTTP 200 and authorized read-back later observed the fresh document; the first run observed it on read attempt 1 and the current-main rerun on attempt 2. In both broker-fault phases, RabbitMQ was verified stopped, the HTTP service remained alive, the fresh fault submission returned HTTP 200, and persistence was not observed across nine bounded reads with final status 404. In both explicit-recovery phases, =start RabbitMQ -> restart StarIntel -> wait healthy= was followed by another POST 200 and persistence observed on read attempt 1. The differing baseline poll count is an observation, not a latency benchmark or service-level guarantee.
 * Active research
-- Publisher confirms are still not evidenced in the inspected publish paths. The successful service trace does not substitute for a publisher-confirm-specific experiment.
+- Publisher confirms are still not evidenced in the inspected publish paths. The successful service traces do not substitute for a publisher-confirm-specific experiment.
 - Settlement-failure redelivery/listener survival, the CouchDB outbox crash window, concurrent quarantine-ID behavior, terminal bulk payload release under sustained backlog, and transparent broker reconnect remain separate executable questions.
 - Actor registry/discovery, Sento restart/supervision semantics, remote delivery, Quasar integration, external actors, language bindings, search/inference, deployment, security, and broader production-debugging surfaces remain later research.
 - Any later change to source paths pinned by the current research passes requires another current-head delta audit before corresponding manuscript claims are promoted.
 * Verification status
 - The merged Project 1 and earlier Project 2/runtime work has successful focused and generic CI evidence recorded in PRs #37 and #44.
-- PR #58 exact execution head =1e0ad4e802ea390823a9a5cc04858eb03d2c8ba4= has focused =starintel-book= run =35115201190= SUCCESS: Project 1 7/7, ingest-adapter 8/8, service-trace hermetic 9/9, ambiguous-bulk 8/8, bulk-job-lifetime 11/11, =make book BOOK=starintel=, =make check BOOK=starintel=, EPUBCheck with 0 fatals / 0 errors / 0 warnings / 0 infos, and a separate successful Nix job.
-- The same run's service-backed job =104858737649= is TESTED against the pinned upstream Nix/Compose stack and emitted sanitized artifact =starintel-service-trace= (artifact =10454487856=, SHA-256 =e21dbf5fbc880afd80e29f41530702451a82c3b96c4f4a5fde17280076af9bca=).
-- Generic =books-ci= run =35115201346= is SUCCESS for the same execution head.
+- PR #58 execution head =1e0ad4e802ea390823a9a5cc04858eb03d2c8ba4= has focused =starintel-book= run =35115201190= SUCCESS: Project 1 7/7, ingest-adapter 8/8, service-trace hermetic 9/9, ambiguous-bulk 8/8, bulk-job-lifetime 11/11, =make book BOOK=starintel=, =make check BOOK=starintel=, EPUBCheck with 0 fatals / 0 errors / 0 warnings / 0 infos, and a separate successful Nix job. Its service-backed job =104858737649= emitted sanitized artifact =10454487856=.
+- Reconciled head =c09f88fdd2b9dd7df48f48777b32bbf316ba3c65= repeated the experiment in =starintel-book= run =35121092016= SUCCESS: records-and-book =104878765479= SUCCESS, service-backed trace =104878765097= SUCCESS, and Nix =104878765492= SUCCESS. Generic =books-ci= run =35121091999= also succeeded. The service-backed artifact is =10458031216= (uploaded ZIP SHA-256 =a8725dbb3e847c05108f49114a63c551242f2228abeafc9d5e3905ee0011a26d=).
 - DOCUMENTED at current upstream StarIntel Server head =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=: the prior ULID/worker-isolation repair, terminal bulk-job payload-lifetime repair, and current disposable stack-test lifecycle inspected by Pass 05.
 - UPSTREAM-REPORTED in StarIntel Server issue #187 / PR #188 and issue #189 / PR #190: the live incidents, baseline RED fixtures, operational reconciliation details, and product-repository verification not independently reproduced by this book.
 * Unverified claims
-- Publisher-confirm acceptance is not measured by the successful end-to-end trace; a local publication return plus later read-back does not identify the broker durability mechanism.
+- Publisher-confirm acceptance is not measured by the successful end-to-end traces; a local publication return plus later read-back does not identify the broker durability mechanism.
 - No book-controlled settlement-failure redelivery, outbox crash-window, concurrent ULID collision, quarantine path, or issue #189 heap-exhaustion reproduction has been run.
 - The book has not independently instrumented a real terminal bulk job to prove document/service-context release under sustained backlog load.
 - Transparent broker reconnect without an operator restart remains UNTESTED; the successful recovery deliberately included a StarIntel restart.
 - Actor dispatch/restart/registry behavior, Quasar integration, deployment guarantees, and production performance remain UNTESTED by the current book work.
 * Technical/editorial/visual review
-The two merged bounded milestones passed their own reviews. PR #58 now has real service-backed evidence but must remain unmerged until current-main reconciliation/final checks are green and the Editor-in-Chief reviews the resulting manuscript/research changes. Whole-book technical/editorial/visual review has not started.
+The two merged bounded milestones passed their own reviews. PR #58 now has repeated real service-backed evidence but must remain unmerged until final current-main reconciliation/checks are green and the Editor-in-Chief reviews the resulting manuscript/research changes. Whole-book technical/editorial/visual review has not started.
 * Next dependency-ready slice
 After the service-backed Project 2 checkpoint is editorially accepted, research the current actor registry/discovery/restart boundary before beginning Chapter 7 / Project 3. Deeper settlement/outbox fault injection remains part of the later broken-pipeline/debugging work rather than being silently treated as complete.
 * Blockers
-No known book-local implementation blocker remains in this checkpoint. PR #58 still requires current-main reconciliation, final exact-head verification, and editorial review. No merge or auto-merge is authorized for this worker.
+No known book-local implementation blocker remains in this checkpoint. PR #58 still requires final current-main reconciliation/exact-head verification and editorial review. No merge or auto-merge is authorized for this worker.
