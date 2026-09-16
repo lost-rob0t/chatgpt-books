@@ -9,9 +9,9 @@ This pass owns the first packaging boundary for Project 3. It asks a narrow ques
 It does not own distributed Erlang, release upgrades/relup, persistence, operating-system service integration, container images, cross-host deployment, bundled ERTS target installation, or production restart/upgrade policy. Those remain later slices.
 
 * Current source baseline
-- *LFE implementation:* v2.2.2, tag =v2.2.2=, already pinned by the focused book workflow.
+- *LFE implementation:* v2.2.2, tag =v2.2.2=, pinned by the focused book workflow. The successful checkpoint-C run resolved that tag to upstream commit =dae7489ebf9588e5f746a34cd4f8ff83d1469eef=.
 - *Current Erlang/OTP release:* OTP 29.1, released 2026-09-16. The official patch page reports ERTS 17.1, Kernel 11.0.4, STDLIB 8.1, Common Test 1.31.2 and the other changed application versions. [cite:@erlang-otp-29-1-release]
-- *Executable CI runtime:* recorded separately by the focused workflow. Previous runs used Ubuntu's OTP 25 packages; this research pass does not rewrite observed execution evidence to match the documentation baseline.
+- *Executable CI runtime:* focused =lfe-book= run =35155310266= executed the integration tree on Ubuntu 24.04.5 / OTP 25 and observed ERTS 13.2.2.5, Kernel 8.5.4.2, and STDLIB 4.3.1.3. This evidence is intentionally separate from the current OTP 29.1 documentation baseline.
 
 * Primary-source findings
 ** An OTP application is an ownership/lifecycle component, not a synonym for a module
@@ -43,22 +43,32 @@ The Project 3 lab therefore needs both positive and negative evidence:
 * LFE-specific boundary
 LFE source does not create a second application model. The callback module is compiled to ordinary BEAM code and declares the standard OTP =application= behaviour in the same style that earlier chapters used =gen_server= and =supervisor=. The executable proof is more important than a language-specific recipe: Erlang's application controller loads the generated =otp_router.app=, invokes the compiled LFE callback, and later a fresh =erl -boot= runtime starts the same application from generated release artifacts.
 
-Status before CI for this pass: *DOCUMENTED* from primary OTP material; LFE application/release behavior remains *UNTESTED* until the focused branch executes the new lab.
+Status after focused verification for this pass: *TESTED* for the bounded application/release construction claims below. The run does not upgrade any excluded deployment, distribution, persistence, release-upgrade, performance, or production-availability claim.
 
 * Claim/evidence ledger
-| Claim | Status before focused CI | Evidence |
+| Claim | Status after focused CI | Evidence |
 |-
 | OTP 29.1 is current on 2026-09-16 | DOCUMENTED | official OTP 29.1 patch/download pages |
 | Application =start/2= starts the top supervision tree | DOCUMENTED | official =application= behaviour |
 | =.app= identifies modules, dependencies, registered names, version and startup callback | DOCUMENTED | official =app= format |
 | =.rel= composes exact ERTS/application versions | DOCUMENTED | official release structure + =rel= |
 | =make_script/2= emits =.script=/=.boot= and validates release resources | DOCUMENTED | official =systools= |
-| Compiled LFE callback can be started by =application:start(otp_router)= | UNTESTED | new branch lab pending |
-| Generated local boot file starts =otp_router= in a fresh VM | UNTESTED | new branch lab pending |
-| Version mismatch and missing release dependency are rejected | UNTESTED | failure labs pending |
-| =make_tar/2= package has the expected OTP directory/artifact shape | UNTESTED | package inspection pending |
+| Compiled LFE callback can be started by =application:start(otp_router)= | TESTED | focused =lfe-book= run =35155310266= |
+| Generated local boot file starts =otp_router= in a fresh VM | TESTED | focused =lfe-book= run =35155310266=; observed release lab PASS |
+| Version mismatch and missing release dependency are rejected | TESTED | focused =lfe-book= run =35155310266= failure-injection gate |
+| =make_tar/2= package has the expected OTP directory/artifact shape | TESTED | focused =lfe-book= run =35155310266= package inspection gate |
 | Package is deployable on another host | UNTESTED / NOT CLAIMED | requires a target-system/deployment slice |
 | Upgrade/relup behavior is correct | UNTESTED / NOT CLAIMED | later release-management work |
+
+* Verified execution evidence
+Focused =lfe-book= run =35155310266= completed SUCCESS on the PR integration tree after the branch was reconciled with then-current =main=. It built pinned LFE v2.2.2, reran Projects 1 and 2, passed all five EUnit Project 3 contracts, exercised the existing timeout/restart/restart-intensity failure scenarios, then reported:
+
+#+begin_example
+otp-router-release: PASS (ERTS 13.2.2.5, kernel 8.5.4.2, stdlib 4.3.1.3)
+otp-router: callbacks, EUnit contracts, sys state, Erlang interop, supervision, application ownership, release construction, and fresh boot passed
+#+end_example
+
+The same focused run validated all six LFE teaching DOT sources, completed =make book BOOK=lfe=, completed =make check BOOK=lfe= with EPUBCheck 5.3.0 reporting 0 fatals / 0 errors / 0 warnings / 0 infos, and its separate Nix job completed =nix flake check -L=. Generic =books-ci= run =35155310278= also completed SUCCESS on the same integration tree. This is execution evidence for checkpoint C only; it is not evidence for later distribution or deployment claims.
 
 * Failure semantics to teach
 1. *Source success, metadata failure.* BEAM files can exist while =.app= or =.rel= is inconsistent. Packaging failures are not compiler failures.
