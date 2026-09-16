@@ -3,7 +3,7 @@
 :ID:       02e3eb9e-492b-5ae1-a225-e5e34e27df67
 :END:
 * Phase
-Foundational research and progressive chapter/project drafting.
+Foundational research and progressive chapter/project drafting. Project 1 milestones 1 and 2 are editorially APPROVED and merged on canonical =main=. The whole long-form book remains incomplete and is not DONE.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
 - Foundation research pass 01 documents current SWI-Prolog behavior needed by Chapters 1--3: basic load/query workflow, default variable syntax, anonymous variables, atom/string boundary, unification/occurs-check boundary, PL-Unit surface, and current release channels.
@@ -11,18 +11,13 @@ Foundational research and progressive chapter/project drafting.
 - Relational Query System milestone 1 has a synthetic knowledge base and PL-Unit regression suite.
 - The accepted foundation slice links to the standalone =prolog-llms= sibling without moving core pure-Prolog depth out of this volume.
 - PR #20 was editorially APPROVED for this bounded milestone and merged to canonical main as =565ee3993dc446ed5ba373e40c73c558619cca55=.
-* Active draft -- Project 1 milestone 2
-Issue #76 owns the dependency-ready recursion/lists/backtracking/termination slice.
-- Chapters 4--6 are drafted as a continuation of the existing Relational Query System, not a new toy.
-- Project data now includes finite topic lists and a deliberately cyclic directed =follows/2= graph.
-- =topic_member/2= and =list_reverse/2= derive list recursion from first principles before comparing the teaching relations with current SWI =library(lists)= behavior.
-- =connection_path/3= carries explicit branch-local Seen state and uses =dif/2= constraints to enumerate simple paths without revisiting the deliberate cycle.
-- =first_connection_path/3= is the explicitly named =once/1= commitment boundary; the underlying path relation remains multi-answer.
-- A second named PL-Unit suite adds list, multi-answer path, no-repeat, cycle, unreachable-target, and first-answer regressions. The runner fails closed if either named Project 1 suite is missing.
-- An editable/rendered search-flow diagram connects choice points, redo, visited-state rejection, and the explicit commitment boundary and is included in the production EPUB.
-- Research note =research/recursion-lists-backtracking.org= records current official SWI claims for =once/1=, =member/2=, =reverse/2=, and =call_with_time_limit/2=. The timeout remains a SWI-specific regression guard, never benchmark evidence.
-
-Worker state: TESTED CONTENT / STATUS-CONTINUITY GATES PENDING / NOT EDITORIALLY APPROVED. The Editor-in-Chief remains the only final approval/merge authority.
+- Chapters 4--6 continue the same Relational Query System through choice points/backtracking, structural recursion, proper-list relations, explicit branch-local visited state, cycle-safe simple-path traversal, accumulator reversal, and a deliberately named first-answer commitment boundary.
+- Project data includes finite topic lists and a deliberately cyclic directed =follows/2= graph. =connection_path/3= carries explicit branch-local =Seen= state and =dif/2= constraints; =first_connection_path/3= isolates =once/1= without changing the underlying relation's multi-answer contract.
+- The second named PL-Unit suite checks list enumeration, complete path answer sets, no-repeat paths, cycle-safe reverse reachability, unreachable-target termination under a SWI-specific wall-time guard, and explicit first-answer commitment. The runner fails closed if either Project 1 suite is absent.
+- The editable/rendered search-flow diagram connects choice points, redo, visited-state rejection, later proofs, and the explicit commitment boundary and is included in the production EPUB.
+- Research note =research/recursion-lists-backtracking.org= plus =research/sources.org= and =research/search-log.org= record the current official SWI claims used for =once/1=, =member/2=, =reverse/2=, and =call_with_time_limit/2=. The timeout remains a regression guard, never benchmark evidence.
+- The Editor-in-Chief reviewed the real manuscript, code/tests, diagram, research/provenance, cross-book boundary, and exact current-main CI evidence and marked Chapters 4--6 / Project 1 milestone 2 APPROVED.
+- PR #77 merged as =a3e37f30ddd28c99a3a8cfcc31b6e9ff2e0f5bbb= from exact approved head =5aa710aedae61417b9a96232122a617c2a7bec1b=.
 * Active research
 Foundational primary-source research is still incomplete for arithmetic, cut, negation, modules, DCGs, search beyond the beginner traversal, constraints/CLP(FD), meta-programming, persistence/integration, debugging tooling, advanced testing, and indexing/performance.
 * Verification
@@ -31,17 +26,19 @@ Foundational primary-source research is still incomplete for arithmetic, cut, ne
 - Milestone-2 implementation/publication head =b98ddb4d7510499bb72d58b572b3aa85d9b6359f= passed focused =prolog-book= run =35129800175= on Ubuntu 24.04.5 / SWI-Prolog 9.0.4. Both named Project 1 PL-Unit suites passed; =make book BOOK=prolog= passed; publication preprocessing retained 9 stable Org-ID aliases; =make check BOOK=prolog= passed; EPUBCheck 5.3.0 reported 0 fatals / 0 errors / 0 warnings / 0 infos; and the separate Nix job passed =nix flake check -L=.
 - Generic =books-ci= run =35129800450= also completed SUCCESS on =b98ddb4d7510499bb72d58b572b3aa85d9b6359f= through structural validation, the Pandoc Org-reader contract, deterministic asset/fixture checks, EPUB validation, publication/citation regressions, ERT, and real Org-roam DB synchronization.
 - Predecessor head =5c82e3464f42e7c96ded4a6bed0a3626857e730d= is explicitly FAILED / SUPERSEDED for publication validation: its actual SWI test step and book build succeeded, but =make check BOOK=prolog= failed because the new diagram used a resource path Pandoc could not resolve. The manuscript path was corrected before the successful =b98ddb4...= gates; this failed run is not counted as green evidence.
+- Final milestone-2 premerge head =5aa710aedae61417b9a96232122a617c2a7bec1b= was reconciled with then-current =main= =afb16908defae8d867efa80eaa20ce841ba822d9= at 0 commits behind. Focused =prolog-book= run =35131152202= completed SUCCESS; its =prolog-and-book= job =104912193114= and separate Nix job =104912193375= both completed SUCCESS. Generic =books-ci= run =35131152184= also completed SUCCESS. PR #77 was re-fetched immediately before merge as non-draft, mergeable, unchanged, and without unresolved review threads.
 - Final reviewed milestone-1 PR head =9220d54b51914d20b8a32d1b1e6c5b9a8ff46cab= passed =prolog-book= run =35094308426= and generic =books-ci= run =35094308474= before merge.
 - The milestone-1 focused gate executed the Project 1 SWI-Prolog/PL-Unit suite, production =make book BOOK=prolog=, =make check BOOK=prolog=, and =nix flake check -L= successfully. The earlier full exact-runtime record for that implementation observed SWI-Prolog 9.0.4 and 11 successful PL-Unit tests with no test warnings.
 - The previous repository-wide fixed-book-set structural failure is RESOLVED by issue #27 / PR #29; it is no longer a Prolog blocker.
-- This STATUS evidence commit is newer than =b98ddb4...= and therefore requires fresh exact-head focused and generic gates before worker handoff. Earlier successful runs remain evidence only for their recorded exact heads.
 * Coordination
 [[file:../prolog-llms/README.org][Prolog + LLMs: Neuro-Symbolic Systems from First Principles]] is now a canonical standalone sibling. This book remains the strongest pure-Prolog foundation; cross-linking must not remove the language/runtime depth needed by a reader who never opens the LLM volume.
 
-=books/symbolic-ai-prolog= remains the deeper classical/general symbolic-AI volume. This milestone teaches recursion and finite graph traversal only as foundational Prolog mechanics; it does not claim the planner/meta-interpreter/abduction curriculum owned there.
+=books/symbolic-ai-prolog= remains the deeper classical/general symbolic-AI volume. Project 1 milestone 2 teaches recursion and finite graph traversal only as foundational Prolog mechanics; it does not claim the planner/meta-interpreter/abduction curriculum owned there.
 * Technical/editorial/visual review
-- Chapters 1--3 / Project 1 milestone 1: editorially APPROVED as a bounded slice.
-- Chapters 4--6 / Project 1 milestone 2: worker content TESTED on the recorded implementation/publication head; current status-continuity head awaits exact gates and then Editor-in-Chief review.
+- Chapters 1--3 / Project 1 milestone 1: editorially APPROVED and merged as a bounded slice.
+- Chapters 4--6 / Project 1 milestone 2: editorially APPROVED and merged as a bounded slice through PR #77.
 - Whole book: not DONE and not in final technical/editorial/visual review.
+* Next dependency-ready slice
+Chapter 7 arithmetic is the next chapter in the canonical outline. Research and implementation should establish useful arithmetic modes and failure behavior before later cut, negation, modules, DCGs, broader search/planning, constraints, and advanced tooling.
 * Blockers
-No known book-local conceptual, code, research, or publication blocker remains after the diagram-path repair. The only worker handoff gate is fresh exact-head CI on this status-continuity commit. No merge or auto-merge is authorized for this worker.
+No known book-local blocker remains for beginning the next dependency-ready slice. Later chapters still require their own primary-source research, executable evidence, and editorial gates.
