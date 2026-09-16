@@ -60,3 +60,20 @@ Inspected official sources:
 Result: sufficient to freeze a ground-state search contract using explicit =edge(Action,From,To)= data, an ordered closed set, and an explicit frontier. The implementation records state expansions, not debugger ports; duplicate states may be queued before the first expansion but must not be expanded twice after entering the closed set. BFS claims are limited to the finite unit-edge fixture and the queue invariant implemented in this slice; weighted/heuristic search remains later work.
 
 Implementation status at research time: UNTESTED until exact-head CI executes the Project 1 + Project 2 regressions and publication/Nix gates.
+
+** 2026-09-16 -- Project 2 milestone B: relational action-schema planning
+Questions:
+- What did the original STRIPS paper actually claim about world models, operator schemata, applicability, and add/delete effects?
+- Which parts of the historical system would be misleading to attribute to a small breadth-first forward planner?
+- How should reusable Prolog action schemas receive fresh variables for each grounding attempt?
+- What canonical-state contract avoids making nonground variable ordering part of duplicate-state identity?
+- Where should the planner reject an unsafe schema whose action/effects remain nonground after precondition matching?
+
+Inspected primary/official sources:
+- Richard E. Fikes and Nils J. Nilsson, “STRIPS: A New Approach to the Application of Theorem Proving to Problem Solving,” =Artificial Intelligence= 2(3--4), 189--208 (1971), DOI =10.1016/0004-3702(71)90010-5=; inspected original SRI Technical Note 43 / original-paper copy plus publication metadata.
+- https://www.swi-prolog.org/pldoc/man?predicate=copy_term/2 -- current official fresh-variable copy semantics.
+- https://www.swi-prolog.org/pldoc/man?predicate=sort/2 -- current official standard-term-order sorting, duplicate removal, and nonground-order caveat.
+
+Result: sufficient to specify a course-local STRIPS-style forward state-space subset without claiming full historical STRIPS equivalence. Chapter 8 may use variable-bearing =schema(Id,Action,Preconditions,Add,Delete)= data, but each schema is copied before matching; only ground action/effect instances may produce canonical ground successor states. The milestone keeps FIFO breadth-first search fixed so planning-state/action semantics are derived separately from the later Chapter 9 cost/heuristic policies and Chapter 10 constraints.
+
+Implementation status at research time: UNTESTED until the exact branch head runs the combined SWI-Prolog suite and book/publication/Nix gates. No runtime, performance, optimal-cost, PDDL, LLM, or production-planner claim is inferred from documentation alone.
