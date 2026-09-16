@@ -3,14 +3,21 @@
 :ID:       1d153fc1-8ecd-52f4-a6b6-d2f5f1d25898
 :END:
 * Phase
-Bootstrap curriculum and architecture.
+Foundational research + first progressive Project 1 implementation slice.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
+- Project 1 milestone A primary-source research completed for meta-calling, clause reflection boundaries, debugger ports, variant comparison, rule freshening, depth-limit caveats, and PL-Unit.
+- Opening manuscript slice drafted around object/meta language separation, proof trees, provenance, explicit control, cycle detection, and rule budgets.
+- Runnable Project 1 milestone A implementation and semantic regression suite added under =code/meta-interpreter/=.
+- Editable + rendered proof-tree figure added.
 * Active research
-Foundational primary-source research has not yet been declared complete.
-* Unverified claims
-All version-sensitive implementation details remain RESEARCH/UNTESTED until the relevant issue verifies them.
+- Richer meta-interpreter control/tracing semantics, native-clause reflection boundaries, and later search/planning work remain open.
+- Foundational research for planning, knowledge representation, abduction, constraints, production systems, and the capstone is not complete.
+* Verification
+Verification evidence is recorded on the focused issue/PR. A result is TESTED only after an actual SWI-Prolog process executes the current branch head. Publication build/check and Nix status are likewise head-specific.
+* Cross-book boundary
+=books/prolog= remains the full pure-Prolog foundation. Explicit LLM/neuro-symbolic/RLM material belongs to the separately directed =prolog-llms= volume; no canonical directory for it exists on the inspected main revision yet.
 * Technical/editorial/visual review
-Not started.
+Not complete. One proof-tree figure exists; the whole-book visual and editorial passes remain future phases.
 * Blockers
-Dependency-aware backlog must be executed before chapter prose is promoted to DONE.
+The 300--700 page book is far from complete. Later project milestones remain dependency-gated and must not be collapsed into this first interpreter slice.

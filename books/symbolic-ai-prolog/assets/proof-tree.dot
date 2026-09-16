@@ -1,0 +1,18 @@
+digraph proof_tree {
+  graph [rankdir=TB, bgcolor="transparent", nodesep=0.35, ranksep=0.45];
+  node [shape=box, fontname="sans-serif", fontsize=10];
+  edge [fontname="sans-serif", fontsize=9];
+
+  root [label="reachable(gateway, database)\nr_reach_step"];
+  a [label="link(gateway, router)\nf_link_gateway_router"];
+  b [label="reachable(router, database)\nr_reach_step"];
+  c [label="link(router, cache)\nf_link_router_cache"];
+  d [label="reachable(cache, database)\nr_reach_direct"];
+  e [label="link(cache, database)\nf_link_cache_database"];
+
+  root -> a [label="left conjunct"];
+  root -> b [label="right conjunct"];
+  b -> c [label="left conjunct"];
+  b -> d [label="right conjunct"];
+  d -> e [label="body"];
+}

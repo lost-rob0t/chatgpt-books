@@ -7,17 +7,23 @@ A serious independent technical book, eventually about 300--700 rendered EPUB pa
 * Audience
 Prolog learners ready to use logic programming for AI, planning, explanation, and knowledge representation.
 * Prerequisites
-Prolog fundamentals or completion of Prolog for Beginners.
+Prolog fundamentals or completion of [[file:../prolog/README.org][Prolog for Beginners: Thinking in Relations]]. This book may recap a prerequisite while deriving a symbolic-AI mechanism, but the pure Prolog foundations remain owned by the beginner volume.
 * Learning outcomes
 The reader should be able to explain the core ideas, implement important mechanisms, debug failures, evaluate tradeoffs, and extend the systems built in the major projects.
+* Scope boundary
+This volume owns classical/general symbolic-AI mechanisms in Prolog: meta-interpretation, explicit search/control, planning, semantic knowledge representation, provenance, abduction, explanation, constraints, production/rule engines, and hybrid symbolic composition.
+
+The separately directed =prolog-llms= volume owns the explicit LLM/neuro-symbolic/RLM arc. A canonical =books/prolog-llms= directory is not present on the inspected repository main revision, so this book records the conceptual boundary without adding a broken file link. General symbolic mechanisms are not removed from this book merely because an LLM-oriented volume may reuse them later.
 * Major projects
 - [[id:feb3b263-3d59-562d-bc7b-487c3fdf432e][Meta-Interpreter]] -- Develop increasingly capable interpreters with tracing, control, and explanation.
 - [[id:868dd81e-3d0d-5f7b-bd3c-83a9fba898df][Planner]] -- Model goals, states, and actions relationally and compare planning strategies.
 - [[id:fad84457-f03e-5fa2-b513-d5e6a0e34475][Semantic Knowledge Graph]] -- Represent structured knowledge as relations with provenance and query APIs.
 - [[id:20c5f8d9-0f29-50c2-b98d-5c887fdccc86][Abductive Explanation System]] -- Generate candidate explanations, assumptions, contradictions, and justification traces.
 - [[id:72bc9870-0c97-572e-9c27-5c444141cfc6][Rule/Expert-System Engine]] -- Contrast native Prolog inference with an explicit production-system engine.
-- [[id:dd7637af-b3a4-54bc-aba2-309412a1da1a][Hybrid Symbolic Reasoning System]] -- Capstone combining rules, constraints, planning, explanation, and external integration.
+- [[id:dd7637af-b3a4-54bc-aba2-309412a1da1a][Hybrid Symbolic Reasoning System]] -- Capstone combining rules, constraints, planning, explanation, and controlled external integration.
+* Current implementation slice
+Project 1 milestone A derives a closed rule-as-data meta-interpreter, proof/provenance trees, fresh rule invocation semantics, explicit backtracking, path-local variant cycle detection, and an object-rule budget. See =code/meta-interpreter/= and the opening manuscript chapters.
 * Research
 Record primary-source work under =research/= and bibliography metadata in =references.bib=. Never let version-sensitive prose outrun current documentation.
 * Build
-From repository root: =make book BOOK=symbolic-ai-prolog= and =make check BOOK=symbolic-ai-prolog=. Bootstrap manuscripts are outlines, not release-ready books.
+From repository root: =make book BOOK=symbolic-ai-prolog= and =make check BOOK=symbolic-ai-prolog=. Run =bash books/symbolic-ai-prolog/code/run-tests= for the executable project suite. This remains a long-form work in progress; passing a milestone does not make the book release-ready.
