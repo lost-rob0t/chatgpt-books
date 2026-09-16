@@ -11,7 +11,7 @@ Authority: original OPS5 author / Carnegie-Mellon University primary material.
 URL: https://iiif.library.cmu.edu/file/Newell_box00033_fld02251_doc0001/Newell_box00033_fld02251_doc0001.pdf
 Date: February 1981.
 Inspected material: title/abstract/table of contents covering production-system architecture, working-memory elements, productions, control, pattern matching, conflict resolution, interpreter efficiency, and debugging environment.
-Used by: Chapters 1--7; Project 1 architecture.
+Used by: Chapters 1--10; Project 1 architecture.
 
 ** Forgy 1982 -- RETE
 Authority: original algorithm paper.
@@ -23,8 +23,15 @@ Used by: foundation rationale and later incremental matching/RETE chapters.
 Authority: current official CLIPS documentation.
 URL: https://www.clipsrules.net/documentation/v642/bpg642.pdf
 Version/date: 6.4.2, January 16 2025.
-Inspected material: facts/data abstraction; rules; basic rule-execution cycle; conflict-resolution strategies; LHS/pattern conditional elements; guidance that fact/instance changes participate in pattern matching.
-Used by: Chapters 3--10 and later comparison notes. CLIPS-specific behavior is not silently copied into the teaching engine.
+Inspected material: facts/data abstraction; rules; basic rule-execution cycle; agenda; salience; conflict-resolution strategies; LHS/pattern conditional elements; guidance that fact/instance changes participate in pattern matching. The conflict-resolution section explicitly warns that some ties can be arbitrarily ordered by the implementation.
+Used by: Chapters 3--15 and later comparison notes. CLIPS-specific behavior is not silently copied into the teaching engine.
+
+** CLIPS 6.4 User's Guide, official v6.4.2 distribution
+Authority: official CLIPS documentation, by Joseph C. Giarratano with updates/editorial notes for newer CLIPS versions.
+URL: https://www.clipsrules.net/documentation/v642/ug642.pdf
+Distribution: linked by the official CLIPS documentation site as V6.4.2; retrieved 2026-09-16.
+Inspected material: fact identifiers; default duplicate-fact rejection and =set-fact-duplication= override; activations; salience/conflict resolution; refraction example showing that the same rule/fact activation does not simply fire again and that retracting/reasserting a new fact can reactivate the rule.
+Used by: Chapters 8--10; Project 1 milestone B. The book explicitly distinguishes these documented CLIPS semantics from its own identity, duplicate, ordering, and refraction contracts.
 
 ** systemd.service manual
 Authority: official systemd documentation.
