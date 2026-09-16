@@ -9,7 +9,7 @@ Now we can finally fit a model that uses features.
 
 Regression is the right first step because the mechanism can be derived almost completely with algebra. We do not need to invoke a neural network, a black-box optimizer, or a large framework. We can start with the constant baseline from Chapter 1, add one slope, inspect exactly what least squares is minimizing, and then scale the same idea to several features with scikit-learn.
 
-The teaching task in this chapter is deliberately synthetic: predict a numeric =review_minutes= quantity from three deterministic features of a StarIntel-style document view. The rows are Tier C controls. They do *not* describe real analyst productivity and they do not establish a production model. Their purpose is to make fitting, held-out evaluation, residuals, outliers, and extrapolation observable under a known data-generating process.
+The teaching task in this chapter is deliberately synthetic: predict a numeric =review_minutes= quantity from three deterministic features of a StarIntel-style document view. The rows are Tier C controls. They do *not* describe real analyst productivity and they do not establish a production model. Their purpose is to make fitting, held-out evaluation, residuals, outliers, extrapolation, and coefficient-identifiability failures observable under a known data-generating process.
 
 The rule from the previous chapters still applies:
 
@@ -268,7 +268,35 @@ For multiple features, "inside the range" is more complicated than checking each
 
 *** 11. Coefficients are not automatic explanations
 
-Because a linear model exposes coefficients, it is tempting to read them as causal effects:
+**** Duplicate predictors can destroy coefficient identifiability
+:PROPERTIES:
+:ID:       7e8ae345-5bd3-4ab1-8d74-e9ad77abec8f
+:END:
+
+There is a second reason to distrust a coefficient-by-coefficient story even before causality enters the picture: the design matrix may not contain enough independent information to identify every coefficient separately.
+
+Take the fitted model and add a fourth column that is an exact copy of =token_count=. Call its two coefficients \(b_t\) and \(b_d\). Their contribution is
+
+\[
+b_t x + b_d x = (b_t+b_d)x.
+\]
+
+Predictions depend on the *sum*. If one solution changes \(b_t\) by \(+c\) and \(b_d\) by \(-c\), the prediction is unchanged for every row. The data therefore cannot tell those two individual coefficients apart.
+
+The Chapter 6 failure probe does exactly this after the normal fit. It refits the same training targets with =token_count= duplicated, while leaving the original model and held-out rows untouched. Current scikit-learn documentation exposes the rank and singular values of the dense training matrix through =LinearRegression.rank_= and =LinearRegression.singular_= [cite:@sklearn2026linearregression]. The report records both designs rather than guessing from coefficient magnitudes.
+
+The executable acceptance condition is intentionally structural:
+
+- the original three-column training design must have full column rank on this frozen control;
+- the four-column duplicated design must have rank smaller than its feature count;
+- predictions from the base and duplicated designs must agree within a declared floating-point tolerance on the same held-out rows;
+- the two duplicated =token_count= coefficients must sum to the original =token_count= coefficient within tolerance.
+
+We do *not* require a particular split between the two duplicate coefficients. A least-squares solver can choose one representative among multiple coefficient vectors that produce the same predictions. The individual values are not separately identified by these data.
+
+This is stronger than saying "correlated features can be confusing." Exact duplication gives us a case we can prove. Near-collinearity is the messier real-world version: coefficients may become highly sensitive to small changes even when predictive behavior moves much less. That broader stability question needs its own experiment before we attach measured claims to it.
+
+Now consider the more familiar interpretability trap. Because a linear model exposes coefficients, it is tempting to read them as causal effects:
 
 #+begin_example
 relation_count coefficient = 2.4
@@ -295,6 +323,7 @@ The library does *not* know:
 - whether a target is ethically or operationally appropriate;
 - whether the held-out groups resemble the population where the model will be used;
 - whether an extrapolation is safe;
+- whether a coefficient is identifiable from the supplied design;
 - whether a coefficient should be interpreted causally;
 - whether a smaller RMSE is worth the operational complexity.
 
@@ -320,7 +349,7 @@ artifacts/chapter06/chapter-06-predicted-vs-actual.svg
 artifacts/chapter06/chapter-06-residuals.svg
 #+end_example
 
-The JSON report records exact train/test record IDs, train/test group IDs, baseline metrics, fitted OLS parameters, held-out metrics, residuals, the outlier failure injection, and the extrapolation probe.
+The JSON report records exact train/test record IDs, train/test group IDs, baseline metrics, fitted OLS parameters, held-out metrics, residuals, the outlier failure injection, the extrapolation probe, and the duplicate-predictor rank-deficiency probe.
 
 The artifacts are evidence for this deterministic control. They are not benchmark evidence for production StarIntel workloads.
 
@@ -337,7 +366,8 @@ When a regression model looks suspicious, use this order before changing model f
 7. Plot residuals and identify which rows dominate error.
 8. Check whether test examples are outside the observed training support.
 9. Check for duplicated or highly dependent records that escaped the split contract.
-10. Only after those checks decide whether the model form is too simple.
+10. Check whether predictors are duplicate or linearly dependent before interpreting individual coefficients.
+11. Only after those checks decide whether the model form is too simple.
 
 This sequence is intentionally boring. Boring diagnostics are cheaper than discovering after deployment that a fancy model learned a broken table.
 
@@ -352,7 +382,8 @@ The Chapter 6 code is designed to establish a bounded set of facts once its focu
 - test-target mutation cannot change training-fitted coefficients;
 - OLS beats the training-mean baseline on the deliberately linear frozen control;
 - one injected large error affects RMSE more strongly than MAE in the frozen failure case;
-- an out-of-range prediction is explicitly labeled as an unscored extrapolation probe.
+- an out-of-range prediction is explicitly labeled as an unscored extrapolation probe;
+- an exact duplicate predictor makes the augmented dense design rank-deficient while leaving the held-out prediction vector equivalent within the tested tolerance.
 
 It does *not* prove:
 
@@ -361,6 +392,7 @@ It does *not* prove:
 - that the fixture metrics estimate production quality;
 - that OLS is the best model for later StarIntel tasks;
 - that coefficient signs are causal explanations;
+- that near-collinear real-world features will have a particular coefficient-instability magnitude;
 - that the model is robust to arbitrary outliers or distribution shift;
 - that any production integration, throughput, or deployment behavior has been tested.
 
@@ -407,12 +439,16 @@ Add a helper that reports, for every test row, whether each feature lies outside
 
 Extend the report so every metric carries the target name, target unit, split identifier, model identifier, and record-ID list used to compute it. Treat this metadata as part of the result rather than display decoration.
 
+**** ★ Break coefficient identifiability
+
+Duplicate one predictor exactly and derive why only the sum of its two coefficients affects predictions. Inspect =rank_= and =singular_= for the original and augmented dense designs, then verify that the held-out predictions remain equivalent within an explicit tolerance. Do not assert that the solver must split the coefficient in any particular ratio.
+
 **** ★ Beyond ordinary least squares
 
 Research ridge regression from an authoritative source and explain what term it adds to the least-squares objective. Do not add it to the project until you can state what problem the penalty is intended to address and how its strength would be selected without test-set tuning.
 
 *** Checkpoint
 
-You should now be able to explain regression without saying "the library learns a line." You can derive the one-feature fit, identify what is fitted, preserve the evaluation boundary, compare a learned model with a training-only baseline, compute and interpret several error metrics, inspect residuals, inject a controlled failure, and recognize that an extrapolated prediction is not evidence of extrapolated validity.
+You should now be able to explain regression without saying "the library learns a line." You can derive the one-feature fit, identify what is fitted, preserve the evaluation boundary, compare a learned model with a training-only baseline, compute and interpret several error metrics, inspect residuals, inject controlled failures, recognize that an extrapolated prediction is not evidence of extrapolated validity, and detect a rank-deficient design before treating individual coefficients as explanations.
 
 Chapter 7 will turn the supervised-learning machinery toward classification, where the output is discrete but the same experimental discipline remains mandatory.
