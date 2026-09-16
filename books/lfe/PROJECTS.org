@@ -10,16 +10,16 @@
 Purpose: Design, macro-expand, test, and document a useful domain-specific language.
 Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
 Prerequisites: staged from Chapters 1--7 and revisited in Chapter 16.
-Relevant chapters: Chapters 1--3 define the semantic kernel as data/patterns/recursion; Chapters 6--7 introduce and audit the macro surface; Chapter 16 evaluates the resulting DSL as a language design.
+Relevant chapters: Chapters 1--3 define the semantic kernel as data/patterns/recursion; Chapters 4--5 make the function/data interface explicit; Chapters 6--7 add and audit the macro surface; Chapter 16 evaluates the resulting DSL as a language design.
 Architecture: keep the semantic routing kernel explicit and independently testable; macros are a source layer, not a replacement runtime. Split domain logic, interfaces, tests, and later operational boundaries rather than one monolith.
 Implementation language/tooling: LFE compiled to BEAM; dependencies and LFE release are pinned/reproducible in the executable book gate.
 External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
-Tests: unit/scenario regressions plus direct Erlang-to-LFE interoperability at the real BEAM module boundary; macro-expansion tests are added only when macro work begins.
-Failure scenarios: malformed event, malformed rule, no matching route, order-dependent shadowing, missing recursive base case; later macro stages add invalid syntax/expansion failures.
-Visuals: event/rule execution-flow figure now; macro-expansion and later runtime figures as those stages land.
+Tests: unit/scenario regressions plus direct Erlang-to-LFE interoperability at the real BEAM module boundary; macro work adds one-step expansion equality, a separate compiled macro consumer, deliberate non-hygienic capture evidence, and a compile-failure fixture for unsupported DSL syntax.
+Failure scenarios: malformed event, malformed rule, no matching route, order-dependent shadowing, missing recursive base case, invalid macro syntax/expansion, and variable capture in deliberately unsafe teaching macros.
+Visuals: event/rule execution-flow figure plus macro-expansion/runtime-boundary figure; later runtime figures as those stages land.
 Research requirements: verify version-sensitive APIs and macro behavior from primary LFE/Erlang sources before implementation.
 Expected deliverable: runnable implementation, tests, design/research notes, diagrams, exercises, and an exportable project chapter.
-Current staged kernel: *Event Routing DSL*. Rules are ordinary BEAM tuples and an ordered list before any macro sugar exists. This is intentional: later macro expansion must preserve semantics already visible in the data-first kernel.
+Current staged implementation: *Event Routing DSL*. The runtime kernel remains ordered BEAM tuples consumed by =event-rules:route/2=. The =event-rules-dsl:routes= exported macro is now a compile-time source layer that expands accepted clauses to that same explicit rule data and rejects unsupported syntax. It intentionally introduces no runtime bindings; the regression suite contains a separate unsafe macro solely to demonstrate LFE's documented non-hygienic capture behavior.
 
 ** Project 2 -- Actor Application
 :PROPERTIES:
