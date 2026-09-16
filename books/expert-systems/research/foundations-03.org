@@ -1,0 +1,119 @@
+#+title: Expert Systems Foundations Research -- Incremental Alpha/Beta Matching
+:PROPERTIES:
+:ID:       60b05bee-b580-44ce-88cb-f5ef59492d5f
+:END:
+
+* Scope
+This record supports Project 1 milestone C: incremental maintenance of the already-accepted positive-pattern matching semantics using explicit alpha memories, beta tokens/memories, join nodes, production nodes, assertion propagation, and retraction invalidation.
+
+Retrieval date for current web documentation: 2026-09-16.
+
+The complete-rematch engine from milestone B remains the semantic oracle. This record does not authorize performance claims, truth maintenance, negative/existential conditions, uncertainty, persistence, externally side-effecting actions, or claims that the teaching topology is identical to CLIPS internals.
+
+* Source-backed architecture
+** DOCUMENTED -- Forgy 1982 defines the target as many-pattern/many-object matching
+Charles L. Forgy's 1982 paper is the primary bibliographic source for RETE: /Rete: A Fast Algorithm for the Many Pattern/Many Object Pattern Match Problem/, /Artificial Intelligence/ 19(1), 17--37, DOI 10.1016/0004-3702(82)90020-0 [cite:@forgy1982rete]. The title and publication record establish the algorithmic problem and RETE lineage used by Chapters 11--15.
+
+This milestone does not copy an uninspected pseudo-code transcription or import benchmark numbers from the paper. Its executable topology is derived from the course's own matcher semantics and is labelled RETE-like where simplified.
+
+** DOCUMENTED -- current CLIPS 6.4.2 constructs a rule pattern network and retains partial rule state
+The official CLIPS 6.4.2 Basic Programming Guide is current primary implementation documentation for the maintained CLIPS line [cite:@clips642bpg]. Appendix D.1, “Ordering of Patterns on the LHS,” states that before execution each rule is loaded and a network of LHS patterns is constructed. Reactive facts/instances are filtered through the pattern network; matches partially instantiate rules; sequential patterns consider variable bindings from top to bottom; when bindings for all patterns satisfy their constraints, the rule is activated and placed on the agenda.
+
+The same appendix says local filtering is the basic pattern-matching path and identifies cross-pattern variable comparisons as an important cost driver. It also discusses how many occurrences of a pattern can create many partial instantiations. These are appropriate current-documentation anchors for teaching local alpha-like filtering followed by binding-compatible partial joins.
+
+CLIPS terminology/behavior is used as corroboration, not copied semantics. In particular, milestone C does not claim its per-production alpha-memory ownership, token representation, node sharing policy, or cache layout matches CLIPS.
+
+* Derived milestone-C semantic contract
+** The old engine remains authoritative for observable results
+For the supported positive-condition subset, =build-agenda= remains the semantic oracle. After each controlled assertion/retraction/reassertion transition, milestone C compares ordered =activation-key= values from =build-agenda= and =incremental-agenda=.
+
+The observable contract being preserved includes:
+- stable production ID;
+- ordered bindings;
+- ordered support fact IDs;
+- support occurrence stamps;
+- occurrence-derived recency;
+- the milestone-B structural-specificity score;
+- refraction filtering;
+- deterministic activation ordering.
+
+Passing bounded equivalence tests is evidence for those tested histories, not a proof for all possible programs.
+
+** Alpha memory
+An alpha memory belongs to one production condition in this milestone. When a =wm-entry= occurrence arrives, =match-condition= is evaluated under empty bindings. A successful =alpha-item= stores the exact =wm-entry= plus the condition-local bindings.
+
+Identical local tests are not shared across productions yet. That is a deliberate teaching simplification: it makes ownership/retraction inspection obvious before network-sharing optimization is introduced.
+
+** Beta root and partial tokens
+Each production has =beta[0]= containing one empty token. A token records:
+- ordered bindings accumulated so far;
+- ordered supporting stable fact IDs;
+- ordered support occurrence stamps.
+
+A join merges an existing left token's bindings with one alpha item's local bindings using the existing milestone-A =extend-binding= consistency rule. Compatible results append the alpha occurrence to the token and enter the next beta memory.
+
+The empty beta token preserves the complete matcher's declared zero-condition behavior: an empty condition list has one empty match/activation candidate.
+
+** Assertion propagation
+When a new alpha item appears at condition index =i=, it joins every retained token in =beta[i]=. Every newly created right token recursively joins already-retained alpha items farther right.
+
+Conversely, when a new left token reaches depth =i=, it joins every retained alpha item for condition =i=. This handles new evidence arriving for either earlier or later conditions without a full production rematch.
+
+** Retraction invalidation
+Retraction captures the exact =wm-entry= before removing it from working memory. The network then removes:
+- alpha items owning that exact entry;
+- every beta token at depth > 0 whose support stamps contain the exact =(stable-id . assertion-sequence)= pair.
+
+This invalidates cached matches. It intentionally does *not* retract already-derived working-memory facts whose prior firings depended on the removed support. That known stale-derived-fact failure is the truth-maintenance dependency for the next reasoning milestone.
+
+** Cache-reference soundness is not cache completeness
+Milestone C now makes one internal debugging invariant executable: =incremental-cache-references-current-p= checks that every retained alpha item still names the exact current =wm-entry= for its stable fact ID and that every beta support stamp still resolves to a current occurrence with the same assertion sequence.
+
+That predicate is deliberately one-way. A direct call to the underlying milestone-B =assert-fact= can bypass the incremental delta interface, leaving all old cached references valid while the network is missing matches for the new occurrence. Therefore cache-reference checking does not replace oracle equivalence. The regression suite deliberately creates this ownership failure, requires oracle/incremental agenda disagreement, rebuilds the network from working memory, and then requires equivalence again.
+
+This distinction supports two different debugging questions:
+- /stale reference/: did invalidation fail to remove cache state whose support disappeared?
+- /missed delta/: did working memory change without the incremental index seeing the new occurrence?
+
+Neither property is a truth-maintenance guarantee for already-derived facts.
+
+** Batch assertion and failed-firing boundaries
+=incremental-assert-facts= delegates whole-batch validation/mutation to the accepted milestone-B working-memory operation before propagating the returned new occurrences one at a time. The bounded regression requires ordered new occurrence sequences, oracle-equivalent agenda state, and current cache references after a two-fact batch creates one complete join.
+
+=incremental-fire-activation= delegates the actual rule action validation, working-memory commit, refraction mark, and firing-record append to =fire-activation= before propagating newly committed occurrences. A regression intentionally uses an action that returns a non-=fact= value and requires the validation error to leave working memory, firing history, refraction, and the incremental cache unchanged. This is course-local executable semantics; it is not an external transaction or side-effect guarantee.
+
+** Production node and agenda
+The terminal beta memory is attached to a production node. Complete tokens are converted into the same =activation= structure as the complete-rematch engine. =incremental-agenda= uses the existing engine refraction set and =activation-precedes-p= comparator rather than defining a second conflict policy.
+
+** Firing boundary
+=incremental-fire-activation= delegates committing proposed facts, refraction, and firing-record creation to milestone B's =fire-activation=. It records the working-memory sequence before the firing, then propagates only current entries whose sequences are newer afterwards. This avoids duplicating the firing implementation while preserving the monotonic-occurrence contract.
+
+* Required regression cases
+- initial seeded incremental agenda equals complete-rematch ordered activation keys;
+- cached alpha/beta references resolve to current working-memory occurrences after seeding and legal deltas;
+- known local alpha-memory counts are inspectable on the synthetic service fixture;
+- final beta token preserves condition-ordered fact IDs and support occurrence stamps;
+- assertion of a previously missing second-condition fact creates the same activation as complete rematching;
+- a validated two-fact batch propagates both occurrences and produces the oracle-equivalent joined activation;
+- retraction removes dependent cached activation state and agrees with the oracle;
+- reassertion of the same stable fact ID gets a new sequence and new activation support stamp;
+- bypassing the incremental mutation API is demonstrably capable of preserving current cache references while breaking agenda completeness, and rebuilding restores equivalence;
+- invalid rule-action output fails before working memory, refraction, firing history, or incremental cache state changes;
+- one fact occurrence may satisfy two condition positions, matching milestone-A semantics;
+- empty-LHS production keeps one empty activation candidate;
+- firing the first service rule incrementally propagates its derived occurrence and creates the same downstream agenda as complete rematching;
+- separate complete-rematch and incremental engines agree on stop status, firing count/order, and final working-memory stable IDs for the two-step synthetic service scenario.
+
+* Explicit limitations
+- positive conditions only;
+- fixed production set after network construction;
+- no shared common-condition nodes across productions;
+- no negative/existential/universal/test/logical conditional elements;
+- no truth maintenance for derived facts;
+- no contradiction or uncertainty model;
+- no external side-effect transaction semantics;
+- no persistence/concurrency protocol;
+- no benchmark, throughput, latency, allocation, asymptotic, or production-scale performance claim.
+
+* Next dependency
+After this milestone is editorially accepted and exact-head tests/builds are green, the next reasoning dependency is truth maintenance: stable justification identity, support dependency edges, cascading removal of unsupported derived facts, and explanation queries. TREAT and alternative match algorithms remain a comparative architecture topic unless separately implemented and verified.

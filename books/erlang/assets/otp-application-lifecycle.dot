@@ -1,0 +1,22 @@
+digraph otp_application_lifecycle {
+  graph [rankdir=LR, bgcolor="transparent", pad="0.2", nodesep="0.45", ranksep="0.75"];
+  node [shape=box, fontname="sans-serif", fontsize=11];
+  edge [fontname="sans-serif", fontsize=10];
+
+  caller [label="caller / boot logic"];
+  controller [label="application_controller\nloaded/running metadata", shape=box3d];
+  master [label="application master\nprocess ownership", shape=component];
+  callback [label="otp_worker_app\nstart/2 + stop/1"];
+  supervisor [label="otp_worker_sup\nrestart policy", shape=folder];
+  worker [label="otp_worker\ngen_server state"];
+
+  caller -> controller [label="load / start / stop"];
+  controller -> master [label="create for start"];
+  master -> callback [label="start(normal, [])"];
+  callback -> supervisor [label="start_link"];
+  supervisor -> worker [label="child spec / link"];
+
+  worker -> supervisor [label="child exit", style=dashed];
+  supervisor -> master [label="top supervisor exit", style=dashed];
+  master -> callback [label="stop(State) after tree shutdown", style=dashed];
+}
