@@ -6,6 +6,8 @@
 
 * Part I -- Foundations
 
+#+include: "chapter-01.org"
+
 #+include: "chapter-02.org"
 
 #+include: "chapter-03.org"

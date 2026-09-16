@@ -1,0 +1,90 @@
+#+title: Machine Learning for StarIntel -- Foundational Research Pass 17
+#+date: 2026-09-16
+
+* Status
+DOCUMENTED / IMPLEMENTED / VERIFICATION PENDING.
+
+This pass introduces a reader-facing Chapter 1 and a cohesive Project 1 report interface over mechanisms already implemented and evidenced by passes 03--16. It introduces no new production benchmark, no new factual GLEIF relationship claim, and no StarIntel runtime implementation.
+
+* Research question
+Can a beginner enter the book through a first-principles definition of fitted state and one coherent Project 1 command, while preserving the existing evidence boundaries instead of exposing the historical research harness as the reader experience?
+
+* Current source recheck
+Read-only upstream recheck on 2026-09-16:
+- repository: =lost-rob0t/starintel-server=;
+- current inspected master revision: =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=;
+- =schema/starintel-schema.lock.json= still reports =release_version: "0.9.1"= and =schema_version: "0.9.0"=;
+- the canonical schema path remains =schemas/starintel-doc-v0.9.0.schema.json=.
+
+No StarIntel product repository was modified.
+
+* Chapter 1 design
+Chapter 1 now derives the smallest fitted model used by the book: a constant regressor under squared error. The text proves algebraically that the training mean minimizes the sum of squared residuals, then uses that model to distinguish:
+- deterministic policy from fitted statistical state;
+- training from evaluation;
+- prediction contracts from model architecture;
+- baselines from production claims;
+- evidence-bearing StarIntel contracts from ML-side experiment views.
+
+The executable =chapter01_constant_baseline.py= mirrors that derivation without a framework dependency. Its tests are part of the focused book workflow in this pass; until those checks execute, the implementation remains VERIFICATION PENDING rather than TESTED.
+
+* Reader-facing Project 1 interface
+The new =project1.py= composes the established mechanisms into a single bounded report:
+1. verify/materialize the exact pinned StarIntel schema;
+2. verify the complete committed Python version lock against the live environment;
+3. execute and summarize the frozen Tier B GLEIF provenance/canonical-validation checkpoint;
+4. exercise the factual strict-cutoff split and the expected infeasible opt-in graph-grouping case;
+5. execute the Tier C near-duplicate candidate contract against its exact all-pairs oracle.
+
+The resulting =project-01-reader-report.json= deliberately summarizes evidence instead of copying the full source/canonical records. The detailed artifacts and historical failures remain in =research-harness/=.
+
+The report may be run with network access to materialize the exact pinned schema when its cache is absent. =--offline= refuses that fetch and requires the verified cache to exist.
+
+* Green invariants
+The reader report is allowed to report =TESTED= only when all of these bounded invariants are true:
+- the live dependency set equals the committed lock;
+- the pinned schema identity verifies;
+- the frozen factual provenance round trip and canonical validation pass;
+- the default factual split has no declared contamination;
+- the selected opt-in graph grouping fails closed when its component straddles the cutoff;
+- Tier C candidate recall against the exact oracle is 1.0;
+- exact-verified duplicate components equal the all-pairs oracle components;
+- candidate/source output is stable under the tested input permutation.
+
+This is a local status for the report execution, not editorial approval of the book or Project 1.
+
+* Diagram
+An editable Graphviz diagram now makes the book's central boundary visible:
+
+#+begin_example
+source evidence
+  -> canonical documents
+  -> experiment contract
+  -> admissibility checks
+  -> stable split IDs
+  -> training-only fitted state
+  -> evaluation/failure analysis
+#+end_example
+
+The feedback edge goes back to the experiment contract: a failed evaluation can justify changing the research question, but it does not justify rewriting historical evidence.
+
+* Claim boundaries
+- No new GLEIF factual observation is created.
+- No new benchmark result is introduced by this pass.
+- No production model is trained or claimed.
+- The Tier C duplicate-control result remains fixture-scoped.
+- Current StarIntel persistence/routing/actor/search/queue/storage behavior remains outside the book project implementation.
+- The version lock remains a version-equality contract for the named environment, not an artifact-hash/cross-platform guarantee.
+- Editor-in-Chief approval remains a later gate; worker verification cannot self-certify APPROVED or DONE.
+
+* Verification plan
+The focused workflow must execute:
+- the existing dependency-lock and research-harness suites;
+- =test_chapter01_constant_baseline.py=;
+- =test_project1.py=;
+- =project1.py --offline= after schema materialization;
+- all previously frozen Project 1 experiment runners and the public/control benchmark;
+- =make book BOOK=ml-starintel=;
+- =make check BOOK=ml-starintel=.
+
+Generic repository publication CI remains independently required. Shared publishing infrastructure is not changed by this pass, so no new repository-wide Nix claim is introduced merely by these book-local edits.

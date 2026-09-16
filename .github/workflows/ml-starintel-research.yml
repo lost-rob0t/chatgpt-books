@@ -14,6 +14,7 @@ jobs:
   project1-foundations:
     runs-on: ubuntu-latest
     env:
+      PROJECT1: books/ml-starintel/projects/project-01-investigation-dataset-pipeline
       RESEARCH_HARNESS: books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness
       RESEARCH_PYTHON: ${{ github.workspace }}/.venv/bin/python
     steps:
@@ -73,6 +74,16 @@ jobs:
           "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_composite_planner_diagnostic.py"
           "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_candidate_experiment.py"
 
+      - name: Run reader-facing Project 1 checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PROJECT1"
+          "$RESEARCH_PYTHON" -m unittest -v \
+            test_chapter01_constant_baseline.py \
+            test_project1.py
+          "$RESEARCH_PYTHON" project1.py --offline
+
       - name: Run predeclared larger public-corpus candidate benchmark
         shell: bash
         run: |
@@ -90,7 +101,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y curl unzip default-jre-headless
+          sudo apt-get install -y curl unzip default-jre-headless graphviz
           curl --fail --location --retry 3 \
             --output pandoc.deb \
             https://github.com/jgm/pandoc/releases/download/3.10.1/pandoc-3.10.1-1-amd64.deb
@@ -101,6 +112,7 @@ jobs:
           unzip -q epubcheck.zip -d .cache
           pandoc --version | head -1
           java -jar .cache/epubcheck-5.3.0/epubcheck.jar --version
+          dot -Tsvg books/ml-starintel/assets/project-01-boundary.dot >/dev/null
 
       - name: Build and validate ML-StarIntel book
         shell: bash
@@ -116,6 +128,7 @@ jobs:
         with:
           name: ml-starintel-project1-research-results
           path: |
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/artifacts/project-01-reader-report.json
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/experiments.json
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/fixture-experiment.json
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-sample-acquisition.json
