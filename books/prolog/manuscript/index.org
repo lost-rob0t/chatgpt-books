@@ -7,3 +7,4 @@
 #+include: "foundation.inc" :lines "7-"
 #+include: "chapter-04-06-search-recursion-lists.org"
 #+include: "chapter-07-arithmetic.org"
+#+include: "chapter-08-cut.org"

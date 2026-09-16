@@ -9,10 +9,11 @@ This directory is the executable Project 1 system from [[file:../../PROJECTS.org
 The dataset is synthetic and intentionally small enough to inspect by eye.
 
 * Files
-- =community.pl= :: facts, relational queries, cycle-safe simple-path traversal, and the Chapter 7 hop-count arithmetic layer.
+- =community.pl= :: facts, relational queries, cycle-safe simple-path traversal, the Chapter 7 hop-count arithmetic layer, and the Chapter 8 explicitly committed cut wrappers.
 - =test_community.pl= :: PL-Unit regressions for the foundational relation/unification contract.
 - =test_search.pl= :: PL-Unit regressions for backtracking, lists, paths, cycle handling, and explicit first-answer commitment.
 - =test_arithmetic.pl= :: PL-Unit regressions for path-hop evaluation, complete path/count answer sets, hop-limit filtering, and the low-level arithmetic instantiation boundary.
+- =test_cut.pl= :: Chapter 8 regressions for direct-cut commitment, complete underlying answer sets, qualify-before-cut placement, the deliberate premature-cut failure, non-optimal first answers, and cut scope through a caller.
 
 * Run
 From the repository root:
@@ -31,18 +32,23 @@ The runner prints the installed SWI-Prolog version before executing the tests. A
 - Shared variables across goals constrain those goals to one consistent term.
 - =unify_with_occurs_check/2= is exercised as the explicit sound-unification boundary.
 - =connection_path/3= enumerates simple directed paths with branch-local visited state rather than silently committing to one proof.
-- =first_connection_path/3= is the deliberately named first-answer policy boundary.
-
-* Chapter 7 draft contract
-Issue #84 adds a narrow arithmetic layer without changing the accepted path relation.
-
+- =first_connection_path/3= is the deliberately named =once/1=-based first-answer policy boundary.
 - =path_hops(+Path,-Hops)= counts edges in a finite proper non-empty path in the documented forward mode.
 - =connection_with_hops/4= preserves the underlying path relation's multiplicity and annotates each proof with a count.
 - =connection_within_hops(+Start,+Goal,+Limit,-Path,-Hops)= applies a ground numeric limit after proving and counting a path.
-- The implementation deliberately uses ordinary =is/2= and arithmetic comparison so Chapter 7 can teach their evaluation/mode boundary before later CLP(FD) chapters.
-- This milestone does not implement shortest-path search, optimization, cut, negation, DCGs, or CLP(FD).
+- Chapter 7 deliberately uses ordinary =is/2= and arithmetic comparison so the evaluation/mode boundary is visible before later CLP(FD) chapters.
+- The Chapter 7 arithmetic milestone was Editor-in-Chief APPROVED and merged through PR #85; its path/hop layer remains base behavior for the Chapter 8 work.
 
-The Chapter 7 code is a worker draft until actual SWI-Prolog tests and publication checks pass and the Editor-in-Chief accepts the bounded milestone.
+* Chapter 8 draft contract
+Issue #86 adds explicit direct-cut wrappers without changing the accepted multi-answer path/filter relations.
+
+- =first_connection_path_cut/3= exposes the first =connection_path/3= proof using raw =!/0= so the chapter can compare direct cut with the accepted =once/1= wrapper.
+- =first_connection_within_hops(+Start,+Goal,+Limit,-Path,-Hops)= commits only after =connection_within_hops/5= has proved that a candidate satisfies the limit.
+- “First” means first in the current Prolog search order. It is not shortest-path, best-path, planning, or optimization semantics.
+- The test-local =premature_cut_connection_within_hops/5= deliberately cuts before the hop-limit test. Its tested failure demonstrates how a later failing goal can expose an incorrectly placed commitment.
+- The new suite also checks that a cut inside a called wrapper does not erase a caller's later clause, keeping the scope boundary concrete.
+
+The Chapter 8 implementation is a TESTED worker draft: corrected head =906a261f01c7265c5953084183e97f6850f3e157= passed the actual SWI-Prolog, book/check, EPUB, Nix, and generic repository CI gates. It still requires Editor-in-Chief review and approval before merge.
 
 * Failure labs
 Work on temporary copies and introduce exactly one defect at a time. Record prediction, observed result, explanation, and fix; do not keep the broken change.
@@ -53,9 +59,11 @@ Work on temporary copies and introduce exactly one defect at a time. Record pred
 4. Remove the visited-state check from path traversal and protect any cycle experiment with an explicit resource bound.
 5. Move =Hops is TailHops + 1= before the recursive =path_hops/2= call and classify the insufficient-instantiation failure.
 6. Replace the hop-limit comparison with a unification goal and explain why term matching does not implement numeric ordering.
+7. In a temporary helper, place =!= immediately after =connection_with_hops/4= and before =Hops =< Limit=. Use =ada -> sam= with limit 3 to explain why later valid paths become unreachable.
 
 * Planned evolution
-- cut and negation are taught only after the relation/control contracts are explicit;
+- Chapter 8 derives raw cut from the already-visible choice points and keeps commitment at named interface boundaries;
+- negation is taught only after the cut/control contract is explicit;
 - modules split data, query logic, and interfaces once the module chapter establishes the semantics;
 - DCGs begin Project 2 as a real parser rather than changing Project 1 into a syntax exercise;
 - constraints/CLP(FD) later introduce genuinely relational integer problems in Project 3;

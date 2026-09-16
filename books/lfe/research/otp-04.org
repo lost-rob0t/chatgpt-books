@@ -1,0 +1,243 @@
+#+title: LFE OTP Behaviour and Supervision Research Pass 04
+:PROPERTIES:
+:ID:       03d78b50-4323-4c71-9db8-e39a45dbe200
+:END:
+
+* Scope and claim status
+Retrieval date: 2026-09-16.
+
+This pass supports Chapters 11--12 and Project 3 checkpoint A. It starts from
+the already-accepted raw Actor Router and asks what OTP actually standardizes,
+what remains callback-module policy, and what supervision can and cannot
+recover.
+
+- DOCUMENTED :: inspected in current official Erlang/OTP documentation or the
+  tagged LFE v2.2.2 implementation/examples.
+- TESTED :: executed by this repository at an exact recorded branch head.
+- UNTESTED :: drafted implementation or claim not yet through its executable
+  gate.
+- FAILED :: an executable attempt failed; preserve the failure before
+  correction rather than rewriting history.
+
+At the start of this pass, all new Project 3 implementation claims were
+UNTESTED. The current-documentation baseline is Erlang/OTP 29.0.6 while the
+executable workflow records the actual runner OTP independently.
+
+* DOCUMENTED -- LFE implements the ordinary gen_server callback contract
+The official LFE v2.2.2 =examples/ping-pong.lfe= declares
+=(behaviour gen_server)=, calls =gen_server:start_link= and =gen_server:call=
+directly, and exports the ordinary callbacks =init/1=, =handle_call/3=,
+=handle_cast/2=, =handle_info/2=, =terminate/2=, and =code_change/3=.
+
+Source:
+https://github.com/lfe/lfe/blob/v2.2.2/examples/ping-pong.lfe
+
+Teaching consequence: Project 3 must not invent an LFE-specific OTP layer. An
+LFE callback module and an Erlang callback module participate in the same
+=gen_server= contract. Lisp changes how we express the callback logic, not the
+runtime meaning of the behaviour.
+
+* DOCUMENTED -- gen_server separates a generic loop from callback policy
+Current Erlang/OTP 29.0.6 =gen_server= documentation maps the generic API onto
+callback functions: start functions invoke =init/1=; calls invoke
+=handle_call/3=; casts invoke =handle_cast/2=; ordinary unmatched messages are
+given to =handle_info/2=. The generic process also handles OTP system messages,
+which is why standard =sys= debugging/introspection functions work with a
+=gen_server=.
+
+Source:
+https://www.erlang.org/doc/apps/stdlib/gen_server.html
+
+Teaching consequence: the raw Actor Router's explicit receive loop was not
+"wrong." It exposed protocol mechanics. Project 3 now factors the same kind of
+state transition into an OTP-owned generic loop plus project-owned callbacks.
+That refactor is the concept being taught.
+
+* DOCUMENTED -- start_link establishes the supervision relationship
+The current =gen_server:start_link/3,4= contract creates the server linked to
+the caller and explicitly describes the function as suitable for starting a
+server in a supervision tree. Startup is synchronized with =init/1=.
+
+Source:
+https://www.erlang.org/doc/apps/stdlib/gen_server.html
+
+Project consequence: the supervisor child specification starts
+=otp-router:start_link/1=. The child does not secretly register itself with a
+custom actor runtime; ordinary OTP link/start semantics are the ownership
+boundary.
+
+* DOCUMENTED -- call timeout is not the raw Actor Router timeout contract
+=gen_server:call/3= waits synchronously for a reply and exits the caller when
+its timeout expires. Current documentation also records that modern
+implementations use process aliases to prevent the old pre-OTP-24 late-reply
+mailbox pollution problem for ordinary calls. That is still not equivalent to
+remote cancellation: a timeout tells us the call did not complete for the
+caller within the chosen time budget.
+
+Source:
+https://www.erlang.org/doc/apps/stdlib/gen_server.html
+
+Teaching consequence: Project 2 returned =#(error timeout)= because *its own*
+client helper defined that API. Project 3 deliberately exposes the standard
+=gen_server:call/3= exit contract instead of pretending both APIs have
+identical failure surfaces.
+
+* DOCUMENTED -- callback failures terminate the server process
+The current =gen_server= manual states that callback failure or an invalid
+callback return terminates the =gen_server= process. It also notes that a
+=gen_server= does not trap exits automatically.
+
+Source:
+https://www.erlang.org/doc/apps/stdlib/gen_server.html
+
+Teaching consequence: Project 3's =#(crash Reason)= cast is a test-only failure
+injection. It terminates the worker so the supervisor can demonstrate policy.
+Normal domain rejections remain tagged values returned from =handle_call/3=;
+the project does not turn every bad request into a crash.
+
+* DOCUMENTED -- supervisors own lifecycle policy, not business state
+Current Erlang/OTP 29.0.6 supervisor documentation defines a supervisor as a
+process that starts, stops, and monitors child processes. Child specifications
+declare start, restart, shutdown, type, and module metadata. Supervisor flags
+declare restart strategy and restart intensity.
+
+Sources:
+- https://www.erlang.org/doc/apps/stdlib/supervisor.html
+- https://www.erlang.org/doc/system/sup_princ.html
+
+Teaching consequence: the book keeps the rule-routing semantic kernel out of
+the supervisor. The supervisor decides whether and when to replace a failed
+worker; the worker callback owns its process-local rules state.
+
+* DOCUMENTED -- one_for_one limits the restart blast radius
+For =one_for_one=, current supervisor documentation states that when one child
+terminates and is to be restarted, only that child is affected.
+
+Sources:
+- https://www.erlang.org/doc/apps/stdlib/supervisor.html
+- https://www.erlang.org/doc/system/sup_princ.html
+
+Project consequence: checkpoint A uses one worker, so =one_for_one= is both
+simple and honest. Later projects with multiple dependent workers will have
+enough structure to justify comparing =one_for_all= and =rest_for_one= rather
+than choosing strategies by slogan.
+
+* DOCUMENTED -- restart intensity bounds restart loops
+With supervisor flags =intensity = MaxR= and =period = MaxT=, more than
+=MaxR= restarts inside =MaxT= seconds causes the supervisor to terminate its
+children and then itself with reason =shutdown=. Current defaults are intensity
+1 and period 5, but Project 3 specifies its own values explicitly.
+
+Source:
+https://www.erlang.org/doc/apps/stdlib/supervisor.html
+
+Project consequence: the executable failure lab starts a supervisor with a
+small test budget, crashes the worker twice inside the period, and requires the
+supervisor itself to terminate. This demonstrates that "supervised" does not
+mean "restart forever."
+
+* DOCUMENTED -- restart is not state recovery
+A supervisor child specification records how to *start* a replacement. When a
+permanent child dies, the supervisor invokes that start specification again.
+Nothing in that lifecycle contract restores arbitrary process-local state from
+the dead child.
+
+Source:
+https://www.erlang.org/doc/apps/stdlib/supervisor.html
+
+Project consequence: checkpoint A deliberately mutates the worker's rules,
+crashes it, and then requires the replacement worker to contain the original
+rules supplied through the child specification. The test is not a persistence
+test; it is evidence that restart and state recovery are separate mechanisms.
+
+* DOCUMENTED + TESTED boundary -- stopping the supervisor across OTP versions
+Current Erlang/OTP 29.0.6 documents =supervisor:stop/1= and
+=supervisor:stop/3= as APIs introduced in OTP 29.0. The focused book runner for
+this checkpoint is still OTP 25, so Project 3 must not silently depend on that
+new convenience surface.
+
+Source:
+https://www.erlang.org/doc/apps/stdlib/supervisor.html
+
+Project consequence: =otp-router-sup:stop/0= delegates to the older
+=gen_server:stop/1= operation instead of calling =supervisor:stop/1=. The
+cross-version compatibility of that teaching helper is treated as TESTED
+behavior, not inferred from the OTP 29 manual: the exact-head gate must invoke
+the helper on the observed OTP 25 runner and require both supervisor and worker
+registered names to be gone after the synchronous stop returns. This does *not*
+claim that =supervisor:stop/1= exists before OTP 29.
+
+* Design used by Project 3 checkpoint A
+The accepted pure semantic kernel remains =event-rules:route/2=. Project 3 adds
+two ordinary OTP callback modules:
+
+- =otp-router= :: a locally registered LFE =gen_server= that stores only the
+  current rule term and delegates =#(route Event)= to the pure kernel.
+- =otp-router-sup= :: a locally registered LFE =supervisor= using
+  =one_for_one= and a permanent =otp-router= child.
+
+The public request vocabulary intentionally resembles Project 2's domain
+requests but no longer contains the home-grown =#(call Caller Ref Request)=
+transport envelope. =gen_server= owns request correlation and the generic
+receive/system-message loop. The project callback receives just the request
+term and callback metadata.
+
+Supervisor and child specifications are constructed as ordinary BEAM maps via
+=maps:from_list/1=. This keeps the example on the current map-based supervisor
+format while avoiding any claim that map syntax itself is an OTP feature.
+
+The checkpoint includes explicit test-only failure injection. It is not a
+production administration interface.
+
+* TESTED -- authored executable gate
+The hypotheses declared at the start of this pass were exercised on exact
+authored head =bf3127496202cc6fc5523cce6c2a300d89d6b145=. Focused workflow
+=lfe-book= run =35124600836= and generic repository =books-ci= run
+=35124600925= both completed SUCCESS.
+
+The focused gate established, for this bounded teaching implementation:
+
+1. pinned LFE v2.2.2 compiled the =gen_server= and =supervisor= callback
+   modules in the workflow environment;
+2. the LFE regression routed events, replaced/read state, inspected state
+   through =sys:get_state/1=, rejected an unknown domain call, and stopped
+   cleanly;
+3. an Erlang client called the compiled LFE =gen_server= directly;
+4. suspending the server with =sys:suspend/1= forced a bounded
+   =gen_server:call/3= timeout while the process remained alive and was then
+   resumed;
+5. the one-for-one supervisor replaced a deliberately crashed worker with a
+   different process;
+6. the replacement started from the child specification's original rule term
+   rather than silently restoring the dead worker's mutated process-local
+   state;
+7. the failure lab exceeded its configured restart budget and observed the
+   supervisor terminate with =shutdown=;
+8. the workflow also reran Projects 1--2, parsed all four editable teaching
+   diagrams, ran =make book BOOK=lfe= and =make check BOOK=lfe=, and passed the
+   separate =nix flake check -L= job.
+
+These are regression results, not a benchmark or a general availability proof.
+After current-main reconciliation or material edits, the PR head still requires
+a fresh exact-head gate before editorial handoff; that later head/run pair is
+recorded on PR #72 rather than backdating this authored-head record.
+
+* Explicit non-claims
+- No throughput, latency, mailbox-scan, scheduler, memory, or availability
+  benchmark is claimed.
+- Restart is not persistence, replay, durable state, or exactly-once delivery.
+- The supervisor does not make the routing kernel "fault tolerant" in every
+  useful sense; it gives a precise lifecycle policy for one process.
+- This checkpoint is not yet an OTP application or release. No =.app= resource,
+  application callback, release assembly, distribution setup, or production
+  boot script is claimed.
+- Production tracing/telemetry strategy remains later work even though
+  =gen_server= participates in the standard =sys= protocol.
+
+* Deferred questions
+- Chapter 13 owns systematic testing/tooling depth after the behaviour and
+  supervisor mechanisms are accepted.
+- Application packaging and release assembly are later dependency-ready
+  slices.
+- Distribution, persistence boundaries, production tracing/observability, and
+  operational debugging need their own research and executable evidence.

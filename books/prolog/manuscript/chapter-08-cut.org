@@ -1,0 +1,393 @@
+* Chapter 8 -- Cut: Commit Only After You Know What You Mean
+:PROPERTIES:
+:ID:       31b5167c-80bd-42f6-a845-ec53c2c1c9d0
+:END:
+
+Project 1 is now deliberately nondeterministic. =connection_path/3= can produce more than one proof, Chapter 7 can annotate each proof with a hop count, and =connection_within_hops/5= can reject proofs that exceed a ground numeric limit.
+
+That gives us the right problem for learning cut.
+
+Suppose an interface does /not/ want every acceptable path. It wants exactly one: the first acceptable path in the current search order. We already used =once/1= to make a similar policy explicit. This chapter opens that abstraction and studies the control operation underneath it.
+
+The goal =!/0= is called /cut/. Current SWI-Prolog documents it as an ISO control predicate that discards choice points created since entering the predicate in which the cut appears. More concretely, it commits to the current clause and to choices made by goals to its left within that invocation [cite:@swi-control].
+
+That wording matters. Cut does not prove a new fact. It does not mean “the best answer.” It does not mean “stop all Prolog execution.” It changes which already-created alternatives remain available on backtracking.
+
+This chapter therefore treats cut as a control boundary that must come /after/ the program has established what it is willing to commit to.
+
+** 8.1 Start with the choice points we already have
+For the Project 1 fixture, the query
+
+#+begin_src prolog
+?- connection_path(ada, sam, Path).
+#+end_src
+
+has several simple-path proofs in the current clause/fact order:
+
+#+begin_example
+Path = [ada,lina,noor,ben,sam] ;
+Path = [ada,lina,ben,sam] ;
+Path = [ada,noor,ben,sam].
+#+end_example
+
+The path relation is useful precisely because those alternatives remain available. A caller can ask for another proof, collect all proofs, filter them, count them, or later combine them with a different policy.
+
+Now compare a deliberately committed wrapper:
+
+#+begin_src prolog
+first_connection_path_cut(Start, Goal, Path) :-
+    connection_path(Start, Goal, Path),
+    !.
+#+end_src
+
+Operationally, the first goal creates whatever choice points are needed to produce its first successful path. Once that success reaches =!=, the wrapper commits. Asking for another answer to =first_connection_path_cut/3= cannot return a later path from =connection_path/3=.
+
+The underlying relation has not been rewritten. The commitment is isolated at the interface that names it.
+
+That separation is a recurring design rule:
+
+- keep the reusable relation as relational as its contract permits;
+- put commitment in a wrapper whose name advertises the policy;
+- test both the relation's complete answer set and the wrapper's committed answer set.
+
+** 8.2 Cut prunes alternatives; it does not improve them
+Consider this query:
+
+#+begin_src prolog
+?- first_connection_path_cut(ada, sam, Path).
+#+end_src
+
+With the current fixture and search order, the answer is:
+
+#+begin_example
+Path = [ada,lina,noor,ben,sam].
+#+end_example
+
+That path has four hops. Two later paths have three hops.
+
+So a cut after the first path proof emphatically does /not/ mean “shortest path.” It means “accept the first proof this generator happens to produce under its current operational order.”
+
+This distinction is important enough to keep executable. Chapter 8 tests a query where the committed path has four hops while a later acceptable path has three. If a future refactor changes fact or clause order, the test forces us to confront the changed policy instead of silently relabeling the result as optimal.
+
+Optimization requires an optimization relation or search strategy. =!/0= is not one.
+
+** 8.3 Where you cut is part of the program
+Now we can ask a more realistic question:
+
+/Return the first path from Ada to Sam that is at most three hops long./
+
+The existing relation already defines acceptability:
+
+#+begin_src prolog
+connection_within_hops(Start, Goal, Limit, Path, Hops) :-
+    connection_with_hops(Start, Goal, Path, Hops),
+    Hops =< Limit.
+#+end_src
+
+The direct cut wrapper is therefore small:
+
+#+begin_src prolog
+first_connection_within_hops(Start, Goal, Limit, Path, Hops) :-
+    connection_within_hops(Start, Goal, Limit, Path, Hops),
+    !.
+#+end_src
+
+Read the body left to right:
+
+1. generate and count a candidate path;
+2. require that it satisfy the numeric limit;
+3. /then/ commit to that accepted proof.
+
+For =ada -> sam= with a limit of three, the first generated path is four hops and is rejected by the underlying relation. Backtracking remains available, so Prolog reaches the later path =[ada,lina,ben,sam]= with three hops. Only after that path satisfies the limit does execution reach the cut.
+
+That is the shape we want:
+
+#+begin_example
+candidate -> qualify -> ! -> committed accepted result
+#+end_example
+
+#+caption: Cut placement is a semantic boundary. Qualifying before cut allows rejected candidates to backtrack into later candidates; cutting before qualification can discard the very alternatives needed to find a valid answer.
+#+attr_html: :alt Two parallel flows. The correct flow generates a candidate, qualifies it against a hop limit, then reaches cut and commits. The premature flow generates a candidate, reaches cut first, then fails qualification, with later valid candidates shown as already pruned.
+[[file:assets/prolog-cut-placement.svg]]
+
+** 8.4 Failure lab: cut before qualification
+A useful way to understand control is to write the tempting broken version on purpose:
+
+#+begin_src prolog
+premature_cut_connection_within_hops(Start, Goal, Limit, Path, Hops) :-
+    connection_with_hops(Start, Goal, Path, Hops),
+    !,
+    Hops =< Limit.
+#+end_src
+
+This helper lives only in the Chapter 8 test file. It is not a production Project 1 predicate.
+
+Try to reason through:
+
+#+begin_src prolog
+premature_cut_connection_within_hops(ada, sam, 3, Path, Hops).
+#+end_src
+
+The first generated path is:
+
+#+begin_example
+[ada,lina,noor,ben,sam]
+#+end_example
+
+Its hop count is four.
+
+But the broken helper reaches =!= /before/ it checks =4 =< 3=. At that moment it throws away the path generator's later choice points. The numeric test then fails. Prolog would normally backtrack to another path, but the cut already removed those alternatives. The whole wrapper fails even though two three-hop paths exist.
+
+This is the central debugging lesson of the chapter:
+
+#+begin_example
+candidate -> ! -> reject
+              |
+              `-- later valid candidates already gone
+#+end_example
+
+When a cut appears in a predicate that can fail afterward, ask exactly what choices were destroyed before that later failure became known.
+
+** 8.5 A proof trace for the correct placement
+For the correct wrapper:
+
+#+begin_src prolog
+?- first_connection_within_hops(ada, sam, 3, Path, Hops).
+#+end_src
+
+a simplified operational trace is:
+
+#+begin_example
+enter first_connection_within_hops(ada,sam,3,Path,Hops)
+  try connection_within_hops(...)
+    candidate 1: [ada,lina,noor,ben,sam]
+    Hops = 4
+    test 4 =< 3 -> fail
+    redo connection_with_hops(...)
+    candidate 2: [ada,lina,ben,sam]
+    Hops = 3
+    test 3 =< 3 -> succeed
+  reach !
+  prune later choices created in this predicate invocation
+return Path = [ada,lina,ben,sam], Hops = 3
+#+end_example
+
+The later =[ada,noor,ben,sam]= proof exists in the underlying relation, but the committed wrapper intentionally hides it after the first accepted result.
+
+This trace gives us two independent contracts to test:
+
+- =connection_within_hops/5= still has both three-hop answers;
+- =first_connection_within_hops/5= has exactly the first one.
+
+If the first test fails, we damaged the relation. If only the second test changes, we changed the commitment policy or search order.
+
+** 8.6 Cut scope is local to the predicate invocation
+The phrase “since entering the predicate” in the SWI documentation is not decoration. It tells us the boundary of ordinary cut scope [cite:@swi-control].
+
+Chapter 8 tests this with a tiny caller:
+
+#+begin_src prolog
+outer_choice(primary(Path)) :-
+    first_connection_path_cut(ada, ben, Path).
+outer_choice(fallback).
+#+end_src
+
+The cut is /inside/ =first_connection_path_cut/3=. It commits that called predicate to one path. It does not jump upward and erase =outer_choice/1='s second clause.
+
+So collecting answers from =outer_choice/1= still yields both a primary result and =fallback=.
+
+This is a good antidote to the vague phrase “cut stops backtracking.” Cut stops /specific backtracking alternatives in its scope/. It does not globally disable backtracking.
+
+SWI's control documentation also records important scope details for meta-calling and compound control constructs: meta-calling is opaque to cut, while some control constructs are transparent, with special rules for cuts in conditions [cite:@swi-control]. We do not need to memorize the whole scope table yet. We do need to stop pretending that punctuation alone tells us the scope. When cut is nested inside =call/1=, disjunction, or conditional control, consult the actual control semantics and test the intended boundary.
+
+Deeper meta-programming belongs later in this book.
+
+** 8.7 Direct cut and =once/1=: similar local job, different abstraction
+Project 1 already contains:
+
+#+begin_src prolog
+first_connection_path(Start, Goal, Path) :-
+    once(connection_path(Start, Goal, Path)).
+#+end_src
+
+Current SWI-Prolog documents =once/1= as a meta-predicate that limits a goal to at most one solution. The traditional operational definition is equivalent to calling the goal and then cutting within the =once/1= boundary; SWI also documents interactions with control constructs that make scope worth treating precisely [cite:@swi-once;@swi-control].
+
+For this simple wrapper, the new direct version:
+
+#+begin_src prolog
+first_connection_path_cut(Start, Goal, Path) :-
+    connection_path(Start, Goal, Path),
+    !.
+#+end_src
+
+returns the same first fixture path as =first_connection_path/3=. The regression suite checks that observation.
+
+Do not generalize that observation into “replace =once/1= with cut everywhere.” =once/1= packages the commitment around the goal passed to it; a raw cut is scoped by the containing predicate and surrounding control constructs. They can therefore communicate and behave differently in larger clauses.
+
+A useful style rule is simple: if the intent is literally “at most the first solution of this goal,” =once/1= often says that more directly. Use raw cut when the surrounding predicate's control boundary is itself what you are teaching or implementing, and document the commitment contract.
+
+** 8.8 Declarative meaning versus operational policy
+Before cut, we could often ask what a relation means independent of the order in which Prolog searches for proofs.
+
+For example:
+
+#+begin_src prolog
+connection_within_hops(ada, sam, 3, Path, Hops)
+#+end_src
+
+means that =Path= is a simple directed Ada-to-Sam path in the fixture, =Hops= is its hop count, and that count is at most three in the documented mode. There can be multiple such proofs.
+
+The committed wrapper adds an operational policy:
+
+#+begin_src prolog
+first_connection_within_hops(ada, sam, 3, Path, Hops)
+#+end_src
+
+means, approximately, “give me the first proof of that accepted relation under the current search order, then discard later proofs.”
+
+The word /first/ cannot be understood without an order. In this project that order comes from clause order, fact order, and depth-first execution of the path relation.
+
+This is why committed predicates should be named and tested as policies. Reordering facts may leave the underlying answer set unchanged while changing which answer a first-solution wrapper returns.
+
+** 8.9 Informal “green” and “red” cuts
+Prolog teaching often uses the informal labels /green cut/ and /red cut/. The labels are useful only after you define the intended relation and calling modes.
+
+A practical interpretation is:
+
+- a “green” use prunes work or redundant derivations without removing answers that belong to the intended relation in the supported modes;
+- a “red” use participates in defining which answers the predicate exposes, so moving/removing it changes observable meaning.
+
+The Project 1 first-result wrappers are explicitly policy-bearing. We do not pretend their cuts are invisible to the answer set: they intentionally collapse a multi-answer relation to a first answer. Their names make that operational commitment visible.
+
+That is safer than using color labels as a substitute for a contract.
+
+** 8.10 Failure patterns to recognize
+*** Pattern 1: cut before all acceptance conditions
+This is the chapter's executable failure lab. A candidate is generated, cut commits to it, and a later test rejects it. Valid later candidates are lost.
+
+Question to ask: /Could anything to the right of this cut still fail?/
+
+If yes, inspect what alternatives the cut has already removed.
+
+*** Pattern 2: hiding order dependence behind a neutral name
+A predicate named =best_path/3= that merely cuts after the first depth-first proof is lying about its contract.
+
+A predicate named =first_connection_path_cut/3= is much harder to misunderstand.
+
+Question to ask: /Does the predicate name say “first,” “preferred,” “committed,” or otherwise reveal the operational choice?/
+
+*** Pattern 3: putting cut into the base relation to make tests pass
+If a multi-answer test surprises you, inserting =!= into =connection_path/3= may make one expected answer appear stable while destroying the relation's useful multiplicity.
+
+Question to ask: /Is the caller asking for one answer, or is the underlying domain relation truly deterministic?/
+
+Put policy at the correct layer.
+
+*** Pattern 4: assuming cut fixes nontermination
+Cut can prune alternatives only after execution reaches it. If a left-hand goal diverges before the cut, the cut cannot rescue that branch.
+
+Termination still depends on the recursive/search structure. Project 1's finite simple-path termination argument still comes from branch-local visited state, not from =!=.
+
+** 8.11 Project 1 milestone 4: explicit first-acceptable policy
+Chapter 8 adds two deliberately small predicates to =community.pl=:
+
+#+begin_src prolog
+first_connection_path_cut(Start, Goal, Path) :-
+    connection_path(Start, Goal, Path),
+    !.
+
+first_connection_within_hops(Start, Goal, Limit, Path, Hops) :-
+    connection_within_hops(Start, Goal, Limit, Path, Hops),
+    !.
+#+end_src
+
+The first exists to compare direct cut with the accepted =once/1= wrapper.
+
+The second is the real project extension. It gives an interface a deterministic-ish first-acceptable policy while preserving =connection_within_hops/5= as the reusable multi-answer relation underneath.
+
+Supported teaching mode:
+
+#+begin_example
+first_connection_within_hops(+Start, +Goal, +Limit, -Path, -Hops)
+#+end_example
+
+The numeric-mode restrictions from Chapter 7 still apply because this predicate delegates to =connection_within_hops/5=. Cut does not change arithmetic instantiation requirements.
+
+The new named PL-Unit suite checks:
+
+- direct-cut and =once/1= wrappers agree on the current fixture's first path;
+- the underlying accepted relation keeps all valid answers;
+- the committed wrapper exposes exactly one accepted answer;
+- the premature-cut failure lab really loses a later valid path;
+- moving the cut after qualification recovers that path;
+- “first acceptable” can be longer than a later acceptable path, proving that no shortest-path claim is hiding in the API;
+- a cut inside the called wrapper does not erase the caller's later clause.
+
+The runner fails closed if the =community_cut= suite is missing.
+
+** 8.12 Debugging a suspicious cut
+When a cut-bearing predicate fails or returns a surprising first result, use a mechanical checklist.
+
+1. Write the supported calling mode.
+2. List goals to the left of =!=.
+3. Identify every choice point those goals can create.
+4. List goals to the right of =!= that can still fail.
+5. Ask what later answers would require one of the pruned choice points.
+6. Temporarily remove the cut and collect the full answer set.
+7. Move the acceptance tests left of the cut if the contract is “first acceptable,” not merely “first generated.”
+8. Add a regression for both the complete base relation and the committed wrapper.
+
+This method is less mystical than staring at punctuation.
+
+** 8.13 Exercises
+*** ★ Predict the pruned answers
+Without running Prolog, list the three =ada -> sam= paths in the fixture's current search order. Mark which two become unreachable after =first_connection_path_cut/3= reaches its cut.
+
+*** ★ Explain the failed failure lab
+Explain why =premature_cut_connection_within_hops(ada,sam,3,Path,Hops)= fails even though =connection_within_hops(ada,sam,3,Path,Hops)= succeeds.
+
+Your explanation must identify the choice point that was destroyed.
+
+*** ★★ Change only the limit
+Compare:
+
+#+begin_src prolog
+first_connection_within_hops(ada, sam, 3, Path, Hops).
+first_connection_within_hops(ada, sam, 4, Path, Hops).
+#+end_src
+
+Explain why the first query returns a three-hop path while the second returns a four-hop path. Then explain why neither result establishes optimality.
+
+*** ★★ Reorder a temporary fixture
+In a temporary copy, swap the order of =follows(lina,noor).= and =follows(lina,ben).=. Re-run the complete-answer tests and the first-answer tests.
+
+Which contracts should remain set-equivalent? Which committed answer is allowed to change because its contract explicitly depends on search order?
+
+Restore the original fixture afterward.
+
+*** ★★ Scope experiment
+Move the cut from =first_connection_path_cut/3= into a temporary =outer_choice/1= clause and compare the collected results. Explain the difference using “since entering the predicate” rather than saying merely that “cut stops backtracking.”
+
+*** ★★★ Design an honest API
+Suppose a CLI wants these policies:
+
+- =all= -- enumerate every acceptable path;
+- =first= -- return the first acceptable path in current search order;
+- =shortest= -- return a path with minimum hop count.
+
+Sketch three separate predicates. You may implement =all= and =first= using current code. For =shortest=, write only a contract and a test oracle; do not fake it with cut. Which later chapter should own the real search/optimization mechanism?
+
+*** ★★★ Remove a suspicious cut
+Find a small predicate of your own that uses =!=. Write a complete-answer test for the relation you believe it represents. Remove the cut and compare answer sets. If the sets differ, document the policy the cut was implementing or redesign the predicate so the commitment is explicit.
+
+** 8.14 What this chapter does not teach yet
+Chapter 8 deliberately stops before several nearby topics:
+
+- Chapter 9 owns negation-as-failure and the “finite failure” preconditions needed to reason about it honestly.
+- Later control material can compare if-then-else and soft-cut in depth; this chapter uses current control documentation only to state raw cut scope accurately.
+- Chapter 10 owns modules and interface boundaries.
+- Meta-calling and meta-interpreters return later, where cut scope becomes even more important.
+- Chapters 15--16 own real constraint solving.
+- Search/planning chapters own algorithms that can justify terms such as “shortest,” “best,” or “optimal.”
+
+The narrow lesson here is enough to build on: =!= is a scoped commitment operation over existing alternatives. Put it after the relation has established what you are willing to accept, make the policy visible in the predicate contract, and test the full relation separately from the committed view.
