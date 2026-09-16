@@ -3,26 +3,28 @@
 :ID:       a17cabf5-9a39-5f0c-b427-a240f5719522
 :END:
 * Phase
-Foundational research + first progressive Vector/Matrix Toolkit slice are in editorial review. The complete long-form book remains far from release-ready.
+Foundational research + Project 1 checkpoint A are editorially APPROVED as a bounded foundation milestone. The complete long-form book remains far from release-ready and is not DONE.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
 - First source-grounded research pass recorded for the arithmetic-to-vector sequence and current numerical tooling.
 - Chapters 1--5 drafted with derivations, worked examples, exercises, numerical-failure labs, and ML connections.
-- Project 1 checkpoint A source/tests added for vectors, dot products, norms, distance, normalization, cosine similarity, and projection.
+- Project 1 checkpoint A implements finite vectors, component-wise operations, dot products, Euclidean norms/distance, normalization, cosine similarity, and projection with an independent NumPy oracle.
 - Reproducible accessible vector-projection SVG generator and checked-in asset added.
-- The earlier NEEDS_REWRITE findings are repaired: source-dependent claims about Python numerical primitives, NumPy oracle semantics, and curriculum sequencing now carry targeted Org citations; NumPy 2.5.0 is described as the exact TESTED pin rather than the newest 2.5-series patch.
+- The earlier NEEDS_REWRITE findings are resolved: source-dependent Python/NumPy/Strang claims carry targeted Org citations, and NumPy 2.5.0 is described as the exact TESTED pin rather than the newest 2.5-series patch.
+- Editor review found an additional numerical-contract defect before merge: finite admitted inputs could overflow into non-finite vector results, very large norms could silently corrupt normalization, and projection could overflow through =u dot u= even when the geometric result was representable. The implementation now fails closed on non-finite results and computes projection through a normalized direction; regressions cover these boundaries.
 * Active research
-Foundational research remains IN-PROGRESS. Matrices/transformations are the next Project 1 dependency slice after checkpoint A clears review; calculus, probability, information theory, optimization, decompositions, and numerical-stability coverage remain later research work.
+Foundational research remains IN-PROGRESS beyond checkpoint A. Matrices/transformations are the next Project 1 dependency slice; calculus, probability, information theory, optimization, decompositions, and later numerical-stability work remain open.
 * Verification state
-- TESTED at reviewed implementation head =53d7a5fb783e21a2933faada6f19b2a809b9e186=: focused =ml-math-book= run =35100483933= passed 12/12 vector-toolkit tests under CPython 3.14.7 + pinned NumPy 2.5.0, deterministic SVG regeneration, structural validation, =make book BOOK=ml-math=, =make check BOOK=ml-math=, EPUBCheck 5.3.0 with 0 fatals / 0 errors / 0 warnings / 0 infos, and =nix flake check -L=.
-- TESTED on the same reviewed implementation: generic =books-ci= run =35100483845= passed structural validation, Pandoc Org-reader behavior, deterministic publication assets, EPUB validation, publication regressions, per-book citation rendering, ERT, and real Org-roam synchronization.
-- Current official source review confirms Python 3.14.7 documents =math.fsum= as an accurate floating-point sum and =math.hypot= as Euclidean norm; NumPy's official release list records 2.5.0 on 2026-06-21 and later 2.5-series patch releases through 2.5.3 on 2026-09-06; Strang's author-maintained MIT site identifies the sixth edition as 2023.
-- This editorial reconciliation creates a later head. Earlier successful runs remain evidence for the exact implementation they tested, not a substitute for the current merge gate.
+- TESTED at implementation/reconciliation head =9362fd671b5c699cb8d25fe7cd9588f71b115e9f= against canonical =main= =ad1de7c648bf63741b810f797a4ad45cb888b425=: focused =ml-math-book= run =35102045489= passed 14/14 vector-toolkit tests under CPython 3.14.7 + pinned NumPy 2.5.0, deterministic SVG regeneration, structural validation, =make book BOOK=ml-math=, =make check BOOK=ml-math=, EPUBCheck 5.3.0 with 0 fatals / 0 errors / 0 warnings / 0 infos, and =nix flake check -L=.
+- TESTED on the same implementation/reconciliation head: generic =books-ci= run =35102045724= passed structural validation, Pandoc Org-reader behavior, deterministic publication assets, EPUB validation, publication regressions, per-book citation rendering, ERT, and real Org-roam synchronization.
+- DOCUMENTED source review confirms Python 3.14.7 =math.fsum=/=math.hypot= behavior used by the checkpoint, NumPy's 2.5 release context through 2.5.3 (2026-09-06), and Strang's sixth-edition linear-algebra sequencing. These source claims remain distinct from executable test evidence.
 * Unverified claims
 - Matrix and transformation behavior is not implemented in checkpoint A.
 - No performance benchmark is claimed.
 - Later regression, optimization, probability, or neural-network project results do not yet exist.
 * Technical/editorial/visual review
-The earlier NEEDS_REWRITE state is resolved. Checkpoint A is in EDITORIAL_REVIEW: the teaching progression from quantities and coordinate meaning into vectors, dot products, norms, cosine similarity, projection, floating-point failure cases, and the from-scratch toolkit is accepted as the correct foundation. Whole-book editorial/visual review remains future work.
+APPROVED for merge as the bounded Chapters 1--5 + Project 1 checkpoint A foundation. This approval does not promote the whole book, later chapters, or later projects to DONE. Whole-book editorial/visual review remains future work.
+* Next dependency-ready slice
+Research and implement Project 1 checkpoint B: matrix shape/indexing, matrix-vector multiplication as linear combinations, matrix multiplication as composition, and transformation geometry with executable numerical checks and teaching visuals.
 * Blockers
-No known book-internal design blocker remains in checkpoint A. Canonical =main= is now =ad1de7c648bf63741b810f797a4ad45cb888b425=. Final APPROVED/merge requires fresh exact-head =ml-math-book= and generic =books-ci= evidence after this editorial reconciliation so the PR is exercised against that current integration state. Matrix checkpoint B remains intentionally gated on acceptance of the vector foundation.
+No known checkpoint-A content blocker remains. The branch tip containing this status reconciliation must still pass the exact-head merge gate before merge.
