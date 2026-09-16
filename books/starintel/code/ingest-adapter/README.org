@@ -1,0 +1,90 @@
+#+title: Project 2 — Thin StarIntel HTTP Ingest Adapter
+:PROPERTIES:
+:ID:       a805acea-be88-4867-a32c-f9518e5575a5
+:END:
+
+* Purpose
+This project crosses the real StarIntel HTTP document-ingest boundary without
+copying server policy into the book.  It deliberately keeps three observations
+separate:
+
+1. the client formed an HTTP request;
+2. the server returned success from its HTTP publication boundary;
+3. a later authorized =GET /document/:id= observed the document in the durable
+   corpus.
+
+A successful POST is therefore reported as =http_publish_boundary_returned=,
+not as =persisted=.  Persistence is =not_checked= unless the caller explicitly
+requests read-back polling.
+
+* What this adapter does not implement
+It does *not* implement the StarIntel schema, authorization policy, RabbitMQ
+routing, retry logic, CouchDB writes, or outbox.  Project 1 uses the maintained
+document adapter for schema validation; the live server remains authoritative
+for server admission and persistence.
+
+The tiny local checks here exist only to construct the two current HTTP paths:
+=_id= is needed for read-back and =dtype= is needed for
+=/new/document/:dtype=.  A deliberately schema-incomplete object can reach the
+fake transport in the unit tests.  That regression prevents the tutorial from
+quietly becoming a second validator.
+
+* Run the hermetic tests
+#+begin_src sh
+bash books/starintel/code/ingest-adapter/run-tests
+#+end_src
+
+The tests use an injected fake HTTP transport.  They verify request method,
+route quoting, bearer authorization, JSON body preservation, rejection
+handling, and the distinction between POST acceptance and GET persistence
+evidence.  They do not start StarIntel, RabbitMQ, or CouchDB.
+
+* Run against a disposable server
+Use a canonical document such as the synthetic Project 1 fixture:
+
+#+begin_src sh
+export STARINTEL_URL=http://127.0.0.1:8080
+export STARINTEL_TOKEN='replace-with-a-disposable-test-credential'
+
+python3 books/starintel/code/ingest-adapter/adapter.py \
+  books/starintel/code/records/fixtures/person.json
+#+end_src
+
+That command stops at the HTTP publication observation.  To ask a second,
+independent question — whether the current authorized read route can observe
+the document — add a deadline:
+
+#+begin_src sh
+python3 books/starintel/code/ingest-adapter/adapter.py \
+  --wait-persisted 5 \
+  books/starintel/code/records/fixtures/person.json
+#+end_src
+
+Example *shape* of the output (not a recorded benchmark or live run):
+
+#+begin_src json
+{
+  "document_id": "starintel:person:book-demo",
+  "persistence": {
+    "state": "observed",
+    "http_status": 200,
+    "read_attempts": 2
+  },
+  "submission": {
+    "state": "http_publish_boundary_returned",
+    "http_status": 200
+  }
+}
+#+end_src
+
+If the deadline expires after only 404 responses, the adapter reports
+=not_observed_before_deadline=.  It does not reinterpret absence as proof of a
+specific RabbitMQ, consumer, or CouchDB failure.  Authentication/authorization
+errors on read-back remain errors rather than being disguised as absence.
+
+* Status
+- TESTED :: eight hermetic client-boundary tests run under Python's standard
+  library =unittest=.
+- UNTESTED :: this book project has not, by itself, proven a live
+  HTTP -> RabbitMQ -> consumer -> CouchDB round trip.  That requires a
+  service-backed run and separate evidence from the live stack.

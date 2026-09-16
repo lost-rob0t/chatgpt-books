@@ -1,0 +1,99 @@
+#+title: Ambiguous Bulk Reconciliation Lab
+:PROPERTIES:
+:ID:       d32e598c-183b-48f7-9695-45e4c866496f
+:END:
+
+* Purpose
+This is a book-side failure-analysis exercise for an ugly distributed-systems case:
+a write request crossed an acceptance boundary, later status observation failed, and
+the operator does not yet know which subset became durable.
+
+The lab does *not* implement StarIntel persistence, CouchDB reads, document
+normalization, or retry policy.  It consumes a sanitized evidence ledger whose
+rows have already been classified by an independent observation step.  Its only
+job is to decide whether that evidence proves one contiguous verified prefix and
+one absent suffix.  If not, it refuses to invent a replay boundary.
+
+* Why this exists
+During the 2026-09-16 StarIntel Server incident recorded in upstream issue #187,
+a bulk POST had been accepted before later polling failed.  Read-only
+reconciliation found that part of the batch was durable and part was absent.
+Blindly replaying the whole accepted batch would have converted uncertainty into
+duplicate work.  The later server fix is separate; this lab teaches the operator
+reasoning that remains useful whenever a response is ambiguous.
+
+Upstream incident and repair evidence are *UPSTREAM-REPORTED* in this book until
+reproduced by a book-controlled service-backed experiment.  The pure ledger
+logic in this directory can be *TESTED* independently.
+
+* Evidence contract
+One JSON object per line:
+
+#+begin_src json
+{"offset": 0, "id": "starintel:demo:0", "status": "verified_match"}
+{"offset": 1, "id": "starintel:demo:1", "status": "verified_match"}
+{"offset": 2, "id": "starintel:demo:2", "status": "absent"}
+#+end_src
+
+Allowed status values are deliberately narrow:
+
+- =verified_match= :: an independent check established that the durable object is
+  the expected logical item for this batch row.
+- =absent= :: an authorized observation established absence according to the
+  observation procedure used for the experiment.
+- =mismatch= :: the identity exists, but the observed content is not the expected
+  logical item.
+- =unknown= :: evidence is insufficient, unavailable, or contradictory.
+
+The script does not decide those statuses.  In particular, mere ID presence is
+not automatically =verified_match=.  That would smuggle document-equivalence
+logic into a tutorial utility and could make an unsafe replay look safe.
+
+* Safe replay rule
+A mechanical resume offset exists only for this shape:
+
+#+begin_example
+verified_match verified_match ... verified_match absent absent ... absent
+^                                    ^
+0                                    safe resume offset
+#+end_example
+
+Any =unknown=, any =mismatch=, or any later verified row after an absent row
+forces =requires_manual_reconciliation=.  This fail-closed rule is intentionally
+boring.  Distributed incidents are not the place for a clever guess.
+
+* Run the tests
+From the repository root:
+
+#+begin_src sh
+bash books/starintel/code/ambiguous-bulk/run-tests
+#+end_src
+
+The suite covers a verified-prefix/absent-suffix batch, a fully verified batch,
+an entirely absent batch, unknown evidence, content mismatch, a non-contiguous
+durable set, malformed offsets, and duplicate document IDs.
+
+* Run the analyzer
+Given =/tmp/evidence.jsonl=:
+
+#+begin_src sh
+python3 books/starintel/code/ambiguous-bulk/reconcile.py /tmp/evidence.jsonl
+#+end_src
+
+For a verified prefix followed only by verified absence, the JSON result contains
+=state="verified_prefix_absent_suffix"= and a =safe_resume_offset=.  For anything
+more ambiguous the offset is =null=.
+
+* Failure-analysis checklist
+Before replaying an accepted-but-unconfirmed batch, answer these in order:
+
+1. What exactly did the request boundary acknowledge?
+2. Which durable objects can be independently observed now?
+3. Does the observation prove content equivalence, or only ID presence?
+4. Is the durable set a simple prefix, or are there gaps/interleaving?
+5. Can retry preserve the same logical mutation/idempotency identity?
+6. Which evidence must be retained so another operator can reproduce the
+   reconciliation decision?
+
+The lesson is broader than bulk ingest: an ambiguous response is a state to
+investigate, not permission to replay everything.

@@ -3,22 +3,42 @@
 :ID:       d04e0764-a154-5602-934a-1a1ce9f935d7
 :END:
 * Phase
-Foundational research and first project-backed manuscript slice are in editorial review. The book remains far from release-ready and retains the full long-form curriculum.
+Foundational research plus the second project-backed runtime slice are IN-PROGRESS. The merged Chapters 1--5 / Project 1 foundation is stable enough to build on; the active PR advances Chapters 6, 8, 9, 14, and 20 plus Project 2. The complete 300--700 page book remains far from release-ready.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
-- Foundations Pass 01 records the live StarIntel release/wire-document distinction and current server ingest/validation/authorization/dataflow boundary from exact repository revisions.
-- Chapters 1--5 teach system boundaries, live-vs-historical source reading, document/version semantics, validation/provenance/authorization, and the HTTP -> RabbitMQ -> CouchDB -> actor document flow.
-- Project 1 milestone A contains synthetic records and an executable regression harness that imports the pinned real =starintel-doc= 0.9.1 adapter instead of duplicating validation logic.
-- Editable Graphviz document-flow source and a rendered SVG are included for the first runtime trace.
+- The bounded Chapters 1--5 / Project 1 milestone-A foundation was editorially approved and merged previously.
+- Foundations Pass 01 records release/profile =0.9.1= versus wire =schema_version="0.9.0"=, document =version= versus CouchDB =_rev=, current HTTP validation/authorization ownership, and source-evidence ranking.
+- Project 1 imports the pinned real =starintel-doc= adapter and exercises seven synthetic record-contract regressions rather than implementing a second validator.
+- Ingest Boundary Pass 02 audits the loaded Rabbit consumer/retry path, publisher-confirm evidence gap, CouchDB mutation/outbox identity and recovery model, and historical/current messaging drift.
+- Chapters 6, 8, 9, and 14 plus Project 2 milestone A teach service-return evidence, Rabbit settlement, CouchDB outbox/at-least-once reasoning, and a thin bearer-authenticated HTTP evidence adapter.
+- Project 2's hermetic adapter distinguishes HTTP publish-boundary return from later authorized read-back and contains eight tests.
+- Runtime Failure Pass 03 records the =d48fa939402abf701fa1cc4079dfb8bedfad8d4a= quarantine-ID/worker-isolation delta; the incident and upstream product checks remain UPSTREAM-REPORTED.
+- The ambiguous-bulk failure-analysis lab derives a resume offset only from a proven contiguous =verified_match= prefix followed by verified absence. It deliberately refuses to infer document equivalence, query product services, or replay work.
+- Bulk Lifetime Pass 04 rechecks current StarIntel Server head =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= after issue #189 / PR #190 landed. Current source stores a stable bulk-job total and releases terminal request documents plus request-only service context while retaining pollable job metadata.
+- Chapter 20 now derives the distinction between bounded in-flight work and bounded retained history from that current implementation, including the accepted-but-ambiguous recovery consequence.
+- The =bulk-job-lifetime= book lab audits sanitized lifecycle observations with explicit =proven= / =incomplete= / =contradicted= outcomes rather than simulating StarIntel. Its synthetic suite covers eleven lifecycle/failure cases.
+- The StarIntel manuscript is split into stable Org include modules without changing the existing foundation/runtime content or its IDs; this uses the repository's current include-aware publication path.
+- Editable Graphviz source and rendered SVG assets cover the foundation document flow and current ingest settlement/outbox model.
 * Active research
-RabbitMQ delivery/retry/durability configuration, CouchDB conflict/outbox behavior, Sento actor semantics, registry/discovery, Quasar integration, external actors, language bindings, and production/debugging surfaces remain dependency-gated later research. Foundational research as a whole is not declared complete.
+- Current RabbitMQ/CouchDB service-backed fault injection remains open: publisher confirms are not evidenced in the inspected publish paths, and the book has not yet reproduced retry/quarantine/redelivery/crash recovery against disposable services.
+- The new bulk-lifetime lesson is source-grounded, but the book has not independently measured SBCL heap behavior or instrumented a live StarIntel bulk job to observe request-payload release.
+- Actor registry/discovery, Sento restart/supervision semantics, remote delivery, Quasar integration, external actors, language bindings, search/inference, deployment, security, and broader production-debugging surfaces remain dependency-gated later research.
+- Any later change to the source paths pinned by the current research passes requires another current-head delta audit before corresponding manuscript claims are promoted.
 * Verification status
-- TESTED at reviewed implementation head =7a1dada9496ca14cb3a95527e99783ed4d0f68aa=: focused =starintel-book= run =35098041606= passed the pinned real-adapter fetch, all 7 Project 1 record-contract tests under Python 3.12.3, Graphviz validation, =make book BOOK=starintel=, =make check BOOK=starintel=, EPUBCheck 5.3.0 with 0 fatals / 0 errors / 0 warnings / 0 infos, and =nix flake check -L=.
-- TESTED on the same reviewed implementation: generic =books-ci= run =35098041597= passed structural validation, Pandoc Org-reader/publication/citation regressions, EPUB validation, ERT, and real Org-roam database synchronization.
-- This STATUS reconciliation is a later editorial commit. Its exact resulting head must receive fresh current-main CI before the slice can be APPROVED or merged; the earlier successful runs are evidence for the implementation they tested, not a substitute for that merge gate.
+- The previously merged foundation and earlier Project 2/ambiguous-bulk implementation have successful focused and generic CI evidence recorded in PR #44.
+- The current branch additionally contains eleven hermetic =bulk-job-lifetime= unit tests and Python compilation gates in the focused =starintel-book= workflow.
+- Exact-head focused =starintel-book=, =make book BOOK=starintel=, =make check BOOK=starintel=, EPUBCheck, Nix, and generic =books-ci= results are recorded on PR #44 before editorial handoff. This status file intentionally does not embed a moving branch SHA/run ID so unrelated merges do not make the canonical Org text stale.
+- DOCUMENTED at current upstream StarIntel Server head =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=: the prior ULID/worker-isolation repair plus the current asynchronous bulk-job terminal payload-lifetime repair.
+- UPSTREAM-REPORTED in StarIntel Server issue #187 / PR #188 and issue #189 / PR #190: the live incidents, baseline RED fixtures, operational reconciliation details, and product-repository verification. The book did not execute those product-repository checks.
 * Unverified claims
-Live multi-service deployment, persistence, actor dispatch, RabbitMQ confirm/durability settings, CouchDB integration behavior, and production performance remain UNTESTED by this book slice.
+- No live HTTP -> RabbitMQ -> consumer -> CouchDB Project 2 round trip has been executed by this book slice.
+- No book-controlled reproduction of the concurrent ULID collision, settlement-failure redelivery, listener survival, outbox crash window, quarantine path, or issue #189 heap exhaustion has been run.
+- The book has not independently instrumented a real terminal bulk job to prove document/service-context release under sustained backlog load.
+- Publisher-confirm behavior remains an evidence gap; a local =basic-publish= return is not promoted to durable broker acceptance.
+- Actor dispatch/restart/registry behavior, Quasar integration, deployment guarantees, and production performance remain UNTESTED by the current book work.
 * Technical/editorial/visual review
-The Chapters 1--5 / Project 1 foundation slice is in EDITORIAL_REVIEW after its earlier technical blocker was repaired. Whole-book technical/editorial/visual review has not started, and no later project milestone is promoted by this status update.
+The merged foundation milestone has passed its bounded review. The active ingest/runtime/debugging slice remains in PR review; whole-book technical/editorial/visual review has not started. No current status text self-certifies the whole book or later projects as complete.
+* Next dependency-ready slice
+After the active ingest/runtime slice is reconciled and reviewed, the next runtime dependency remains a disposable service-backed Project 2 failure trace. It should separately observe HTTP acceptance and durable read-back, inject at least one Rabbit/Couch/settlement failure, and capture sanitized lifecycle evidence suitable for the book-side auditors before actor-registry/runtime teaching advances.
 * Blockers
-No known book-local technical blocker remains in the reviewed foundation slice. Merge remains gated on fresh exact-head focused and generic CI after this editorial status reconciliation against current =main=.
+No known book-local implementation blocker remains in the hermetic teaching slice. PR #44 still requires editorial review and must not be merged or auto-merged by this worker. Live multi-service and heap-lifetime claims remain blocked on an authorized disposable StarIntel stack plus actual instrumentation/fault-injection execution, not on prose.
