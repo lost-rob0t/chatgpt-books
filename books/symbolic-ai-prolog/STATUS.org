@@ -30,7 +30,7 @@ Foundational research + progressive Projects 1--2 implementation. Project 1 mile
 - Only a ground concrete action and ground add/delete effects may cross the transition boundary. Unsafe schemas that leave output variables unconstrained are rejected rather than admitting nonground successor states.
 - Successor construction subtracts only declared delete effects and unions declared add effects, preserving unrelated state facts. A synthetic field-service fixture carries ticket/topology/permission facts specifically so accidental state erasure is testable.
 - Breadth-first forward state-space search returns =found(plan(Steps,States))= or explicit exhaustion; =step(SchemaId,ConcreteAction)= preserves operator identity separately from expansion diagnostics.
-- Chapter 8 derives each mechanism, includes worked field-service planning, three failure labs, fifteen exercises, and editable/rendered =relational-planning-flow.dot/svg= assets.
+- Chapter 8 derives each mechanism, includes worked field-service planning, three failure labs, ten exercises, and editable/rendered =relational-planning-flow.dot/svg= assets.
 - Research record 05 inspects Fikes/Nilsson 1971 plus current SWI =copy_term/2= and =sort/2=. The manuscript explicitly calls this a course-local STRIPS-style subset rather than claiming equivalence to the complete historical STRIPS system or PDDL.
 * Active research
 - Project 2 cost/heuristic search and constraint integration remain open after the Chapter 8 action-schema slice.
