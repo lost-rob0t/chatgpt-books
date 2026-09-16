@@ -51,6 +51,14 @@ class CalculusLabTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "too small"):
             central_difference(lambda x: x * x, 1e16, step=1e-16)
 
+    def test_displaced_sample_overflow_is_rejected_before_function_evaluation(self):
+        with self.assertRaisesRegex(ValueError, "sample x must be finite"):
+            central_difference(lambda x: 0.0, 1e308, step=1e308)
+        with self.assertRaisesRegex(ValueError, "displaced x must be finite"):
+            forward_difference(lambda x: 0.0, 1e308, step=1e308)
+        with self.assertRaisesRegex(ValueError, "sample component must be finite"):
+            partial_difference(lambda p: 0.0, (1e308,), 0, step=1e308)
+
     def test_numerical_estimate_is_not_proof_that_a_derivative_exists(self):
         self.assertEqual(central_difference(abs, 0.0, step=1e-4), 0.0)
 
