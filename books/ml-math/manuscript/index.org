@@ -4,3 +4,4 @@
 #+attr_html: :alt Dashed unit square and standard basis vectors are overlaid with a solid transformed parallelogram; solid arrows from the origin show the two columns of matrix A as the images of the basis vectors.
 [[file:assets/matrix_transform.svg]]
 #+include: "matrix-foundations.org" :lines "430-"
+#+include: "matrix-numerics-lab.org"
