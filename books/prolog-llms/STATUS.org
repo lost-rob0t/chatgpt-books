@@ -4,7 +4,7 @@
 :END:
 
 * Phase
-Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / milestone A are editorially APPROVED and merged via PR #39. Chapters 4--5 / milestone B are an active draft awaiting exact-head verification and Editor-in-Chief review. The complete long-form book remains in progress and is not DONE.
+Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / milestone A are editorially APPROVED and merged via PR #39. Chapters 4--5 / milestone B are a verified draft awaiting Editor-in-Chief review. The complete long-form book remains in progress and is not DONE.
 
 * Accepted baseline
 - Standalone audience and teaching contract defined.
@@ -22,22 +22,29 @@ Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / m
 - =first_ready_task/2= is an explicitly named =once/1= boundary whose contract is “first answer in current program/search order”, not “highest priority”.
 - New =task_report= consumer module imports only =ready_task/2= and =explain_task/2= and composes a provenance-bearing report. The manuscript explicitly states that modules are namespace/interface discipline, not a security sandbox.
 - The PL-Unit suite adds regressions for exact ready-task enumeration, first-answer commitment, and cross-module public-API composition while retaining all milestone A regressions.
+- A first CI pass exposed a leftover choice point in the consumer-module test. The test was strengthened to assert the complete result set instead of suppressing the warning with =nondet=; the verified rerun is warning-free.
 - No LLM/provider call, model output, arbitrary generated callable Prolog goal, Prolog-RLM runtime execution, or benchmark is introduced by milestone B.
 
 * Verification
 Accepted milestone A verification is recorded above and must not be inherited by the new draft.
 
-Current milestone B state:
-- DOCUMENTED: official-source research and manuscript claims.
-- UNTESTED at this status commit: the new milestone B code/tests and exact-head publication build until CI runs on the opened PR.
-- Required gates: actual SWI-Prolog Project 1 suite, =make book BOOK=prolog-llms=, =make check BOOK=prolog-llms=, focused book CI, generic books CI, and Nix as exercised by the focused workflow.
+Milestone B implementation content at commit =eea12da990d4ce43df52c7a9afe6808dbb4741d6= was TESTED against current-main PR integration commit =d8abb2ca0257708942f93673f8979ff14d76b052=:
+- focused =prolog-llms-book= run =35109295239=: SUCCESS on Ubuntu 24.04.5 / SWI-Prolog 9.0.4;
+- all 16 Project 1 PL-Unit cases completed cleanly (=................=) with no choice-point warning;
+- structural validation passed: 10 active principal books plus one paused scaffold;
+- =make book BOOK=prolog-llms=: PASS with Pandoc 3.10.1;
+- =make check BOOK=prolog-llms=: PASS; EPUBCheck 5.3.0 reported 0 fatals / 0 errors / 0 warnings / 0 infos;
+- focused Nix job / =nix flake check -L=: PASS;
+- generic =books-ci= run =35109295346=: SUCCESS through structure, Pandoc Org-reader, deterministic publication assets/fixture, EPUB validation, publication assertions, per-book citation rendering, ERT, and real Org-roam DB synchronization.
+
+The current status-only commit must still receive its own exact-head focused and generic CI before editorial handoff. Final exact-head run IDs are recorded on PR #49 rather than forcing another status-only bookkeeping commit.
 
 * Editorial state
-DRAFT / NEEDS EXACT-HEAD VERIFICATION. Final editorial acceptance and merge authority remains with the Books Editor-in-Chief. Passing CI will promote the executed milestone-B code claims from UNTESTED to TESTED; it will not mark the whole book DONE.
+DRAFT / IMPLEMENTATION VERIFIED / AWAITING FINAL EXACT-HEAD GATE. Final editorial acceptance and merge authority remains with the Books Editor-in-Chief. Passing the final status-only head gate does not mark the whole book DONE.
 
 * Next dependency-ready slice
 After milestone B is accepted, research and implement the Project 1 DCG mini-language, a genuine CLP(FD) scheduling/constraint subproblem, and carefully bounded meta-programming. Keep live model/provider work behind the later typed gateway boundary.
 
 * Blockers
-- Milestone B needs exact-head CI before editorial handoff.
+- Only the final exact-head CI for this status-only reconciliation remains before milestone B can be handed to the Editor-in-Chief.
 - Version-sensitive LLM/provider examples remain intentionally deferred until a focused typed-gateway research slice chooses current primary-source-backed interfaces and records exact tested versions.
