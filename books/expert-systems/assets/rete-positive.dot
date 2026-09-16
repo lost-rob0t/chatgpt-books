@@ -1,0 +1,31 @@
+digraph rete_positive {
+  rankdir=LR;
+  graph [fontname="sans-serif", labelloc="t", label="Milestone C: one positive two-condition production"];
+  node [shape=box, fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  wm [label="working-memory delta\n(assert / retract)", shape=oval];
+  a1 [label="alpha memory 1\n(service-state ?dependency failed)"];
+  a2 [label="alpha memory 2\n(depends-on ?service ?dependency)"];
+  b0 [label="beta[0]\nempty token"];
+  j1 [label="join 1", shape=diamond];
+  b1 [label="beta[1]\n?dependency + support stamp"];
+  j2 [label="join 2", shape=diamond];
+  b2 [label="beta[2]\ncomplete token"];
+  p [label="production node\nrule.dependency-impact"];
+  agenda [label="activation -> existing\nconflict policy / refraction", shape=oval];
+
+  wm -> a1 [label="local match"];
+  wm -> a2 [label="local match"];
+  b0 -> j1 [label="left token"];
+  a1 -> j1 [label="right item"];
+  j1 -> b1 [label="consistent bindings"];
+  b1 -> j2 [label="left token"];
+  a2 -> j2 [label="right item"];
+  j2 -> b2 [label="extended token"];
+  b2 -> p;
+  p -> agenda;
+
+  wm -> b1 [style=dashed, label="retract removes\ndependent tokens"];
+  wm -> b2 [style=dashed, label="retract cascades\nby support stamp"];
+}

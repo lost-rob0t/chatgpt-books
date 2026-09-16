@@ -1,0 +1,69 @@
+#+title: Prolog Arithmetic Evaluation -- Chapter 7 Research
+:PROPERTIES:
+:ID:       5b809575-47d1-4e34-8e41-d9bf1155c642
+:END:
+
+* Scope
+Issue #84 requires a bounded arithmetic pass for Chapter 7 of the pure-Prolog beginner volume. The immediate project need is small: once =connection_path/3= has proved a finite simple path, count its edges and optionally filter the answer by a ground hop limit.
+
+This note records only the current arithmetic behavior needed for that slice. It does not move CLP(FD), general constraint solving, shortest-path search, cut, negation, or performance material forward from their later chapters.
+
+* Sources inspected
+** Current SWI-Prolog arithmetic manual
+- Source :: SWI-Prolog Reference Manual, section 4.27, “Arithmetic”.
+- URL :: https://www.swi-prolog.org/pldoc/man?section=arith
+- Authority :: official current SWI-Prolog documentation.
+- Retrieved :: 2026-09-16.
+- Relevant subsections :: 4.27.1 special-purpose integer arithmetic; 4.27.2 general-purpose arithmetic; arithmetic functions.
+
+DOCUMENTED observations used by Chapter 7:
+- General arithmetic predicates evaluate arithmetic expressions rather than merely matching their term structure.
+- =is/2= is documented as true when its left argument unifies with the value obtained by evaluating the right arithmetic expression. The manual recommends an unbound left operand for ordinary evaluation.
+- Arithmetic comparison predicates =< /2=, =</2=, =>/2=, =>=/2=, ==:=/2=, and ==\=/2= evaluate their operands as arithmetic expressions.
+- ==:=/2= is arithmetic numeric equality. It is not the same operation as term unification. The official example distinguishes integer =1= from floating-point =1.0=: =1 is sin(pi/2)= fails because =is/2= evaluates and then unifies, whereas =1 =:= sin(pi/2)= succeeds as numeric equality.
+- The manual marks the general operators used here as ISO predicates. SWI also provides non-ISO special-purpose integer relations such as =plus/3= and =succ/2=; these are useful context but are not required by the Project 1 implementation.
+
+Teaching consequence: do not explain =is/2= as assignment. Evaluation happens on the right, then the result must unify with the left. This directionality creates an important calling-mode boundary.
+
+** Current SWI-Prolog CLP(FD) manual
+- Source :: SWI-Prolog =library(clpfd)= manual, declarative integer arithmetic section.
+- URL :: https://www.swi-prolog.org/man/clpfd.html
+- Authority :: official SWI-Prolog library documentation maintained with the implementation.
+- Retrieved :: 2026-09-16.
+
+DOCUMENTED observations used only as a forward boundary:
+- The manual contrasts low-level arithmetic with finite-domain constraints using the concrete pair =3 is Y+2= / =3 =:= Y+2=, which raise an insufficient-instantiation error when =Y= is not known, and =3 #= Y+2=, which can constrain/solve =Y=.
+- The CLP(FD) chapter describes integer constraints as relational and recommends separating constraint posting from later search/labeling where appropriate.
+
+Teaching consequence: Chapter 7 should expose the low-level arithmetic mode restriction honestly, then point forward to Chapters 15--16. It must not pretend that Prolog as a language lacks relational arithmetic, nor teach the later constraint solver prematurely.
+
+* Repository-local design derived from the sources
+** =path_hops/2=
+Supported teaching mode: =path_hops(+Path, -Hops)= where =Path= is a finite, proper, non-empty list representing an already-proved path.
+
+The implementation recursively obtains the tail count before evaluating =TailHops + 1=. This ordering makes the =is/2= precondition visible: by the time arithmetic evaluation occurs, =TailHops= is numeric.
+
+This predicate is not claimed to be a fully relational list-length relation. A sufficiently open first argument can generate structure or diverge under other modes, and reversing =is/2= does not solve for its unknown expression operands.
+
+** =connection_with_hops/4=
+This predicate first delegates path truth to the already-accepted =connection_path/3= relation, then derives a numeric property from the returned path. It must preserve the underlying multi-answer contract.
+
+No shortest-path claim follows. The existing depth-first relation still determines enumeration order. Counting hops after a proof is annotation, not a new search algorithm.
+
+** =connection_within_hops/5=
+Supported teaching mode: =connection_within_hops(+Start,+Goal,+Limit,-Path,-Hops)= with a ground numeric =Limit=. It proves a path, computes =Hops=, then evaluates =Hops =< Limit= as a filter.
+
+Again, this is not constraint propagation into the path search. A variable =Limit= is outside the supported mode and low-level comparison requires evaluable operands.
+
+* Claim status
+- DOCUMENTED :: current SWI arithmetic expression/evaluation/comparison semantics described above; current CLP(FD) relational contrast.
+- TESTED :: only after the repository's Chapter 7 PL-Unit suite actually executes successfully on a recorded head.
+- UNTESTED :: behavior on Prolog systems other than the recorded SWI environment; open/general modes not covered by the project contract.
+- NOT CLAIMED :: shortest-path optimality; arithmetic or graph-search complexity; performance/latency; CLP(FD) implementation in Chapter 7; portability of SWI-only helper predicates.
+
+* Review questions for the manuscript
+1. Does every use of =is/2= identify what must already be known before evaluation?
+2. Does the text clearly separate term unification from arithmetic numeric equality?
+3. Does the path example preserve the existing relation's multiple answers rather than accidentally committing to one?
+4. Is the insufficient-instantiation example labeled a mode failure, not “Prolog cannot do algebra”?
+5. Is CLP(FD) only a forward pointer here, with the actual constraint curriculum left for Chapters 15--16?

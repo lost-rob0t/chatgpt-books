@@ -1,0 +1,103 @@
+* Project Lab C.1 -- Two Cache Invariants You Must Not Confuse
+:PROPERTIES:
+:ID:       f330f80f-bea4-447e-bd49-2ce74bdebac9
+:END:
+
+An incremental matcher introduces a failure mode the complete-rematch oracle cannot have: its cache can disagree with the working memory it is supposed to index. “The cache is consistent” sounds like one property, but it is at least two.
+
+This lab turns that distinction into executable debugging work before truth maintenance begins.
+
+** Reference soundness: cached evidence still exists
+The first question is local:
+
+#+begin_quote
+Does every cached alpha item and beta support stamp still refer to the same current working-memory occurrence?
+#+end_quote
+
+Milestone C exposes =incremental-cache-references-current-p= for that check. For alpha items, it verifies that the cached =wm-entry= is still the exact current entry for its stable fact ID. For beta tokens, every =(fact-id . assertion-sequence)= support must resolve to the current occurrence with the same sequence.
+
+This invariant is useful after retraction. If a support occurrence disappears but a dependent token survives, the checker fails even before that stale token reaches the agenda.
+
+It is intentionally a *one-way* invariant. Passing it does not prove the network contains every match that should exist.
+
+** Completeness: current evidence reached the cache
+Now deliberately break the ownership boundary:
+
+#+begin_src lisp
+(assert-fact (engine-working-memory engine) restart-fact)
+#+end_src
+
+The working-memory assertion is valid. But because it bypassed =incremental-assert-fact=, the network never received the delta.
+
+Every old cache reference can still be current. Therefore:
+
+#+begin_src lisp
+(incremental-cache-references-current-p network)
+;; can still be true
+#+end_src
+
+Yet the complete-rematch oracle sees the new fact while the incremental agenda does not:
+
+#+begin_src lisp
+(equal (mapcar #'activation-key (build-agenda engine))
+       (mapcar #'activation-key (incremental-agenda network)))
+;; false in the deliberate bypass regression
+#+end_src
+
+This is the important lesson: *no stale references* does not imply *no missing matches*.
+
+The test suite repairs the deliberately broken scenario by recompiling the network from current working memory and then requiring oracle/incremental agenda equality again. Rebuilding is a debugging recovery technique here, not a substitute for an ownership-safe mutation API.
+
+** Batch assertions test the other direction
+A correct incremental API must also handle more than one new occurrence in a validated batch. =incremental-assert-facts= first delegates the complete batch to the milestone-B working-memory validator. Only after that operation succeeds does it propagate each newly created occurrence through the network in assertion order.
+
+The regression starts with an empty engine and a two-condition production, asserts both required facts in one batch, and checks:
+
+- the returned working-memory sequences preserve assertion order;
+- the incremental and complete-rematch agenda keys are equal;
+- exactly one joined activation exists;
+- every retained cache support names a current occurrence.
+
+The point is not that two facts are difficult. The point is that the validation boundary and the delta boundary must compose without creating a half-updated index.
+
+** Failure lab: rule action validation must fail before both state layers change
+There is another dangerous split-brain path. Suppose a production matches correctly, but its action returns something that is not a =fact=.
+
+Milestone B already owns this rule: =fire-activation= validates the complete proposed assertion batch before working memory, refraction, or firing history changes. The incremental wrapper must not weaken that guarantee.
+
+The new regression captures working-memory IDs and an =incremental-network-snapshot=, attempts the invalid firing through =incremental-fire-activation=, and requires all of the following afterward:
+
+- the expected fact-validation error was signaled;
+- working memory is unchanged;
+- no firing record was appended;
+- no activation was marked refracted;
+- the incremental cache snapshot is unchanged;
+- oracle and incremental agenda keys still agree;
+- the cache-reference invariant still holds.
+
+This is why =incremental-fire-activation= delegates the commit to =fire-activation= *before* it propagates any newly created entries. There is one authority for the state transition. The cache only observes a successful transition afterward.
+
+** Debugging procedure
+When the two agenda builders disagree, do not immediately rewrite the join algorithm. Classify the failure first:
+
+1. Run =incremental-cache-references-current-p=.
+2. If it is false, inspect retraction/invalidation and find the first stale alpha item or beta support.
+3. If it is true but the agendas differ, suspect a missed delta, incorrect local match, missing join extension, or duplicate suppression bug.
+4. Compare =incremental-network-snapshot= before and after the mutation.
+5. Rebuild a fresh network from the same engine. If the rebuilt network agrees with =build-agenda=, the rule semantics are probably intact and the defect is in delta maintenance.
+6. Only investigate conflict ordering or refraction when the activation sets agree but their order differs.
+
+That separation scales beyond this teaching engine. An index can contain only valid records and still be incomplete. A cache can be complete for matching and still leave derived beliefs stale after their justifications disappear. The latter is the next layer: truth maintenance.
+
+** Exercises
+*** ★ Classify the bug
+A retracted fact is absent from working memory, but one terminal beta token still contains its occurrence stamp. Which invariant fails? Would rebuilding the network repair the symptom?
+
+*** ★★ Create a missed-delta regression
+Add a three-condition production. Bypass the incremental API with a fact that satisfies only the middle condition. Show that cache-reference checking alone cannot detect the omission, then prove oracle disagreement and rebuild recovery.
+
+*** ★★★ Make the failure diagnostic useful
+Extend the cache-reference checker with a separate diagnostic function that returns the first stale object and its expected/current occurrence rather than only a Boolean. Keep the Boolean predicate as the small invariant used by tests.
+
+*** ★★★ Connect to truth maintenance
+After the service chain fires, retract its original failure observation. The matching cache can be reference-sound again while derived facts remain in working memory. Explain why neither cache-reference soundness nor agenda equivalence answers the question “is this derived fact still justified?” Draw the support graph the next milestone must maintain.
