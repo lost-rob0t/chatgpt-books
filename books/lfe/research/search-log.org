@@ -3,4 +3,20 @@
 :ID:       307487a4-810c-5c7c-9193-df348ee4dbf8
 :END:
 * Entries
-No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.
+** 2026-09-16 -- current LFE release and OTP compatibility
+Question: What LFE release should the first executable book slice pin, and what current OTP compatibility does upstream claim?
+Sources inspected: LFE GitHub release =v2.2.2= and its tagged Makefile/source.
+Result: =v2.2.2= was published 2026-08-05. The release explicitly adds OTP 28/29 compatibility and a regression for the OTP 28+ =lfe -eval= startup change. Pin v2.2.2 for this slice; record the actual OTP release separately in CI.
+Remaining uncertainty: later release/rebar3 chapters need a fresh toolchain pass and must not assume this pin is still current.
+
+** 2026-09-16 -- LFE syntax, patterns, recursion, and direct Erlang facilities
+Question: Which upstream artifacts demonstrate the semantics needed for Chapters 1--3 without relying on secondary tutorials?
+Sources inspected: tagged =doc/src/lfe_guide.7.md=, =examples/fizzbuzz.lfe=, =examples/messenger.lfe=, =dev/pattern-test.lfe=, and =bin/lfec= at LFE v2.2.2.
+Result: current tagged sources document list/binary strings and function references; examples exercise function-clause patterns, guards, recursion, direct Erlang module calls, spawn/receive; the pattern test explicitly covers recurring variables; =lfec= documents direct compilation with =-o=.
+Remaining uncertainty: macro expansion/hygiene is intentionally deferred to the macro research pass.
+
+** 2026-09-16 -- current Erlang term/pattern/process semantics
+Question: Which BEAM semantics must the LFE book teach directly rather than treating LFE as isolated syntax?
+Sources inspected: Erlang System Documentation =data_types.html= v29.0.5, =expressions.html= and =patterns.html= v29.0.6, and =ref_man_processes.html= v29.0.6.
+Result: terms/lists/tuples/maps and single-assignment pattern semantics remain the foundation. Process communication is asynchronous signaling. Message ordering is not a universal cross-sender FIFO guarantee; current docs state same-sender-to-same-destination signal ordering, and OTP 28 priority-message reception can change queue ordering relative to signal arrival.
+Remaining uncertainty: priority-message APIs themselves are outside the current project slice and require dedicated testing before use.

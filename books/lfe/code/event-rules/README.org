@@ -1,0 +1,37 @@
+#+title: Event Routing DSL — Foundation Kernel
+
+* Why this project starts as data
+Project 1 eventually becomes an LFE DSL, but the first implementation deliberately keeps rules as ordinary BEAM terms. That makes the semantic core visible before macros are introduced: a macro may improve source ergonomics later, but it must not secretly change routing behavior.
+
+The event representation is a four-tuple:
+
+#+begin_src lfe
+(tuple 'event level service payload)
+#+end_src
+
+The initial rule forms are:
+
+#+begin_src lfe
+(tuple 'when-level level destination)
+(tuple 'when-service service destination)
+(tuple 'otherwise destination)
+#+end_src
+
+Rules are tried from left to right. The first matching rule returns =#(ok destination)=. Exhausting the list returns =#(error no-route)=. Malformed events and rules return tagged error terms instead of being silently accepted.
+
+* Run it
+Requires Erlang/OTP plus LFE. The book CI pins LFE v2.2.2 and records the actual OTP release used by the runner.
+
+#+begin_src sh
+books/lfe/code/event-rules/run-tests
+#+end_src
+
+The script compiles the LFE modules with =lfec=, runs the LFE regression module on the BEAM, then performs a second smoke test from Erlang itself. That final test is the important interoperability boundary: Erlang calls an LFE-compiled module and exchanges ordinary Erlang terms.
+
+* Failure labs
+1. Move =otherwise= to the front and observe why first-match semantics make every later rule unreachable.
+2. Replace a rule with =#(wat nope)= and confirm the router returns =#(error #(bad-rule ...))= rather than pretending it did not match.
+3. Remove the empty-rule clause and re-run the suite. The resulting function-clause failure is a useful demonstration of why a recursive function needs an explicit base case.
+
+* Scope boundary
+This slice does not implement macros, processes, OTP behaviours, persistence, or distribution. Those arrive after their chapters establish the underlying semantics. The macro surface must eventually compile to this same kind of explicit rule data or an equally inspectable semantic representation.
