@@ -3,4 +3,26 @@
 :ID:       0cf1c49a-eaf9-5404-947c-81aee168a42b
 :END:
 * Entries
-No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.
+** 2026-09-16 -- Project 1 meta-interpreter foundation
+Questions:
+- How does current SWI-Prolog define meta-calling and module-sensitive meta predicates?
+- What guarantees and restrictions does =clause/2= have?
+- Which debugger ports are part of the current execution model?
+- What does =call_with_depth_limit/3= actually bound?
+- How does SWI define variant checking for =@=/2?
+- What is the current PL-Unit interface and stable manual baseline?
+
+Inspected official sources:
+- https://www.swi-prolog.org/pldoc/man?section=metacall
+- https://www.swi-prolog.org/pldoc/man?section=metapred
+- https://www.swi-prolog.org/pldoc/doc_for?object=clause/2
+- https://www.swi-prolog.org/pldoc/man?section=debugoverview
+- https://www.swi-prolog.org/pldoc/man?section=prologtrace
+- https://www.swi-prolog.org/pldoc/man?section=compare
+- https://www.swi-prolog.org/pldoc/doc/_SWI_/library/ext/plunit/index.html
+- https://www.swi-prolog.org/download/stable/doc/
+- https://www.swi-prolog.org/Download.md
+
+Result: sufficient to freeze the first pedagogical object-language boundary and its verification plan. Native-clause reflection, cuts, exception semantics, tabling, and advanced module-transparent metaprogramming remain later research rather than being silently inherited by milestone A.
+
+Remaining uncertainty: exact runtime behavior is not marked TESTED until branch CI runs the project under a recorded SWI-Prolog executable.
