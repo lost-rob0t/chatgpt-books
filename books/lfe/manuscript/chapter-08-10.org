@@ -73,7 +73,7 @@ The implementation creates references with the ordinary Erlang BIF:
 Again, there is no “LFE reference.” This is precisely the kind of interoperation we want readers to become comfortable with: Lisp source invoking the same runtime building blocks an Erlang module would use.
 
 *** Correlation is a correctness property, not decoration
-Suppose a caller performed an older request and a reply was delayed. Later it sends a new request. If the client helper accepts any tuple beginning with =reply=, the old reply can satisfy the new call.
+Suppose a caller performed an older request and a reply was delayed. Later it sends a new request. If the client helper accepts any tuple beginning with =reply=, the old reply can satisfy the new request.
 
 The wrong receive is conceptually:
 
@@ -95,7 +95,7 @@ Project 2 instead waits for the exact fresh reference:
 
 That repeated =ref= is the same pattern-matching idea from Chapter 2, now doing concurrency work. The client has not gained a new concurrency abstraction; it has reused structural matching to specify which message can advance the protocol.
 
-The regression suite deliberately puts a stale, well-shaped reply in the caller's mailbox before making a fresh call. The fresh call must still return the new request's result. Only afterward does the test consume the stale reply. That gives us evidence for two facts at once: correlation works, and selective receive can leave unmatched messages waiting in the mailbox.
+The regression suite deliberately puts a stale, well-shaped reply in the caller's mailbox before making a fresh request. The fresh request must still return the new request's result. Only afterward does the test consume the stale reply. That gives us evidence for two facts at once: correlation works, and selective receive can leave unmatched messages waiting in the mailbox.
 
 *** Direct Erlang interoperability is an acceptance test
 A process API becomes more convincing when a second BEAM language uses it. The Project 2 gate launches an ordinary Erlang runtime, calls the compiled LFE module, receives the PID, routes an event through it, and stops it.
@@ -247,12 +247,12 @@ This is a recurring systems lesson: an acknowledgement is evidence that one mess
 :END:
 
 *** A blocking helper is built from asynchronous pieces
-The =call/3= helper feels synchronous because the caller does not return until it receives a matching reply or reaches its timeout. The transport underneath is still asynchronous signaling. Erlang's process documentation describes sending as asynchronous; a receiver later selects messages from its queue. [cite:@erlang-processes-29]
+The =request/3= helper feels synchronous because the caller does not return until it receives a matching reply or reaches its timeout. The transport underneath is still asynchronous signaling. Erlang's process documentation describes sending as asynchronous; a receiver later selects messages from its queue. [cite:@erlang-processes-29]
 
 That difference matters whenever we debug time.
 
 #+begin_src lfe
-(defun call (pid request timeout)
+(defun request (pid request timeout)
   (let ((ref (erlang:make_ref)))
     (! pid (tuple 'call (self) ref request))
     (receive
@@ -261,6 +261,8 @@ That difference matters whenever we debug time.
       (after timeout
         (tuple 'error 'timeout)))))
 #+end_src
+
+The helper is intentionally named =request= rather than =call=. The first executable gate tried =call= and LFE rejected the definition because =call= is a core form. Keeping that failure in the research record is useful: Lisp syntax is programmable, but core-language names are not an infinite namespace for convenience APIs.
 
 There are at least four events here:
 
@@ -276,7 +278,7 @@ This is important enough to say without euphemism: =#(error timeout)= does not m
 
 The request may already be in the actor's mailbox. The actor may be computing it. The reply may be on its way. The actor may be healthy and merely slow relative to the caller's chosen deadline. Current process semantics do not turn a local receive timeout into a remote cancellation protocol. [cite:@erlang-processes-29;@lfe-guide-v2-2-2]
 
-Project 2 tests the narrow claim directly. It spawns a live process that receives messages but deliberately never replies. A call times out. The test then explicitly kills the silent process for cleanup. If timeout had proved target death, that cleanup step would make no conceptual sense.
+Project 2 tests the narrow claim directly. It spawns a live process that receives messages but deliberately never replies. A request times out. The test then explicitly kills the silent process for cleanup. If timeout had proved target death, that cleanup step would make no conceptual sense.
 
 Later systems can add explicit cancellation, aliases, leases, deadlines, or idempotency rules. Those are *protocol designs*, not hidden meanings we are allowed to attach to =after=.
 
@@ -301,9 +303,9 @@ This is correct protocol behavior and a potential operational smell if stale/unr
 The tiny regression does *not* measure mailbox performance. No throughput or latency numbers are inferred from it.
 
 *** Late replies create a cleanup problem
-Suppose a call times out at 100 milliseconds and its reply arrives at 120 milliseconds. The helper has already returned. Unless the protocol uses a stronger cancellation/alias mechanism or the caller explicitly drains late replies, that reply can remain in the mailbox.
+Suppose a request times out at 100 milliseconds and its reply arrives at 120 milliseconds. The helper has already returned. Unless the protocol uses a stronger cancellation/alias mechanism or the caller explicitly drains late replies, that reply can remain in the mailbox.
 
-Correlation prevents the late reply from satisfying a *different* call. It does not make the late reply disappear.
+Correlation prevents the late reply from satisfying a *different* request. It does not make the late reply disappear.
 
 This leads to a useful protocol checklist:
 
@@ -349,7 +351,7 @@ Neither choice is universally correct. Ignoring every unknown message can hide b
 The important move is to make the choice explicit and test the boundary. Later OTP behaviours will impose conventional callback shapes, but they do not remove the need to decide what application-level messages mean.
 
 *** Debugging trace: follow the reference
-When a call “hangs,” debug the protocol in reference order rather than staring at source syntax:
+When a request “hangs,” debug the protocol in reference order rather than staring at source syntax:
 
 1. Was a fresh reference created?
 2. Was the request sent to the expected PID?
@@ -362,7 +364,7 @@ When a call “hangs,” debug the protocol in reference order rather than stari
 This style scales to OTP calls, distributed nodes, and tracing. A correlation identifier gives you a path through concurrent events that source-level stack traces alone cannot reconstruct.
 
 *** Failure lab: remove correlation
-Modify =call/3= so any =#(reply _ Result)= satisfies the receive. Keep the stale-reply regression unchanged. The test should now return =stale= for the fresh call and fail.
+Modify =request/3= so any =#(reply _ Result)= satisfies the receive. Keep the stale-reply regression unchanged. The test should now return =stale= for the fresh request and fail.
 
 Then repair the code and try a subtler bug: create the reference once at process startup and reuse it for every request. Explain why that defeats the purpose even if simple sequential tests appear to pass.
 
@@ -372,7 +374,7 @@ At the end of Chapter 10, Project 2 has a deliberately small but real actor appl
 - a process owns the current rule-set term;
 - routing still delegates to the independently tested Project 1 kernel;
 - requests and replies are explicit BEAM tuples;
-- fresh references correlate calls and replies;
+- fresh references correlate requests and replies;
 - state changes are loop-recursion state transitions;
 - a regression demonstrates selective receive against a stale reply;
 - a regression demonstrates same-sender ordering for two requests to one actor;
@@ -383,7 +385,7 @@ At the end of Chapter 10, Project 2 has a deliberately small but real actor appl
 What remains absent is intentional: no =gen_server=, no supervisor, no application tree, no persistence boundary, no distribution, and no release packaging. We now know enough raw mechanics for OTP to be explained as a disciplined abstraction rather than magic.
 
 *** Exercises
-1. ★ Explain why correlation solves “wrong reply satisfies this call” but not “late replies never accumulate.”
+1. ★ Explain why correlation solves “wrong reply satisfies this request” but not “late replies never accumulate.”
 2. ★★ Write a trace for a request that times out locally and is processed successfully by the actor afterward.
 3. ★★ Invent a malformed call envelope for which the server cannot safely send an error reply. What should the server do, and why?
 4. ★★★ Design an explicit cancellation protocol. Identify at least one race between completion and cancellation and state what result each side should accept.
