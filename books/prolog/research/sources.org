@@ -65,8 +65,15 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - URL :: https://www.swi-prolog.org/pldoc/doc_for?object=once/1
 - Authority :: Official SWI-Prolog documentation.
 - Retrieved :: 2026-09-16.
-- Relevant to :: Chapter 4; Project 1 milestone 2.
-- Used for :: explicit first-success commitment around a nondeterministic relation; the book keeps =connection_path/3= multi-answer and names the committed wrapper =first_connection_path/3=.
+- Relevant to :: Chapters 4 and 8; Project 1 milestones 2 and 4.
+- Used for :: explicit first-success commitment around a nondeterministic relation; Chapter 8 compares the accepted =once/1=-based wrapper with a direct cut only in a simple, tested scope and does not claim arbitrary raw-cut rewrites are context-free equivalents.
+
+* SWI-Prolog Reference Manual -- Control Predicates
+- URL :: https://www.swi-prolog.org/pldoc/man?section=control
+- Authority :: Official current SWI-Prolog reference documentation.
+- Retrieved :: 2026-09-16.
+- Relevant to :: Chapter 8; Project 1 milestone 4.
+- Used for :: =!/0= as an ISO control predicate; the documented rule that cut discards choice points created since entering the predicate containing it and commits to the current clause/choices to its left; and the documented transparency/opacity caveats through meta-calling and compound control constructs. Chapter 8 uses these semantics to derive qualify-before-commit and a deliberate premature-cut failure lab.
 
 * SWI-Prolog =library(lists)= -- =member/2=
 - URL :: https://www.swi-prolog.org/pldoc/doc_for?object=member/2
