@@ -212,6 +212,16 @@
            #:explain-current-fact
            #:explain-contradiction-report
            #:*service-diagnosis-facts*
-           #:make-service-diagnosis-productions))
+           #:make-service-diagnosis-productions
+           #:*systemd-unit-source-url*
+           #:*systemd-unit-state-source-url*
+           #:make-systemd-start-request-fact
+           #:make-systemd-requirement-fact
+           #:make-systemd-ordering-fact
+           #:make-systemd-activation-fact
+           #:make-systemd-dependency-productions
+           #:make-systemd-dependency-fixture
+           #:make-systemd-dependency-kb
+           #:systemd-diagnosis-fact-id))
 
 (in-package #:expert-systems.matcher)
