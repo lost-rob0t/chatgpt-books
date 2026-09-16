@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+server_pin="1ac298b797bd4bc0e71cfde083c6a59af55ccc6f"
+upstream="${repo_root}/.cache/starintel-server-service-trace"
+book_artifact="${repo_root}/.cache/starintel-service-trace.json"
+
+rm -rf "$upstream"
+mkdir -p "$(dirname "$upstream")"
+git init -q "$upstream"
+git -C "$upstream" remote add origin https://github.com/lost-rob0t/starintel-server.git
+git -C "$upstream" fetch --depth=1 origin "$server_pin"
+git -C "$upstream" checkout --detach FETCH_HEAD
+[[ "$(git -C "$upstream" rev-parse HEAD)" == "$server_pin" ]]
+
+python3 "${repo_root}/books/starintel/code/live-stack/inject_probe.py" \
+  "$upstream/scripts/stack-test.sh"
+
+export BOOK_REPO_ROOT="$repo_root"
+export STARINTEL_SERVER_PIN="$server_pin"
+export STARINTEL_BOOK_PROBE="${repo_root}/books/starintel/code/live-stack/probe.sh"
+
+(
+  cd "$upstream"
+  bash scripts/stack-test.sh
+)
+
+source_artifact="$upstream/stack-test-artifacts/book-service-trace.json"
+test -s "$source_artifact"
+mkdir -p "$(dirname "$book_artifact")"
+cp "$source_artifact" "$book_artifact"
+python3 -m json.tool "$book_artifact" >/dev/null
+printf 'StarIntel service trace artifact: %s\n' "$book_artifact"

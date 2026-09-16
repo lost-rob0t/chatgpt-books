@@ -1,0 +1,140 @@
+#+title: Project 2 — Disposable Service-Backed StarIntel Trace
+:PROPERTIES:
+:ID:       d6c0cc61-bc62-46be-93ba-c3eb0401df0b
+:END:
+
+* Purpose
+This lab closes one evidence gap left by the hermetic ingest-adapter tests.  It
+runs the *real pinned StarIntel Server stack* long enough to ask three separate
+questions:
+
+1. Can a synthetic canonical document cross the current HTTP ingest boundary
+   and later be observed through the authorized read route?
+2. What does the current HTTP boundary actually report when RabbitMQ is
+   deliberately stopped?
+3. After an explicit operator recovery (start RabbitMQ, restart StarIntel), can
+   a new synthetic document again cross the full path and be read back?
+
+The test does not copy StarIntel's server, RabbitMQ, CouchDB, authorization, or
+Compose implementation into this book.  It fetches exact upstream revision
+=1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= and reuses that revision's own
+=scripts/stack-test.sh= disposable deployment.  =inject_probe.py= fails closed
+unless the audited upstream script still contains the exact expected hook
+point.
+
+* Architecture
+The upstream script owns service startup, one-time bootstrap credentials,
+health checks, restart checks, diagnostics, teardown, and all product-owned
+configuration.  Immediately before its normal final success message, the book
+sources =probe.sh= while the disposable stack and credential still exist.
+
+#+begin_example
+pinned upstream stack-test
+        |
+        +-- starts Nix-built StarIntel/RabbitMQ/CouchDB/Valkey stack
+        +-- runs upstream auth/search/restart checks
+        |
+        +-- book probe (small observation hook)
+        |     |
+        |     +-- existing book ingest adapter -> POST -> Rabbit -> consumer -> Couch
+        |     |                                      |
+        |     |                                      +-> authorized GET observes record
+        |     |
+        |     +-- stop RabbitMQ -> make one fresh submission -> classify evidence
+        |     |
+        |     +-- start RabbitMQ + restart StarIntel -> fresh POST/read-back
+        |
+        +-- upstream teardown
+#+end_example
+
+The hook writes only =book-service-trace.json=.  The disposable API key, bearer
+header, raw response bodies, Compose project name, container IDs, and raw fault
+stderr are not retained in that artifact.
+
+* Why the fault result is not hard-coded
+The lesson is evidence collection, not a test that forces the current product
+to match a guessed status code.  While RabbitMQ is verified stopped, the
+existing adapter may observe either:
+
+- an HTTP admission failure;
+- an HTTP transport failure; or
+- an HTTP success return followed by no persistence observation before the
+  bounded read-back deadline.
+
+=summarize_trace.py= records whichever of those actually occurs.  An unknown
+adapter failure fails closed.  A unique fault document becoming durably
+observable while RabbitMQ is verified stopped is treated as contradictory
+probe evidence and also fails closed.
+
+* Observed reference executions
+Workflow run =35115201190=, service-backed job =104858737649=, executed this
+lab against exact book head =1e0ad4e802ea390823a9a5cc04858eb03d2c8ba4= and
+upstream StarIntel Server revision =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=.
+A second run, =35121092016= / job =104878765097=, repeated the experiment after
+normal reconciliation with then-current =main= at book head
+=c09f88fdd2b9dd7df48f48777b32bbf316ba3c65=.
+
+Both runs observed the same qualitative boundary:
+
+- baseline POST HTTP 200 followed by authorized read-back HTTP 200; the first
+  run observed persistence on read attempt 1 and the second on attempt 2;
+- RabbitMQ verified not running while the HTTP service remained alive;
+- during that outage a fresh POST still returned HTTP 200, but the fresh record
+  was not observed before the bounded deadline after nine read attempts in
+  either run (final read status 404);
+- after =start RabbitMQ -> restart StarIntel -> wait healthy=, another fresh
+  POST returned HTTP 200 and authorized read-back observed it on attempt 1 in
+  both runs.
+
+The first retained artifact is =starintel-service-trace= (ID =10454487856=,
+SHA-256 =e21dbf5fbc880afd80e29f41530702451a82c3b96c4f4a5fde17280076af9bca=).
+The second artifact is ID =10458031216=; =actions/upload-artifact= reported ZIP
+SHA-256 =a8725dbb3e847c05108f49114a63c551242f2228abeafc9d5e3905ee0011a26d=.
+The one-versus-two baseline read-attempt difference is evidence from separate
+runs, not a latency benchmark or API/service-level guarantee.
+
+* Honest boundary
+The successful runs prove only the bounded observations made at the pinned
+revision.  They do *not* prove publisher-confirm acceptance, settlement-failure
+redelivery, the CouchDB outbox crash window, transparent reconnect without an
+operator restart, production latency, or production availability.
+
+Those distinctions matter because the server's current source still does not
+evidence a publisher-confirm wait in the inspected publish path.  A successful
+HTTP return and a later authorized durable read-back remain separate facts.
+The outage runs make that distinction executable: HTTP returned 200 while
+persistence was not observed during the verified broker outage.
+
+* Hermetic tests
+The evidence classifier and injection guard are independently unit-tested:
+
+#+begin_src sh
+bash books/starintel/code/live-stack/run-tests
+#+end_src
+
+These tests do not start external services.  Both successful execution heads
+passed 9/9 service-trace hermetic regressions before their service-backed jobs
+ran.
+
+* Service-backed run
+The service-backed trace requires Docker/Compose, Nix with flakes, Git, jq,
+Python, and enough resources to build/load the pinned upstream images.  From the
+repository root:
+
+#+begin_src sh
+bash books/starintel/code/live-stack/run-service-trace
+#+end_src
+
+On success the sanitized evidence is copied to
+=.cache/starintel-service-trace.json=.  CI publishes that JSON as a private
+workflow artifact; it is not committed as if one run were timeless source.
+
+* Status
+- DOCUMENTED :: method and exact upstream pin described above; the upstream
+  stack harness is current primary source at the recorded revision.
+- TESTED :: hermetic classifier/injector behavior and repeated bounded baseline,
+  verified-broker-outage, and explicit-restart-recovery observations recorded
+  above.
+- UNTESTED :: publisher confirms, settlement-failure redelivery, outbox crash
+  windows, transparent reconnect without an operator restart, performance, and
+  actor behavior.  Do not infer them from this lab.
