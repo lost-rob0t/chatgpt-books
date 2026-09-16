@@ -7,6 +7,8 @@
 - Which behavior is version-sensitive in the current toolchain?
 - Which claims require reproduction/benchmarking rather than citation alone?
 * Active foundation record
-The 2026-09-16 opening pass covers vector/dot-product sequencing, the deliberately pinned NumPy 2.5.0 numerical oracle and its 2.5-series release context, and Python floating-point primitives used by Project 1 milestone A. Matrix operations, linear transformations, calculus, probability, and later-project theory remain research work rather than being implicitly declared complete.
+The 2026-09-16 opening pass covers vector/dot-product sequencing, the deliberately pinned NumPy 2.5.0 numerical oracle and its 2.5-series release context, and Python floating-point primitives used by Project 1 checkpoint A.
+
+The 2026-09-16 matrix pass covers matrix shape, matrix-vector multiplication as both row dot products and column linear combinations, compatible matrix-matrix multiplication, composition order, identity, and two-dimensional linear-transformation geometry for Project 1 checkpoint B. It also records the exact current NumPy 2.5 =matmul= and =ndarray.shape= contracts used by the oracle tests. Calculus, probability, information theory, optimization, decompositions, and later-project theory remain open rather than being implicitly declared complete.
 * Records
 Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
