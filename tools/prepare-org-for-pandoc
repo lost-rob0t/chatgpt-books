@@ -2,9 +2,11 @@
 """Prepare canonical Org source for Pandoc without mutating the source file.
 
 Pandoc 3.10.1's Org reader uses CUSTOM_ID in preference to ID and does not
-retain the losing property in the Header AST. For publication, materialize a
-stable XML-safe alias for every :ID: before the reader sees the document, and
-rewrite same-document Org id: links to those aliases.
+retain the losing property in the Header AST. Pandoc also does not expand the
+Org #+include directives used by several book manuscripts. For publication,
+expand the supported include subset first, then materialize a stable XML-safe
+alias for every :ID: before the reader sees the document, and rewrite
+same-document Org id: links to those aliases.
 """
 
 from __future__ import annotations
@@ -17,6 +19,10 @@ ID_LINE = re.compile(r"^\s*:ID:\s*(.*?)\s*$", re.IGNORECASE)
 PROPERTIES_START = re.compile(r"^\s*:PROPERTIES:\s*$", re.IGNORECASE)
 DRAWER_END = re.compile(r"^\s*:END:\s*$", re.IGNORECASE)
 ID_LINK = re.compile(r"\[\[id:([^\]\[]+)\](?:\[([^\]]*)\])?\]", re.IGNORECASE)
+INCLUDE_LINE = re.compile(r'^\s*#\+include:\s+"([^"]+)"(.*?)\s*$', re.IGNORECASE)
+LINES_OPTION = re.compile(r':lines\s+"([^"]+)"', re.IGNORECASE)
+MINLEVEL_OPTION = re.compile(r':minlevel\s+(\d+)', re.IGNORECASE)
+ORG_HEADING = re.compile(r"^(\*+)(\s+.*)$")
 
 
 def fail(message: str) -> None:
@@ -41,6 +47,100 @@ def anchor_for(org_id: str) -> str:
     return "org-id-" + "".join(encoded)
 
 
+def parse_line_range(spec: str, path: Path, line_count: int) -> tuple[int, int]:
+    """Return zero-based [start, end) bounds for the supported Org :lines form."""
+    match = re.fullmatch(r"\s*(\d*)-(\d*)\s*", spec)
+    if match is None or (not match.group(1) and not match.group(2)):
+        fail(f"unsupported :lines range {spec!r} in include of {path}")
+
+    start = int(match.group(1)) if match.group(1) else 1
+    end = int(match.group(2)) if match.group(2) else line_count
+    if start < 1 or end < start:
+        fail(f"invalid :lines range {spec!r} in include of {path}")
+    return start - 1, min(end, line_count)
+
+
+def apply_minlevel(lines: list[str], minlevel: int, path: Path) -> list[str]:
+    if minlevel < 1:
+        fail(f":minlevel must be positive in include of {path}")
+
+    heading_levels = [
+        len(match.group(1))
+        for line in lines
+        if (match := ORG_HEADING.match(line)) is not None
+    ]
+    if not heading_levels:
+        return lines
+
+    shift = max(0, minlevel - min(heading_levels))
+    if shift == 0:
+        return lines
+
+    adjusted = []
+    for line in lines:
+        match = ORG_HEADING.match(line)
+        if match is None:
+            adjusted.append(line)
+        else:
+            adjusted.append("*" * shift + line)
+    return adjusted
+
+
+def parse_include_options(options: str, path: Path) -> tuple[str | None, int | None]:
+    lines_match = LINES_OPTION.search(options)
+    minlevel_match = MINLEVEL_OPTION.search(options)
+
+    remainder = LINES_OPTION.sub("", options)
+    remainder = MINLEVEL_OPTION.sub("", remainder).strip()
+    if remainder:
+        fail(
+            f"unsupported Org include options {remainder!r} for {path}; "
+            "publication currently supports only :lines and :minlevel"
+        )
+
+    line_range = lines_match.group(1) if lines_match else None
+    minlevel = int(minlevel_match.group(1)) if minlevel_match else None
+    return line_range, minlevel
+
+
+def expand_includes(source: Path, stack: tuple[Path, ...] = ()) -> str:
+    """Expand the publication-safe subset of Org #+include recursively."""
+    source = source.resolve()
+    if source in stack:
+        chain = " -> ".join(str(path) for path in (*stack, source))
+        fail(f"Org include cycle detected: {chain}")
+    if not source.is_file():
+        fail(f"missing included Org source: {source}")
+
+    output: list[str] = []
+    for line in source.read_text(encoding="utf-8").splitlines(keepends=True):
+        match = INCLUDE_LINE.match(line)
+        if match is None:
+            output.append(line)
+            continue
+
+        include_name, options = match.groups()
+        include_path = Path(include_name)
+        if include_path.is_absolute():
+            fail(f"absolute Org include paths are not allowed: {include_name}")
+        include_path = (source.parent / include_path).resolve()
+        line_range, minlevel = parse_include_options(options, include_path)
+
+        included_text = expand_includes(include_path, (*stack, source))
+        included_lines = included_text.splitlines(keepends=True)
+        if line_range is not None:
+            start, end = parse_line_range(line_range, include_path, len(included_lines))
+            included_lines = included_lines[start:end]
+        if minlevel is not None:
+            included_lines = apply_minlevel(included_lines, minlevel, include_path)
+
+        output.extend(included_lines)
+        if included_lines and not included_lines[-1].endswith("\n"):
+            output.append("\n")
+
+    return "".join(output)
+
+
 def collect_ids(lines: list[str]) -> dict[str, str]:
     ids: dict[str, str] = {}
     in_properties = False
@@ -57,11 +157,9 @@ def collect_ids(lines: list[str]) -> dict[str, str]:
                 org_id = match.group(1).strip()
                 if not org_id:
                     fail("encountered an empty :ID: property")
-                anchor = anchor_for(org_id)
-                previous = ids.get(org_id)
-                if previous and previous != anchor:
-                    fail(f"inconsistent mapping for Org ID {org_id!r}")
-                ids[org_id] = anchor
+                if org_id in ids:
+                    fail(f"duplicate Org ID after include expansion: {org_id!r}")
+                ids[org_id] = anchor_for(org_id)
     return ids
 
 
@@ -125,14 +223,17 @@ def main() -> None:
     if source.resolve() == output.resolve():
         fail("refusing to overwrite canonical Org source")
 
-    text = source.read_text(encoding="utf-8")
+    text = expand_includes(source)
     lines = text.splitlines(keepends=True)
     ids = collect_ids(lines)
     prepared = "".join(materialize_aliases(lines, ids))
     prepared = rewrite_same_document_id_links(prepared, ids)
 
     output.write_text(prepared, encoding="utf-8")
-    print(f"prepared {source} -> {output}: {len(ids)} stable Org ID alias(es)")
+    print(
+        f"prepared {source} -> {output}: {len(ids)} stable Org ID alias(es), "
+        "Org includes expanded"
+    )
 
 
 if __name__ == "__main__":

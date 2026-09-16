@@ -1,0 +1,354 @@
+#+title: Formal Systems and Software Verification
+:PROPERTIES:
+:ID:       7212eeef-a64d-4f80-ac4a-9ab78ece25c3
+:END:
+
+* Why symbolic AI should teach proof
+:PROPERTIES:
+:ID:       aee05f82-36c9-4585-bd75-c2602593608f
+:END:
+
+A search program says, “I found a path.”  A rule engine says, “these premises produced this conclusion.”  A planner says, “these actions reach the goal.”  Formal verification asks a harder family of questions:
+
+- What exactly was specified?
+- What counts as a legal state or transition?
+- Which property are we claiming?
+- Did we test examples, exhaust a finite model, or derive a theorem?
+- What assumptions make the conclusion valid?
+- If the claim is false, can the system show us a counterexample instead of merely returning =NIL=?
+
+These are symbolic-AI questions with stricter epistemology.  We still manipulate terms, states, relations, rules, and derivations.  The difference is that we become painfully precise about what a result licenses us to say.
+
+This chapter begins with tiny mechanisms in Common Lisp before touching industrial proof systems.  Hoare's classic axiomatic treatment made program assertions and inference rules explicit [cite:@hoare1969].  Temporal logic later gave a language for properties of behavior over time [cite:@pnueli1977].  Finite-state model checking turned an important class of verification problems into automatic state-space exploration [cite:@clarke1986].  Lamport's specification work emphasizes a complementary habit: describe the behavior you intend precisely enough to reason about it before confusing the implementation with the specification [cite:@lamport2002].
+
+The goal is not to claim that a hundred lines of Common Lisp replace ACL2, TLA+, an SMT solver, Lean, or a dedicated model checker.  The goal is to understand what those systems are doing well enough that their results do not become magic words.
+
+* A formal system is language plus rules
+:PROPERTIES:
+:ID:       23887c6b-941f-4ac8-8302-8018cca76cca
+:END:
+
+Start with four layers that beginners often blur together.
+
+1. *Syntax* tells us which expressions are well formed.
+2. *Semantics* tells us what those expressions mean in a model.
+3. *Judgments* are claims we may want to establish.
+4. *Inference rules* say which judgments may be derived from which premises.
+
+A tiny arithmetic proof system might contain a judgment meaning “expression =E= evaluates to integer =N=”.  One rule could say that a literal evaluates to itself.  Another could say that if =A= evaluates to =X= and =B= evaluates to =Y=, then =(+ A B)= evaluates to =X+Y=.
+
+Written schematically:
+
+#+begin_example
+             A ⇓ X       B ⇓ Y
+-----------  ------------------
+integer N          (+ A B) ⇓ X+Y
+  N ⇓ N
+#+end_example
+
+A *derivation* is not “the evaluator returned 5.”  It is a tree whose leaves and internal steps are justified by named rules.  That difference matters when we later build explanation systems: a result and the provenance of a result are related but not identical data.
+
+** Object language versus metalanguage
+
+The arithmetic expressions are the *object language*.  Our Common Lisp implementation, prose, and mathematical notation describing those expressions live in a *metalanguage*.  Confusing the two is how accidental =EVAL= APIs and unsafe “proof by executing arbitrary syntax” appear.
+
+When we later encode an SMT formula, an ACL2 theorem, or a planner invariant, keep asking: which symbols belong to the modeled system, and which belong to the program doing the modeling?
+
+* Specifications: say what must be true before proving anything
+:PROPERTIES:
+:ID:       3b9d50fc-7841-40e5-93f7-7f6c9041ad94
+:END:
+
+A proof can be perfectly valid and completely useless if the specification is wrong.
+
+For a transition system we will use three pieces:
+
+- =Init= -- the allowed initial states;
+- =Next= -- the transition relation describing legal next states;
+- =I= -- an invariant we want every reachable state to satisfy.
+
+Suppose a symbolic token-transfer system has state
+
+#+begin_src lisp
+'((alice 2) (bob 1))
+#+end_src
+
+and every transition moves one token from one owner to the other.  A useful safety invariant is:
+
+#+begin_example
+tokens(alice) + tokens(bob) = 3
+#+end_example
+
+That property says nothing about fairness, progress, or whether Alice eventually gets a token back.  It is a *safety* claim: every reachable state preserves a quantity.
+
+Before writing a checker, try the proof on paper.  An *inductive invariant* normally gives us two obligations:
+
+#+begin_example
+Initialization:   Init(s)            => I(s)
+Preservation:     I(s) and Next(s,s') => I(s')
+#+end_example
+
+If both obligations hold for the actual transition relation, induction establishes the property over every finite-length execution beginning in =Init=.
+
+Notice what this buys us: we do not need to enumerate every execution.  That is deductive reasoning.  But finding the right inductive invariant can be harder than checking a small finite state space, so we will learn both techniques.
+
+* Model checking is search plus a property plus proof discipline
+:PROPERTIES:
+:ID:       50a00b16-26a7-4a95-b99d-9071e0bfc1d2
+:END:
+
+You already know most of the mechanics from the Search Library.  We need:
+
+- a frontier of states still to inspect;
+- duplicate-state detection;
+- parent links for reconstructing paths;
+- a successor function;
+- a property predicate.
+
+The new part is the meaning of the final status.
+
+#+caption: A finite-state invariant checker combines a specification and property, then distinguishes exhaustive proof from counterexample and incomplete exploration.
+#+attr_html: :alt A specification and an invariant feed a reachable-state checker. Exhaustive success produces PROVED, a reachable violation produces REFUTED with a shortest counterexample, and an exploration bound or incomplete model produces BOUNDED or UNKNOWN without a universal proof claim.
+[[file:assets/formal-verification-flow.svg]]
+
+The first Formal Reasoning Workbench therefore returns four statuses:
+
+| Status | What you are allowed to claim |
+|--------+-------------------------------|
+| =:proved= | The explicitly reachable *finite model was exhausted*, and every reached state satisfied the invariant. |
+| =:refuted= | A reachable counterexample was found.  The trace explains one shortest violation in transition count. |
+| =:bounded= | Exploration stopped at an explicit state bound.  No counterexample was found within that exploration, but no universal proof was obtained. |
+| =:unknown= | The model could not enumerate some reached behavior.  The checker refuses to turn missing semantics into proof. |
+
+That table is more important than the code.  Many weak “verification” demos have only booleans.  A false boolean cannot tell you whether the property was violated, the solver gave up, the model was incomplete, or a search bound was reached.  A true boolean is worse if it silently means “I did not find a bug quickly.”
+
+** The Common Lisp boundary
+
+The workbench API is deliberately small:
+
+#+begin_src lisp
+(make-transition-system
+ :initial-states '(closed)
+ :successors (lambda (state)
+               (ecase state
+                 (closed '(open))
+                 (open '(closed))))
+ :invariant (lambda (state)
+              (member state '(closed open))))
+#+end_src
+
+Then:
+
+#+begin_src lisp
+(check-invariant system)
+#+end_src
+
+This checker proves something about the supplied transition-system model.  It does *not* inspect arbitrary machine code or establish that some unrelated mutable Common Lisp application refines the model.  Implementation conformance is a separate proof/testing problem.
+
+* Counterexamples are executable explanations
+:PROPERTIES:
+:ID:       f0215b94-d8f4-47b9-b854-b64945e96dd7
+:END:
+
+A useful verifier should fail well.
+
+Imagine a lock model with state =(door locked?)=.  The intended rule is “a locked door cannot become open.”  Accidentally add a transition from =(closed t)= to =(open t)=.  Breadth-first exploration can return a minimal trace such as:
+
+#+begin_example
+(closed nil)
+(closed t)
+(open t)
+#+end_example
+
+That trace is both a proof artifact and a debugging fixture.  Turn it into a permanent regression.  Now the formal model, the executable checker, and ordinary software testing reinforce each other.
+
+This is a recurring pattern throughout the book:
+
+#+begin_example
+specification -> property -> counterexample -> regression -> repaired mechanism
+#+end_example
+
+Formal methods do not replace debugging.  Good formal tools manufacture unusually informative debugging inputs.
+
+* Three easy ways to lie to yourself with a model checker
+:PROPERTIES:
+:ID:       c9a41db9-b4cc-4c5c-b421-df06a9cc26d2
+:END:
+
+** 1. Use a bound and call it a proof
+
+Suppose a system has a million reachable states and you inspect one thousand.  If no violation appears, the honest result is =:bounded=.  “No counterexample in the explored prefix” can be useful evidence; it is not the same proposition as “all reachable states satisfy the invariant.”
+
+** 2. Omit the dangerous transition
+
+If your model says a cache update is atomic but the implementation exposes an intermediate state, the model checker can exhaust the model perfectly and prove the wrong abstraction.  Verification is conditional on modeling assumptions.
+
+** 3. Choose the wrong state identity
+
+If two semantically different states receive the same duplicate-detection key, the checker may prune a real counterexample.  If equivalent states receive unnecessarily distinct keys, the state space may explode.
+
+This is exactly why Project 1 made stable symbolic state identity explicit.  Formal verification makes that earlier engineering choice part of the proof boundary.
+
+* Hoare logic: reason about programs without enumerating every state
+:PROPERTIES:
+:ID:       3d88f244-68a9-4b48-893e-461bc632a2c6
+:END:
+
+A Hoare triple is conventionally written
+
+#+begin_example
+{P} C {Q}
+#+end_example
+
+Read it as: if precondition =P= holds before command =C= begins, and =C= terminates normally under the intended interpretation, then postcondition =Q= holds afterward.  Hoare's 1969 paper made this style of axiomatic reasoning foundational for program verification [cite:@hoare1969].
+
+Take assignment:
+
+#+begin_example
+{x = 4}  x := x + 1  {x = 5}
+#+end_example
+
+For a loop, a postcondition alone is usually not enough.  We need an invariant preserved by every iteration.  The skill is less “push theorem-prover button” and more “discover the right intermediate statement.”
+
+Later in the Formal Reasoning Workbench we will build a tiny imperative AST and generate proof obligations for assignment, sequence, conditional, and loop.  Only after you can see those obligations should an SMT solver be allowed to discharge selected formulas.
+
+* Temporal properties: safety is not progress
+:PROPERTIES:
+:ID:       09ae0822-8b91-46f0-bc7d-c6e0f3a17256
+:END:
+
+An invariant naturally expresses many safety properties: “nothing bad happens.”  Concurrent and reactive systems also need properties like “a request is eventually answered” or “a waiting process eventually enters the critical section under stated fairness assumptions.”
+
+Pnueli's temporal-logic work provided a formal language for reasoning about program behaviors over time [cite:@pnueli1977].  Clarke, Emerson, and Sistla showed how finite-state concurrent systems can be checked automatically against temporal-logic specifications [cite:@clarke1986].
+
+Do not memorize LTL and CTL syntax yet.  First learn the reason temporal logic exists: a property of one state cannot express every property of an infinite behavior.
+
+We will return to this after the finite invariant checker is boringly clear.
+
+* SAT/SMT: powerful decision procedures are still boundaries
+:PROPERTIES:
+:ID:       506e6426-a44c-4bc9-bef0-7526a619633e
+:END:
+
+Satisfiability Modulo Theories solvers decide or reason about formulas in selected logics/theories.  SMT-LIB standardizes solver input/output languages and theory/logical names [cite:@smtlib27].
+
+A later project might encode a scheduling obligation as integer arithmetic and receive =sat=, =unsat=, or =unknown=.  Each result has precise meaning relative to the encoded formula and selected theory.  None means “my Common Lisp program is correct” unless we have separately justified the connection from program to formula.
+
+That translation is often the hardest part of applied verification.  Treat it as code with tests and provenance, not plumbing.
+
+* ACL2: the Lisp-family theorem-proving deep dive
+:PROPERTIES:
+:ID:       e2f41222-4b3e-4e10-a93c-83339416cfae
+:END:
+
+ACL2 is unusually valuable for this volume because it combines a logic, an executable programming language, and an automated theorem prover in a Lisp family.  Its language is based on an applicative, side-effect-free subset of Common Lisp rather than unrestricted host Common Lisp [cite:@kaufmann2000].
+
+That gives us a useful progression:
+
+1. implement a pure recursive function in ordinary Common Lisp;
+2. test it conventionally;
+3. express the corresponding admissible function/model in ACL2;
+4. state a theorem;
+5. inspect failed proof attempts rather than editing the theorem until it passes;
+6. learn when induction hypotheses, rewrite rules, or better lemmas are required.
+
+The key lesson is *not* that ACL2 proves every Common Lisp program.  It is that choosing a restricted logical programming language gives the prover a precise world in which executable definitions and theorems can coexist.
+
+* Where formal verification meets symbolic AI
+:PROPERTIES:
+:ID:       9c544b54-ea6a-43a9-92ac-c1e5ab0409d9
+:END:
+
+Once the mechanisms are familiar, turn them back on our AI systems.
+
+** Search
+
+Candidate properties:
+- every reconstructed solution path begins at the declared initial state;
+- every adjacent pair in a returned path corresponds to a legal transition;
+- reported path cost equals the sum of reported step costs;
+- duplicate-state pruning never removes a strictly better =g= record under the algorithm's contract.
+
+Some are excellent executable/property tests.  Some can be proved about a small formal model.  General algorithm optimality needs stronger mathematical proof with explicit assumptions.  Classification matters.
+
+** Planning
+
+A planner is already a transition-system generator.  Domain invariants can be model-checked on bounded finite worlds.  Counterexample traces become failing plan prefixes.  Action-schema preservation obligations can be stated deductively.
+
+** Rule systems
+
+Working memory plus rule firings form a transition system.  Useful invariants include uniqueness constraints, justification consistency, or monotone facts in deliberately monotone subsets.  A production engine's scheduling semantics must appear in the model if the property depends on firing order.
+
+** Knowledge representation
+
+We can verify schema constraints, relation typing, acyclicity where required, provenance reachability, and consistency properties.  But “the knowledge base describes reality correctly” is not something a theorem prover can conjure from internal consistency alone.
+
+** Hybrid interfaces
+
+A model or LLM may propose symbolic structures; formal machinery can check typed constraints and explicit proof obligations.  Generated text never becomes trustworthy merely because it is parsed.  Formal verification is strongest when the trusted boundary is narrow and explicit.
+
+* Practice: start proving today
+:PROPERTIES:
+:ID:       f755948e-bb7a-471f-b4b3-9d24ed9977b3
+:END:
+
+Do these before reading another proof-assistant tutorial.
+
+** Exercise 1 -- Door invariant
+
+Model =closed= and =open=.  Make the transition relation alternate between them.  Check:
+
+#+begin_example
+I(s) = s is either CLOSED or OPEN
+#+end_example
+
+Why is this property almost embarrassingly easy?  What would make it useful?
+
+** Exercise 2 -- Locked-door bug
+
+Use states =(position locked-p)=.  Add =lock= and =unlock= operations and a buggy transition that opens while locked.  Require an exact shortest counterexample.
+
+** Exercise 3 -- Bounded is not proved
+
+Run a five-state chain with =max-states= set to two.  Write one paragraph explaining why =:bounded= is more honest than =:proved= even when every visited state satisfies the invariant.
+
+** Exercise 4 -- Token conservation by induction
+
+Two owners share three tokens.  Define transfer actions that move one token without creating or destroying one.  First model-check a small finite version.  Then prove on paper:
+
+#+begin_example
+Init(s) -> total(s) = 3
+
+total(s) = 3 and Next(s,s') -> total(s') = 3
+#+end_example
+
+Explain why the inductive proof scales beyond the enumerated state instances.
+
+** Exercise 5 -- Weaken the model until the proof becomes useless
+
+Remove one real transition from your model.  Re-run the checker.  The invariant may still be “proved.”  Write down the missing assumption.  This is a model-validation failure, not a model-checker failure.
+
+** Exercise 6 -- Classify the evidence
+
+For each claim below, choose testing, exhaustive finite model checking, deductive proof, or a combination:
+
+- a parser rejects malformed input;
+- a finite protocol never reaches two owners for one lock;
+- A* is optimal under its stated heuristic assumptions;
+- one concrete compiled program never segfaults on any possible machine input;
+- a rule-engine trace contains the provenance for every derived fact.
+
+There may be more than one defensible answer.  Your job is to state assumptions and limits.
+
+* What comes next
+:PROPERTIES:
+:ID:       2206fd23-dc99-46dc-a45a-8bc7da43c886
+:END:
+
+The next formal-methods slice will derive a tiny imperative language and Hoare-style verification conditions.  After that, temporal properties and a finite temporal checker motivate LTL/CTL, then an SMT-LIB adapter shows how to delegate well-typed obligations to external decision procedures without surrendering semantic authority.  ACL2 follows after the reader already understands what a proof obligation is.
+
+The end goal is not “use more formal tools.”  It is to look at a symbolic system and ask exactly the right question:
+
+#+begin_quote
+What is the claim, what is the model, what is the evidence, and what would falsify it?
+#+end_quote

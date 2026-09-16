@@ -3,19 +3,27 @@
 :ID:       e0a9c8b4-bf74-5afe-aba0-f8570f7927a6
 :END:
 * Phase
-Foundational research plus progressive Project 1 implementation.  The book remains far from release-ready and retains its 300--700 page target.
-* Completed
-- Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
-- Issue #22 records the first bounded Search Library slice: symbolic state keys plus deterministic DFS/BFS/UCS/A*.
-* Active implementation
-- Project 1 Search Library: first executable core, regression suite, diagram, and manuscript derivation are under review on a focused branch/PR.
-* Active research
-- Search/graph-search foundations have a verified source record under =research/search-project-1.org=.
-- Foundational research for the rest of the book is not declared complete.
-* Unverified claims
-- No performance benchmark is claimed for Project 1 yet.
-- Later pattern matching, unification, planning, rule, knowledge-representation, truth-maintenance, explanation, constraint, meta-level, and hybrid-interface claims remain RESEARCH/UNTESTED until their issues verify them.
+Foundational research plus progressive implementation of the Search Library and Formal Reasoning Workbench. The book remains far from release-ready and retains its 300--700 page target.
+* Completed milestones
+- Purpose, audience, prerequisites, project map, roadmap, and long-form outline initialized.
+- Issue #22 / PR #26 landed the first bounded Search Library slice on =main=: symbolic state keys plus deterministic DFS/BFS/UCS/A*, executable regression/oracle tests, an editable diagram, primary-source research, and the first substantial manuscript chapter.
+- Search/graph-search research records remain under =research/search-project-1.org= and =research/search-project-1-validation.org=; these do not declare the whole Search project DONE.
+- Issue #42 / PR #43 Formal Reasoning Workbench milestone A is editorially APPROVED as a bounded content milestone, subject to the objective exact-head merge gates. Approval covers the formal-systems/invariants/finite-checking teaching slice, executable checker, research/provenance, diagram, and the shared Org-include publication fix; it does not make the whole book DONE.
+* Formal milestone A
+- The implementation distinguishes =:proved=, =:refuted= with a shortest counterexample, =:bounded=, and =:unknown=; the permanent suite covers safe cycles, exact counterexamples, unreachable bad states, duplicate/cycle termination, bounded exploration, and unknown successor semantics.
+- Editorial review renamed the result's epistemic flag from the misleading =complete-p= to =conclusive-p=. A finite-model proof and a concrete refutation are conclusive for the stated invariant claim; bounded and unknown exploration are not. A refutation does not falsely imply that the full state graph was exhausted.
+- The formal-methods chapter is part of the publication-order manuscript and the detailed outline carries the full formal-systems -> invariants -> finite checking -> program logic -> temporal -> SMT -> ACL2 -> verified-components progression.
+- Publication preparation expands the repository's supported Org =#+include= subset before Pandoc so canonical split manuscripts cannot silently disappear from rendered books; the shared regression suite covers slicing/minlevel, recursive includes, stable IDs, cycles, and fail-closed option handling.
+- Because PR #43 modifies shared publication tooling, its focused workflow now gates the repository =make test= target and =nix flake check -L= in addition to the book/example checks.
+* Claim status
+- DOCUMENTED: primary-source foundations recorded for Hoare logic, temporal logic/model checking, TLA+ specification context, ACL2, and SMT-LIB 2.7.
+- TESTED: only executable behavior demonstrated by successful exact-head CI runs. Reconciled substantive head =ca98ccf13e9940f47f3ab1e4aa1856ddbd481f42= passed focused =symbolic-ai-common-lisp= run =35106628364=, including direct and ASDF Formal Reasoning Workbench tests, publication checks, repository =make test=, and the dedicated Nix gate. Final merge still requires fresh success on the exact current PR head after this status update plus generic =books-ci=.
+- UNTESTED/RESEARCH: later proof-obligation generation, temporal checker depth, solver integration, ACL2 CI pin, and implementation-refinement claims.
+- No performance benchmark is claimed for Search or Formal Reasoning Workbench.
+- Later pattern matching, unification, planning, rule, knowledge-representation, truth-maintenance, explanation, constraint, meta-level, and hybrid-interface slices remain RESEARCH/UNTESTED until their own bounded issues verify them.
 * Technical/editorial/visual review
-Not started for the book as a whole.
-* Blockers
-Dependency-aware backlog after Project 1 must still be executed; a passing search slice does not promote the book or Project 1 to DONE.
+The Search foundation has landed. Formal Reasoning Workbench milestone A is editorially APPROVED for merge once the exact current head clears all objective checks. Book-wide technical/editorial/visual review has not started and the book is not DONE.
+* Blockers / next dependencies
+- Merge gate only: exact current PR head must complete the focused workflow and generic =books-ci= successfully; pending, stale, or skipped checks are not green.
+- Do not promote a bounded/model-checking result to a general host-program proof.
+- After the formal milestone lands, the highest-value dependency-ready implementation track remains Pattern Matcher/Unifier -> Planner -> Rule/KR/Explanation, while later formal stages reuse those components as verification targets.
