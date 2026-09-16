@@ -14,6 +14,7 @@ jobs:
   project1-foundations:
     runs-on: ubuntu-latest
     env:
+      RESEARCH_HARNESS: books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness
       RESEARCH_PYTHON: ${{ github.workspace }}/.venv/bin/python
     steps:
       - uses: actions/checkout@v7.0.1
@@ -24,15 +25,16 @@ jobs:
           python-version: '3.12.3'
           architecture: x64
 
-      - name: Resolve pinned research dependencies in an isolated environment
+      - name: Recreate the locked research environment
         shell: bash
         run: |
           set -euo pipefail
           python -m venv .venv
-          "$RESEARCH_PYTHON" -m pip install --disable-pip-version-check \
-            -r books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/requirements.txt
+          "$RESEARCH_PYTHON" -m pip install --disable-pip-version-check --no-deps \
+            -r "$RESEARCH_HARNESS/requirements.lock"
           "$RESEARCH_PYTHON" -m pip check
-          echo '--- Project 1 resolver snapshot ---'
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/verify_dependency_lock.py"
+          echo '--- Project 1 locked environment ---'
           "$RESEARCH_PYTHON" --version
           "$RESEARCH_PYTHON" -m pip --version
           "$RESEARCH_PYTHON" -m pip freeze
@@ -43,6 +45,7 @@ jobs:
         run: |
           set -euo pipefail
           "$RESEARCH_PYTHON" -m unittest -v \
+            test_dependency_lock.py \
             test_gleif_sample_acquisition.py \
             test_gleif_relation_adapter.py \
             test_gleif_live_snapshot.py \
@@ -55,25 +58,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/acquire_gleif_samples.py
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/acquire_gleif_samples.py"
 
       - name: Run Project 1 foundational experiments
         shell: bash
         run: |
           set -euo pipefail
-          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_experiments.py
-          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_fixture_experiment.py
-          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_gleif_relation_experiment.py
-          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_full_provenance_experiment.py
-          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_leakage_experiments.py
-          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_composite_planner_diagnostic.py
-          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_candidate_experiment.py
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_experiments.py"
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_fixture_experiment.py"
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_gleif_relation_experiment.py"
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_full_provenance_experiment.py"
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_leakage_experiments.py"
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_composite_planner_diagnostic.py"
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_candidate_experiment.py"
 
       - name: Acquire factual GLEIF API snapshot
         shell: bash
         run: |
           set -euo pipefail
-          "$RESEARCH_PYTHON" books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/acquire_gleif_live_snapshot.py
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/acquire_gleif_live_snapshot.py"
 
       - name: Install publication tooling
         shell: bash
@@ -101,7 +104,7 @@ jobs:
           make book BOOK=ml-starintel
           make check BOOK=ml-starintel
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.1
         if: always()
         with:
           name: ml-starintel-project1-research-results
