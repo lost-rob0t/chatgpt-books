@@ -1,36 +1,40 @@
 * Where the book goes next
 
-We have crossed an important boundary. Project 1 taught the raw process mechanisms. Project
-2 checkpoint A has now given recurring server and failure relationships standard contracts:
-=gen_server= owns the generic server loop and system-message protocol, while a supervisor
-owns child lifecycle and bounded restart policy. The tests also make the limit concrete:
-a replacement process restores a worker process, not the dead worker's private state.
+We have now crossed two boundaries beyond the basic supervision tree. Chapter 13 gave the
+worker service an OTP application lifecycle, and Chapter 14 composed exact application/runtime
+versions into a release with executable boot artifacts. Chapter 15 then made load ownership
+explicit: Project 3 accepts only bounded work, keeps admitted-but-not-running jobs in an
+application-level FIFO, starts temporary workers dynamically, and owns logical retry separately
+from generic supervisor restart policy.
 
-The next chapter turns this process tree into a real OTP application. That means learning
-what an application resource file describes, what the application callback owns, how
-application startup relates to the root supervisor, and which configuration belongs at that
-boundary. Only after that local packaging/lifecycle contract is executable will the book
-move into releases and target-system construction.
+The failure lab at the end of Chapter 15 is the important constraint on everything that
+follows. Killing the queue process causes its supervisor to restore the process role, but the
+replacement process has no copy of the volatile job ledger. A sibling worker can still be
+alive while the process that knew why it existed is gone. That is the exact point at which
+"let it crash" stops being a complete recovery story.
 
-Before moving on, the reader should be able to answer these questions from mechanism rather
-than vocabulary:
+Before moving outward, the reader should be able to answer these questions from mechanism:
 
-1. Which part of a =gen_server= is generic behaviour machinery and which part is the
-   application callback module?
-2. Why can a timed-out =gen_server:call= still complete server-side work even though modern
-   OTP prevents a late synchronous reply from polluting the caller mailbox?
-3. What does =start_link= say about lifecycle ownership that =start= does not?
-4. Why does =one_for_one= express a dependency assumption rather than merely a convenient
-   restart setting?
-5. What exactly happens after more than the configured supervisor restart intensity occurs
-   inside its period?
-6. Why does a new child PID not imply recovery of the old child's process-local state?
-7. Which guarantees still require persistence, idempotency, or replay outside the supervisor?
+1. Why is a =gen_server= mailbox not automatically a bounded application work queue?
+2. At what point does =submit/1= transfer ownership of a job to Project 3?
+3. Why are one-shot worker children =temporary= even though a logical job may be retried?
+4. Which process owns the retry budget and stable job identity, and why is that not generic
+   supervisor policy?
+5. Why does starting a monitor before sending =run= close a local startup race?
+6. What exactly is restored when =job_processor= is restarted by its supervisor?
+7. Which accepted-work guarantees still require durable storage, replay, and idempotency?
 
-Chapter 13 will package the worker/supervisor tree as an application without changing those
-answers. Chapters 14 onward then move outward: releases, distributed Erlang and connection
-failure, explicit persistence/recovery boundaries, tracing and runtime observability,
-Common Test, mailbox/backpressure experiments, networking, and production debugging.
+The next major boundary is distribution. We will take process identity, message passing,
+links/monitors, and supervision assumptions that were local to one BEAM and ask what changes
+when cooperating Erlang nodes can connect, disconnect, and disagree about reachability.
+Distribution will be taught as another failure model, not as transparent magic.
+
+After that the book returns to the volatile-ledger problem with an explicit persistence and
+recovery contract, then adds tracing/observability, Common Test system scenarios, measured
+mailbox/backpressure experiments, networking boundaries, release operations, and production
+debugging. None of those chapters may retroactively turn an in-memory test into a durability,
+availability, or performance claim.
 
 The discipline stays the same: every new layer must state what contract it adds, what
-failure it can observe or recover, what state it owns, and which uncertainty remains.
+failure it can observe or recover, what state it owns, what evidence has actually been run,
+and which uncertainty remains.
