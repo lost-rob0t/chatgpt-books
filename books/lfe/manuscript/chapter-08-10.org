@@ -1,0 +1,405 @@
+* Part II -- Processes are the next boundary
+** Chapter 8 -- Erlang Interoperability Is the Default Boundary
+:PROPERTIES:
+:ID:       b364f2dc-7132-40f3-a149-cfb7042e2270
+:END:
+
+*** Stop imagining an adapter layer
+Project 1 already crossed from Erlang into compiled LFE with ordinary tuples and lists. That was not a cute smoke test. It exposed the most important interoperability fact in the book: once code has become BEAM modules and BEAM terms, the boundary between LFE and Erlang is usually a module/function boundary, not a serialization boundary.
+
+The tagged LFE v2.2.2 process example does exactly what we want a beginner to notice: it calls =spawn=, sends with =!=, receives with =receive=, and recurs as a normal BEAM process loop. [cite:@lfe-messenger-v2-2-2] LFE contributes Lisp syntax and macro facilities; it does not replace process identity, mailboxes, references, signals, or Erlang modules with a private runtime.
+
+This changes how we should design Project 2. We do not write an “LFE actor framework.” We write a small process whose protocol is visible as data, then prove an Erlang caller can use that process directly.
+
+*** From pure function to process-owned service
+At the end of Project 1 the useful computation is still pure:
+
+#+begin_src lfe
+(event-rules:route event rules)
+#+end_src
+
+The caller supplies both the event and the rule list. The function returns a result. There is no process and no hidden state.
+
+Project 2 adds one new responsibility: a process owns the *current* rule list so callers can ask the service to route events without shipping the same rules with every request. The first version is intentionally tiny:
+
+#+begin_src lfe
+(defun start (rules)
+  (spawn 'actor-router 'loop (list rules)))
+#+end_src
+
+The result of =spawn= is a process identifier. That PID is not an LFE wrapper object. Erlang can hold it, send to it, monitor it, and pass it to another BEAM process. [cite:@erlang-processes-29]
+
+A useful mental model is therefore:
+
+#+begin_example
+Project 1: route(Event, Rules) -> Result
+Project 2: Pid owns Rules; callers send Event-shaped requests to Pid
+#+end_example
+
+The process boundary does not improve the routing algorithm. It changes *ownership, lifetime, coordination, and failure*.
+
+*** A protocol is data plus obligations
+A PID answers “where do I send?” It does not answer “what do I send?” Our first request envelope is explicit:
+
+#+begin_example
+#(call CallerPid Ref Request)
+#+end_example
+
+A reply is:
+
+#+begin_example
+#(reply Ref Result)
+#+end_example
+
+The =Request= position is itself protocol data. Project 2 supports these forms at this checkpoint:
+
+#+begin_example
+#(route Event)
+#(replace-rules Rules)
+get-rules
+stop
+#+end_example
+
+Why include both =CallerPid= and =Ref=? Because they solve different problems. =CallerPid= tells the server where the reply goes. =Ref= tells the caller which request a reply belongs to. Reusing one field for both concepts would make the protocol harder to extend and reason about.
+
+The implementation creates references with the ordinary Erlang BIF:
+
+#+begin_src lfe
+(let ((ref (erlang:make_ref)))
+  (! pid (tuple 'call (self) ref request))
+  ...)
+#+end_src
+
+Again, there is no “LFE reference.” This is precisely the kind of interoperation we want readers to become comfortable with: Lisp source invoking the same runtime building blocks an Erlang module would use.
+
+*** Correlation is a correctness property, not decoration
+Suppose a caller performed an older request and a reply was delayed. Later it sends a new request. If the client helper accepts any tuple beginning with =reply=, the old reply can satisfy the new call.
+
+The wrong receive is conceptually:
+
+#+begin_src lfe
+(receive
+  ((tuple 'reply _ref result)
+   result))
+#+end_src
+
+Project 2 instead waits for the exact fresh reference:
+
+#+begin_src lfe
+(receive
+  ((tuple 'reply ref result)
+   result)
+  (after timeout
+    (tuple 'error 'timeout)))
+#+end_src
+
+That repeated =ref= is the same pattern-matching idea from Chapter 2, now doing concurrency work. The client has not gained a new concurrency abstraction; it has reused structural matching to specify which message can advance the protocol.
+
+The regression suite deliberately puts a stale, well-shaped reply in the caller's mailbox before making a fresh call. The fresh call must still return the new request's result. Only afterward does the test consume the stale reply. That gives us evidence for two facts at once: correlation works, and selective receive can leave unmatched messages waiting in the mailbox.
+
+*** Direct Erlang interoperability is an acceptance test
+A process API becomes more convincing when a second BEAM language uses it. The Project 2 gate launches an ordinary Erlang runtime, calls the compiled LFE module, receives the PID, routes an event through it, and stops it.
+
+The terms on that path are not translated through JSON, a port, a socket, or a foreign-function shim. The Erlang process calls the LFE module and exchanges ordinary terms on the same VM.
+
+That test protects us from a subtle documentation failure: it prevents the book from teaching “interoperability” as a vague marketing property while all examples live inside one source language.
+
+#+caption: Project 2 keeps the pure routing kernel separate from the process protocol. A caller correlates requests with a fresh reference; the actor owns the current rule term; an independent observer may monitor actor termination.
+#+attr_html: :alt A caller sends a call tuple containing its PID, a fresh reference, and a request to an Actor Router process. The actor invokes the Project 1 route function and replies with the same reference. A separate observer monitors the actor and receives a DOWN message if the actor terminates.
+[[file:assets/actor-protocol.svg]]
+
+*** Failure lab: hide everything behind a convenience wrapper
+Imagine replacing all explicit protocol tuples with a macro that expands =ask actor event= into the full call protocol. That can be pleasant *after* the protocol is understood. It is a terrible first teaching step.
+
+For this lab, write the hypothetical source form and then expand it on paper into:
+
+1. a fresh reference;
+2. a message containing caller PID, reference, and request;
+3. a selective receive for that reference;
+4. a timeout branch.
+
+If the macro version makes any one of those obligations easy to forget, the abstraction is currently hiding more than it helps.
+
+*** Exercises
+1. ★ Explain why an Erlang process can use the PID returned by =actor-router:start/1= without an LFE-specific adapter.
+2. ★ Draw the exact request and reply tuples for two concurrent callers using different references.
+3. ★★ Change the protocol design so the destination of a route reply is explicitly tagged =route-result=. Does the correlation reference become unnecessary? Why or why not?
+4. ★★ Explain what a PID tells you and what it does *not* tell you about the message protocol.
+5. ★★★ Design a versioned protocol envelope using ordinary BEAM terms. Keep the current server able to reject an unsupported version with a useful tagged error.
+
+** Chapter 9 -- Processes: State Is the Next Loop Argument
+:PROPERTIES:
+:ID:       d75ca35c-7ee3-4506-8c23-3cb815c0fd61
+:END:
+
+*** The process loop is recursion with a mailbox
+Chapter 3 used recursion to express progress through a list. A process loop uses recursion to express progress through *states over time*.
+
+The Actor Router begins with one immutable term, =rules=, as the loop argument:
+
+#+begin_src lfe
+(defun loop (rules)
+  (receive
+    ...))
+#+end_src
+
+A route request computes with that term and recurs with the same state:
+
+#+begin_src lfe
+((tuple 'call from ref (tuple 'route event))
+ (! from (tuple 'reply ref (event-rules:route event rules)))
+ (loop rules))
+#+end_src
+
+A replacement request produces the next state and recurs with it:
+
+#+begin_src lfe
+((tuple 'call from ref (tuple 'replace-rules new-rules))
+ (! from (tuple 'reply ref (tuple 'ok 'replaced)))
+ (loop new-rules))
+#+end_src
+
+Nothing mutated =rules= in place. The old invocation of =loop= ends; the next invocation receives a different argument. From outside the process, that looks like a service whose state changed. From inside the code, it is still ordinary immutable data plus tail recursion.
+
+That is the bridge between Lisp functional thinking and BEAM actor thinking. You do not need to abandon immutable terms to build a stateful service. You need a process that serializes which immutable term is considered current.
+
+*** Why one process simplifies one kind of race
+The process handles one received message at a time. That means state transitions inside this single loop are sequenced by the order in which the process handles messages. There is no shared mutable rule object for callers to update concurrently.
+
+Do not over-generalize that statement. It does *not* mean the whole system is deterministic. Multiple senders can race. Messages may take different times to arrive. A caller can time out while work continues. Other processes can fail independently. The useful guarantee is narrower: once this actor chooses a message and handles it, its next loop state follows from that handler.
+
+That narrow guarantee is enough to make invariants tractable. For example:
+
+- before =replace-rules=, =rules= is the old term;
+- the actor sends an acknowledgement;
+- its next recursive call receives =new-rules=;
+- subsequent handled route requests use whatever rule term that next loop carries.
+
+Project 2 tests that transition by replacing the rules, reading the stored rules back, and routing again.
+
+*** Same-sender order is useful; global FIFO is fiction
+Current Erlang documentation guarantees order for signals sent from one sending entity to the same destination entity: if signal A is sent before signal B from that sender to that destination, B will not arrive before A. [cite:@erlang-processes-29]
+
+The checkpoint turns that rule into a concrete state-transition regression. One caller sends, without waiting between sends:
+
+#+begin_example
+1. replace-rules(NewRules)
+2. route(Event)
+#+end_example
+
+Both signals go from the same caller process to the same actor. The actor must therefore observe the replacement before the route request, and the route result must reflect =NewRules=.
+
+Now add a second caller and the comforting story disappears. There is no universal “mailbox FIFO across everybody” contract. If two independent callers race to replace rules, this checkpoint deliberately does not assert which caller wins.
+
+The current OTP process documentation also records priority-message behavior introduced in OTP 28. [cite:@erlang-processes-29] We do not use priority messages here. Recording the caveat matters because a book that says “the mailbox is FIFO” has already taught a model too coarse for current OTP.
+
+*** Failure is local until you connect it
+A process can terminate without corrupting another process's stack or local state. That isolation is one of the BEAM model's core strengths. It is not the same thing as recovery.
+
+Project 2 includes an explicit teaching-only crash request:
+
+#+begin_src lfe
+((tuple 'cast (tuple 'crash reason))
+ (erlang:exit reason))
+#+end_src
+
+The normal routing path never needs this clause. It exists so the gate can observe real failure behavior instead of describing it abstractly.
+
+An Erlang observer creates a monitor for the LFE actor, triggers the crash, and requires a =DOWN= message carrying the matching monitor reference, PID, and reason. Current Erlang documentation defines monitoring as a unidirectional observation relationship: the observing process receives termination information without creating the bidirectional failure coupling of a link. [cite:@erlang-processes-29]
+
+That distinction gives us a clean stepping stone for the OTP chapters:
+
+- *process isolation* means one process has its own execution and mailbox;
+- *monitoring* lets another process observe termination;
+- *restart policy* decides what to do about termination;
+- *supervision* packages restart relationships and policy into a standard OTP structure.
+
+This chapter implements the first two. It does not smuggle in the latter two.
+
+*** A crash is not a domain error
+The Actor Router distinguishes malformed protocol data from a process failure. An unknown =call= request receives a normal tagged response:
+
+#+begin_example
+#(error #(bad-request wat))
+#+end_example
+
+The intentional crash request terminates the process instead.
+
+Why not crash on every bad request? Because “client used an unsupported request term” can be represented and handled within the protocol. Why not convert every internal failure into =#(error ...)=? Because some failures mean the process can no longer uphold its invariants, and later supervision policy may be the correct recovery boundary.
+
+The design question is never “tagged errors or let it crash?” in the abstract. The question is: *which failures are part of the service protocol, and which invalidate the process's ability to continue correctly?*
+
+*** Failure lab: acknowledge state you never install
+Change the =replace-rules= handler so it replies =#(ok replaced)= but recurs with =rules= instead of =new-rules=. A shallow test that checks only the acknowledgement will pass. The state-transition and subsequent-routing tests should fail.
+
+This is a recurring systems lesson: an acknowledgement is evidence that one message was emitted. It is not by itself evidence that the intended state transition occurred.
+
+*** Exercises
+1. ★ Identify which Actor Router clauses recur with the same state, which recur with new state, and which terminate.
+2. ★★ Add a =reset-rules= request design that returns to the initial rule set. What extra state must the loop retain?
+3. ★★ Explain why “one process handles one message at a time” does not imply global deterministic ordering.
+4. ★★★ Design a monitor-based test that distinguishes “server returned a protocol error” from “server process died.”
+5. ★★★ Suppose rule validation becomes expensive. Compare validating inside the actor before installing state with validating outside the actor before sending. What races or trust assumptions change?
+
+** Chapter 10 -- Message Protocols, Selective Receive, and Time
+:PROPERTIES:
+:ID:       8b9c51ca-a8fb-4e23-8978-6629528b116b
+:END:
+
+*** A blocking helper is built from asynchronous pieces
+The =call/3= helper feels synchronous because the caller does not return until it receives a matching reply or reaches its timeout. The transport underneath is still asynchronous signaling. Erlang's process documentation describes sending as asynchronous; a receiver later selects messages from its queue. [cite:@erlang-processes-29]
+
+That difference matters whenever we debug time.
+
+#+begin_src lfe
+(defun call (pid request timeout)
+  (let ((ref (erlang:make_ref)))
+    (! pid (tuple 'call (self) ref request))
+    (receive
+      ((tuple 'reply ref result)
+       result)
+      (after timeout
+        (tuple 'error 'timeout)))))
+#+end_src
+
+There are at least four events here:
+
+1. the caller creates =ref=;
+2. the caller sends a request signal;
+3. the actor eventually handles that request and sends a reply signal;
+4. the caller's =receive= eventually selects the matching reply.
+
+A timeout only says event 4 did not complete before the local timer branch fired. It does not tell us exactly which of the earlier events occurred.
+
+*** Timeout is not cancellation
+This is important enough to say without euphemism: =#(error timeout)= does not mean “cancelled.”
+
+The request may already be in the actor's mailbox. The actor may be computing it. The reply may be on its way. The actor may be healthy and merely slow relative to the caller's chosen deadline. Current process semantics do not turn a local receive timeout into a remote cancellation protocol. [cite:@erlang-processes-29;@lfe-guide-v2-2-2]
+
+Project 2 tests the narrow claim directly. It spawns a live process that receives messages but deliberately never replies. A call times out. The test then explicitly kills the silent process for cleanup. If timeout had proved target death, that cleanup step would make no conceptual sense.
+
+Later systems can add explicit cancellation, aliases, leases, deadlines, or idempotency rules. Those are *protocol designs*, not hidden meanings we are allowed to attach to =after=.
+
+*** Selective receive has semantic and operational consequences
+A caller with several messages in its mailbox does not have to consume the oldest message. =receive= scans for the first message matching its clauses. The official Efficiency Guide warns that finding a specific matching message can require searching the queue. [cite:@erlang-efficient-processes-29]
+
+Our correlation protocol uses that power deliberately:
+
+#+begin_example
+mailbox:
+  #(reply OldRef stale)
+  #(reply CurrentRef #(ok pager))
+
+receive pattern:
+  #(reply CurrentRef Result)
+#+end_example
+
+The first message is well-formed but does not match the bound current reference, so it remains queued while the second message can satisfy the receive.
+
+This is correct protocol behavior and a potential operational smell if stale/unrelated messages accumulate. The lesson is not “selective receive is bad.” The lesson is that mailbox protocol design affects both correctness and work performed while scanning.
+
+The tiny regression does *not* measure mailbox performance. No throughput or latency numbers are inferred from it.
+
+*** Late replies create a cleanup problem
+Suppose a call times out at 100 milliseconds and its reply arrives at 120 milliseconds. The helper has already returned. Unless the protocol uses a stronger cancellation/alias mechanism or the caller explicitly drains late replies, that reply can remain in the mailbox.
+
+Correlation prevents the late reply from satisfying a *different* call. It does not make the late reply disappear.
+
+This leads to a useful protocol checklist:
+
+1. How are requests identified?
+2. How are replies correlated?
+3. What is the deadline policy?
+4. What happens to work after the caller gives up?
+5. Can late replies accumulate?
+6. Is the operation safe to retry?
+7. Does the server need an explicit cancellation message?
+
+Project 2 solves only items 1--3 well enough for the current teaching milestone. The others become increasingly important once a service performs external side effects.
+
+*** Message algebra before implementation growth
+Before adding more handlers, write the protocol as an algebra of accepted terms:
+
+#+begin_example
+Call    = #(call CallerPid Ref Request)
+Reply   = #(reply Ref Result)
+Request = #(route Event)
+        | #(replace-rules Rules)
+        | get-rules
+        | stop
+Result  = #(ok Destination)
+        | #(ok replaced)
+        | #(ok Rules)
+        | ok
+        | #(error Reason)
+#+end_example
+
+This is not a static type system. It is a reviewable vocabulary. It tells tests what shapes need coverage and tells maintainers which tuples are protocol commitments instead of incidental implementation data.
+
+Lisp makes symbolic protocol terms pleasant to inspect. Pattern matching makes the accepted shapes executable. The combination is powerful precisely because we can keep the vocabulary visible.
+
+*** Unknown messages: ignore, reject, or crash?
+The checkpoint makes two different choices:
+
+- an unknown request *inside a valid call envelope* receives =bad-request=;
+- an arbitrary non-call message is ignored and the loop continues.
+
+Neither choice is universally correct. Ignoring every unknown message can hide bugs. Crashing on every stray message can make an exposed mailbox fragile. Replying to malformed terms can be impossible if there is no valid caller/ref to reply to.
+
+The important move is to make the choice explicit and test the boundary. Later OTP behaviours will impose conventional callback shapes, but they do not remove the need to decide what application-level messages mean.
+
+*** Debugging trace: follow the reference
+When a call “hangs,” debug the protocol in reference order rather than staring at source syntax:
+
+1. Was a fresh reference created?
+2. Was the request sent to the expected PID?
+3. Did the server receive a =call= carrying that exact reference?
+4. Did the server choose the intended handler?
+5. Did it emit =reply= with the same reference?
+6. Is the caller still waiting for that reference, or did it already time out?
+7. Is a late reply now stuck behind unrelated mailbox traffic?
+
+This style scales to OTP calls, distributed nodes, and tracing. A correlation identifier gives you a path through concurrent events that source-level stack traces alone cannot reconstruct.
+
+*** Failure lab: remove correlation
+Modify =call/3= so any =#(reply _ Result)= satisfies the receive. Keep the stale-reply regression unchanged. The test should now return =stale= for the fresh call and fail.
+
+Then repair the code and try a subtler bug: create the reference once at process startup and reuse it for every request. Explain why that defeats the purpose even if simple sequential tests appear to pass.
+
+*** Project 2 checkpoint: raw process semantics before OTP
+At the end of Chapter 10, Project 2 has a deliberately small but real actor application:
+
+- a process owns the current rule-set term;
+- routing still delegates to the independently tested Project 1 kernel;
+- requests and replies are explicit BEAM tuples;
+- fresh references correlate calls and replies;
+- state changes are loop-recursion state transitions;
+- a regression demonstrates selective receive against a stale reply;
+- a regression demonstrates same-sender ordering for two requests to one actor;
+- timeout is tested as a caller-side observation rather than mislabeled cancellation;
+- Erlang directly starts and calls the compiled LFE actor;
+- an Erlang monitor observes an intentionally injected LFE actor crash.
+
+What remains absent is intentional: no =gen_server=, no supervisor, no application tree, no persistence boundary, no distribution, and no release packaging. We now know enough raw mechanics for OTP to be explained as a disciplined abstraction rather than magic.
+
+*** Exercises
+1. ★ Explain why correlation solves “wrong reply satisfies this call” but not “late replies never accumulate.”
+2. ★★ Write a trace for a request that times out locally and is processed successfully by the actor afterward.
+3. ★★ Invent a malformed call envelope for which the server cannot safely send an error reply. What should the server do, and why?
+4. ★★★ Design an explicit cancellation protocol. Identify at least one race between completion and cancellation and state what result each side should accept.
+5. ★★★ Design a retry policy for =replace-rules=. Is the operation idempotent with the current data model? How would a compare-and-set version number change the answer?
+6. ★★★ Research Erlang process aliases and explain how they can help with request/reply lifetime management. Do not modify Project 2 until the version/compatibility boundary is separately tested.
+
+* Project 2 -- Actor Application, Raw Process Milestone
+The runnable checkpoint lives in =books/lfe/code/actor-router/=. After the pinned LFE toolchain is available, run:
+
+#+begin_src sh
+bash books/lfe/code/actor-router/run-tests
+#+end_src
+
+Read the source before reaching for OTP. Break the correlation rule, break the state transition, trigger the crash path, and observe which tests fail. The point of this milestone is to earn an understanding of the mechanism that the next project will package into OTP behaviour callbacks and supervision policy.
+
+* Source checkpoints for the process slice
+The process chapters use the tagged LFE v2.2.2 process example plus current official Erlang/OTP process and efficiency documentation. [cite:@lfe-messenger-v2-2-2;@lfe-guide-v2-2-2;@erlang-processes-29;@erlang-efficient-processes-29]
+
+The detailed retrieval record and claim boundaries live in =books/lfe/research/processes-03.org=. At authoring time the new Actor Router implementation remains UNTESTED until the focused repository workflow executes its real LFE/Erlang gate; this manuscript does not promote the planned assertions into test evidence merely because the code exists.
