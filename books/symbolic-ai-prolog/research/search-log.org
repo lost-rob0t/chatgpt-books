@@ -54,7 +54,7 @@ Questions:
 - What is the narrowest honest shortest-path claim for the finite unit-edge teaching fixture?
 
 Inspected official sources:
-- https://www.swi-prolog.org/pldoc/doc/_SWI_/library/ordsets.pl -- ordered-set operations; =ord_memberchk/2= membership via ===/2=.
+- https://www.swi-prolog.org/pldoc/doc/_SWI_/library/ordsets.pl -- ordered-set operations; =ord_memberchk/2= membership via ==/2.
 - https://www.swi-prolog.org/pldoc/man?section=compare -- current term identity and standard-order semantics.
 
 Result: sufficient to freeze a ground-state search contract using explicit =edge(Action,From,To)= data, an ordered closed set, and an explicit frontier. The implementation records state expansions, not debugger ports; duplicate states may be queued before the first expansion but must not be expanded twice after entering the closed set. BFS claims are limited to the finite unit-edge fixture and the queue invariant implemented in this slice; weighted/heuristic search remains later work.
