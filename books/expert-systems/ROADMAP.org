@@ -11,7 +11,9 @@ Foundation slice A researched production-system structure, naive condition match
 
 Foundation slice B researched and froze the next executable semantic boundary: mutable working-memory identity/occurrences, stable productions/activations, naive complete-rematch forward chaining, deterministic agenda policy, and explicit refraction. It remains intentionally upstream of incremental alpha/beta/RETE, truth maintenance, uncertainty, persistence, and benchmarks.
 
-Foundation slice C researches the optimization boundary without changing the accepted rule language: current CLIPS 6.4.2 documentation corroborates the broad pattern-network -> partial-instantiation -> cross-pattern-binding -> activation model, while Forgy 1982 anchors the RETE lineage. Course-local node/cache semantics are recorded separately and remain gated by executable equivalence against the complete-rematch oracle.
+Foundation slice C researched the optimization boundary without changing the accepted rule language: current CLIPS 6.4.2 documentation corroborates the broad pattern-network -> partial-instantiation -> cross-pattern-binding -> activation model, while Forgy 1982 anchors the RETE lineage. Course-local node/cache semantics are recorded separately and are verified by executable equivalence against the complete-rematch oracle.
+
+Foundation slice D researches the new support-semantics boundary: Doyle 1979 anchors truth-maintenance lineage around recorded reasons/dependencies for beliefs, while current CLIPS 6.4.2 logical-CE documentation provides a maintained comparison for multiple support groups and retraction after final support loss. The course implementation remains deliberately smaller and course-local: exact occurrence-stamped reasons, explicit base support, recursive grounding, and cascading retraction. It does not claim Doyle/CLIPS implementation equivalence.
 * Phase 2 -- curriculum
 Review sequence and cross-book dependencies.
 * Phase 3 -- detailed outline
@@ -23,9 +25,11 @@ Project 1 milestone A is the merged semantic baseline: literal matcher -> variab
 
 Project 1 milestone B is also merged: working-memory assertion/retraction and occurrence identity -> stable productions/complete activations -> conflict set/agenda -> deterministic conflict resolution -> bounded forward chaining -> occurrence-aware refraction. The implementation deliberately rematches completely after every firing so it remains a transparent correctness oracle.
 
-Project 1 milestone C is ACTIVE as issue #79 / PR #80: incremental positive-pattern matching -> alpha memories -> beta memories -> join/token/production nodes -> RETE-like assertion/retraction propagation. The worker implementation must preserve milestone-B activation/refraction/agenda semantics through executable equivalence regressions before any performance comparison is attempted. It deliberately excludes negative/existential conditions, truth maintenance, uncertainty, persistence, TREAT implementation, and benchmark claims.
+Project 1 milestone C is merged through PR #80: incremental positive-pattern matching -> alpha memories -> beta memories -> join/token/production nodes -> RETE-like assertion/retraction propagation. The accepted implementation preserves milestone-B activation/refraction/agenda semantics through executable equivalence regressions and keeps cache-reference soundness distinct from cache completeness. It deliberately excludes negative/existential conditions, truth maintenance, uncertainty, persistence, TREAT implementation, and benchmark claims.
 
-After editorial acceptance of milestone C, Project 1 proceeds to truth maintenance: stable justifications/support dependencies, cascading removal of unsupported derived facts, and explanation-facing dependency identity. Contradiction/counterevidence policy follows that semantics rather than being hidden inside matching caches.
+Project 1 milestone D is ACTIVE as issue #89: justification-based truth maintenance on top of the accepted matcher. The bounded slice adds exact support and conclusion occurrence identity, explicit base support, multiple independent reasons for one materialized conclusion, recursive grounding that rejects unsupported cycles, cascading retraction through dependency edges, and explanation-facing support/dependency queries. It must preserve the matcher/working-memory ownership boundaries and pass all earlier Project 1 regressions before editorial review.
+
+After editorial acceptance of milestone D, Project 1 proceeds to explicit assumption/contradiction and counterevidence policy. Rich explanation/provenance then builds on stable support and contradiction identity rather than reconstructing them from firing logs. TREAT and other matcher alternatives remain comparative architecture until separately researched, implemented, and verified.
 * Phase 7 -- capstone
 The last project is the major integrated capstone and depends on the previous project/tooling slices.
 * Phase 8 -- technical review
