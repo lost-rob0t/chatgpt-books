@@ -276,3 +276,7 @@ The Search Library itself is still an evolving project.  Passing this slice mean
 * Formal Systems and Software Verification
 
 #+include: "formal-methods.org" :lines "7-" :minlevel 2
+
+* Pattern Matching and Unification
+
+#+include: "pattern-unification.org" :lines "7-" :minlevel 2
