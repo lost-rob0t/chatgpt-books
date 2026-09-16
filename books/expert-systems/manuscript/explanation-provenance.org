@@ -1,0 +1,573 @@
+* Chapter 20 -- Explanation and Provenance: Show the Reason, Not a Story
+:PROPERTIES:
+:ID:       6c5a8d4f-e284-457d-9e28-08f54b01de83
+:END:
+
+By Chapter 18 the engine can preserve two contradictory, grounded observations and stop before consuming them. That is useful, but it is still not enough for a human operator.
+
+The operator will ask questions like these:
+
+#+begin_example
+Why is frontend marked needs-investigation?
+Which observations support that conclusion?
+Which rule joined them?
+Was one branch assumed or observed?
+What source did the rule itself come from?
+Why are these two states being called contradictory?
+Is this explanation about the fact that exists *now*, or an old fact that reused the same ID?
+#+end_example
+
+A production system can have perfect matching and still answer those questions badly.
+
+The tempting implementation is a pretty printer over the firing log. Do not do that.
+
+A firing record tells us that an activation executed at some point. It does not prove that the resulting conclusion is still present, still supported, or even the same occurrence that currently owns the stable fact ID. Chapter 17 deliberately retained historical justifications after retraction. That history is valuable. It is also dangerous if we mistake history for current proof.
+
+This chapter derives a read-only *explanation graph* from the exact support identities we already built. It adds no new inference power. That is the point. Explanation should inspect the reason-maintenance state instead of quietly becoming a second reasoner.
+
+The historical expert-system literature gives us a useful warning. MYCIN could explain rule and goal chains, but Clancey's analysis showed that missing rule-justification and strategy knowledge limited what those explanations could legitimately say [cite:@clancey1983explanation]. Aikins made the same architectural pressure visible from another direction: knowledge hidden implicitly in rule/control structure is difficult to maintain and difficult to explain [cite:@aikins1980control].
+
+Our course engine is much smaller than those systems, but the lesson scales down cleanly:
+
+#+begin_quote
+An explanation can faithfully expose represented reasons. It cannot recover semantics that the system never represented.
+#+end_quote
+
+That principle will keep us from adding fake certainty, fake causal language, or fake “why not?” answers merely because they sound useful.
+
+** 20.1 Four records that look similar but answer different questions
+Before writing one line of explanation code, separate four things that are easy to conflate.
+
+*** Working-memory fact
+A current fact occurrence says:
+
+#+begin_example
+this logical record is present now
+#+end_example
+
+It carries a stable fact ID, relation, arguments, provenance payload, and an occurrence sequence assigned when it entered working memory.
+
+*** Firing record
+A firing record says:
+
+#+begin_example
+this production activation executed
+#+end_example
+
+It is operational history. The activation might later lose support. Its conclusion might be retracted. A later fact might reuse the same stable ID with a new occurrence sequence.
+
+*** Justification
+A justification says:
+
+#+begin_example
+this exact conclusion occurrence was derived by this exact activation
+using these exact support occurrences
+#+end_example
+
+That is much closer to what an explanation needs.
+
+*** Grounding result
+Grounding says:
+
+#+begin_example
+this exact current occurrence still has a path to current base support
+#+end_example
+
+This is the final filter.
+
+Put them together:
+
+#+begin_example
+historical execution          current support
+--------------------          ---------------
+firing record                 current fact occurrence
+       |                             |
+       +--> justification -----------+
+                   |
+                   +--> exact current support stamps
+                             |
+                             +--> recursively grounded?
+#+end_example
+
+The explanation layer reads the right-hand side. It may show historical identity carried by a current justification, but it does not equate “fired once” with “supported now.”
+
+That distinction is the core debugging lesson of the chapter.
+
+** 20.2 A support graph needs typed identities
+We could return nested strings:
+
+#+begin_example
+"frontend needs investigation because api failed"
+#+end_example
+
+That is pleasant to read and almost useless to debug.
+
+Which frontend observation? Which API failure occurrence? Which production? Which bindings? Which provenance record? Which alternative reason did we omit?
+
+Instead, the executable milestone returns a small typed graph.
+
+A graph contains:
+
+- a status;
+- one or more root node IDs;
+- typed nodes;
+- typed edges.
+
+The node kinds are deliberately boring.
+
+*** Fact occurrence node
+A =:fact= node represents one exact current working-memory occurrence. Its deterministic identity contains the occurrence stamp, not merely the stable ID:
+
+#+begin_example
+(:fact-occurrence ("derived.needs-investigation.frontend" . 7))
+#+end_example
+
+Its data preserve:
+
+- stable fact ID;
+- exact occurrence stamp;
+- relation and arguments;
+- fact provenance;
+- support classification: =:evidence=, =:assumption=, or =:derived=.
+
+*** Source node
+A =:source= node represents current base support for one exact occurrence. It distinguishes ordinary evidence from an explicitly named assumption.
+
+That may look redundant because the fact node already carries provenance. It is not redundant. A fact can be both base-supported *and* independently derived. We need separate edges to show those as separate grounding routes.
+
+*** Justification node
+A =:justification= node represents one current grounded rule application. It preserves:
+
+- deterministic justification identity;
+- production ID;
+- production provenance;
+- bindings;
+- activation key;
+- exact conclusion stamp.
+
+The production provenance is important. “Rule 17 fired” is not enough once Project 2 starts carrying sourced operational knowledge. We need to know where the rule came from too.
+
+*** Contradiction node
+A =:contradiction= node represents one exact current contradiction report. It preserves:
+
+- contradiction-spec ID;
+- contradiction-spec provenance;
+- shared bindings that define the consistency key;
+- exact left and right occurrence stamps;
+- support classification of each side.
+
+No node says which side is the winner. Chapter 18 intentionally did not define such a policy.
+
+** 20.3 Edges should mean one thing each
+The graph uses four edge types:
+
+#+begin_example
+fact occurrence --grounded-by--> source
+fact occurrence --supported-by-> justification
+justification  --uses-----------> support fact occurrence
+contradiction  --counterevidence-> contradictory fact occurrence
+#+end_example
+
+Figure [[fig:expert-explanation-graph]] shows the shape.
+
+#+name: fig:expert-explanation-graph
+#+caption: Current explanation is a typed read model over exact support identities. Historical firing records are not used as proof edges.
+[[file:../assets/explanation-provenance.svg]]
+
+The direction is optimized for a human question: start at the thing being explained, then walk toward its reasons.
+
+Do not read W3C PROV semantics into these edges. PROV-DM is a domain-neutral provenance model with explicit concepts for entities, activities, derivation, agents and responsibility, provenance bundles, specialization/alternate relationships, and collections [cite:@w3c-prov-dm]. That is useful design pressure for the later workbench and interchange layers. This teaching graph is *not* a PROV-DM serialization and has no conformance claim.
+
+The current value of PROV-DM for us is conceptual: provenance should not collapse into one unstructured =source= string forever. Real provenance may involve the produced entity, the activity that produced it, software/configuration, responsible agents, and provenance about provenance. Project 2 will need a stronger schema before it claims operational-grade source handling.
+
+** 20.4 Derive =explain-current-fact= from the truth-maintenance contract
+The public query is intentionally narrow:
+
+#+begin_src lisp
+(explain-current-fact network "derived.needs-investigation.frontend")
+#+end_src
+
+The input is the milestone-E =assumption-network=. That gives the explanation layer one read-only route to:
+
+- working memory;
+- exact support stamps;
+- current grounding;
+- current justifications;
+- assumption/evidence classification;
+- production provenance.
+
+The algorithm is straightforward because the hard work was already done in Chapters 17 and 18.
+
+#+begin_example
+explain exact current fact occurrence F:
+    add F
+
+    if F has current base support:
+        add source(F)
+        add F --grounded-by--> source(F)
+
+    for each current justification J of exact occurrence F:
+        require every exact support occurrence in J to be current
+        require every support to be recursively grounded
+
+        add J
+        add F --supported-by--> J
+
+        for each exact support occurrence S in J:
+            add J --uses--> S
+            recursively explain S
+#+end_example
+
+There are three filters hidden in the phrase “current justification.” They deserve to be explicit.
+
+*** Filter 1: exact conclusion identity
+Suppose =fact.x= was occurrence 8 when a rule derived it. Later the fact is retracted. Still later, a collector asserts a new =fact.x= as occurrence 41.
+
+The old justification is historical evidence about occurrence 8. It is not a reason for occurrence 41.
+
+Stable fact ID alone would lie here.
+
+*** Filter 2: exact support identity
+Suppose a justification used:
+
+#+begin_example
+("obs.api.failed" . 12)
+#+end_example
+
+That support is retracted and later the same stable ID is asserted as occurrence 55. Occurrence 55 does not retroactively satisfy the old rule application.
+
+*** Filter 3: recursive grounding
+A support occurrence can still be present while its own derivation no longer reaches base evidence only if some invariant was bypassed or an incomplete imported state exists. Explanation should fail closed even in that weird state. It includes only support branches the truth-maintenance layer considers grounded.
+
+The implementation therefore reuses the same grounding predicate instead of inventing a second definition of support.
+
+** 20.5 Project 1 Lab F.1 -- Explain the service investigation chain
+Return to the synthetic service fixture.
+
+The engine begins with observations/topology including:
+
+#+begin_example
+(service-state api failed)
+(depends-on frontend api)
+(service-state frontend degraded)
+#+end_example
+
+The first synthetic teaching rule derives:
+
+#+begin_example
+(dependency-impact frontend api)
+#+end_example
+
+The second derives:
+
+#+begin_example
+(needs-investigation frontend)
+#+end_example
+
+After the truth-maintained/assumption wrapper runs to quiescence in report-only consistency mode, ask:
+
+#+begin_src lisp
+(let ((graph
+        (explain-current-fact
+         network
+         "derived.needs-investigation.frontend")))
+  (explanation-graph-signature graph))
+#+end_src
+
+The signature is a data-only debugging representation. It is deliberately not a natural-language generator.
+
+The important path is conceptually:
+
+#+begin_example
+needs-investigation(frontend) [derived]
+  supported-by rule.investigate-degraded-dependent
+    uses dependency-impact(frontend, api) [derived]
+      supported-by rule.dependency-impact
+        uses service-state(api, failed) [evidence]
+        uses depends-on(frontend, api)  [evidence]
+    uses service-state(frontend, degraded) [evidence]
+#+end_example
+
+Every leaf is an exact occurrence. Every rule node has a stable production ID and production provenance. The graph can therefore answer a debugging question that the English summary cannot:
+
+#+begin_quote
+Which exact observation would I have to retract to invalidate this branch?
+#+end_quote
+
+That is the kind of question an operator needs.
+
+** 20.6 Multiple reasons are not a nuisance to simplify away
+Suppose two independent rules derive the same logical conclusion:
+
+#+begin_example
+rule.a-to-x: seed(a) -> conclusion(x)
+rule.b-to-x: seed(b) -> conclusion(x)
+#+end_example
+
+The truth-maintenance ledger records two reasons for the same exact conclusion occurrence.
+
+A naive explainer might pick the first one and produce a tidy sentence. That loses information.
+
+The graph must keep both:
+
+#+begin_example
+                 +--> justification A --> seed(a)
+conclusion(x) ---+
+                 +--> justification B --> seed(b)
+#+end_example
+
+Why?
+
+Because support alternatives change failure behavior. If =seed(a)= disappears, =conclusion(x)= remains grounded through =seed(b)=. An explanation that showed only A would become false about the system's resilience to retraction.
+
+The same rule applies to mixed support.
+
+If =conclusion(x)= entered as base evidence and later acquired a derived justification, the graph exposes:
+
+#+begin_example
+                 +--> source evidence
+conclusion(x) ---+
+                 +--> justification --> seed
+#+end_example
+
+That exact structure explains why removing base support may *not* remove the current occurrence: another grounding route survives.
+
+** 20.7 Provenance belongs on facts, rules, and constraints
+Project 2 will become a technical troubleshooting knowledge base. That makes provenance part of correctness, not decoration.
+
+Three different questions appear:
+
+1. *Where did this observation come from?*
+2. *Where did this inference rule come from?*
+3. *Who/what says these two observations are mutually inconsistent?*
+
+Those correspond to three different objects in the current engine:
+
+- fact provenance;
+- production provenance;
+- contradiction-spec provenance.
+
+Do not merge them.
+
+A fact may come from a collector, while a rule comes from upstream system documentation, while a consistency constraint comes from a schema invariant written by the knowledge engineer. If the explanation prints only “source: systemd,” it destroys that distinction.
+
+The current payloads remain deliberately open property lists. That is adequate for the teaching engine because the chapter is about identity and flow. It is not yet adequate for Project 2's durable KB. The future schema should be able to distinguish, at minimum:
+
+- source artifact/document identity;
+- retrieved version/date;
+- observation time and modeled time;
+- collector/tool identity and version;
+- rule authoring/derivation identity;
+- confidence or uncertainty *only when a researched semantic model exists*;
+- tenant/host/service/configuration scope where relevant.
+
+W3C PROV gives useful vocabulary pressure here, but adopting PROV later requires an actual mapping and validation work, not a citation sticker.
+
+** 20.8 Explain contradictions without resolving them
+Chapter 18's systemd lab declares this course-local consistency constraint:
+
+#+begin_example
+left:  (unit-active-state ?unit active ?epoch)
+right: (unit-active-state ?unit failed ?epoch)
+#+end_example
+
+When exact current grounded occurrences match both sides with the same =?unit= and =?epoch=, the engine produces a contradiction report.
+
+Now we can explain that report:
+
+#+begin_src lisp
+(let* ((report
+         (first (assumption-network-contradictions network)))
+       (graph
+         (explain-contradiction-report network report)))
+  (explanation-graph-signature graph))
+#+end_src
+
+The root preserves the constraint identity and provenance. Two =:counterevidence= edges lead to the exact left and right fact occurrences. Each side then expands through its own ordinary support graph.
+
+That means the operator can see something like:
+
+#+begin_example
+constraint.systemd.active-state.active-vs-failed
+  bindings: unit=api-service, epoch=42
+
+  counterevidence -> active observation [evidence]
+  counterevidence -> failed observation [assumption]
+#+end_example
+
+Notice what the graph does *not* say:
+
+- “evidence beats assumption”;
+- “the active side is 80% likely”;
+- “delete the failed side”;
+- “systemd is broken.”
+
+None of those policies has been researched or implemented.
+
+The explanation improves the decision boundary without pretending to make the decision.
+
+** 20.9 Failure lab -- stale contradiction reports
+Keep a contradiction report in a variable. Then withdraw one of its exact assumption occurrences.
+
+The contradiction is no longer current, but the old report object still exists in the Lisp heap.
+
+A sloppy explanation API would happily render it.
+
+The milestone checks current exact identity first. The old report gets:
+
+#+begin_example
+:stale
+#+end_example
+
+with no current graph.
+
+This is the same bug class we solved for justifications. Stable-looking objects can outlive the state they described.
+
+The engineering rule is broader than expert systems:
+
+#+begin_quote
+An explanation needs a validity boundary tied to the state it explains.
+#+end_quote
+
+This will matter again when the workbench gains persistence and when the standalone app has concurrent collectors.
+
+** 20.10 Failure lab -- absent is not false
+Ask the engine to explain:
+
+#+begin_src lisp
+(explain-current-fact network "missing.fact")
+#+end_src
+
+The result is =:absent= with no nodes and no edges.
+
+That answer is intentionally boring.
+
+It does not say:
+
+#+begin_example
+missing.fact is false because rule 12 failed
+#+end_example
+
+We do not have the information to say that.
+
+A proper /why-not/ facility would need to record or recompute partial matches and answer questions such as:
+
+- Which productions could conclude this relation?
+- Which condition failed?
+- Was the condition false, unknown, absent, stale, or outside the modeled world?
+- Was an activation generated and then refracted?
+- Was a contradiction gate preventing firing?
+- Is the query under open-world or closed-world assumptions?
+
+That is workbench/search instrumentation, not current-support explanation.
+
+Clancey's MYCIN analysis is useful precisely because it shows the cost of pretending execution structure contains every explanation the user wants [cite:@clancey1983explanation]. We keep the boundary explicit.
+
+** 20.11 Debugging with graph signatures
+The graph structs are convenient to inspect interactively, but structure-object printing is not a stable regression format. The implementation therefore exposes:
+
+#+begin_src lisp
+(explanation-graph-signature graph)
+#+end_src
+
+The signature contains only ordinary lists, symbols, and copied payload data in deterministic first-discovery order.
+
+That gives tests a clean invariant:
+
+#+begin_example
+same engine state + same query
+=> equal explanation signature
+#+end_example
+
+This is not canonical graph isomorphism. It is a deterministic traversal contract for this implementation.
+
+That distinction matters. We are not claiming that two semantically equivalent graphs created under different fact IDs or assertion orders will serialize identically. We are claiming that unchanged state does not produce random explanation ordering.
+
+That is enough to make traces reviewable in CI and later workbench snapshots.
+
+** 20.12 The test matrix is the explanation contract
+A feature called “explain” invites demos that look persuasive while hiding wrong semantics. The tests need to be meaner than the demo.
+
+The milestone regression suite therefore checks:
+
+1. base evidence creates an explicit =:evidence= source;
+2. an explicit assumption remains visibly =:assumption=;
+3. the service fixture produces a real two-hop explanation;
+4. production provenance survives onto rule-application nodes;
+5. independent alternative justifications are all retained;
+6. mixed base+derived support shows both paths;
+7. historical justification does not attach to a fresh same-ID occurrence;
+8. absent facts produce no invented explanation;
+9. unchanged state produces deterministic graph signatures;
+10. contradiction explanations preserve both sides and spec provenance;
+11. a report becomes stale when one exact contradictory side disappears;
+12. every earlier matcher, agenda, incremental, truth-maintenance, and consistency regression still passes.
+
+The last item is important. Explanation code is read-only by contract. If adding it changes forward-chaining results, we broke the architecture.
+
+** 20.13 What this chapter proves -- and what it does not
+After the tests pass, we may say:
+
+- the teaching engine can build a deterministic read-only graph for current exact support;
+- explanations distinguish evidence, assumptions, derived occurrences, rule applications, and contradiction reports;
+- alternative and mixed support paths remain visible;
+- stale exact-occurrence reasons/reports fail closed;
+- fact, production, and contradiction-spec provenance are preserved as separate payloads in the graph.
+
+We may *not* say:
+
+- the explanations are complete accounts of domain causality;
+- users will understand them without usability testing;
+- the engine can answer arbitrary why/why-not questions;
+- provenance establishes trustworthiness;
+- the system implements W3C PROV;
+- the system has uncertainty semantics;
+- the system automatically resolves inconsistent knowledge;
+- the graph scales to a production KB;
+- any benchmark or latency target was achieved.
+
+This claim discipline is part of the hacker's skill set. Explanation systems are unusually easy to oversell because humans are good at reading coherent stories into incomplete traces.
+
+** 20.14 Project checkpoint -- the inference engine now has a reason boundary
+Project 1 has now crossed an important line.
+
+The engine began as literal matching and grew through bindings, joins, working memory, agenda policy, refraction, incremental alpha/beta memories, truth maintenance, and contradiction handling. The explanation layer does not add another reasoning mechanism. Instead, it makes the already-derived mechanisms inspectable through stable identities.
+
+That gives us a trustworthy foundation for Project 2.
+
+The next serious problem is no longer “can the engine explain a synthetic chain?” It is:
+
+#+begin_quote
+Can we build a sourced technical troubleshooting knowledge base whose observations, rules, counterevidence, context keys, and explanation provenance survive contact with real Linux/server/distributed-service semantics?
+#+end_quote
+
+That requires source-specific research and fixtures. We should not smuggle it into Project 1.
+
+Chapter 19's certainty/fuzzy material also remains separate. A provenance graph is not a confidence model. If later uncertainty work is implemented, the explanation graph may carry those values only after their semantics are explicitly derived and tested.
+
+** 20.15 Exercises
+1. Draw the difference between a firing record, a justification, and a current grounding path for a conclusion that was later retracted.
+2. Modify a scratch copy of the explanation code to key fact nodes only by stable fact ID. Construct a retract/reassert scenario and explain exactly how the graph lies.
+3. Add a second independent reason for =dependency-impact(frontend, api)=. Predict which nodes remain after retracting one support branch, then verify with the executable engine.
+4. Construct a fact that has both base support and a derived justification. Withdraw base support. Explain why the same exact occurrence can survive.
+5. Construct two contradictory evidence facts at the same epoch. Explain the contradiction graph. Then change one epoch and explain why there is no contradiction to render.
+6. Keep an old contradiction report, withdraw one side, and verify =:stale=. Why is returning a historical graph without a stale marker dangerous?
+7. List five pieces of provenance you would require before importing a real systemd diagnostic rule into Project 2. Separate observation provenance from rule provenance.
+8. Read W3C PROV-DM's core concepts [cite:@w3c-prov-dm]. Sketch, without implementing, how a fact occurrence, collector execution, and rule derivation *might* map to entities/activities/agents. Mark every uncertain mapping instead of claiming conformance.
+9. Read Aikins 1980 [cite:@aikins1980control]. Find one behavior in our engine whose explanation would become misleading if its control policy were hidden in incidental list order.
+10. Read Clancey 1983 [cite:@clancey1983explanation]. Compare MYCIN-style rule/goal tracing with our current-support graph. Identify one question each representation can answer more naturally and one question neither can answer without additional represented knowledge.
+11. Design a =why-not= data model without coding it. Include partial-match identity, failed condition, unknown/absent distinction, contradiction-gate state, and open/closed-world policy. Explain why bolting this onto =:absent= would be dishonest.
+12. Propose a redaction boundary for a future multi-tenant workbench. Which provenance fields might be visible to an operator who may see a conclusion but not the raw source document? Do not implement authorization until the persistence/workbench architecture exists.
+
+** 20.16 Lab checklist
+Before calling this milestone complete, verify all of the following in a fresh checkout:
+
+#+begin_example
+sbcl --script books/expert-systems/code/inference-engine/run-tests.lisp
+make book BOOK=expert-systems
+make check BOOK=expert-systems
+#+end_example
+
+The focused repository workflow additionally validates every editable Graphviz source and runs the repository Nix gate.
+
+Treat CI output as evidence only for the exact commit it tested. A green run from an earlier head does not certify a later manuscript or code edit.
