@@ -4,5 +4,598 @@
 :END:
 #+bibliography: ../references.bib
 
-* Manuscript bootstrap
-This is the canonical manuscript entry point. Long-form drafting begins only after the publishing/research bootstrap and the relevant research issue are ready. See [[file:../OUTLINE.org][OUTLINE.org]].
+* How to use this book
+This is an implementation book. We will not begin with a finished rule engine and spend three hundred pages naming its switches. We will begin with a fact that either matches or does not match, then earn every new mechanism by running into a concrete limitation of the previous one.
+
+The main thread is Project 1, the *Progressive Inference Engine*. It starts as a deliberately boring matcher. Later it grows working memory, rules, an agenda, conflict resolution, incremental alpha and beta memories, join and production nodes, truth maintenance, and explanation. The point of keeping the early implementation around is that an optimized engine needs a semantic reference. “Faster” is meaningless if it quietly computes a different set of rule instantiations.
+
+A second thread develops a Linux/server/distributed-service troubleshooting knowledge base. It is intentionally not a toy animal classifier and not a high-stakes medical or legal system. Technical operations gives us useful realities to model: observations age, sources disagree, services depend on other services, configuration differs from observed state, derived diagnoses need supporting evidence, and a recommendation should be explainable. The first scenario in this part is synthetic. When later chapters encode real technical claims, the rules will carry source provenance.
+
+Examples are written in Common Lisp because the language makes data structures and executable representations easy to inspect while we derive the machinery. The important ideas are language-independent. Where the implementation makes a Common Lisp-specific choice, the text says so.
+
+At each milestone, use the same discipline:
+
+1. Predict what the engine should conclude.
+2. Run the smallest executable test that could prove you wrong.
+3. Inspect the bindings and supporting fact identities, not only a final Boolean.
+4. Break one assumption on purpose.
+5. Explain why the failure occurred in terms of the mechanism you have actually built.
+
+The canonical code for the opening milestone lives under =books/expert-systems/code/inference-engine/=. Run it from the repository root with:
+
+#+begin_src sh
+sbcl --script books/expert-systems/code/inference-engine/run-tests.lisp
+#+end_src
+
+A successful run is evidence about that exact implementation and test set, not evidence that later agenda, RETE, truth-maintenance, or persistence behavior already exists.
+
+* Chapter 1 -- What an Expert System Actually Has to Do
+:PROPERTIES:
+:ID:       00d8c412-9094-49fe-bddb-55ae0bf0cde2
+:END:
+
+** 1.1 Start with the cycle, not the mythology
+An expert system is not “a pile of if-statements with an AI label.” A useful knowledge system separates at least three things that ordinary application code often tangles together:
+
+- *knowledge* about a domain;
+- *case state* or observations for the situation being reasoned about;
+- an *inference mechanism* that determines which knowledge is applicable and what follows.
+
+The production-system tradition gives us one especially concrete model. Forgy's description of OPS5 presents data as working-memory elements, knowledge as productions, and execution as repeated matching and conflict resolution rather than a hard-coded problem-solving procedure [cite:@forgy1981ops5]. Modern CLIPS documentation exposes the same broad family of concepts: facts, rules, pattern matching, an agenda, conflict resolution, and a rule-execution cycle [cite:@clips642bpg].
+
+Strip away syntax and implementation details and the cycle looks like this:
+
+#+begin_example
+current facts
+    |
+    v
+find rule conditions that match
+    |
+    v
+produce candidate rule instantiations
+    |
+    v
+choose one candidate according to explicit policy
+    |
+    v
+fire its actions
+    |
+    v
+facts change -> repeat
+#+end_example
+
+Every box will eventually hide hard engineering. The matcher must keep variable bindings consistent. The agenda must be deterministic enough to test. Retractions must remove matches that depended on retracted evidence. Derived facts need justifications. A persisted inference session must know exactly which knowledge-base version it used. A production engine must not recompute the universe after every single observation if an incremental network can safely reuse prior work.
+
+But none of those later mechanisms make sense until we can answer a simpler question: *What does it mean for one or several conditions to match facts?*
+
+** 1.2 Project 1 begins as a correctness oracle
+Project 1 therefore starts with the least clever implementation we can trust. Its first milestone has four responsibilities:
+
+- represent facts with stable identity and provenance;
+- match literal conditions;
+- introduce variables and immutable binding environments;
+- join several conditions by carrying bindings from left to right.
+
+There is no agenda in this milestone. There is no rule firing. There is no RETE network. That absence is a feature. Later optimizations get compared against a small implementation whose behavior is obvious enough to trace by hand.
+
+Forgy's 1982 RETE paper addresses the many-pattern/many-object pattern-match problem [cite:@forgy1982rete]. The useful pedagogical move is to postpone the algorithm until we have personally experienced the redundant work it is meant to avoid. Otherwise alpha memories, beta memories, tokens, and join nodes turn into vocabulary memorization.
+
+** 1.3 The domain thread: service diagnosis
+Consider a synthetic incident:
+
+- service =api= is observed in a failed state;
+- its configured restart policy is =on-failure=;
+- service =frontend= depends on =api=;
+- =frontend= is observed degraded.
+
+These are not yet diagnoses. They are observations, configuration, and topology. The systemd service manual is an authoritative source for actual service-unit semantics [cite:@systemd-service], but the particular =api= and =frontend= event in this book never happened on a claimed real host. The fixture records it as synthetic.
+
+That distinction matters. A production knowledge system should be able to answer not merely “what conclusion did you print?” but also “which observations supported it, where did those observations come from, and which rule version used them?” We start carrying identity and provenance now because bolting them on after the engine works is how explanations become guesswork.
+
+** 1.4 Three kinds of correctness
+Throughout the book, separate three kinds of correctness:
+
+1. *Representation correctness*: did we encode the intended observation, source, and entity?
+2. *Inference correctness*: given that representation, did the engine compute the matches and consequences required by its defined semantics?
+3. *Domain correctness*: is the encoded rule itself defensible for the real technical system and version in question?
+
+A flawless matcher cannot rescue a bad operational rule. An authoritative systemd citation cannot rescue a matcher that lets =?service= mean =api= in one condition and =frontend= in the next. A gorgeous explanation graph cannot rescue a source field that was fabricated.
+
+This separation is the backbone of the course.
+
+** 1.5 Failure lab
+Before writing more machinery, practice classifying failures. For each case below, decide which layer is wrong:
+
+- the fact says =(service-state api active)= although the collector observed =failed=;
+- the rule condition misspells =service-state= as =service-status=;
+- the first condition binds =?service= to =api= but the second condition silently overwrites it with =frontend=;
+- the engine finds the right match but drops the fact IDs used to establish it;
+- a later domain rule says high load always means CPU saturation without defining or sourcing that claim.
+
+Do not answer all five with “the expert system is wrong.” Good debugging starts by locating the contract that failed.
+
+* Chapter 2 -- Turn Domain Evidence into Knowledge You Can Audit
+:PROPERTIES:
+:ID:       2daeb8f8-bf11-4a4e-9a64-f7eaf7b82d8a
+:END:
+
+** 2.1 Knowledge acquisition is model construction
+Knowledge engineering is not transcription. A domain expert can say, “the frontend is broken because the API is down,” but an executable system needs several decisions before that sentence becomes a rule.
+
+What counts as “down”? Is it a process state, a failed health check, a transport error, or an operator assertion? How old may the observation be? Does the frontend have one API dependency or several? Is the conclusion a diagnosis, a hypothesis, a service-impact relation, or a recommendation? What evidence would count against it?
+
+The implementation becomes much easier when those distinctions exist in the data model instead of being hidden inside prose.
+
+For the opening project we use small fact shapes such as:
+
+#+begin_example
+(service-state api failed)
+(service-restart-policy api on-failure)
+(service-exit-code api 1)
+(depends-on frontend api)
+(service-state frontend degraded)
+#+end_example
+
+They are intentionally modest. The first milestone tests matching, not an exhaustive systemd ontology. Later chapters will distinguish observed time, valid time, collectors, entities, confidence models where justified, counterevidence, and retractions.
+
+** 2.2 Never erase provenance at ingestion
+The code does not represent a fact as a bare list. Each fact has four fields:
+
+#+begin_src lisp
+(defstruct fact
+  id
+  relation
+  arguments
+  provenance)
+#+end_src
+
+The matcher only cares about =relation= and =arguments=. Why keep the rest now?
+
+Because stable identity lets a match say which exact facts supported it. Provenance lets us distinguish a synthetic lab observation from a fact copied from configuration or collected from a real runtime. Later, truth maintenance will need identities to retract derived consequences when their supports disappear. Explanation will need them to walk backward from a conclusion to evidence.
+
+A useful design rule is: *do not discard information at a boundary if a later correctness property requires it and the information cannot be reconstructed reliably.*
+
+** 2.3 Asserted, observed, derived, and retracted are not synonyms
+A mature knowledge base will distinguish categories such as:
+
+- *asserted*: intentionally entered knowledge, such as a topology relation;
+- *observed*: evidence produced by a collector at a time;
+- *derived*: knowledge inferred by rules;
+- *retracted*: knowledge that no longer participates in the current reasoning state but whose historical identity may still matter.
+
+Milestone A does not implement that lifecycle. It merely avoids an early representation that would make the lifecycle impossible.
+
+Likewise, the book will later cover uncertainty and counterevidence. We do not assign a decorative =0.8= to every fact now. A numeric confidence field is useful only after we define what the number means, how independent evidence combines, and what a consumer may infer from it.
+
+** 2.4 Source technical claims, not synthetic incidents
+The fixture has provenance like this:
+
+#+begin_example
+(:kind :synthetic-observation
+ :scenario "api-start-failure"
+ :source "https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html")
+#+end_example
+
+Read that carefully. The source grounds the *technical vocabulary and semantics* we will research. It does not claim the URL witnessed our fictional =api= incident. The scenario is labelled synthetic in a separate field.
+
+This becomes even more important when the KB starts using Linux performance data. The Linux kernel documentation tells us what fields such as =/proc/loadavg= mean [cite:@linux-proc]. It does not justify an arbitrary universal threshold for “bad load.” If we later encode a threshold, the rule needs a scoped operational rationale and tests, not folklore pasted into a production rule.
+
+** 2.5 Knowledge-acquisition worksheet
+For every future diagnostic rule, write down these questions before code:
+
+1. What exact observation types can support the conclusion?
+2. Which entity does each observation describe?
+3. Is absence of evidence being confused with evidence of absence?
+4. What counterevidence can defeat or weaken the conclusion?
+5. Does time matter?
+6. Is the rule universally technical, version-specific, environment policy, or merely a heuristic?
+7. What primary documentation supports the technical parts?
+8. What stable identity will the rule and each source record carry?
+9. Which regression scenario would prove the rule over-generalizes?
+
+This is slower than inventing a clever DSL on day one. It is much faster than debugging a large rule base whose predicates never had precise meanings.
+
+* Chapter 3 -- Facts Before Mutable Working Memory
+:PROPERTIES:
+:ID:       19e15c74-4c74-42a2-823f-c0e510748383
+:END:
+
+** 3.1 A fact set is enough to learn matching
+The architecture roadmap eventually needs a real =WorkingMemory=: assertion, retraction, change propagation, duplicate policy, indexes, and event identity. We do not need those semantics to test our first matcher.
+
+For milestone A, “working memory” is simply an ordered Common Lisp list of immutable =fact= records supplied to =match-conditions=. This is deliberately weaker than the final abstraction. It gives us a frozen input against which we can reason exactly.
+
+The fixture lives in =fixtures.lisp=:
+
+#+begin_src lisp
+(defparameter *service-diagnosis-facts*
+  (list
+   (make-fact :id "obs.api.state.failed"
+              :relation 'service-state
+              :arguments '(api failed)
+              :provenance '(:kind :synthetic-observation ...))
+   (make-fact :id "cfg.api.restart.on-failure"
+              :relation 'service-restart-policy
+              :arguments '(api on-failure)
+              :provenance '(:kind :synthetic-configuration ...))))
+#+end_src
+
+Using a fixed list gives us two important properties while we learn:
+
+- the same fact order produces the same trace;
+- no test failure can be blamed on concurrent or hidden mutation.
+
+Later, those comforts will disappear one at a time.
+
+** 3.2 Identity is different from content
+Imagine two collectors report the same content:
+
+#+begin_example
+(service-state api failed)
+(service-state api failed)
+#+end_example
+
+Are those duplicates? Corroborating observations? Retries of one event? Two samples at different times? We cannot know from content alone.
+
+That is why the fact structure has =id=. The first matcher does not deduplicate. It treats the supplied facts as the supplied facts and records the IDs that support a match. Duplicate-fact policy belongs to working-memory semantics and must be specified explicitly in the next dependency slice.
+
+This is a recurring principle in expert-system implementation: *an optimizer or convenience layer must not quietly invent domain semantics.*
+
+** 3.3 Shape errors should be boring
+A fact in this milestone has one relation and a finite argument list. A condition with a different relation or different arity does not match. A literal field with a different value does not match.
+
+There is no coercion between =1= and ="1"=. There is no fuzzy spelling correction. There is no automatic namespace aliasing. Those features might be useful at an ingestion boundary, but they make a terrible primitive matcher because they hide why a condition succeeded.
+
+When a low-level operation is easy to explain, later explanations have a stable foundation.
+
+** 3.4 Lab -- inspect evidence instead of printing a diagnosis
+Open =fixtures.lisp=. For each fact, answer:
+
+- What is its stable ID?
+- Which part of the record participates in matching today?
+- Which part exists for future explanation?
+- Which provenance values describe the source and which describe the synthetic scenario?
+
+Then add a temporary fact with the same content as =obs.api.state.failed= but a different ID. Predict how many literal matches exist. Do not “fix” the duplicate yet. Write down which future working-memory policy would be needed to decide whether the two records represent one observation or two.
+
+That exercise is intentionally unresolved. Knowing where semantics *do not yet exist* is part of building the system correctly.
+
+* Chapter 4 -- Rules Are More Than If Statements
+:PROPERTIES:
+:ID:       2e4361d9-e716-42f6-98bd-13a2f1a8882e
+:END:
+
+** 4.1 Conditions describe applicability; actions change the reasoning state
+A production rule conceptually has a left-hand side of conditions and a right-hand side of actions. CLIPS documents this basic rule form and execution cycle in a maintained production-system implementation [cite:@clips642bpg]. OPS5 likewise treats productions and conflict resolution as first-class machinery [cite:@forgy1981ops5].
+
+An illustrative rule for our scenario might eventually read:
+
+#+begin_example
+rule: impacted-dependent-service
+conditions:
+  (service-state ?dependency failed)
+  (depends-on ?service ?dependency)
+action:
+  derive (dependency-impact ?service ?dependency)
+#+end_example
+
+That is explanatory pseudocode, not the implemented rule language. Milestone A implements only the condition-matching machinery. We refuse to smuggle an action language into the matcher because later chapters need to define derived-fact identity, refraction, truth-maintenance dependencies, and side-effect policy first.
+
+** 4.2 A rule can match more than once
+Suppose three services depend on =api=. The rule above should have three different instantiations, one for each =?service= binding, if the rest of the conditions hold.
+
+That means “this rule matches” is underspecified. The engine needs a concrete object containing at least:
+
+- which rule matched;
+- the complete variable binding environment;
+- the supporting fact identities;
+- eventually, enough generation/session information for deterministic agenda and explanation behavior.
+
+Milestone A's =match-result= is the seed of that object:
+
+#+begin_src lisp
+(defstruct match-result
+  bindings
+  fact-ids)
+#+end_src
+
+It does not call itself an activation yet because we have no rule or agenda semantics. Names should reflect what a data structure actually guarantees today.
+
+** 4.3 Rule identity comes before rule versioning
+The project requirements say rules need stable identity and provenance. Later the workbench will let a knowledge engineer edit a draft, validate it, test scenarios, publish an immutable version, and compare it with the active version.
+
+A rule name such as =impacted-dependent-service= is therefore not enough by itself. We will eventually need a stable logical rule ID plus a version identity. An inference session must be able to explain using the exact rule version that ran, not whatever text currently happens to have the same human-readable name.
+
+We do not implement that version model in Chapter 4. We establish why the matcher must not discard evidence needed by it.
+
+** 4.4 “Why did this rule not fire?” starts with condition traces
+Explanations are often introduced late as a UI feature. That is too late. A useful “why not?” answer needs to know which conditions produced partial matches and where matching stopped.
+
+Our naive matcher is intentionally simple enough that you can reproduce this manually:
+
+1. match condition 1 against every fact;
+2. for every success, carry its bindings into condition 2;
+3. reject candidates inconsistent with those bindings;
+4. continue until either all conditions match or the partial path dies.
+
+Later the workbench will automate that trace. For now, tracing the process by hand teaches what the explanation engine will eventually have to expose.
+
+* Chapter 5 -- Derive the Literal Matcher
+:PROPERTIES:
+:ID:       415204ed-898e-4c64-9088-ff835cbdfd88
+:END:
+
+** 5.1 The smallest useful question
+Before variables, ask whether one fully concrete condition matches one fact.
+
+Condition:
+
+#+begin_example
+(service-state api failed)
+#+end_example
+
+Fact content:
+
+#+begin_example
+relation:  service-state
+arguments: (api failed)
+#+end_example
+
+The correct algorithm is almost embarrassingly small:
+
+#+begin_src lisp
+(defun literal-condition-match-p (condition fact)
+  (and (consp condition)
+       (equal (first condition) (fact-relation fact))
+       (equal (rest condition) (fact-arguments fact))))
+#+end_src
+
+This function is worth keeping even after the engine becomes sophisticated because it states a reference semantic rule directly: same relation, same ordered arguments.
+
+** 5.2 Why begin this small?
+Because every later matcher bug can be reduced toward it. If a variable match looks wrong, replace variables with literals and see whether the shape itself matches. If a join looks wrong, test each individual condition. If the RETE network disagrees with the naive matcher, compare their leaf-level literal tests before staring at graph topology.
+
+A small oracle is debugging leverage.
+
+** 5.3 What the literal matcher intentionally does not do
+It does not:
+
+- normalize case;
+- coerce strings to symbols;
+- compare numeric strings with numbers;
+- infer subclasses;
+- consult aliases;
+- check provenance;
+- mutate facts;
+- return a diagnosis.
+
+If one of those operations becomes necessary, it should live in an explicit layer with explicit tests. Matcher primitives are not a trash drawer for convenient data cleanup.
+
+** 5.4 Failure lab -- one bit is not enough evidence
+The regression suite includes a success and a nearby failure. Add temporary cases for:
+
+#+begin_example
+(service-state api failed)       ; expected match
+(service-state api active)       ; wrong final literal
+(service-state frontend failed)  ; wrong entity
+(service-status api failed)      ; wrong relation
+(service-state api)              ; wrong arity
+#+end_example
+
+For every failure, be able to point to the exact comparison that rejects it. If your matcher can only say =NIL= and your debugger cannot tell which field differed, note that usability gap. We will later turn matching traces into a first-class explanation/debugging surface rather than complicating the primitive predicate today.
+
+* Chapter 6 -- Variables Are Constraints, Not Wildcards
+:PROPERTIES:
+:ID:       8da353e3-6260-4eca-9a6e-bf22610de743
+:END:
+
+** 6.1 A wildcard throws information away; a variable remembers agreement
+Now replace the concrete service with a variable:
+
+#+begin_example
+(service-state ?service failed)
+#+end_example
+
+Matching the =api= failure fact should extend the current environment with:
+
+#+begin_example
+?service -> api
+#+end_example
+
+The implementation recognizes pattern variables by a leading =?= in a symbol name. That is a course-local syntax decision, not a claim about production systems in general.
+
+The important semantic rule is stronger: once bound, the variable must remain equal to that value for the rest of the match.
+
+** 6.2 Repeated variables expose the difference
+Consider a fact relation =pair= and condition:
+
+#+begin_example
+(pair ?x ?x)
+#+end_example
+
+It matches =(pair api api)= but must reject =(pair api frontend)=. The first occurrence is not an anonymous wildcard. It establishes a constraint that the second occurrence must satisfy.
+
+The test suite makes this permanent. This is precisely the kind of tiny regression that prevents a later optimized matcher from silently changing language semantics.
+
+** 6.3 Bindings are extended, not overwritten
+The relevant helper returns a fresh binding environment when a variable is new and validates consistency when it is already present:
+
+#+begin_src lisp
+(defun extend-binding (variable value bindings)
+  (let ((existing (assoc variable bindings :test #'eq)))
+    (cond
+      (existing
+       (if (equal (cdr existing) value)
+           (values bindings t)
+           (values nil nil)))
+      (t
+       (values (append bindings (list (cons variable value))) t)))))
+#+end_src
+
+For this teaching engine, preserving binding insertion order makes traces deterministic and easy to compare. We are not claiming an association list is the final high-performance representation.
+
+The subtle case is an *initial binding*. Suppose an earlier condition already established =?service -> frontend=. Matching =(service-state ?service failed)= against the =api= fact must fail. A broken matcher that “just assigns the new value” would fabricate a cross-condition join.
+
+** 6.4 One-condition algorithm
+=match-condition= works left to right:
+
+1. require relation and arity to agree;
+2. for each field pair:
+   - if the pattern field is a variable, extend or check its binding;
+   - otherwise require literal equality;
+3. return the final environment only if every field succeeds.
+
+Notice what is missing: backtracking inside one condition. For a fixed condition and a fixed fact, each variable position has exactly one candidate value: the value already present in that fact. Alternatives appear when we try the condition against *other facts*.
+
+That distinction helps later when we split alpha-like filtering from beta-like joining.
+
+** 6.5 Debugging exercises
+1. Predict the result of matching =(edge ?x ?x)= against =(edge api frontend)=.
+2. Predict the result of =(edge ?x ?y)= against the same fact.
+3. Start with =((?x . api))= and match =(edge ?x ?y)= against =(edge frontend api)=. Which comparison kills the match?
+4. Change =variable-p= temporarily so every symbol counts as a variable. Which literal tests become meaningless?
+5. Change =extend-binding= temporarily so it overwrites existing bindings. Which join test becomes a false positive?
+
+Restore the implementation after each experiment. The goal is to understand the invariant each line protects.
+
+* Chapter 7 -- Joins Turn Local Matches into Rule Instantiations
+:PROPERTIES:
+:ID:       bde33db3-59ee-4f74-8994-d007ad37fb62
+:END:
+
+** 7.1 The real problem appears when conditions share variables
+A single pattern can bind a service. Expert knowledge gets useful when several conditions constrain the same entity.
+
+Take these three conditions:
+
+#+begin_example
+(service-state ?service failed)
+(service-restart-policy ?service on-failure)
+(depends-on ?dependent ?service)
+#+end_example
+
+A successful match needs one =?service= value that satisfies all three. In our fixture, the first condition binds =?service= to =api=. The second may only accept a restart-policy fact about =api=. The third must find a dependency whose dependency target is the same =api=, and then it may extend the environment with =?dependent -> frontend=.
+
+That is a join.
+
+#+caption: Milestone A join trace. Each condition scans the frozen fact set, carries an immutable binding environment forward, and retains the stable IDs of supporting facts.
+#+attr_html: :alt Facts with stable IDs and provenance flow through three service conditions, producing service equals api, then dependent equals frontend, while retaining three support fact IDs.
+[[file:../assets/matcher-join.svg]]
+
+The editable Graphviz source is =books/expert-systems/assets/matcher-join.dot=.
+
+** 7.2 The naive algorithm is deliberately redundant
+The implementation is a recursive nested loop:
+
+#+begin_src lisp
+(labels ((extend (remaining bindings fact-ids)
+           (if (endp remaining)
+               (list (make-match-result :bindings bindings
+                                        :fact-ids fact-ids))
+               (loop for fact in facts
+                     append
+                     (multiple-value-bind (next-bindings matched-p)
+                         (match-condition (first remaining) fact bindings)
+                       (if matched-p
+                           (extend (rest remaining)
+                                   next-bindings
+                                   (append fact-ids (list (fact-id fact))))
+                           '()))))))
+  (extend conditions initial-bindings '()))
+#+end_src
+
+Every partial match scans the full fact set for the next condition. If facts rarely change, this repeats work. If one new observation arrives, running the entire algorithm again repeats comparisons whose outcomes were already known.
+
+Do *not* jump from that observation directly to “therefore RETE is faster.” Performance depends on workload, network shape, memory use, update patterns, implementation, and indexing. We have not run a benchmark yet, so the book makes no benchmark claim.
+
+What we can say now is precise: the algorithm performs redundant matching work by construction. Later incremental networks will attempt to retain selected intermediate results so a delta can propagate instead of forcing complete rematching. Their first acceptance criterion will be semantic equivalence with this oracle on frozen scenarios.
+
+** 7.3 Support fact IDs are part of the match
+The successful three-condition result contains both bindings and supporting identities:
+
+#+begin_example
+bindings:
+  ?service   -> api
+  ?dependent -> frontend
+
+support:
+  obs.api.state.failed
+  cfg.api.restart.on-failure
+  dep.frontend.api
+#+end_example
+
+This is more than debugging decoration. Later, if =obs.api.state.failed= is retracted, a truth-maintenance system needs to know which derived consequences depended on it. Explanation needs the same edge in reverse: “this conclusion exists because this rule instance was supported by these facts.”
+
+If we stored only the final conclusion, both features would require unreliable reconstruction.
+
+** 7.4 Determinism is a test aid, not yet conflict resolution
+=match-conditions= preserves condition order, input fact order, and first-binding order. That gives stable tests and readable traces.
+
+Do not confuse that with an agenda policy. Once multiple rules can create multiple activations, the engine will need explicit conflict-resolution semantics. Salience, recency, specificity, refraction, and tie-breaking belong to Chapters 9 and 10. Milestone A does not accidentally define them through list order.
+
+** 7.5 Project 1 checkpoint A
+At this point the runnable system can:
+
+- represent stable, provenance-bearing facts;
+- match exact literal conditions;
+- bind variables;
+- enforce repeated-variable and pre-existing-binding consistency;
+- join two or more conditions;
+- return every complete deterministic match;
+- retain supporting fact identities;
+- exercise those semantics against a small technical service-diagnosis fixture.
+
+Run the tests. Then read =tests.lisp= rather than trusting the green line. The suite specifically contains adversarial cases for variable consistency and cross-condition propagation.
+
+** 7.6 Failure lab -- manufacture a false diagnosis
+Temporarily modify =extend-binding= so an existing variable can be overwritten. Then consider this fact set:
+
+#+begin_example
+(service-state api failed)
+(service-restart-policy frontend on-failure)
+#+end_example
+
+The two conditions:
+
+#+begin_example
+(service-state ?service failed)
+(service-restart-policy ?service on-failure)
+#+end_example
+
+must not produce a complete match. If the second condition overwrites =?service=, the engine manufactures an impossible combined story: the failure belongs to =api= while the restart configuration belongs to =frontend=, yet the final binding looks superficially valid.
+
+That bug is why bindings are not an implementation footnote. They are the logic connecting evidence across conditions.
+
+** 7.7 Where the next slice starts
+We now have enough semantics to introduce mutable working memory and real productions. The next dependency slice must define, with tests before optimization:
+
+- assertion and retraction identity;
+- duplicate-fact policy;
+- a rule structure with stable identity;
+- production instantiations built from complete matches;
+- a conflict set/agenda;
+- deterministic conflict-resolution policy;
+- forward-chaining cycles;
+- refraction or another explicit policy for preventing accidental repeated firing;
+- failure traces that show why a candidate rule did or did not activate.
+
+Only after that baseline exists should we move into incremental alpha/beta memories and a RETE-like network. The architecture will get more sophisticated; the semantic questions should get *less* mysterious because each new mechanism has an older executable oracle beneath it.
+
+* Project 1 -- Progressive Inference Engine
+:PROPERTIES:
+:ID:       8f64ec5f-7322-52d9-a73b-b1ac83873ab6
+:END:
+
+** Milestone A -- matcher, bindings, and joins
+Status: implemented in the source tree; executable verification is recorded with the exact branch/CI evidence rather than asserted by prose.
+
+Deliverables in this milestone:
+
+- =code/inference-engine/package.lisp= -- explicit public teaching API;
+- =matcher.lisp= -- literal matching, variable bindings, and naive joins;
+- =fixtures.lisp= -- provenance-bearing synthetic technical scenario;
+- =tests.lisp= and =run-tests.lisp= -- regression entry point;
+- =assets/matcher-join.dot= and rendered SVG -- editable execution diagram;
+- =research/foundations-01.org= -- primary-source research and semantic contract.
+
+This milestone is *not* the finished inference engine. It is the executable reference model against which the next mechanisms will be tested.
