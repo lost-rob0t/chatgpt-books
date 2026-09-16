@@ -4,7 +4,7 @@
 :END:
 
 * Phase
-Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / milestone A are editorially APPROVED and merged via PR #39. Chapters 4--5 / milestone B were editorially accepted and merged via PR #49 at merge commit =747f7f4713a4afa41dc5aee6ea3f9bd99ade8e80=. Chapter 6 / milestone C is the active DCG parser-boundary draft. The complete long-form book remains in progress and is not DONE.
+Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / milestone A are editorially APPROVED and merged via PR #39. Chapters 4--5 / milestone B were editorially accepted and merged via PR #49 at merge commit =747f7f4713a4afa41dc5aee6ea3f9bd99ade8e80=. Chapter 6 / milestone C is TESTED and waiting for Editor-in-Chief review in PR #61. The complete long-form book remains in progress and is not DONE.
 
 * Accepted baseline
 - Standalone audience and teaching contract defined.
@@ -28,16 +28,22 @@ Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / m
 - No LLM/provider call, model output, benchmark, Prolog-RLM runtime execution, or arbitrary generated callable Prolog goal is introduced by milestone C.
 
 * Verification
-Accepted milestone A/B verification is recorded above and must not be inherited by the active milestone-C draft.
+Milestone C was first verified on PR #61 head =fd00800ebccd3f39add365080fdf906ed099cdca= against main =09d329e93cd2b7472d7e5ae77a0f24e41b114512= through merge ref =ece67fef5d4028e14232e37923c967dcfb70bb5f=.
 
-Milestone C executable/publication claims are currently UNTESTED on this branch until the pull-request workflows run. DOCUMENTED claims in the new research record come from current official SWI-Prolog documentation retrieved 2026-09-16. Exact runtime version, PL-Unit count/results, book/check/EPUBCheck results, Nix result, and generic =books-ci= result must be recorded from the actual PR head before this slice is offered for final editorial review.
+Focused =prolog-llms-book= run =35116162735= completed SUCCESS on Ubuntu 24.04.5. Its book job =104861996218= used SWI-Prolog 9.0.4 and passed all 30 Project 1 PL-Unit cases: 16 retained milestone A/B cases plus 14 milestone-C DCG/dispatcher cases. Structural validation reported 10 active principal books. =make book BOOK=prolog-llms= and =make check BOOK=prolog-llms= passed, publication preprocessing expanded Org includes while preserving 7 stable Org-ID aliases, and EPUBCheck 5.3.0 reported 0 fatals / 0 errors / 0 warnings / 0 infos. Separate Nix job =104861996696= completed SUCCESS with =nix flake check -L=.
+
+Generic =books-ci= run =35116162715= / job =104861996045= also completed SUCCESS on the same merge ref: structural validation, Pandoc Org-reader contract, deterministic publication fixture, EPUBCheck 5.3.0, publication regression assertions, per-book citation rendering, and real Org-roam synchronization all passed. ERT reported 7/7 tests with 0 unexpected results. This also verifies that the preserved accepted manuscript slice in =foundation.inc= does not create a duplicate Org-roam node while remaining expanded by the publication pipeline.
+
+The new code/manuscript/publication behavior described above is therefore TESTED for that exact head and environment. Current official SWI-Prolog DCG semantics are separately DOCUMENTED from sources retrieved 2026-09-16. No provider/model behavior, neuro-symbolic benchmark, or Prolog-RLM runtime result is promoted to TESTED by these checks.
+
+Because this status update changes the branch head after the recorded run, the pull request still requires the focused workflow and generic =books-ci= to pass again on the exact final head before worker handoff.
 
 * Editorial state
-DRAFT / WORKER IMPLEMENTATION. Milestone C has not been editorially APPROVED and the worker does not declare it DONE. After actual exact-head tests/build/checks pass, the appropriate worker handoff is READY_FOR_EDITOR_REVIEW; final approval and merge remain the Books Editor-in-Chief's authority.
+TESTED / PENDING FINAL-HEAD CI. Milestone C has not been editorially APPROVED and the worker does not declare it DONE. If exact-final-head checks are green and the branch remains mergeable, the worker handoff becomes READY_FOR_EDITOR_REVIEW; final approval and merge remain the Books Editor-in-Chief's authority.
 
 * Next dependency-ready slice
 After milestone C is accepted, research and implement a genuine Project 1 CLP(FD) scheduling/constraint subproblem. Follow that with carefully bounded meta-programming that makes the contrast between closed dispatch and arbitrary meta-call explicit. Keep live model/provider work behind the later typed gateway boundary.
 
 * Blockers
-- Milestone C requires actual SWI-Prolog regressions plus focused =prolog-llms-book= and generic =books-ci= evidence for the exact proposed head.
+- Only the objective exact-final-head CI rerun remains before worker handoff of milestone C.
 - Version-sensitive LLM/provider examples remain intentionally deferred until a focused typed-gateway research slice chooses current primary-source-backed interfaces and records exact tested versions.
