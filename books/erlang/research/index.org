@@ -18,7 +18,7 @@ The pass supports manuscript Chapters 1--6 and Project 1 checkpoint A. It explic
 Execution evidence at =c33951f24feafaf7a9d7623169041ab321e8c580=: exact Erlang/OTP 29.0.6 via =erlef/setup-beam@v1.24.1=; all 9 EUnit tests passed; book build and EPUBCheck 5.3.0 validation passed with zero messages; repository =nix flake check -L= passed. Later editorial reconciliation records the final reviewed/merged foundation head separately.
 
 ** Failure-semantics pass 02 -- links, trapping exits, monitors, unlink, kill
-Status: DOCUMENTED + EXECUTION VERIFIED for the checkpoint-B implementation revision recorded below.
+Status: DOCUMENTED + EXECUTION VERIFIED for the merged checkpoint-B revision.
 
 Primary-source scope: current OTP 29.0.6 Processes reference plus the OTP 29.0.6 =erlang= BIF reference. See [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
 
@@ -31,11 +31,47 @@ This pass supports Chapters 7--9 and Project 1 checkpoint B. The contract taught
 - =demonitor(Ref, [flush])= combines monitor removal with removal of one already-queued matching =DOWN= notification when present;
 - OTP 29 introduced =erlang:exit_signal/2= as the direct exit-signal API. An explicit =kill= signal is untrappable and the target terminates with reason =killed=.
 
-Execution evidence for implementation head =4472458a666db2fac70f79f9b8dc3dd48fda48c1= was produced by PR #40 focused workflow run =35096523655=, which tested that head integrated with then-current main on pinned Erlang/OTP 29.0.6. =erlc -Werror= plus EUnit executed all 14 foundations/failure tests successfully, including the five new link/monitor/trap/unlink/kill regressions. The same run built the Erlang book, validated it with EPUBCheck 5.3.0 at zero findings, and passed =nix flake check -L=. Generic =books-ci= run =35096523992= also passed its structural, publication/citation, ERT, and Org-roam gates for the same PR revision. Later branch changes require their own fresh CI before review readiness.
+Execution evidence for the final reviewed checkpoint-B head is recorded in =STATUS.org= and the merged PR #40 discussion. No performance benchmark is inferred from these semantics.
+
+** OTP pass 03 -- behaviours, =gen_server= calls, and supervisor policy
+Status: DOCUMENTED + EXECUTION VERIFIED for merged Project 2 checkpoint A; bounded Chapters 10--12 content is editorially APPROVED and merged through PR #54.
+
+Primary-source scope: official Erlang/OTP =OTP-29.0.6= tagged source documentation for OTP Design Principles, =gen_server=, and =supervisor=, plus official 29.0.6 release metadata. See [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
+
+This pass supports Chapters 10--12 and Project 2 checkpoint A. It records these boundaries:
+- OTP behaviours split recurring generic process machinery from application-specific callbacks; =gen_server= does not replace the process model or make callbacks concurrent;
+- =gen_server:call/3= exits the caller on timeout, while timeout does not cancel callback work already executing;
+- starting with OTP 24, synchronous =gen_server:call= uses process aliases so an abandoned late reply is not delivered to the caller mailbox;
+- =gen_server= participates in the standard =sys= system-message/debugging protocol;
+- a supervisor owns child lifecycle through child specifications and restart policy; =one_for_one=, =one_for_all=, and =rest_for_one= express different dependency assumptions;
+- if more than =intensity= restarts occur within =period= seconds, the supervisor terminates its children and then itself with reason =shutdown=;
+- a =permanent= child is always restarted while the supervisor remains able to restart it, but replacement process state comes from fresh initialization/recovery code rather than from the supervisor;
+- OTP 29.0 introduced =supervisor:stop/1,3= style synchronous supervisor stop APIs; the Project 2 cleanup code is therefore explicitly version-pinned rather than advertised as historical-OTP portable.
+
+Execution evidence: the final merged PR head =275863a4798941683718a649f6ff7fb51842da52= passed focused =erlang-book= run =35122123282= on strict Erlang/OTP 29.0.6 / ERTS 17.0.6 with foundations 14/14 EUnit and Project 2 OTP-worker 6/6 EUnit. =make book BOOK=erlang=, =make check BOOK=erlang=, EPUBCheck 5.3.0 with zero findings, and the separate Nix evaluation succeeded. Generic =books-ci= run =35122123275= also succeeded through structural validation, Pandoc Org-reader validation, deterministic assets/fixture, publication/citation regressions, ERT, real Org-roam DB synchronization, and artifact upload. The six Project 2 regressions cover behavior/state, modern call-timeout mailbox isolation, =sys= state introspection, supervised replacement with fresh process-local state, and restart-budget escalation. This is execution evidence for those bounded mechanisms, not a performance or availability benchmark. PR #54 merged as =c93bc5b2f5077d8fb18b893d37ce5b72581d1c4a=.
+
+Documentation-version caveat: pass 03 intentionally used immutable =OTP-29.0.6= sources and execution for its merged checkpoint. Later on 2026-09-16 an immutable official =OTP-29.1= tag became available; pass 04 advances new work to that baseline without rewriting earlier evidence.
+
+** Application pass 04 -- application behaviour, =.app= metadata, and component lifecycle
+Status: DOCUMENTED + EXECUTION VERIFIED for the Project 2 checkpoint-B worker draft; editorial approval remains pending.
+
+Primary-source scope: official Erlang/OTP source at immutable tag =OTP-29.1=: =OTP_VERSION=, the Applications design-principles chapter, Kernel =app= application-resource reference, and Kernel =application= source documentation. See [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
+
+This pass supports Chapter 13 and Project 2 checkpoint B. It records these boundaries:
+- an OTP application is a reusable component that can be started and stopped as a unit; it is not synonymous with a release or deployment artifact;
+- the application controller coordinates application load/start/stop/unload operations;
+- a started supervision-tree application gets an application master, which invokes the callback module named by =mod= and tracks application process ownership;
+- =start/2= normally starts the top supervisor and returns its PID; =stop/1= is post-tree cleanup, not a replacement for supervisor shutdown;
+- the =Application.app= resource in =ebin= contains one application-specification term; =modules=, =registered=, =applications=, and =mod= describe different parts of the component contract;
+- loading an application stores its specification but does not load all object code;
+- =application:start/1= requires declared prerequisite applications to be running, while =ensure_all_started/1,2,3= can traverse/start the dependency set;
+- stopping the application stops the owned process tree but does not unload its specification; neither operation is persistence;
+- Project 2 continues to keep worker state volatile so a full application restart must create a new tree with empty history.
+
+The executable checkpoint adds =otp_worker_app=, =otp_worker_app.app.src=, application-controller lifecycle regressions, and an editable application-ownership diagram. At implementation head =03a441a5717a7cfab430bd334f655daba05bd4de=, focused =erlang-book= run =35129230500= succeeded on strict OTP 29.1 / BEAM 17.1 with foundations 14/14 and the combined worker/application suite 10/10; diagram validation, book build/check, EPUBCheck with zero findings, and Nix evaluation also succeeded. Generic =books-ci= run =35129230561= succeeded through repository publication/Org/Org-roam gates. Final handoff evidence is recorded on PR #78 so evidence bookkeeping does not self-approve the chapter.
 
 * Open research queue
-- OTP behavior contracts: =gen_server=, supervisor strategies/restart intensity, applications.
-- Releases and upgrade boundaries.
+- Releases, boot scripts, release structure, and upgrade boundaries.
 - Distributed Erlang connectivity, security/TLS, partitions, and failure visibility.
 - Persistence boundaries and restart recovery semantics.
 - EUnit/Common Test, tracing, logger/telemetry, Observer/runtime tools, production debugging.

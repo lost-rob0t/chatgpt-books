@@ -32,11 +32,16 @@ jobs:
           pandoc --version | head -1
           java -jar .cache/epubcheck-5.3.0/epubcheck.jar --version
 
-      - name: Run inference-engine foundation tests
+      - name: Run inference-engine tests
         run: sbcl --script books/expert-systems/code/inference-engine/run-tests.lisp
 
-      - name: Validate editable matcher diagram
-        run: dot -Tsvg books/expert-systems/assets/matcher-join.dot -o /tmp/matcher-join.svg
+      - name: Validate editable engine diagrams
+        shell: bash
+        run: |
+          set -euo pipefail
+          dot -Tsvg books/expert-systems/assets/matcher-join.dot -o /tmp/matcher-join.svg
+          dot -Tsvg books/expert-systems/assets/agenda-cycle.dot -o /tmp/agenda-cycle.svg
+          dot -Tsvg books/expert-systems/assets/rete-positive.dot -o /tmp/rete-positive.svg
 
       - name: Build Expert Systems book
         run: make book BOOK=expert-systems

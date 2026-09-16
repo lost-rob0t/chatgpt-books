@@ -8,7 +8,9 @@
 - Which claims require reproduction/benchmarking rather than citation alone?
 * Records
 - [[file:foundations-01.org][Foundations 01 -- relations, terms, and unification]] :: Chapters 1--3 and Project 1 milestone 1; primary-source research and explicit SWI portability boundaries.
+- [[file:recursion-lists-backtracking.org][Backtracking, recursion, lists, and termination]] :: Chapters 4--6 / Project 1 milestone 2; current SWI =once/1=, list-library, and timeout-guard boundaries plus the finite-graph termination argument.
+- [[file:arithmetic-evaluation.org][Arithmetic evaluation, modes, and the later constraint boundary]] :: Chapter 7 / Project 1 milestone 3; current SWI =is/2=, arithmetic comparison, expression-evaluation mode requirements, and the explicit forward boundary to CLP(FD).
 - [[file:sources.org][sources.org]] :: inspected source inventory.
 - [[file:search-log.org][search-log.org]] :: dated research queries and remaining uncertainty.
 * Research still open
-Foundational research for recursion, list relations, operational control/backtracking, modules, DCGs, search, CLP(FD), meta-programming, persistence/integration, debugging, testing beyond the initial PL-Unit surface, and indexing/performance remains open. Completion of this first record must not be read as completion of Phase 1.
+Foundational research for cut, negation, modules, DCGs, search beyond the beginner traversal, CLP(FD) implementation, meta-programming, persistence/integration, debugging, testing beyond the current PL-Unit surface, and indexing/performance remains open. Completion of the Chapter 7 arithmetic record must not be read as completion of Phase 1 or as implementation of the later constraint curriculum.

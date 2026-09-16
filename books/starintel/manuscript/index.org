@@ -1,2 +1,3 @@
 #+include: "foundation-runtime.org"
 #+include: "bulk-lifetime-04.org"
+#+include: "service-trace-05.org"

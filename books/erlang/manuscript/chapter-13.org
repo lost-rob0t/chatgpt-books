@@ -1,0 +1,528 @@
+** Chapter 13 -- Applications: Give the Supervision Tree a System Boundary
+:PROPERTIES:
+:ID:       b573ab89-0282-44cc-8fda-28f8814fa6ed
+:END:
+
+Chapter 12 gave Project 2 a real supervisor, but it deliberately stopped one layer short of
+an OTP application. We could start =otp_worker_sup= from a shell or a test and obtain the
+right process tree. What we did *not* have was a named component that the runtime could
+load, start, stop, inspect, and compose with other components.
+
+That missing layer is an OTP /application/.
+
+In ordinary conversation, "application" often means an executable program. In OTP the word
+is more precise: an application is a component with an application specification and,
+when it owns processes, a lifecycle callback that starts its supervision tree. The official
+OTP 29.1 design-principles documentation describes an application as a component that can be
+started and stopped as a unit and reused in other systems. [cite:@erlang-applications-29-1]
+
+That definition is useful because it tells us what an application does *not* promise. It is
+not automatically a release, an operating-system service, a cluster, a persistence layer, or
+a deployment artifact. Those are later boundaries. This chapter adds exactly one thing to
+the system we already understand: a runtime-owned component lifecycle.
+
+*** Why a supervisor is not yet an application
+
+At the end of Chapter 12 we could write:
+
+#+begin_src erlang
+{ok, SupPid} = otp_worker_sup:start_link().
+#+end_src
+
+That call creates the tree, but the caller still owns the startup decision. A shell process,
+a test process, or some other parent must know which supervisor function to call. There is no
+application specification telling OTP:
+
+- what this component is called;
+- which modules belong to it;
+- which registered names it introduces;
+- which OTP applications must already be running;
+- which callback module starts its top supervisor.
+
+The process tree has lifecycle policy, but the system does not yet have a component boundary.
+
+OTP supplies that boundary through three cooperating pieces:
+
+#+begin_example
+application specification (.app)
+        |
+        v
+application controller
+        |
+        v
+application master -> application callback -> top supervisor -> workers
+#+end_example
+
+The application controller is started as part of Kernel and coordinates application loading,
+starting, stopping, and unloading. For a started application, OTP creates an application
+master. The master invokes the configured application callback and tracks the application
+processes; the callback normally starts the top supervisor. [cite:@erlang-applications-29-1]
+
+This layering is intentionally boring. That is a strength. A production system is easier to
+reason about when "what starts this tree?" has one conventional answer.
+
+*** The application callback is a tiny adapter
+
+Project 2 needs one new Erlang module:
+
+#+begin_src erlang
+-module(otp_worker_app).
+-behaviour(application).
+
+-export([start/2, stop/1]).
+
+start(_StartType, _StartArgs) ->
+    otp_worker_sup:start_link().
+
+stop(_State) ->
+    ok.
+#+end_src
+
+The callback does not duplicate worker logic. It does not supervise anything itself. It
+adapts the application lifecycle to the supervision-tree lifecycle.
+
+The =application= behaviour requires =start/2=. For an application structured as a
+supervision tree, that callback is expected to start the top supervisor and return its PID,
+normally as ={ok, Pid}=. The second callback, =stop/1=, runs after OTP has stopped the
+application's process tree and exists for application-specific cleanup. [cite:@erlang-application-29-1]
+
+That order matters. A common beginner mistake is to put child shutdown code in =stop/1=.
+For the standard supervision-tree case, OTP already owns shutdown of the tree. The callback
+should not race the application master by manually tearing down the same children again.
+
+Project 2 therefore has an intentionally dull =stop/1=. There is no external resource to
+flush yet:
+
+#+begin_src erlang
+stop(_State) ->
+    ok.
+#+end_src
+
+Later projects will have more interesting persistence and external-resource boundaries.
+Adding fake cleanup now would teach the wrong ownership model.
+
+*** =StartType= is a contract, not decorative syntax
+
+Our callback ignores =StartType= because this chapter only performs ordinary local startup.
+The type still has meaning. OTP's application behaviour distinguishes a normal start from
+distributed-application takeover and failover forms. [cite:@erlang-application-29-1]
+
+We therefore write:
+
+#+begin_src erlang
+start(_StartType, _StartArgs) ->
+    otp_worker_sup:start_link().
+#+end_src
+
+rather than teaching that the first argument is permanently meaningless.
+
+The same discipline applies to =StartArgs=. It comes from the =mod= entry in the application
+specification. Project 2 currently needs no startup arguments, so its value is =[]=.
+A later component could pass a small bootstrap value here, but ordinary runtime configuration
+belongs in an explicit configuration contract rather than in increasingly clever callback
+arguments.
+
+*** The =.app= file is executable metadata
+
+The application resource is an Erlang term stored as =Application.app= in the application's
+=ebin= directory. OTP's exact 29.1 reference says the file is read by the application
+controller when the application is loaded or started and is also consumed by release tooling
+such as =systools=. [cite:@erlang-app-resource-29-1]
+
+For the teaching project we keep an =otp_worker_app.app.src= source file and copy it to
+=ebin/otp_worker_app.app= during the test build:
+
+#+begin_src erlang
+{application, otp_worker_app,
+ [{description, "OTP worker service teaching application"},
+  {vsn, "0.1.0"},
+  {modules, [otp_worker_app, otp_worker_sup, otp_worker]},
+  {registered, [otp_worker_sup, otp_worker]},
+  {applications, [kernel, stdlib]},
+  {mod, {otp_worker_app, []}}]}.
+#+end_src
+
+Read this as a contract, not boilerplate.
+
+- =modules= records modules introduced by this application.
+- =registered= records globally registered process names introduced by it.
+- =applications= records prerequisite applications.
+- =mod= names the application callback and its start argument.
+- =description= and =vsn= give the component identity useful to packaging/release tools.
+
+The application controller accepts defaults for omitted keys, but release tooling needs a
+richer specification. The official =app= reference specifically requires =description=,
+=vsn=, =modules=, =registered=, and =applications= when =systools= is used.
+[cite:@erlang-app-resource-29-1]
+
+We include those fields now because Project 2 is moving toward a system component, not
+because Chapter 13 is secretly a release chapter. Chapter 14 will explain the separate
+release resource and boot-script boundary.
+
+*** Loading metadata is not loading code
+
+This distinction is small enough to miss and important enough to debug at 3 a.m.
+
+#+begin_src erlang
+ok = application:load(otp_worker_app).
+#+end_src
+
+Loading an application asks the application controller to read and retain its specification.
+It does *not* mean that every BEAM module listed in =modules= has been loaded by the code
+server. The OTP design-principles guide calls this out explicitly.
+[cite:@erlang-applications-29-1]
+
+So there are two independent questions:
+
+| Question | Subsystem |
+|-
+| Does OTP know the application's specification? | application controller |
+| Can the VM find/load a module's BEAM code? | code server / code path |
+
+Confusing those layers produces misleading debugging. If =application:load/1= succeeds but
+the callback module is absent from the code path, metadata discovery worked and code
+discovery did not.
+
+Our test script makes the boundary visible. It compiles BEAM files into a temporary =ebin=
+directory, copies the =.app.src= file to =otp_worker_app.app= there, and adds that =ebin=
+directory to the VM code path. Both ingredients are required for a clean test.
+
+*** Starting means handing ownership to OTP
+
+With code and application metadata reachable:
+
+#+begin_src erlang
+ok = application:load(otp_worker_app),
+ok = application:start(otp_worker_app).
+#+end_src
+
+The application controller checks the =applications= dependencies, creates the application
+master, and the application master invokes:
+
+#+begin_src erlang
+otp_worker_app:start(normal, [])
+#+end_src
+
+The callback starts =otp_worker_sup=, and the supervisor starts the registered
+=otp_worker=. [cite:@erlang-applications-29-1]
+
+That yields a useful ownership chain:
+
+#+caption: OTP application ownership for Project 2. Startup flows from the application controller through the application master and callback into the top supervisor; the supervisor owns the worker lifecycle. Application stop travels back through the runtime-owned lifecycle and terminates the supervision tree before the callback's final cleanup.
+#+attr_html: :alt "Diagram showing a caller asking the application controller to load, start, and stop otp_worker_app. The controller creates an application master, which invokes otp_worker_app callbacks. The callback starts otp_worker_sup, which starts and supervises otp_worker. A stop path shuts down the tree before the application stop callback."
+[[file:assets/otp-application-lifecycle.svg]]
+
+The editable source is =../assets/otp-application-lifecycle.dot=.
+
+Notice what did *not* change: =otp_worker= remains the same =gen_server= from Chapter 11 and
+=otp_worker_sup= remains the same supervisor from Chapter 12. Application packaging composes
+those accepted layers instead of rewriting them.
+
+*** Inspect the component from the runtime
+
+A good abstraction should improve debugging, not hide it.
+
+Once the application is loaded, the controller can report specification data:
+
+#+begin_src erlang
+application:get_key(otp_worker_app, modules).
+application:get_key(otp_worker_app, registered).
+application:get_key(otp_worker_app, mod).
+#+end_src
+
+Once started, the runtime can report active applications:
+
+#+begin_src erlang
+application:which_applications().
+#+end_src
+
+And because the application master establishes the application process grouping used by the
+runtime, we can ask which application owns our worker:
+
+#+begin_src erlang
+application:get_application(whereis(otp_worker)).
+#+end_src
+
+For this project the expected result is ={ok, otp_worker_app}=.
+
+This is one reason conventional OTP structure pays off. We are not merely adding another
+function call. We are giving runtime tooling enough structure to answer ownership questions.
+
+*** =application:start/1= and dependency startup are different policies
+
+The =applications= field says which applications must already be started before this one.
+=application:start/1= checks that contract. It does not recursively promise to start every
+missing dependency for us.
+
+When dependency startup is desired, OTP also provides =application:ensure_all_started/1,2,3=.
+The current =application= module describes it as repeatedly starting dependencies that are
+not already running, and reports which applications it started.
+[cite:@erlang-application-29-1]
+
+Do not treat the two APIs as synonyms:
+
+#+begin_example
+application:start(App)
+  -> start this application if its prerequisites are already running
+
+application:ensure_all_started(App)
+  -> walk/start the dependency set needed for App
+#+end_example
+
+Project 2 depends only on =kernel= and =stdlib=, which are already present in an ordinary
+runtime, so =application:start/1= keeps the teaching boundary sharp. Later projects can use
+=ensure_all_started/1= when they intentionally own dependency startup.
+
+*** Stopping the application is not killing one worker
+
+Chapter 11 gave us =gen_server:stop/1=. Chapter 12 gave us =supervisor:stop/1=. Chapter 13
+adds:
+
+#+begin_src erlang
+ok = application:stop(otp_worker_app).
+#+end_src
+
+These are different ownership levels.
+
+Stopping only =otp_worker= removes a leaf; because it is a =permanent= child, the supervisor
+normally starts a replacement. Stopping the top supervisor directly tears down the local
+supervision tree but bypasses the application-level lifecycle. Stopping the application asks
+the application master to terminate the owned supervision tree and then run application
+cleanup. The OTP design-principles guide documents reverse-order tree shutdown before
+=stop/1= is invoked. [cite:@erlang-applications-29-1]
+
+Use the lifecycle API that owns the thing you mean to stop.
+
+The Project 2 test therefore monitors both the supervisor and worker, calls
+=application:stop/1=, and requires both processes to disappear. The test does not infer
+shutdown from a fixed sleep.
+
+*** Stopped is not unloaded
+
+Stopping and unloading are separate operations:
+
+#+begin_src erlang
+ok = application:stop(otp_worker_app),
+ok = application:unload(otp_worker_app).
+#+end_src
+
+After =stop/1=, the application specification remains known to the application controller.
+After =unload/1=, that metadata is removed from the controller's internal application
+database. Neither operation is a code purge. [cite:@erlang-applications-29-1]
+
+This gives us three separate lifetimes to debug:
+
+1. BEAM code availability on the code path;
+2. loaded application metadata in the application controller;
+3. a running application process tree.
+
+When a shell says "already loaded" or "not started," those are not vague statuses. They name
+different layers.
+
+*** Failure lab: restart the whole application and watch volatile state disappear
+
+Supervisor restart in Chapter 12 proved that a new worker process does not magically inherit
+the dead worker's map. Application packaging gives us a larger version of the same
+experiment.
+
+The regression does this:
+
+1. load and start =otp_worker_app=;
+2. record the first supervisor and worker PIDs;
+3. publish =<<"before-stop">>= under a topic;
+4. stop the *application*, not merely the worker;
+5. require the old supervisor and worker to terminate;
+6. start the same loaded application again;
+7. require new supervisor and worker PIDs;
+8. query the earlier topic.
+
+The expected history is empty.
+
+That result is the correct failure semantics for the system we built. =application:stop/1=
+owns a component lifecycle. =application:start/1= creates a fresh supervision tree. Neither
+operation is a persistence protocol.
+
+A useful production checklist now has another row:
+
+| Question | Mechanism in this project |
+|-
+| Is the component specification known? | application load/specification |
+| Should the component be running? | application lifecycle |
+| Should this worker exist? | supervisor child policy |
+| What is the worker's current state? | =gen_server= callback state |
+| What survives a worker/application restart? | nothing yet |
+| What survives a node/host loss? | nothing yet |
+
+The last two answers are deliberately uncomfortable. That discomfort prevents us from
+calling volatile memory "fault tolerant" just because the process tree can come back.
+
+*** Application metadata can fail before domain code runs
+
+Packaging adds a new failure surface.
+
+A malformed or missing =otp_worker_app.app= can stop the application controller from loading
+the component. A wrong =mod= entry can point startup at code that does not implement the
+expected callback. A prerequisite listed in =applications= can prevent startup when it is not
+running. Duplicate registered names can reveal ownership conflicts during larger-system
+packaging.
+
+These are not worker-protocol failures. No =handle_call/3= clause can fix them.
+
+For debugging, move from the outside inward:
+
+#+begin_example
+1. Is otp_worker_app.app on the code path?
+2. Can application:load(otp_worker_app) read the specification?
+3. Do application:get_key/2 results match the build?
+4. Are prerequisite applications running?
+5. Can the callback module be loaded?
+6. Does start/2 return a top-supervisor PID?
+7. Did the supervisor start otp_worker?
+8. Only then debug worker requests.
+#+end_example
+
+That order avoids spending an hour staring at =gen_server= code when the system never reached
+it.
+
+*** Project 2 -- checkpoint B: a real OTP application boundary
+:PROPERTIES:
+:ID:       1736583e-2d89-46f7-be24-50a216d24fcc
+:END:
+
+Project 2 now has four layers that were derived separately:
+
+#+begin_example
+domain transition/state
+        |
+otp_worker callbacks
+        |
+gen_server generic process
+        |
+otp_worker_sup lifecycle/restart policy
+        |
+otp_worker_app application lifecycle + .app specification
+#+end_example
+
+The checkpoint's runnable contract is intentionally bounded. The tests must establish:
+
+1. the built =otp_worker_app.app= exposes the expected module, registered-name, dependency,
+   and callback metadata;
+2. =application:start(otp_worker_app)= starts the top supervisor and worker;
+3. the runtime associates the worker process with =otp_worker_app=;
+4. =application:stop(otp_worker_app)= terminates the owned process tree;
+5. starting the application again creates new process identities;
+6. volatile worker history does not survive the full application restart.
+
+Those observations complete the *OTP Worker Service* application milestone. They do not
+complete the book and they do not prove a release is deployable.
+
+*** Failure injection exercise: break the specification, not the worker
+
+Copy the generated application resource to a scratch =ebin= and deliberately change one
+thing at a time:
+
+- rename the application atom while keeping the file name;
+- replace the callback module in =mod= with a nonexistent module;
+- add a prerequisite application that is not running;
+- remove =otp_worker= from =registered=, then explain why runtime startup can still work even
+  though packaging metadata is now lying to future tooling.
+
+For each mutation, predict which layer notices first: code server, application controller,
+callback invocation, supervisor startup, or later release tooling. Then run the experiment
+in a disposable VM and record the actual error before reading it as evidence.
+
+The point is not to memorize error tuples. The point is to learn to localize a failure to
+the layer that owns the contract.
+
+*** Project boundary: application versus release
+
+We stop here on purpose.
+
+An application says, roughly, "this is one reusable component and this is how OTP owns its
+lifecycle." A /release/ describes a complete runnable system: an ERTS version plus a set of
+applications and startup information. OTP's application design documentation explicitly
+points from application packaging to separate release tooling. [cite:@erlang-applications-29-1]
+
+So this is wrong:
+
+#+begin_example
+we have a .app file
+therefore we have a production release
+#+end_example
+
+And this is the dependency chain we will follow instead:
+
+#+begin_example
+process protocol
+ -> OTP behaviour
+ -> supervision tree
+ -> application boundary
+ -> release/system packaging
+ -> distributed/runtime operations
+#+end_example
+
+Each layer earns its place by answering a different ownership question.
+
+*** Exercises
+
+**** ★ Explain the ownership chain
+
+Without using the words "OTP handles it," explain what each of these owns:
+=application_controller=, the application master, =otp_worker_app=,
+=otp_worker_sup=, and =otp_worker=.
+
+**** ★ Explain load versus start
+
+Why can =application:load/1= succeed even though a required BEAM module will later fail to
+load? Which subsystem owns each lookup?
+
+**** ★★ Add application environment
+
+Add a harmless application environment value to the =.app.src= file and read it with
+=application:get_env/2=. Then explain why environment configuration is still not durable
+business state.
+
+**** ★★ Prove stop is component-wide
+
+Extend the application with a second supervised worker. Write a test that proves
+=application:stop/1= terminates both branches without calling either worker's stop API
+directly.
+
+**** ★★ Compare =start/1= with =ensure_all_started/1=
+
+Create a disposable teaching application with one non-running prerequisite. Record the
+observable difference between the two startup APIs. Do not weaken the real Project 2
+dependency list merely to make this experiment convenient.
+
+**** ★★★ Diagnose a lying resource file
+
+Put a real registered worker in the supervision tree but omit its name from =registered=.
+Show that local startup can still succeed, then explain which later tooling assumption you
+have violated. The lesson is that metadata can be semantically wrong even when one smoke
+test passes.
+
+**** ★★★ Design a persistence boundary
+
+Project 2 currently loses all history on worker or application restart. Design, but do not
+yet implement, a recovery protocol with an authoritative external store or append-only log.
+Specify which component performs replay, how duplicate external effects are prevented, and
+what a supervisor restart is allowed to assume.
+
+*** What we earned
+
+We started Project 2 with an ordinary process problem. We then moved recurring server
+mechanics into =gen_server=, lifecycle policy into a supervisor, and now system-component
+ownership into an OTP application.
+
+Nothing in that progression required magic:
+
+- processes explain callbacks;
+- links explain supervision;
+- child specs explain restart policy;
+- an application callback explains how OTP obtains the top supervisor;
+- an application resource explains how the runtime describes the component.
+
+That is the BEAM/OTP model at its best: conventional layers make failure ownership explicit.
+
+Chapter 14 can now ask the next honest question: how do we turn a set of applications plus a
+specific runtime into a reproducible runnable release?

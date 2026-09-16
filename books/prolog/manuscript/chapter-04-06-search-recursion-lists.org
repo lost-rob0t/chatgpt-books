@@ -1,0 +1,345 @@
+* Chapter 4 -- Backtracking: One Relation, More Than One Proof
+:PROPERTIES:
+:ID:       2e69c2fc-defc-4eb6-94fe-98d9a6738537
+:END:
+
+The first three chapters let us ask useful questions without talking much about *how the next answer appears*. Project 1 already has a relation that forces the issue:
+
+#+begin_src prolog
+?- project_peer(ada, Other, Project).
+#+end_src
+
+In the synthetic fixture, Ada shares Atlas with more than one person. A successful answer therefore cannot be the whole story. Prolog may leave a *choice point*: enough information to return and try another alternative if the caller asks for another solution.
+
+This chapter makes that operational fact visible without changing the declarative contract. =project_peer/3= still means what its clauses say. Backtracking is how the engine explores alternative proofs for that relation under the current execution strategy.
+
+** 4.1 A first success is not the same thing as the answer set
+Suppose the first top-level answer is:
+
+#+begin_example
+Other = lina,
+Project = atlas
+#+end_example
+
+If you stop there, you have observed one proof. You have not established that Lina is Ada's only project peer. Asking for another answer tells Prolog to resume at the most recent choice point whose alternatives have not been exhausted.
+
+This distinction matters in tests. The weak test
+
+#+begin_src prolog
+project_peer(ada, _, atlas).
+#+end_src
+
+proves only that at least one Atlas peer exists. The accepted Project 1 suite instead checks the complete expected answer set. A relation intended to enumerate alternatives should be tested as an enumerator, not merely as a Boolean.
+
+** 4.2 Clause order affects search order
+The facts and clauses in a source file have an execution order. That does not mean source order belongs in the *meaning* of every relation, but it can determine which proof is found first and which choice point is revisited first.
+
+Milestone 2 adds a directed synthetic connection graph:
+
+#+begin_src prolog
+follows(ada, lina).
+follows(ada, noor).
+follows(lina, noor).
+follows(lina, ben).
+follows(noor, ada).
+follows(noor, ben).
+follows(ben, sam).
+#+end_src
+
+The edge =noor -> ada= deliberately closes a cycle. That will matter in Chapter 5. For now, notice that =ada= has two immediate outgoing alternatives. A recursive path search that chooses =lina= first can still later backtrack and choose =noor=.
+
+#+caption: Depth-first alternatives, branch-local visited state, and an explicit first-answer boundary.
+#+attr_html: :alt Project 1 search diagram showing a query creating a choice point, first and redo branches, cycle rejection using seen nodes, later proofs, and once/1 committing only at the explicit helper boundary.
+[[file:assets/prolog-search-flow.svg]]
+
+The dashed edge in the figure is important. =once/1= does not make the underlying relation deterministic. It creates a caller-visible commitment boundary around one invocation.
+
+** 4.3 Redo is not mutation
+When backtracking returns to a choice point, bindings made *after* that choice point are undone before another alternative is tried. Think in terms of logical branches, not mutable local variables.
+
+A useful trace on paper looks like this:
+
+#+begin_example
+query: connection_path(ada, ben, Path)
+choose follows(ada, lina)
+  try to reach ben from lina
+  ... first proof succeeds
+Path = [ada, lina, ben]
+
+redo
+return to an earlier choice point
+choose another available edge or recursive proof
+Path = [ada, lina, noor, ben]
+
+redo
+...
+Path = [ada, noor, ben]
+#+end_example
+
+The exact trace ports are a later debugging topic. The conceptual point now is that alternatives are *proof alternatives*. Backtracking restores the logical state needed to investigate another one.
+
+** 4.4 Do not hide multiplicity by accident
+It is common to write a predicate that happens to return the first useful answer and then quietly depend on that accident. This creates brittle interfaces: reorder facts, add a clause, or change indexing and the preferred answer may change.
+
+If the application genuinely wants one answer, name that policy. Project 1 uses:
+
+#+begin_src prolog
+first_connection_path(Start, Goal, Path) :-
+    once(connection_path(Start, Goal, Path)).
+#+end_src
+
+Current SWI-Prolog documentation describes =once/1= as making a possibly nondeterministic goal semideterministic: it succeeds at most once [cite:@swi-once]. That is exactly the contract we want here. The name =first_connection_path/3= says the policy out loud.
+
+This is *not* our cut chapter. SWI documents =once/1= in terms of =call/1= and cut, but Chapter 8 will study cut's scope and failure modes directly. For now, the engineering rule is simpler: preserve the multi-answer relation and isolate first-answer commitment at an explicitly named boundary.
+
+** 4.5 Failure lab -- the test that passed too easily
+Temporarily replace the Project 1 answer-set regression with this:
+
+#+begin_src prolog
+connection_path(ada, ben, _).
+#+end_src
+
+Then delete one of the valid routes from the fixture. The test can still pass because one proof remains. Restore the answer-set test and observe that it now catches the semantic regression.
+
+The lesson generalizes: success/failure tests are appropriate for semidet predicates and existence claims. They are insufficient when multiplicity is part of the contract.
+
+** 4.6 Exercises
+1. Before running it, list every answer expected from =project_peer(ada, Other, Project)=.
+2. Draw the choice points for =follows(ada, Next)=.
+3. Explain why =once(connection_path(ada, ben, Path))= does not prove that only one path exists.
+4. Write a PL-Unit test that would fail if one valid Ada-to-Ben path disappeared while at least one other path remained.
+5. Reorder two =follows/2= facts in a scratch copy. Which *first* path changes? Does the set of simple paths change?
+
+* Chapter 5 -- Recursion, Search State, and Termination
+:PROPERTIES:
+:ID:       bf3add46-3fd1-4343-91f0-17d35064bd90
+:END:
+
+A direct edge answers a one-hop question. Project 1 now needs a multi-hop relation: can one person reach another through the directed =follows/2= graph, and what path proves it?
+
+The obvious recursive idea is attractive:
+
+#+begin_src prolog
+naive_reachable(From, To) :-
+    follows(From, To).
+naive_reachable(From, To) :-
+    follows(From, Next),
+    naive_reachable(Next, To).
+#+end_src
+
+On an acyclic graph this can be useful. On our fixture it is not an acceptable production relation because the graph deliberately contains =ada -> ... -> noor -> ada=. Depth-first search can revisit the same states forever.
+
+** 5.1 Recursive clauses need a shrinking argument or another progress measure
+In list recursion, the tail is often visibly smaller. Graph recursion has no such structural guarantee unless we create one. Project 1 carries the set of already visited nodes as an explicit finite list for each branch.
+
+The helper begins with the start node recorded:
+
+#+begin_src prolog
+connection_path(Start, Goal, Path) :-
+    dif(Start, Goal),
+    connection_path_(Start, Goal, [Start], ReversedPath),
+    list_reverse(ReversedPath, Path).
+#+end_src
+
+The recursive case chooses an outgoing edge only if the next node differs from every node already seen:
+
+#+begin_src prolog
+connection_path_(Current, Goal, Seen, Path) :-
+    follows(Current, Next),
+    different_from_all(Next, Seen),
+    connection_path_(Next, Goal, [Next|Seen], Path).
+#+end_src
+
+The progress measure is now explicit: every recursive step on a successful branch adds one previously unseen graph node to =Seen=. On this finite fixture, a branch cannot revisit the cycle indefinitely.
+
+** 5.2 Why =dif/2= instead of sneaking in negation-as-failure
+Chapter 9 owns negation-as-failure. We do not need it here. The helper relation is structural:
+
+#+begin_src prolog
+different_from_all(_, []).
+different_from_all(Term, [Seen|Rest]) :-
+    dif(Term, Seen),
+    different_from_all(Term, Rest).
+#+end_src
+
+Read the clauses by list shape:
+
+- every term differs from every element of the empty list, because there are no elements to contradict that statement;
+- a term differs from every element of =[Seen|Rest]= if it differs from =Seen= and recursively differs from every element of =Rest=.
+
+That is a real recursive relation, not a loop written with different punctuation.
+
+** 5.3 Branch-local state is not database state
+=Seen= changes from recursive call to recursive call, but nothing is asserted into the Prolog database. Each logical branch receives a more specific term. Backtracking can discard that branch and restore the earlier binding environment.
+
+This distinction will matter when Chapter 14 introduces dynamic predicates. A visited list is ordinary data threaded through a relation. It is cheap to reason about, scoped to the proof, and naturally undone with the branch.
+
+** 5.4 Base case before recursive case
+The path helper's direct-edge clause appears before the recursive clause:
+
+#+begin_src prolog
+connection_path_(Current, Goal, Seen, [Goal|Seen]) :-
+    follows(Current, Goal),
+    different_from_all(Goal, Seen).
+#+end_src
+
+This gives the search a chance to finish when a direct edge reaches the requested goal. The recursive clause explores longer paths when needed and on backtracking.
+
+Do not cargo-cult “base case first” as a universal syntax law. The deeper idea is to identify the condition that stops recursion and understand how clause and goal order interact with the search strategy. A logically plausible recursive program can still diverge in an important calling mode if it explores an infinite branch before a useful alternative.
+
+** 5.5 Failure lab -- remove the visited-state check
+In a scratch copy, remove =different_from_all(Next, Seen)= from the recursive clause, then ask for a target that does not exist:
+
+#+begin_src prolog
+?- connection_path(ada, nowhere, Path).
+#+end_src
+
+The deliberate graph cycle can now keep the recursive search alive. Do not leave the broken query running indefinitely. The regression suite protects the real implementation with SWI-Prolog's =call_with_time_limit/2= as a wall-time guard. The current SWI documentation says that exceeding the limit raises =time_limit_exceeded= and that the guarded goal is called as in =once/1= [cite:@swi-time-limit].
+
+That one-second guard is *not a benchmark*. It does not establish complexity, latency, portability, or a performance budget. It merely turns “this regression hung” into a test failure on the exercised implementation.
+
+** 5.6 Explain termination before measuring speed
+For the tested mode =connection_path(+Start,+Goal,-Path)= on the finite fixture, we can explain termination branch by branch:
+
+1. =Seen= initially contains Start.
+2. A recursive step may only select a node different from every node in Seen.
+3. The selected node is prepended to Seen.
+4. Therefore one branch cannot visit a fixture node twice.
+5. The fixture has finitely many nodes and outgoing facts.
+6. Each branch must therefore reach a base case or exhaust its finite alternatives.
+
+This is a bounded design argument about this relation and fixture. It is not a theorem that “recursive Prolog terminates,” and it says nothing about the cost of much larger graphs. Later chapters introduce tabling and performance tools for different tradeoffs.
+
+** 5.7 Exercises
+1. Trace =connection_path(noor, lina, Path)=. Mark the attempted =noor -> ada= edge and explain why it is allowed on that branch.
+2. Trace an attempted revisit of =ada=. Which =dif/2= constraint rejects it?
+3. Construct a four-node cycle on paper and show the maximum number of distinct nodes one simple-path branch can contain.
+4. Explain why a global mutable “visited” set would change the semantics when Prolog backtracks into a different branch.
+5. Write a deliberately unsafe recursive reachability relation in a scratch file, but protect every experimental query with a resource bound. Do not replace the project implementation with it.
+
+* Chapter 6 -- Lists Are Recursive Data, Not Array Syntax
+:PROPERTIES:
+:ID:       36779609-850d-42b0-8e7a-9f33871b3634
+:END:
+
+Lists arrived in Chapter 5 because the graph algorithm needed a finite record of visited nodes. Project 1 also has a domain reason to use them: a person can have several topics associated with one profile fact.
+
+#+begin_src prolog
+topics(ada, [prolog, systems, debugging]).
+#+end_src
+
+The useful question is relational:
+
+#+begin_src prolog
+?- interested_in(ada, Topic).
+#+end_src
+
+We will derive the list traversal before reaching for the library predicate.
+
+** 6.1 The two shapes that drive the recursion
+A proper list is either empty or has a head and a tail that is itself a proper list. Prolog exposes that structure directly:
+
+#+begin_example
+[]
+[Head|Tail]
+#+end_example
+
+Project 1's teaching relation follows those shapes:
+
+#+begin_src prolog
+topic_member(Topic, [Topic|_]).
+topic_member(Topic, [_|Rest]) :-
+    topic_member(Topic, Rest).
+#+end_src
+
+The first clause says the topic is a member if it unifies with the head. The second says it may be a member of the tail. Backtracking connects the clauses: after one successful head match, asking for another answer can continue into the recursive alternative.
+
+Current SWI-Prolog =library(lists)= documents =member/2= as the maintained membership relation and explicitly demonstrates successive members on backtracking [cite:@swi-member]. We derived =topic_member/2= so you can see the mechanism; later application code should prefer standard library relations when their contract fits.
+
+** 6.2 Empty-list failure does not need an explicit clause
+There is no clause for =topic_member(_, [])=. Therefore the goal fails. That is not an exception and not a special hidden branch. No clause head matches the empty-list shape.
+
+This is a recurring Prolog pattern: sometimes the base case is a success clause, and sometimes the absence of an applicable clause is exactly the correct failure behavior.
+
+** 6.3 Accumulators make state explicit
+The path search accumulates nodes in reverse order because prepending is structurally simple:
+
+#+begin_src prolog
+list_reverse(List, Reversed) :-
+    list_reverse_(List, [], Reversed).
+
+list_reverse_([], Accumulator, Accumulator).
+list_reverse_([Head|Tail], Accumulator, Reversed) :-
+    list_reverse_(Tail, [Head|Accumulator], Reversed).
+#+end_src
+
+At each step the input tail becomes structurally smaller while the accumulator grows. Once the input reaches =[]=, the accumulated list is the answer.
+
+SWI-Prolog already provides =reverse/2= in =library(lists)= and documents useful determinism properties for proper-list modes as well as unbounded behavior for some partial-list queries [cite:@swi-reverse]. Our teaching predicate intentionally claims less: Project 1 uses it for finite proper lists and tests that mode.
+
+** 6.4 Do not say “lists are linked lists” and stop thinking
+The cons-cell analogy is helpful for understanding =[Head|Tail]=, but the programming lesson is relational shape. A list relation can often:
+
+- inspect an existing list;
+- enumerate members on backtracking;
+- construct a list when enough structure is known;
+- diverge when called in an excessively general mode.
+
+So every useful relation still needs a mode/termination story. “It's declarative” is not a substitute for one.
+
+** 6.5 Project 1 milestone 2 contract
+After these chapters, the Project 1 system has grown without changing domains:
+
+- the original facts/rules/queries and unification regressions remain intact;
+- topic lists create a real list-processing need;
+- a cyclic =follows/2= graph creates a real recursion/termination need;
+- =connection_path/3= enumerates simple paths rather than hiding alternatives;
+- =first_connection_path/3= is the intentionally committed first-answer API;
+- the test suite checks complete answer sets and protects the cycle-failure regression with a SWI-specific timeout guard.
+
+Run all Project 1 regressions from the repository root:
+
+#+begin_src sh
+bash books/prolog/code/run-tests
+#+end_src
+
+The runner requires both named PL-Unit suites to exist before executing them. A green process that silently forgot the new suite is not acceptable evidence.
+
+** 6.6 Failure lab -- open-list infinity
+The official SWI documentation for =member/2= shows that sufficiently open list queries can keep producing longer alternatives [cite:@swi-member]. Do not infer from the neat two-clause definition that every possible query is finite.
+
+In a scratch REPL, compare a proper-list query with a deliberately open one. Stop after observing a few answers. Record the query and explain *which variable keeps allowing more structure to be generated*.
+
+This is the same engineering habit as the graph cycle lab: understand what makes the search space finite before trusting a query merely because its clauses look small.
+
+** 6.7 Exercises
+1. Expand =[prolog,systems,debugging]= into nested =[Head|Tail]= form by hand.
+2. Trace =topic_member(Topic, [prolog, systems])= through all answers and redo points.
+3. Write =last_member/2= from first principles for nonempty proper lists, then state the modes you actually tested.
+4. Write a list relation that succeeds when two adjacent elements are equal. Test both success and failure.
+5. Replace the project teaching =list_reverse/2= with SWI =reverse/2= in a scratch copy. Which project tests should remain unchanged if the public relation contract is preserved?
+6. Explain why =Seen= is a list in the current teaching implementation even though a set-like structure might be preferable for a very large graph. Save the performance redesign for Chapter 20, where it can be measured instead of guessed.
+
+* Project 1 -- Relational Query System, Milestone 2
+:PROPERTIES:
+:ID:       65b99f56-a642-459a-9527-aea2d9a29225
+:END:
+
+Milestone 1 established facts, derived relations, finite-term unification, and executable PL-Unit tests. Milestone 2 adds *search behavior* without abandoning that foundation.
+
+The project now asks three classes of question:
+
+1. direct relational questions such as neighborhood and project peers;
+2. list-backed profile questions such as =interested_in(Person, Topic)=;
+3. recursive graph questions such as =connection_path(Start, Goal, Path)=.
+
+The important design boundary is visible in code. The path relation exposes all simple proofs. A separate helper chooses only the first. Cycle prevention is explicit branch-local data. Tests distinguish existence from answer-set completeness. The timeout guard is a regression safety mechanism, not evidence that the search is fast.
+
+** Review checklist
+- Can you explain where a choice point exists without saying “Prolog magically tries everything”?
+- Can you state why the deliberate cycle does not create an infinite branch in =connection_path/3=?
+- Can you derive =topic_member/2= from the two list shapes?
+- Can you explain what =once/1= removes from the caller's observable behavior?
+- Can you distinguish a relation's logical meaning from the order in which this program discovers proofs?
+
+If any answer is fuzzy, use the test fixture and the diagram as debugging tools. Do not move on to arithmetic or cut merely because the source compiles.

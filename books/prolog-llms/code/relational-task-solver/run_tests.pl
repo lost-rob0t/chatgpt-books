@@ -1,15 +1,22 @@
 :- use_module(library(plunit)).
 :- ensure_loaded(test_task_solver).
+:- ensure_loaded(test_task_language).
+:- ensure_loaded(test_task_schedule).
 
 :- initialization(main, main).
 
 main :-
-    (   current_test_unit(relational_task_solver, _)
-    ->  true
-    ;   format(user_error, 'ERROR: relational_task_solver test unit was not loaded~n', []),
-        halt(2)
-    ),
-    (   run_tests([relational_task_solver])
+    require_test_unit(relational_task_solver),
+    require_test_unit(task_language),
+    require_test_unit(task_schedule),
+    (   run_tests([relational_task_solver, task_language, task_schedule])
     ->  halt(0)
     ;   halt(1)
+    ).
+
+require_test_unit(Unit) :-
+    (   current_test_unit(Unit, _)
+    ->  true
+    ;   format(user_error, 'ERROR: ~w test unit was not loaded~n', [Unit]),
+        halt(2)
     ).

@@ -7,15 +7,21 @@ DONE bootstrap purpose, audience, topics, and project boundaries.
 * Phase 1 -- foundational research
 IN-PROGRESS verify theory, current toolchain behavior, canonical implementations, and source bibliography.
 
-Foundation pass A covers the arithmetic-to-vector dependency chain, author-maintained linear-algebra sequencing, the current NumPy numerical oracle, and Python floating-point primitives used by Project 1 checkpoint A. Matrix operations, calculus, probability, information theory, optimization, and later-project research remain open.
+Foundation pass A covers the arithmetic-to-vector dependency chain, author-maintained linear-algebra sequencing, the current NumPy numerical oracle, and Python floating-point primitives used by Project 1 checkpoint A.
+
+Foundation pass B covers matrix shape/indexing, =Ax= as row dot products and column linear combinations, compatible =AB= multiplication, composition/identity/noncommutativity/associativity, two-dimensional linear-transformation geometry, and the finite-precision boundary between algebraic associativity and actual floating-point execution. The source record also captures the current NumPy 2.5 =matmul= and =ndarray.shape= behavior used by the oracle tests plus the official Python floating-point guidance used by the numerical failure lab. Calculus, probability, information theory, optimization, decompositions, and later-project research remain open.
 * Phase 2 -- curriculum
 IN-PROGRESS review sequence and cross-book dependencies while executable chapter slices are written. The current sequence preserves arithmetic/functions/coordinates before vector algebra, then matrices/transformations before calculus-heavy projects.
 * Phase 3 -- detailed outline
-IN-PROGRESS turn each chapter item into research questions, examples, exercises, and asset requirements. Chapters 1--5 have now been promoted from generic outline prompts into manuscript material; the remaining chapter outline stays intentionally broad until its research slice begins.
+IN-PROGRESS turn each chapter item into research questions, examples, exercises, and asset requirements. Chapters 1--8 have now been promoted from generic outline prompts into substantial manuscript material with executable Project 1 checkpoints A/B and an explicit matrix numerical-failure lab; later chapter outlines remain intentionally broad until their research slices begin.
 * Phases 4--6 -- progressive chapters/projects
 IN-PROGRESS implement projects in the order listed in PROJECTS.org; later projects depend on foundations from earlier ones.
 
-Project 1 checkpoint A is the vector semantic baseline: validated finite vectors, component-wise operations, dot product, Euclidean norm/distance, normalization, cosine similarity, projection, NumPy oracle tests, numerical failure cases, and a reproducible projection diagram. Checkpoint B adds matrices and transformations only after this baseline is reviewed.
+Project 1 checkpoint A is the accepted and merged vector semantic baseline: validated finite vectors, component-wise operations, dot product, Euclidean norm/distance, normalization, cosine similarity, projection, NumPy oracle tests, numerical failure cases, and a reproducible projection diagram.
+
+Project 1 checkpoint B is accepted and merged through PR #60 as canonical merge commit =f6ba7459fba79e02dfec6d6129e85b5c60af14b3=. It adds a rectangular finite-real matrix layer, independent row/column interpretations of =Ax=, matrix composition, identity and linearity invariants, selected NumPy oracle checks, explicit mismatch/overflow failures, a deterministic basis/unit-square transformation diagram, and an executable underflow case showing why exact algebraic associativity does not imply bit-for-bit associativity of floating-point execution. The final reviewed PR head =f9e795f5457fd2fba5ca39f3a7d0fc41894fab6e= was reconciled with canonical =main= =1e3d0bb1cc4ff8dc8ef57cb3d78d56defacb79d1= at 0 commits behind; focused =ml-math-book= run =35121033295= and generic =books-ci= run =35121033261= both completed SUCCESS before merge. This checkpoint does not claim later solving/decomposition/calculus/optimization work.
+
+The next curriculum slice can now begin from canonical main: scalar/vector calculus and derivatives leading toward Project 2 linear regression. It should preserve the same derive -> implement -> independently check -> inject failures progression rather than turning the book into a numerical-library cookbook.
 * Phase 7 -- capstone
 The last project is the major integrated capstone and depends on the previous project/tooling slices.
 * Phase 8 -- technical review

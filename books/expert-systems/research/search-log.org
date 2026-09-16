@@ -21,3 +21,21 @@ Inspected:
 - official Linux kernel =/proc= documentation.
 
 Result: milestone A uses only synthetic service observations, marks them synthetic in provenance, and cites systemd only for the meaning of service configuration/state concepts. No load threshold or real-host observation is claimed.
+
+** 2026-09-16 -- working memory, agenda, and conflict resolution
+Questions: What production-cycle behavior is documented by current primary/official material? Which semantics must the teaching engine define for itself before incremental matching?
+
+Inspected:
+- Forgy, /OPS5: A Rule-Based Programming System/ (1981), for the production-system organization and explicit matching/control boundary.
+- official /CLIPS Reference Manual, Volume I: Basic Programming Guide/ 6.4.2 (2025-01-16), especially Section 5.2 “Basic Cycle Of Rule Execution” and Section 5.3 “Conflict Resolution Strategies.” The current PDF documents activated/deactivated rules, agenda placement by salience plus strategy, top-of-agenda execution, and named depth/breadth/simplicity/complexity/LEX/MEA/random strategies.
+
+Result: milestone B does not clone CLIPS. It freezes course-local semantics for stable fact identity vs assertion occurrence, duplicate-ID policy, stable production identity, full activations, deterministic salience/recency/structural-specificity/stable-ID ordering, occurrence-aware refraction, complete-rematch forward chaining, and separate =:quiescent= vs =:limit= outcomes. Alpha/beta/RETE, truth maintenance, external side effects, uncertainty, and benchmarks remain deferred.
+
+** 2026-09-16 -- incremental positive-pattern network
+Questions: Which current primary/official evidence supports the alpha/filter -> partial join -> complete activation teaching decomposition? Which semantics can be changed as optimization, and which must remain frozen from milestone B?
+
+Inspected:
+- Forgy, /Rete: A Fast Algorithm for the Many Pattern/Many Object Pattern Match Problem/, /Artificial Intelligence/ 19(1), 17--37, DOI 10.1016/0004-3702(82)90020-0, as the primary RETE bibliographic/algorithm lineage source. No paper benchmark number is imported into this project.
+- official CLIPS 6.4.2 Basic Programming Guide, Appendix D.1 “Ordering of Patterns on the LHS.” The current text says CLIPS constructs a network of LHS patterns before execution, filters reactive pattern entities through it, retains partial rule instantiations, considers cross-pattern variable bindings in LHS order, and activates the rule once all pattern bindings satisfy constraints.
+
+Result: milestone C derives a deliberately simplified positive-pattern RETE-like network from the book's own accepted matcher. Per-production alpha memories cache local matches/bindings; beta tokens cache ordered partial supports/bindings; joins extend compatible tokens; terminal tokens become ordinary milestone-B activations; assert/retract deltas maintain caches. The complete-rematch agenda remains the executable oracle. Node sharing, negative/existential CEs, truth maintenance, TREAT, persistence, and all performance claims remain deferred.

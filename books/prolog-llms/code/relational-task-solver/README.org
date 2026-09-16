@@ -1,6 +1,6 @@
-#+title: Project 1 -- Relational Task Solver, milestone B
+#+title: Project 1 -- Relational Task Solver, milestone D
 
-This directory is the executable symbolic baseline for Chapters 1--5.  The
+This directory is the executable symbolic baseline for Chapters 1--6.  The
 fixture is synthetic and deterministic; there is intentionally no LLM or
 network dependency yet.
 
@@ -12,22 +12,52 @@ swipl -q -s books/prolog-llms/code/relational-task-solver/run_tests.pl
 
 Milestone A established relations, unification, recursion, cycle-safe
 dependency traversal, provenance-bearing explanations, and the SWI-Prolog
-occurs-check boundary.  Milestone B makes operational control visible instead
-of hiding it:
+occurs-check boundary.  Milestone B made operational control visible:
 
 - =ready_task/2= deliberately exposes every ready task through backtracking;
 - =first_ready_task/2= uses an explicit =once/1= boundary and therefore means
   “the first answer in current program/search order”, not “highest priority”;
-- =task_report.pl= is a second module that imports only the public predicates it
-  needs from =task_solver.pl= and composes them into =ready_report/3=;
+- =task_report.pl= imports only the public predicates it needs from
+  =task_solver.pl= and composes them into =ready_report/3=;
 - PL-Unit assertions distinguish a genuinely multi-answer relation from a
   deterministic first-answer boundary.
 
-The suite retains the earlier direction, join, recursion, cycle, provenance,
-and unification regressions.  CI prints the exact SWI-Prolog version used for
-the run.
+Milestone C adds =task_language.pl=, a deliberately small DCG command boundary.
+It accepts token lists such as = [tasks, owned, by, ada] = and constructs only a
+closed family of data terms such as =tasks(owner(ada))=.  Parsing and symbolic
+execution are separate operations:
 
-The module export/import boundary is maintainability and namespace discipline,
-not a security sandbox.  The later Typed LLM-to-Prolog Gateway will add a
-separate closed parser/schema/permission boundary; it must not turn free-form
-model text into an arbitrary =call/1= target.
+- =parse_task_command/2= uses =phrase/2= and requires a complete parse;
+- =parse_task_command_prefix/3= exists to demonstrate =phrase/3= remainder
+  behavior explicitly;
+- =execute_task_command/2= dispatches only four hard-coded AST shapes to
+  allowlisted Project 1 relations;
+- unknown command syntax and unknown AST constructors fail rather than being
+  meta-called;
+- input atoms are never interpreted as predicate names and this module does not
+  use =call/1=.
+
+Milestone D adds =task_schedule.pl= as a *separate scheduling worksheet*.  It
+does not modify =task_solver.pl= or reinterpret accepted task/dependency facts.
+It derives a finite-domain schedule from explicit synthetic requirements:
+
+- =schedule_constraints/2= posts start-time domains, precedence constraints,
+  one release time, a two-job shared-verifier non-overlap relation, and makespan
+  without performing search;
+- =first_minimum_schedule/2= makes optimization/search explicit and visibly
+  commits to one first minimum-makespan result with =once/1=;
+- =deadline_flag/3= reifies “finishes after deadline” into explicit =0/1= data;
+- the new PL-Unit group checks the no-hidden-labeling contract, the hand-derived
+  minimum fixture, overlap rejection, a slower-but-feasible reverse resource
+  order, and both deadline flag values;
+- =run_tests.pl= fails closed unless all three named Project 1 test units load.
+
+The suite retains every earlier direction, join, recursion, cycle, provenance,
+unification, control, module, DCG, and dispatcher regression.  CI prints the
+exact SWI-Prolog version used for the run.
+
+The module/parser/constraint boundaries are maintainability, validation, and
+reasoning mechanisms, not a general security sandbox.  A future Typed
+LLM-to-Prolog Gateway still needs a closed schema/permission boundary and must
+never splice model-produced source, predicate names, or search options directly
+into executable goals.

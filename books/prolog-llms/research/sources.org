@@ -17,6 +17,12 @@ Only sources actually inspected for a concrete research question belong here. Re
 - =SWI-Prolog Reference Manual: debugger overview / trace mode / spy points= -- official project documentation, retrieved 2026-09-16. Used for call/exit/redo/fail trace vocabulary and the warning that debug mode changes optimization/choice-point retention.
 - =SWI-Prolog library(plunit): Unit Testing= -- official library documentation, retrieved 2026-09-16. Used for named test units and =run_tests= behavior.
 - =SWI-Prolog library(plunit) current source documentation= -- official source documentation, retrieved 2026-09-16. Inspected for accepted test options including =fail=, =throws=, =all=, =set=, =nondet=, and timeout.
+- =SWI-Prolog Reference Manual: DCG Grammar rules= -- official current project documentation, retrieved 2026-09-16. Used for =-->/2= expansion/difference-list semantics, terminal/nonterminal/={Goal}= forms, =phrase/[2,3]=, SWI list-state type checking, string/code-list caveats, and =call_dcg/3= context.
+- =SWI-Prolog library(dcg) / library(dcg/basics)= -- official current library documentation, retrieved 2026-09-16. Inspected for the existence/current surface of code-list helpers such as whitespace, digit, integer, number, and remainder parsers. Project 1 milestone C intentionally uses atom tokens instead of depending on these helpers.
+- =SWI-Prolog library(clpfd): Constraint Logic Programming over Finite Domains= -- official current manual, retrieved 2026-09-16. Used for finite-domain membership, relational arithmetic constraints, the distinction between constraint posting/propagation and =labeling/2= search, =ffc= and =min(Expr)= labeling options, reification with =#<==>/2=, and the existence of higher-level scheduling/global constraints. The book records the exact runtime used by CI separately from the live documentation site.
+
+** Constraint-programming primary source
+- Markus Triska. =The Finite Domain Constraint Solver of SWI-Prolog=. FLOPS 2012, LNCS 7294, pages 307--316. Primary paper PDF at =https://www.metalevel.at/swiclpfd.pdf=, inspected 2026-09-16. Used for historical/implementation context: scheduling/planning/allocation motivation, terminating propagation, large integer domains, and reification DSL. Its reported performance observations are UPSTREAM-REPORTED here, not current-book benchmark evidence. Bibliographic metadata follows the citation recommended by the current SWI CLP(FD) manual.
 
 ** Recursive-language-model primary sources
 - Zhang, Alex L.; Kraska, Tim; Khattab, Omar. =Recursive Language Models=. arXiv:2512.24601, first submitted 2025-12-31. Inspected 2026-09-16. Architecture claims are DOCUMENTED; reported benchmark/cost results are UPSTREAM-REPORTED unless independently reproduced later.
@@ -27,5 +33,5 @@ Only sources actually inspected for a concrete research question belong here. Re
 
 * Still unresearched
 - provider-specific structured outputs/tool calls used in future examples;
-- Chapter 6 DCG/CLP(FD)/meta-call semantics and safe term parsing;
+- Project 1 bounded meta-call/reflection semantics after the CLP(FD) scheduling milestone;
 - broader neuro-symbolic architecture/evaluation literature.
