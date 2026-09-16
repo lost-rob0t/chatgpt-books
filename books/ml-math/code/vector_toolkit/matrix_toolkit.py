@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from math import fsum
 from numbers import Integral, Real
 
-from vector_toolkit import Vector, dot, vector
+from vector_toolkit import Vector, dot, scale, vector
 
 Matrix = tuple[tuple[float, ...], ...]
 
@@ -79,10 +80,18 @@ def column_combination(
             f"coefficient vector has dimension {len(coeffs)}"
         )
 
-    # The i-th output coordinate is the sum of coefficient[j] * column[j][i].
-    # Reuse ``dot`` so this interpretation has the same finite-result contract
-    # and careful accumulation as ``matvec``.
-    return vector(dot(row, coeffs) for row in m)
+    columns = tuple(column(m, j) for j in range(len(coeffs)))
+    scaled_columns = tuple(
+        scale(coefficient, col)
+        for coefficient, col in zip(coeffs, columns, strict=True)
+    )
+    try:
+        return vector(
+            fsum(col[i] for col in scaled_columns)
+            for i in range(len(m))
+        )
+    except (OverflowError, ValueError) as exc:
+        raise OverflowError("column combination overflowed finite float range") from exc
 
 
 def matmul(
