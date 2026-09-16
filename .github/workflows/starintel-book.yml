@@ -71,6 +71,13 @@ jobs:
             books/starintel/code/ambiguous-bulk/reconcile.py \
             books/starintel/code/ambiguous-bulk/test_reconcile.py
 
+      - name: Run bulk-job lifetime evidence lab
+        run: |
+          bash books/starintel/code/bulk-job-lifetime/run-tests
+          python3 -m py_compile \
+            books/starintel/code/bulk-job-lifetime/audit.py \
+            books/starintel/code/bulk-job-lifetime/test_audit.py
+
       - name: Validate editable diagram sources
         run: |
           dot -Tsvg books/starintel/assets/document-flow.dot -o /tmp/starintel-document-flow.svg
