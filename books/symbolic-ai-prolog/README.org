@@ -24,7 +24,9 @@ The standalone sibling [[file:../prolog-llms/README.org][Prolog + LLMs: Neuro-Sy
 * Current implementation slice
 Project 1 milestone A established the closed rule-as-data meta-interpreter, proof/provenance trees, fresh rule invocation semantics, ordinary alternative-rule backtracking, path-local variant cycle detection, and the object-rule budget.
 
-Milestone B now derives one additional closed control form, =either(Left,Right)=, plus a bounded =search_report/4= diagnostic for ground ordinary object goals. The new report preserves failed matching-rule attempts and explicit =proved=/=cycle=/=exhausted= outcomes without pretending to be SWI-Prolog's runtime debugger trace. Proofs remain justification artifacts; search reports remain bounded diagnostic artifacts. Cut, negation, arbitrary =call/1=, native-clause reflection, and the later planner/abduction/rule-engine mechanisms remain outside this slice.
+Project 1 milestone B derives one additional closed control form, =either(Left,Right)=, plus a bounded =search_report/4= diagnostic for ground ordinary object goals. The report preserves failed matching-rule attempts and explicit =proved=/=cycle=/=exhausted= outcomes without pretending to be SWI-Prolog's runtime debugger trace. Proofs remain justification artifacts; search reports remain bounded diagnostic artifacts. That milestone is kept in its own reviewable PR.
+
+The next stacked Project 2 milestone begins explicit search before planning operators. It represents a finite transition graph as closed =edge(Action,From,To)= data, derives one frontier loop with deterministic DFS and BFS policies, uses an explicit closed-set/state-identity contract, returns typed path/exhaustion results, and records state-expansion diagnostics separately from the selected path. Action schemas, preconditions/effects, cost/heuristic search, constraints, abduction, production matching networks, and LLM/neuro-symbolic/RLM integration remain later or sibling-book work.
 * Research
 Record primary-source work under =research/= and bibliography metadata in =references.bib=. Never let version-sensitive prose outrun current documentation.
 * Build
