@@ -1,0 +1,33 @@
+digraph prolog_cut_placement {
+  rankdir=LR;
+  graph [fontname="DejaVu Sans", labelloc="t", label="Chapter 8: cut placement decides which alternatives survive"];
+  node [shape=box, fontname="DejaVu Sans"];
+  edge [fontname="DejaVu Sans"];
+
+  subgraph cluster_correct {
+    label="Correct: qualify before commitment";
+    candidate_ok [label="candidate path"];
+    qualify_ok [label="qualify\nHops =< Limit"];
+    cut_ok [label="!\ncommit accepted proof"];
+    result_ok [label="one accepted result"];
+    redo_ok [label="rejected candidate\nbacktracks to later path", shape=ellipse];
+    candidate_ok -> qualify_ok;
+    qualify_ok -> cut_ok [label="success"];
+    cut_ok -> result_ok;
+    qualify_ok -> redo_ok [label="failure"];
+    redo_ok -> candidate_ok [label="redo", style=dashed];
+  }
+
+  subgraph cluster_wrong {
+    label="Failure lab: commit before qualification";
+    candidate_bad [label="candidate path"];
+    cut_bad [label="!\nprune later paths"];
+    qualify_bad [label="qualify\nHops =< Limit"];
+    fail_bad [label="failure\n(no later path remains)", shape=ellipse];
+    pruned [label="later valid candidates\nPRUNED", shape=octagon];
+    candidate_bad -> cut_bad;
+    cut_bad -> qualify_bad;
+    cut_bad -> pruned [style=dashed];
+    qualify_bad -> fail_bad [label="failure"];
+  }
+}
