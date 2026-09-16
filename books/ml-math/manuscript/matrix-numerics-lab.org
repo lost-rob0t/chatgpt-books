@@ -1,0 +1,129 @@
+* Project 1 Numerical Failure Lab -- Algebraic Laws vs Floating-Point Execution
+:PROPERTIES:
+:ID:       7fa5e8c8-0b8f-44bc-a51d-e0a183a8c4f0
+:END:
+
+Chapter 7 established a mathematical law:
+
+#+begin_example
+(AB)C = A(BC)
+#+end_example
+
+for compatible matrices over the real numbers. That statement is true. A dangerous next step would be to silently replace it with a different statement:
+
+#+begin_quote
+Every finite-precision program that computes both parenthesizations must return exactly the same stored bits.
+#+end_quote
+
+That statement is false.
+
+This distinction matters because machine learning code lives in finite arithmetic, not in the real-number field from the algebra chapter. Python's current floating-point tutorial explicitly warns that =float= operations are approximations to real arithmetic and that each operation can introduce a new rounding error; on almost all current platforms Python floats map to IEEE 754 binary64 values. [cite:@python314float]
+
+** Start with three scalars
+Let
+
+#+begin_example
+a = 1e308
+b = 1e-308
+c = 1e-308
+#+end_example
+
+In exact real arithmetic, multiplication is associative, so
+
+#+begin_example
+(a b) c = a (b c) = 1e-308
+#+end_example
+
+The machine has to store an intermediate result after the first multiplication. The two evaluation orders create radically different intermediates.
+
+Left-grouped:
+
+#+begin_example
+(a * b) * c
+#+end_example
+
+The first product is near one, so multiplying that stored result by =c= leaves a tiny but nonzero value.
+
+Right-grouped:
+
+#+begin_example
+a * (b * c)
+#+end_example
+
+The intermediate =b*c= is far smaller. In the tested binary floating-point environment it underflows to =0.0=, and the final multiplication cannot recover the lost magnitude.
+
+The key point is not the particular decimal spelling. It is the execution graph. Equivalent algebra can expose the machine to different intermediate magnitudes, different rounding, and different underflow or overflow boundaries.
+
+** Lift the same failure into matrices
+A one-by-one matrix is enough to isolate the issue without hiding it inside a large example:
+
+#+begin_src python
+from matrix_toolkit import matmul
+
+A = [[1e308]]
+B = [[1e-308]]
+C = [[1e-308]]
+
+left_grouped = matmul(matmul(A, B), C)
+right_grouped = matmul(A, matmul(B, C))
+#+end_src
+
+The checkpoint-B regression suite requires this particular finite-precision execution to produce two different stored results on the tested CPython environment:
+
+#+begin_example
+left_grouped  = ((1e-308,),)
+right_grouped = ((0.0,),)
+#+end_example
+
+That is not a counterexample to matrix associativity. It is a counterexample to the stronger and incorrect claim that our floating-point implementation preserves the law bit-for-bit for every admitted finite input.
+
+This is also why the existing associativity regression uses a small, exactly representable compatible example. That test checks whether the *algorithmic wiring* respects matrix composition. The new failure regression checks a different contract: readers must not infer exact finite-precision equivalence from the algebraic law.
+
+** Why =math.fsum= does not make this disappear
+Project 1 uses =math.fsum= inside the dot product because summing several floating-point terms carelessly can lose information. That is useful, but it does not turn every multiplication into exact arithmetic.
+
+In the one-by-one example there is only one term in each dot product. The damaging event happens before summation: =b*c= underflows when the right grouping forms its intermediate matrix. A more accurate summation routine cannot reconstruct a product that has already rounded to zero.
+
+This is a useful debugging habit: when a numerical result looks wrong, ask *where information was lost*. "Use a better sum" only helps when summation is the actual failure boundary.
+
+** What should a test assert?
+There are now two kinds of tests in this project, and mixing them up creates bad tests.
+
+1. *Structural/algebraic regressions* use small values chosen so exact equality is a reasonable oracle. They catch wrong row/column pairing, wrong composition order, shape mistakes, and broken identity behavior.
+2. *Numerical regressions* deliberately exercise rounding, cancellation, overflow, or underflow boundaries. They assert the behavior that was actually observed and keep the evidence tied to a specific tested environment.
+
+Later projects will add tolerance-based comparisons when two mathematically equivalent evaluation routes are both legitimate but need not be bit-identical. A tolerance is not permission to wave away errors: its scale must come from the quantity being tested, and a test should still fail when the implementation is materially wrong.
+
+** Debugging trace -- algebra correct, execution surprising
+When two matrix pipelines are algebraically equivalent but disagree numerically, inspect the intermediates before rewriting the formula.
+
+#+begin_example
+A = [[1e308]]
+B = [[1e-308]]
+C = [[1e-308]]
+
+AB = A @ B        # near one
+BC = B @ C        # underflows to zero in the tested environment
+(AB) @ C          # tiny nonzero result
+A @ (BC)          # zero
+#+end_example
+
+The failure is therefore not "matrix multiplication forgot associativity." The execution route passed through a value the representation could not preserve.
+
+That phrasing matters. Debugging gets easier when we separate:
+
+- the mathematical object we intended;
+- the algorithm we implemented;
+- the representation used for intermediates;
+- the observed result on a tested runtime.
+
+Those four layers will return in regression, gradient descent, probability calculations, and the neural-network capstone.
+
+** Exercises
+- ★ Explain why the one-by-one example does not disprove associativity over the real numbers.
+- ★ In the right-grouped execution, identify the exact intermediate at which information is lost.
+- ★★ Run the example and print =float.hex()= for the nonzero scalar results. What does hexadecimal floating-point notation reveal that decimal formatting hides?
+- ★★ Replace =1e-308= with several nearby magnitudes. Record where the two groupings first begin to disagree on your machine; label the observation TESTED rather than universal.
+- ★★★ Write a regression that compares two matrix-evaluation orders with =numpy.testing.assert_allclose=. Justify the chosen tolerance instead of copying a default blindly.
+- ★★★ Explain why replacing every exact-equality assertion in Project 1 with a loose tolerance would make the suite weaker rather than more numerically sophisticated.
+- ★★★ Find a different three-factor scalar example where one grouping overflows while the other remains finite. Then explain which project contract should decide whether that case raises, saturates, rescales, or changes representation.

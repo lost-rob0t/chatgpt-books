@@ -39,8 +39,19 @@ jobs:
           make -C .cache/lfe compile
           echo "$GITHUB_WORKSPACE/.cache/lfe/bin" >> "$GITHUB_PATH"
 
-      - name: Run LFE examples and Erlang interoperability smoke
+      - name: Run Project 1 LFE examples and Erlang interoperability smoke
         run: bash books/lfe/code/event-rules/run-tests
+
+      - name: Run Project 2 actor and message regressions
+        run: bash books/lfe/code/actor-router/run-tests
+
+      - name: Validate LFE teaching diagrams
+        shell: bash
+        run: |
+          set -euo pipefail
+          dot -Tsvg books/lfe/assets/event-routing.dot >/dev/null
+          dot -Tsvg books/lfe/assets/macro-expansion.dot >/dev/null
+          dot -Tsvg books/lfe/assets/actor-protocol.dot >/dev/null
 
       - name: Build LFE book
         run: make book BOOK=lfe

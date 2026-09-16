@@ -18,7 +18,7 @@ The pass supports manuscript Chapters 1--6 and Project 1 checkpoint A. It explic
 Execution evidence at =c33951f24feafaf7a9d7623169041ab321e8c580=: exact Erlang/OTP 29.0.6 via =erlef/setup-beam@v1.24.1=; all 9 EUnit tests passed; book build and EPUBCheck 5.3.0 validation passed with zero messages; repository =nix flake check -L= passed. Later editorial reconciliation records the final reviewed/merged foundation head separately.
 
 ** Failure-semantics pass 02 -- links, trapping exits, monitors, unlink, kill
-Status: DOCUMENTED + EXECUTION VERIFIED for the checkpoint-B implementation revision recorded below.
+Status: DOCUMENTED + EXECUTION VERIFIED for the merged checkpoint-B revision.
 
 Primary-source scope: current OTP 29.0.6 Processes reference plus the OTP 29.0.6 =erlang= BIF reference. See [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
 
@@ -31,10 +31,29 @@ This pass supports Chapters 7--9 and Project 1 checkpoint B. The contract taught
 - =demonitor(Ref, [flush])= combines monitor removal with removal of one already-queued matching =DOWN= notification when present;
 - OTP 29 introduced =erlang:exit_signal/2= as the direct exit-signal API. An explicit =kill= signal is untrappable and the target terminates with reason =killed=.
 
-Execution evidence for implementation head =4472458a666db2fac70f79f9b8dc3dd48fda48c1= was produced by PR #40 focused workflow run =35096523655=, which tested that head integrated with then-current main on pinned Erlang/OTP 29.0.6. =erlc -Werror= plus EUnit executed all 14 foundations/failure tests successfully, including the five new link/monitor/trap/unlink/kill regressions. The same run built the Erlang book, validated it with EPUBCheck 5.3.0 at zero findings, and passed =nix flake check -L=. Generic =books-ci= run =35096523992= also passed its structural, publication/citation, ERT, and Org-roam gates for the same PR revision. Later branch changes require their own fresh CI before review readiness.
+Execution evidence for the final reviewed checkpoint-B head is recorded in =STATUS.org= and the merged PR #40 discussion. No performance benchmark is inferred from these semantics.
+
+** OTP pass 03 -- behaviours, =gen_server= calls, and supervisor policy
+Status: DOCUMENTED + EXECUTION VERIFIED for Project 2 checkpoint A implementation; bounded Chapters 10--12 content is editorially APPROVED, with current-main objective gates tracked separately in =STATUS.org=.
+
+Primary-source scope: official Erlang/OTP =OTP-29.0.6= tagged source documentation for OTP Design Principles, =gen_server=, and =supervisor=, plus official 29.0.6 release metadata. See [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
+
+This pass supports Chapters 10--12 and Project 2 checkpoint A. It records these boundaries:
+- OTP behaviours split recurring generic process machinery from application-specific callbacks; =gen_server= does not replace the process model or make callbacks concurrent;
+- =gen_server:call/3= exits the caller on timeout, while timeout does not cancel callback work already executing;
+- starting with OTP 24, synchronous =gen_server:call= uses process aliases so an abandoned late reply is not delivered to the caller mailbox;
+- =gen_server= participates in the standard =sys= system-message/debugging protocol;
+- a supervisor owns child lifecycle through child specifications and restart policy; =one_for_one=, =one_for_all=, and =rest_for_one= express different dependency assumptions;
+- if more than =intensity= restarts occur within =period= seconds, the supervisor terminates its children and then itself with reason =shutdown=;
+- a =permanent= child is always restarted while the supervisor remains able to restart it, but replacement process state comes from fresh initialization/recovery code rather than from the supervisor;
+- OTP 29.0 introduced =supervisor:stop/1,3= style synchronous supervisor stop APIs; the Project 2 cleanup code is therefore explicitly version-pinned rather than advertised as historical-OTP portable.
+
+Execution evidence: exact implementation head =22cc298a506e45638490393e5f1ca59b3a98835a= passed focused =erlang-book= run =35110915006= on the workflow's strict Erlang/OTP 29.0.6 setup. Both the existing Project 1 foundations step and the new Project 2 OTP-worker EUnit step succeeded, as did production book build/check and the separate Nix flake evaluation. Generic =books-ci= run =35110915008= also succeeded on that exact head. The six Project 2 regressions cover behavior/state, modern call-timeout mailbox isolation, =sys= state introspection, supervised replacement with fresh process-local state, and restart-budget escalation. This is execution evidence for those bounded mechanisms, not a performance or availability benchmark.
+
+Documentation-version caveat: on 2026-09-16 the official downloads page still named 29.0.6 as the latest released OTP, while the unversioned =/doc/apps/stdlib/gen_server.html= route rendered 29.1/stdlib 8.1 material. For exact executable claims this pass therefore cites the immutable official =OTP-29.0.6= Git tag, not the drifting unversioned documentation route.
 
 * Open research queue
-- OTP behavior contracts: =gen_server=, supervisor strategies/restart intensity, applications.
+- Application behavior and =.app= resource contracts for Chapter 13 / completion of Project 2 as an OTP application.
 - Releases and upgrade boundaries.
 - Distributed Erlang connectivity, security/TLS, partitions, and failure visibility.
 - Persistence boundaries and restart recovery semantics.

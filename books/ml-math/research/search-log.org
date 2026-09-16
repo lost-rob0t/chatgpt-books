@@ -23,3 +23,26 @@ Inspected:
 Result: Project 1 implements real finite vectors independently, deliberately pins NumPy 2.5.0 as the TESTED oracle in CI, uses =math.fsum= for the dot-product accumulation and =math.hypot= for the Euclidean norm, and contains adversarial tests for cancellation, very large finite components, dimension mismatch, non-finite input, and zero-vector normalization. The tested pin is not presented as the newest NumPy patch.
 
 Claim boundary: those implementation choices improve specific numerical failure modes; this slice does not claim arbitrary floating-point exactness or benchmark superiority over NumPy.
+
+** 2026-09-16 -- matrices, products, and transformation geometry
+Questions: Which interpretation should drive the first matrix chapters? What dimension contract does the current numerical oracle use for 2-D matrix multiplication? Which properties are important enough to become executable regressions rather than prose claims?
+
+Inspected:
+- Gilbert Strang's author-maintained Sixth Edition site and the official sample material for Sections 1.3/1.4, including the row-dot-product and column-linear-combination views of =Ax=, matrix multiplication by columns, compatible dimensions, noncommutativity, and associativity;
+- official NumPy 2.5 =numpy.matmul= documentation, including the conventional 2-D product, signature =(n,k),(k,m)->(n,m)=, mismatch =ValueError=, 2-D/1-D behavior, and =@= operator relationship;
+- official NumPy 2.5 =numpy.ndarray.shape= documentation for the array-dimension tuple used by the oracle.
+
+Result: checkpoint B derives =Ax= first from existing dot products and linear combinations, then derives =AB= as the matrix that represents composition. The implementation admits only non-empty rectangular finite-real matrices, fails explicitly on incompatible dimensions, reuses the checkpoint-A dot product, and tests =Ax= against the equivalent column-combination view, =(AB)x = A(Bx)=, noncommutativity, identity behavior, and selected NumPy 2.5.0 results. A deterministic figure applies the same teaching implementation to the basis vectors and unit square.
+
+Claim boundary: NumPy is an independent oracle for selected ordinary finite inputs, not an implementation dependency. This checkpoint does not claim NumPy-equivalent broadcasting/dtype behavior, BLAS performance, arbitrary floating-point stability, matrix-chain optimization results, or coverage of affine/homogeneous-coordinate systems. No benchmark is claimed.
+
+** 2026-09-16 -- algebraic associativity versus floating-point execution
+Question: The manuscript teaches matrix associativity as an algebraic law. What source and executable failure case keep readers from mistaking that law for bit-for-bit invariance under finite-precision regrouping?
+
+Inspected: the official Python 3.14.7 floating-point tutorial, especially its treatment of binary approximation, per-operation rounding, =math.fsum=, and the near-universal IEEE 754 binary64 mapping of Python =float= on current platforms.
+
+Executable check: with one-by-one matrices =A=[[1e308]]=, =B=[[1e-308]]=, =C=[[1e-308]]=, the teaching implementation's two legal parenthesizations follow different finite-precision paths. In the local CPython 3.13.5 development environment, =(AB)C= produced =((1e-308,),)= while =A(BC)= produced =((0.0,),)= because the =B C= intermediate underflowed to zero. The expanded matrix suite passed 18/18 locally; the combined vector/matrix suites passed 32/32. Repository CI on the final branch head remains the authoritative pinned Python 3.14 evidence.
+
+Result: add a dedicated Project 1 numerical failure lab and regression. The book now explicitly distinguishes the exact algebraic law from the behavior of a particular finite representation and explains why a better summation routine cannot recover a product that already underflowed before summation.
+
+Claim boundary: the observed decimal outputs are TESTED behavior for the stated runtime, not a claim that every Python implementation or floating-point format must expose the identical boundary. The mathematical associativity claim remains about exact arithmetic; later numerical work will use tolerance-based or condition-aware oracles where appropriate rather than silently replacing all exact tests.

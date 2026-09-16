@@ -1,0 +1,347 @@
+** Chapter 11 -- =gen_server=: Standardize the Loop Without Hiding the Process
+:PROPERTIES:
+:ID:       014e1875-e5ca-4a4c-8145-0d7127991742
+:END:
+
+The fastest way to misuse =gen_server= is to learn it as a bag of callback names. This
+chapter instead migrates Project 1 one observable contract at a time.
+
+Our target is small enough to understand completely:
+
+#+begin_src erlang
+#{next_id => 1, messages => #{}}
+#+end_src
+
+One server owns that state. A publish changes it. A history request reads it. A deliberate
+slow request lets us study timeout semantics. A deliberate crash lets us study failure and
+supervision. Nothing about that domain requires OTP; OTP earns its place by standardizing
+the server machinery surrounding it.
+
+*** The minimum server
+
+Project 2's callback module begins with:
+
+#+begin_src erlang
+-module(otp_worker).
+-behaviour(gen_server).
+
+init([]) ->
+    {ok, #{next_id => 1, messages => #{}}}.
+#+end_src
+
+When =gen_server:start/3= or =start_link/3= succeeds, the new process has called
+=init/1= and accepted this term as its initial callback state. The generic loop will carry
+whatever new state each callback returns into the next callback. [cite:@erlang-gen-server]
+
+The state is still just an Erlang term. OTP has not introduced a database, transaction, or
+shared object. That is why the failure/recovery lessons from Chapter 9 still apply unchanged.
+
+*** Calls: request, callback, reply
+
+The public publish function is deliberately boring:
+
+#+begin_src erlang
+publish(Server, Topic, Payload) ->
+    gen_server:call(Server, {publish, Topic, Payload}).
+#+end_src
+
+The specific part lives in =handle_call/3=:
+
+#+begin_src erlang
+handle_call({publish, Topic, Payload}, _From, State)
+        when is_binary(Topic), is_binary(Payload) ->
+    {Id, NextState} = store(Topic, Payload, State),
+    {reply, {ok, Id}, NextState}.
+#+end_src
+
+The tagged OTP 29.0.6 =gen_server= contract says a request made with =call= is delivered to
+=handle_call/3=. Returning ={reply, Reply, NewState}= sends =Reply= back to the caller and
+continues the server with =NewState=. [cite:@erlang-gen-server]
+
+Compare that with our old manual sequence:
+
+#+begin_example
+make_ref -> monitor -> send {request, From, Ref, Request}
+         -> receive matching {reply, Ref, Reply}
+         -> demonitor/flush
+#+end_example
+
+The behaviour owns that generic request/reply machinery now. Our module still owns what
+"publish" means.
+
+*** =From= exists because replies are a protocol
+
+The second =handle_call= argument is often written =_From= and forgotten. It identifies the
+client request. Most callbacks can simply return ={reply,...}= and let =gen_server= send
+the response. For work that must reply later, =gen_server:reply/2= can use that client
+identity explicitly. [cite:@erlang-gen-server]
+
+We do not need deferred replies in this checkpoint, but noticing =From= prevents a bad
+mental model: =handle_call= is not an ordinary function call from the client process into
+the server module. It is a callback executed by the server process after a message protocol
+has connected the two sides.
+
+*** Timeout is caller failure, not server cancellation
+
+Project 1 established an important rule: a caller timing out does not magically unsend a
+message. =gen_server:call= deserves the same careful treatment.
+
+Our lab exposes:
+
+#+begin_src erlang
+delayed_echo(Server, Millis, Value, Timeout) ->
+    gen_server:call(Server, {delayed_echo, Millis, Value}, Timeout).
+#+end_src
+
+and the callback deliberately sleeps before replying:
+
+#+begin_src erlang
+handle_call({delayed_echo, Millis, Value}, _From, State) ->
+    timer:sleep(Millis),
+    {reply, {ok, Value}, State}.
+#+end_src
+
+If the timeout expires first, current =gen_server:call/3= exits the /calling process/ with
+a timeout exit term. That is different from Project 1's helper, which converted timeout
+into ={error, timeout}=. The server-side callback does not get cancelled merely because the
+client stopped waiting. [cite:@erlang-gen-server]
+
+So this is still false:
+
+#+begin_quote
+"The call timed out, therefore the server did not finish the operation."
+#+end_quote
+
+A timeout establishes only what the caller observed before its deadline.
+
+*** OTP 24+ fixed a different timeout problem
+
+There is one deliberate semantic improvement compared with many hand-written call
+protocols. The current =gen_server= documentation records that before OTP 24 a caller that
+caught a timeout could later receive a stale reply in its mailbox. Starting with OTP 24,
+=gen_server:call= uses process aliases so late replies are not received by the caller.
+[cite:@erlang-gen-server]
+
+Project 1 had to pair every request with a fresh reference and explicitly demonitor with
+=[flush]= to keep its own protocol tidy. In our pinned OTP 29.0.6 Project 2 test, the client:
+
+1. performs a delayed call whose deadline is intentionally shorter than the callback delay;
+2. catches the documented timeout exit;
+3. uses =sys:get_state(Server)= as a barrier proving the server has returned from the slow
+   callback and resumed its behaviour loop;
+4. inspects its own mailbox;
+5. requires that mailbox to contain no late call reply.
+
+The =sys:get_state= barrier is important. A test that merely sleeps for "long enough" and
+then sees an empty mailbox would not prove the server had actually attempted its late
+reply. Here the server's return to its system-message loop is the synchronization event.
+
+This is a nice example of two related but separate properties:
+
+- timeout does not cancel the server-side operation;
+- process aliases prevent the abandoned synchronous reply from polluting the caller's
+  mailbox on modern OTP.
+
+Do not compress those into "OTP cancels timed-out calls." It does not.
+
+*** Casts: no reply is part of the API contract
+
+The asynchronous teaching path is:
+
+#+begin_src erlang
+publish_async(Server, Topic, Payload) ->
+    gen_server:cast(Server, {publish, Topic, Payload}).
+#+end_src
+
+with:
+
+#+begin_src erlang
+handle_cast({publish, Topic, Payload}, State) ->
+    {_Id, NextState} = store(Topic, Payload, State),
+    {noreply, NextState}.
+#+end_src
+
+A cast returns =ok= without a server reply. The current API explicitly ignores a missing
+destination when sending the cast. [cite:@erlang-gen-server]
+
+That means =ok= from =gen_server:cast= is not "publish succeeded." It is not even "the
+server was alive." If an application requires acceptance or durable commitment, a cast is
+the wrong acknowledgement boundary unless some later protocol supplies that evidence.
+
+*** What does a call after a cast prove?
+
+Project 2 includes this test shape:
+
+#+begin_src erlang
+ok = otp_worker:publish_async(Pid, <<"order">>, <<"cast-first">>),
+{ok, History} = otp_worker:history(Pid, <<"order">>).
+#+end_src
+
+Both requests are sent by the same Erlang process to the same server process. Chapter 5
+already established the runtime's same-sender signal-order guarantee for ordinary messages.
+The server handles its mailbox serially, so the later history call observes the earlier cast
+in this local same-sender scenario. [cite:@erlang-processes]
+
+Do not inflate that into a distributed/global ordering theorem. Another sender can race
+with both operations. Priority-message features can alter queue insertion for participating
+processes. And "cast returned" by itself is not evidence that the callback ran. The useful
+fact in this test comes from the later synchronized call made by the same sender.
+
+*** One process means one callback at a time
+
+The delayed-call lab demonstrates another fact without a benchmark. While
+=handle_call({delayed_echo,...})= is sleeping, the server cannot run another normal callback.
+The server process itself is occupied.
+
+That gives a design rule:
+
+#+begin_quote
+Keep =gen_server= callbacks short when the server is a coordination bottleneck. If work can
+block or consume substantial CPU, decide whether another process should own that work.
+#+end_quote
+
+This is not a claim that every callback must finish in a certain number of milliseconds.
+No universal threshold exists here. It is a queueing/ownership question. Later mailbox
+pressure experiments will measure effects rather than inventing a latency number.
+
+*** Unexpected messages still exist
+
+A =gen_server= is still a process and can receive ordinary messages that did not arrive
+through =call= or =cast=. Those reach =handle_info/2= when the callback implements it. The
+current behaviour also provides default handling for unimplemented optional callbacks.
+[cite:@erlang-gen-server]
+
+Our worker chooses an intentionally conservative policy:
+
+#+begin_src erlang
+handle_info(_Info, State) ->
+    {noreply, State}.
+#+end_src
+
+For a teaching service this keeps the example focused. In production, silently discarding
+unexpected messages can destroy evidence. Later observability chapters will revisit whether
+to log, count, reject, or intentionally handle operational messages.
+
+*** Crashing a callback crashes the worker
+
+The fault injection is wonderfully unsophisticated:
+
+#+begin_src erlang
+handle_call({crash, Reason}, _From, _State) ->
+    exit(Reason).
+#+end_src
+
+The generic behaviour does not swallow arbitrary callback failure and continue with a
+possibly corrupt state. The tagged OTP source states that callback failures/bad return
+values terminate the =gen_server= process, and that a terminating server sends an exit
+signal with its reason to linked processes. [cite:@erlang-gen-server]
+
+That is the exact handoff Chapter 12 needs. Worker code decides it cannot continue;
+supervision policy decides whether and how a replacement should exist.
+
+*** =terminate/2= is cleanup, not durability
+
+Our example implements:
+
+#+begin_src erlang
+terminate(_Reason, _State) ->
+    ok.
+#+end_src
+
+because seeing the callback in the module is useful. It should not create false confidence.
+The official behaviour contract documents circumstances where termination callbacks are
+used, but no cleanup callback can turn process-local state into durable state merely by
+existing. Abrupt failure modes can also make cleanup an unsafe place to put essential
+business guarantees. [cite:@erlang-gen-server]
+
+If the topic history must survive a worker crash, persistence must happen through an
+explicit durable boundary /before/ the system claims durability. We keep the data ephemeral
+in this checkpoint specifically so restart-state loss remains observable.
+
+*** Standard introspection is a practical reason to use standard behaviours
+
+After publishing one item, the test can ask:
+
+#+begin_src erlang
+State = sys:get_state(Pid)
+#+end_src
+
+and inspect the callback state. Again, this is not application API design. It is a
+controlled demonstration that standard behaviour machinery participates in standard system
+operations. The =gen_server= source explicitly documents =sys= integration.
+[cite:@erlang-gen-server]
+
+Later, when we trace a production-style system, that shared operational vocabulary matters
+more than saving a dozen lines of receive-loop code.
+
+*** Project 2 -- checkpoint A, part 1: worker behaviour
+:PROPERTIES:
+:ID:       a70b7f25-8e83-4b46-8f4e-c6ed77edbc88
+:END:
+
+The runnable code lives under =books/erlang/code/otp-worker/=. At this checkpoint the
+worker deliberately mirrors a narrow part of Project 1 so the abstraction change is easy to
+audit.
+
+The executable contract is:
+
+1. synchronous publish allocates monotonically increasing IDs during one worker lifetime;
+2. history returns records in publication order;
+3. a cast followed by a call from the same client observes the cast's state transition;
+4. a deliberately timed-out =gen_server:call= exits the caller while the server still
+   completes its callback;
+5. after a =sys:get_state= barrier proves callback completion, no late synchronous reply
+   remains in the timed-out OTP 29.0.6 client's mailbox;
+6. =sys:get_state= can retrieve the worker callback state for the debugging lab;
+7. deliberate callback failure terminates the worker and becomes input to supervisor policy.
+
+The test suite does not claim throughput, latency, or mailbox-pressure performance. Those
+need dedicated measurements later.
+
+Run this checkpoint with:
+
+#+begin_src sh
+./books/erlang/code/otp-worker/run-tests.sh
+#+end_src
+
+The focused repository workflow pins Erlang/OTP 29.0.6. A green workflow therefore tests
+these claims on that pinned runtime; it does not automatically establish identical behavior
+for every historical OTP release.
+
+*** Failure analysis lab: a timeout followed by success
+
+Imagine the server eventually writes to an external system after the caller times out. The
+caller sees failure; the external effect succeeds. Retrying blindly can duplicate the
+effect.
+
+That ambiguity exists independently of =gen_server=. A reliable design needs an application
+protocol such as an idempotency key, operation identifier, durable command log, or a query
+that can establish whether the first attempt committed.
+
+For each operation in a service, ask:
+
+1. What observation counts as success?
+2. Can a caller lose that observation after the effect happened?
+3. If so, how does retry distinguish "never happened" from "happened, reply lost"?
+4. Which component owns the durable evidence?
+
+A behaviour standardizes process machinery. It does not solve distributed commit by naming
+a callback =handle_call=.
+
+*** Exercises
+
+1. ★ Trace one =otp_worker:publish/3= from the caller through =gen_server:call=,
+   =handle_call/3=, state transition, callback return tuple, and reply.
+2. ★ Change =publish/3= locally from call to cast. List every guarantee the caller loses.
+3. ★★ Add an invalid-payload clause that returns a tagged error without crashing. Then add
+   a malformed internal request that intentionally crashes. Explain why validation failure
+   and invariant failure can deserve different policies.
+4. ★★ Reproduce the timeout test manually in the shell. Use =sys:get_state= as a barrier
+   before inspecting the client mailbox; do not use a guessed sleep as proof.
+5. ★★★ Move =timer:sleep= into a separately spawned worker and design a request protocol
+   that lets the =gen_server= remain responsive. State who owns the worker, how its failure
+   is observed, and how a reply is correlated with the original client. Do not yet build a
+   general worker pool.
+6. ★★★ Design an idempotent publish protocol for an external durable store. Include the
+   operation identifier, the durable uniqueness boundary, and what a retry may safely
+   return after the caller's first timeout.
