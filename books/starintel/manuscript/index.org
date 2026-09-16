@@ -188,7 +188,14 @@ Project 1 starts from a synthetic record so no investigation data or credentials
   "version": 1,
   "date_added": "2026-09-16T12:00:00Z",
   "date_updated": "2026-09-16T12:00:00Z",
-  "sources": ["synthetic:book-demo"],
+  "sources": [
+    {
+      "kind": "synthetic",
+      "name": "StarIntel book demo",
+      "accessed_at": "2026-09-16T12:00:00Z",
+      "notes": "Synthetic fixture; no investigation data."
+    }
+  ],
   "evidence": [],
   "data": {
     "fname": "Alex",
@@ -261,14 +268,21 @@ Project 1 deliberately exercises the Python binding because it is easy for a beg
 *** Provenance asks where a claim came from
 A record can be schema-valid and still contain a false assertion. Provenance is how we keep the system debuggable when facts come from different collectors, transformations, or operators.
 
-For the synthetic fixture:
+For the synthetic fixture, the source is an object rather than a string because the current 0.9 wire schema models source records structurally:
 
 #+begin_src json
-"sources": ["synthetic:book-demo"],
+"sources": [
+  {
+    "kind": "synthetic",
+    "name": "StarIntel book demo",
+    "accessed_at": "2026-09-16T12:00:00Z",
+    "notes": "Synthetic fixture; no investigation data."
+  }
+],
 "evidence": []
 #+end_src
 
-is intentionally boring. It tells the reader exactly what the fixture is: book data, not field evidence. Future projects will add richer sourced data only when the source is public and the mapping is explicit.
+This intentionally boring provenance tells the reader exactly what the fixture is: book data, not field evidence. Future projects will add richer sourced data only when the source is public and the mapping is explicit.
 
 A useful rule for extensions, transformations, and actors is:
 
@@ -294,7 +308,7 @@ Neither validation nor authorization should be "fixed" by making the other loose
 *** Server-owned tenancy is not caller provenance
 Current HTTP boundary code can stamp server-resolved tenant information before internal publication/persistence and strip that internal field on client egress. [cite:@starintel-server-20260916]
 
-That is an ownership clue: clients should not treat server-owned security context as evidence they can freely invent. A provenance label such as =synthetic:book-demo= says where record content came from; a tenant/policy context says where the service permits the operation. They solve different problems.
+That is an ownership clue: clients should not treat server-owned security context as evidence they can freely invent. A provenance label such as a synthetic source object says where record content came from; a tenant/policy context says where the service permits the operation. They solve different problems.
 
 *** Failure exercises
 1. Remove =_id=. Predict which layer can reject the document before RabbitMQ.
