@@ -1,6 +1,6 @@
-#+title: LFE Project 3 -- OTP Router checkpoint A
+#+title: LFE Project 3 -- OTP Router checkpoints A/B
 
-This directory is the executable teaching implementation for Chapters 11--12.
+This directory is the executable teaching implementation for Chapters 11--13.
 
 It deliberately reuses the accepted Project 1 semantic kernel at
 =../event-rules/src/event-rules.lfe=. The LFE module =otp-router= implements the
@@ -14,7 +14,18 @@ Run from the repository root after =lfec= and =erl= are available:
 bash books/lfe/code/otp-router/run-tests
 #+end_src
 
-The gate compiles the LFE callback modules and then checks:
+The gate compiles the same LFE callback modules and exercises three complementary
+test boundaries:
+
+- =otp-router-tests.lfe= checks routing, state replacement/readback, =sys=
+  visibility, tagged domain rejection, and clean stop from LFE;
+- =otp_router_eunit_tests.erl= uses standard EUnit =foreach= fixtures so each
+  service-contract case receives a fresh compiled LFE server and cleanup removes
+  the registered process before the next case;
+- =otp_router_interop_tests.erl= keeps cross-language and failure/lifecycle
+  scenarios explicit rather than hiding them behind unit-test helpers.
+
+Across those boundaries the runner checks:
 
 - routing and state replacement through =gen_server:call/3=;
 - =sys:get_state/1= visibility into callback state;
@@ -30,10 +41,12 @@ The gate compiles the LFE callback modules and then checks:
   budget is exceeded.
 
 The supervisor helper deliberately uses =gen_server:stop/1=. Current OTP 29
-adds =supervisor:stop/1= as a convenience API, but the executable book gate
-still runs on OTP 25; this checkpoint tests the compatibility helper it actually
-ships instead of presenting an OTP-29-only call as though the runner had it.
+adds =supervisor:stop/1= as a convenience API, but the executable book gate has
+also run on older OTP releases; this checkpoint tests the compatibility helper
+it actually ships instead of presenting an OTP-29-only call as universal.
 
-The crash calls exist only for failure injection. This checkpoint intentionally
-does not add application packaging, releases, distribution, persistence, or a
-production registry. Those belong to later project slices.
+The crash calls exist only for failure injection. EUnit success is regression
+evidence for the declared service contracts, not a claim of production
+availability, race freedom, persistence, or useful performance. This checkpoint
+still does not add application packaging, releases, distribution, persistence,
+or a production registry/tracing policy. Those belong to later project slices.

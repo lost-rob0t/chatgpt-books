@@ -19,12 +19,23 @@ lfec -o "$BUILD" \
   "$PROJECT/src/otp-router-sup.lfe" \
   "$PROJECT/test/otp-router-tests.lfe"
 
-erlc -o "$BUILD" "$PROJECT/test/otp_router_interop_tests.erl"
+erlc -o "$BUILD" \
+  "$PROJECT/test/otp_router_interop_tests.erl" \
+  "$PROJECT/test/otp_router_eunit_tests.erl"
 
 erl -pa "$BUILD" -noshell -eval '
   case '\''otp-router-tests'\'':run() of
     ok -> halt(0);
     Other -> io:format("otp-router-tests returned ~p~n", [Other]), halt(1)
+  end.'
+
+# A standard BEAM test framework can drive an LFE callback module directly.
+# The fixture gives each contract a fresh locally registered router and always
+# tears it down, so one test cannot leak process state into the next one.
+erl -pa "$BUILD" -noshell -eval '
+  case eunit:test(otp_router_eunit_tests, [verbose]) of
+    ok -> halt(0);
+    Other -> io:format("otp_router_eunit_tests returned ~p~n", [Other]), halt(1)
   end.'
 
 # The interoperability/failure labs live in a compiled Erlang module rather
@@ -37,4 +48,4 @@ erl -pa "$BUILD" -noshell -eval '
     Other -> io:format("otp_router_interop_tests returned ~p~n", [Other]), halt(1)
   end.'
 
-echo "otp-router: callbacks, sys state, Erlang interop, timeout, supervised restart, fresh state, and restart intensity passed"
+echo "otp-router: LFE callbacks, EUnit contracts, sys state, Erlang interop, timeout, supervised restart, fresh state, and restart intensity passed"

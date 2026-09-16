@@ -1,0 +1,23 @@
+digraph planner_state_space {
+  rankdir=LR;
+  graph [fontname="sans-serif", nodesep=0.45, ranksep=0.7];
+  node [shape=box, fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  schema [label="Action schema\npreconditions + effects"];
+  state [label="Canonical current state\nground fact set"];
+  unify [label="Unify preconditions\nunder one substitution"];
+  grounded [label="Grounded applicable action\nname + add/delete effects"];
+  transition [label="Apply delete, then add\ncanonicalize successor"];
+  search [label="Existing Search Library\nBFS / UCS / A*"];
+  result [label="Plan or :NOT-FOUND\nactions + states + cost"];
+
+  schema -> unify;
+  state -> unify;
+  unify -> grounded [label="consistent bindings"];
+  grounded -> transition;
+  state -> transition;
+  transition -> search [label="successor transition"];
+  search -> result;
+  search -> state [label="next frontier state", constraint=false];
+}

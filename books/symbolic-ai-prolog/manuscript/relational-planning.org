@@ -1,0 +1,456 @@
+* Chapter 8 -- Relational Planning from States, Actions, and Goals
+:PROPERTIES:
+:ID:       a2f1cf8e-9894-47f5-9406-3ce8ff1dacb2
+:END:
+
+Chapter 7 made search explicit. We represented pending work as frontier data, separated the selected path from expansion diagnostics, and made duplicate-state policy a visible modeling decision. But the transition graph was still handed to us fully expanded:
+
+#+begin_src prolog
+edge(Action, From, To)
+#+end_src
+
+A planner cannot usually afford that luxury. Its job is to *derive* useful transitions from a symbolic description of the current world and a set of actions that can change it.
+
+This chapter makes exactly that change. We will replace enumerated edges with reusable action schemas, ground those schemas against the current state, apply explicit effects, and feed the resulting successor states into the breadth-first frontier we already understand.
+
+The result is intentionally small. It is a course-local STRIPS-style forward state-space planner, not a claim to reproduce the complete historical STRIPS system. Fikes and Nilsson described parameterized operator schemata with applicability conditions and add/delete effects, but their system also used theorem proving and GPS-style means-ends analysis [cite:@fikes-nilsson-strips-1971]. We borrow the representation because it exposes the right mechanisms; we do not borrow a famous name and quietly pretend the rest of the algorithm came with it.
+
+** 8.1 From a graph node to a world state
+The single-atom states in Chapter 7 were enough to teach frontier behavior:
+
+#+begin_example
+incident_open
+broker_down
+broker_up
+healthy
+#+end_example
+
+They are not rich enough to answer planning questions such as:
+
+- Where is the technician?
+- Where is the replacement part?
+- Which node is failed?
+- Which PSU is installed now?
+- Does this technician have permission to service that node?
+- Which site hosts the node?
+
+A planning state therefore becomes a collection of ground symbolic facts. The field-service fixture starts with facts like these:
+
+#+begin_src prolog
+tech_at(tech1, depot)
+part_at(psu42, depot)
+failed(node7)
+installed(node7, psu_old)
+hosts(site_a, node7)
+credential(tech1, node7)
+link(depot, site_a)
+link(site_a, depot)
+ticket_open(inc7)
+#+end_src
+
+The final fact is deliberately boring. =ticket_open(inc7)= is there to catch a destructive implementation that rebuilds each successor from only the action's positive effects and accidentally erases everything else.
+
+For this milestone a state is a *finite ground set of positive facts*. We canonicalize its list representation before it enters search:
+
+#+begin_src prolog
+canonical_state(Facts, State) :-
+    must_be(list, Facts),
+    maplist(require_ground(state_fact), Facts),
+    sort(Facts, State).
+#+end_src
+
+Current SWI-Prolog documents =sort/2= as sorting by the standard term order and removing duplicates [cite:@swi-sort]. We require ground facts *before* sorting. The same documentation warns that ordering nonground terms can later become invalid as variables are instantiated. Search-state identity is already subtle enough without smuggling variable age into it.
+
+This gives us three useful invariants:
+
+1. every state fact is ground;
+2. duplicate facts disappear;
+3. logically identical fact sets have one list representation for this course model.
+
+Do not confuse the third point with a general theorem about first-order knowledge bases. It is a contract for this deliberately small state representation.
+
+** 8.2 An action schema is data, not a procedure call
+Our planner stores operators as terms:
+
+#+begin_src prolog
+schema(Id, Action, Preconditions, Add, Delete)
+#+end_src
+
+For example, travel is described by:
+
+#+begin_src prolog
+schema(travel,
+       travel(Tech, From, To),
+       [ tech_at(Tech, From),
+         link(From, To)
+       ],
+       [ tech_at(Tech, To) ],
+       [ tech_at(Tech, From) ]).
+#+end_src
+
+Read this as data:
+
+- =Id= is stable schema provenance;
+- =Action= is the concrete action term we want to record after grounding;
+- =Preconditions= are facts that must match the current state;
+- =Add= are facts made true in the successor representation;
+- =Delete= are facts removed from the successor representation.
+
+Nothing here is called as a Prolog goal. The planner does not execute =travel(Tech,From,To)=. It does not turn =tech_at(Tech,From)= into a callback. It matches those terms against its closed world-state data.
+
+That distinction continues the safety discipline from Project 1: symbolic data is not ambient authority to run host predicates.
+
+** 8.3 Reusable schemas need fresh variables
+Suppose we store the travel schema once and use it to consider many states. The first applicability attempt might bind:
+
+#+begin_example
+Tech = tech1
+From = depot
+To   = site_a
+#+end_example
+
+If those bindings leaked back into the stored schema, the same schema could no longer represent a different technician or route later.
+
+Project 1 solved the analogous problem for stored object rules. We use the same mechanism here. Current SWI-Prolog documents =copy_term/2= as creating a version of a term with renamed fresh variables [cite:@swi-copy-term]. Each applicability attempt begins with:
+
+#+begin_src prolog
+copy_term(Schema0,
+          schema(Id,
+                 Action,
+                 Preconditions,
+                 Add,
+                 Delete))
+#+end_src
+
+Only the copy is allowed to receive bindings.
+
+The regression suite checks this directly. It grounds one copy for =tech1=, verifies that the variables in the original schema remain variables, and then grounds the same original schema for =tech2= in a different state. This is not cosmetic hygiene. A planner whose operators mutate through ordinary unification will become history-dependent in ways its API never admits.
+
+** 8.4 Preconditions share bindings
+Freshening is only half the story. Variables *inside one copied schema* must share bindings consistently.
+
+Consider:
+
+#+begin_src prolog
+[ tech_at(Tech, From),
+  link(From, To)
+]
+#+end_src
+
+If the current state contains:
+
+#+begin_src prolog
+tech_at(tech1, depot)
+link(depot, site_a)
+link(other, nowhere)
+#+end_src
+
+matching the first precondition binds =Tech= to =tech1= and =From= to =depot=. The second precondition must therefore match a =link(depot, To)= fact. It cannot independently choose =link(other,nowhere)=.
+
+The implementation is intentionally plain:
+
+#+begin_src prolog
+satisfy_preconditions([], _).
+satisfy_preconditions([Precondition|Rest], State) :-
+    member(Precondition, State),
+    satisfy_preconditions(Rest, State).
+#+end_src
+
+Ordinary Prolog unification carries the shared bindings across the list.
+
+This is a nice example of where Prolog earns its keep. We do not need a hand-written environment map for this small grounding problem. We *do* need to define the boundary around that unification carefully.
+
+** 8.5 Applicability ends with a ground instance
+A dangerous schema can appear to match while leaving variables that were never constrained by the state:
+
+#+begin_src prolog
+schema(unsafe,
+       reveal(Value),
+       [ticket_open(inc7)],
+       [revealed(Value)],
+       []).
+#+end_src
+
+The precondition says nothing about =Value=. If we allowed this through, the successor would contain =revealed(_)=, and Chapter 7's ground-state identity contract would be gone.
+
+So an applicability attempt has two phases:
+
+1. relationally bind the preconditions against the current state;
+2. validate the resulting action and effects before they are allowed to become transition data.
+
+The core boundary is:
+
+#+begin_src prolog
+satisfy_preconditions(Preconditions, State),
+require_ground(planning_action, Action),
+maplist(require_ground(add_effect), Add0),
+maplist(require_ground(delete_effect), Delete0),
+sort(Add0, Add),
+sort(Delete0, Delete),
+Instance = instance(Id, Action, Add, Delete).
+#+end_src
+
+An unsafe instance raises an instantiation error. We fail closed instead of silently weakening the state contract.
+
+Notice what this check does *not* prove. Ground effects can still be wrong domain modeling. A schema may delete the wrong fact, omit an important precondition, or encode an impossible physical action. The type/groundness boundary prevents one class of representation failure; domain correctness still needs tests and review.
+
+#+CAPTION: Chapter 8 turns an inert schema into a grounded transition in explicit stages. Schema variables are freshened, preconditions bind only against the current state, nonground actions/effects are rejected, delete/add effects produce a canonical successor, and only then does the state enter the BFS frontier.
+#+ATTR_HTML: :alt Flow diagram from a schema through copy_term freshening, precondition matching, ground validation, delete and add effects, canonical successor state, and the breadth-first frontier. A separate rejection path shows nonground action or effect data causing an instantiation error.
+[[file:assets/relational-planning-flow.svg]]
+
+** 8.6 Effects are set transformations
+Once we have a grounded instance, applying it should be boring. Boring is good.
+
+For:
+
+#+begin_src prolog
+instance(travel,
+         travel(tech1, depot, site_a),
+         [tech_at(tech1, site_a)],
+         [tech_at(tech1, depot)])
+#+end_src
+
+we canonicalize the current state and effect sets, subtract the delete effects, and union the add effects:
+
+#+begin_src prolog
+ord_subtract(State, Delete, Remaining),
+ord_union(Remaining, Add, NextState).
+#+end_src
+
+The important property is what *does not* happen. We do not reconstruct =NextState= from =Add=. Every fact not explicitly deleted survives.
+
+So after travel, these facts remain:
+
+#+begin_src prolog
+failed(node7)
+installed(node7, psu_old)
+hosts(site_a, node7)
+credential(tech1, node7)
+link(depot, site_a)
+link(site_a, depot)
+ticket_open(inc7)
+#+end_src
+
+Only =tech_at(tech1,depot)= is replaced by =tech_at(tech1,site_a)=.
+
+This gives us a practical debugging question for every new action schema:
+
+#+begin_quote
+Which facts can this action change, and can I point to each change in its explicit add/delete lists?
+#+end_quote
+
+If the answer is “the successor constructor sort of knows,” the representation is already becoming opaque.
+
+** 8.7 Derive a repair plan from three schemas
+Our synthetic field-service domain uses three operator schemas.
+
+First, pick up a part where both technician and part are present:
+
+#+begin_src prolog
+schema(pick_part,
+       pick_up(Tech, Part, Place),
+       [ tech_at(Tech, Place),
+         part_at(Part, Place)
+       ],
+       [ carrying(Tech, Part) ],
+       [ part_at(Part, Place) ]).
+#+end_src
+
+Second, travel along a known link:
+
+#+begin_src prolog
+schema(travel,
+       travel(Tech, From, To),
+       [ tech_at(Tech, From),
+         link(From, To)
+       ],
+       [ tech_at(Tech, To) ],
+       [ tech_at(Tech, From) ]).
+#+end_src
+
+Third, replace the failed node's installed PSU when the technician is on the hosting site, carries a replacement, and has the credential:
+
+#+begin_src prolog
+schema(replace_psu,
+       replace_psu(Tech, Node, NewPart, OldPart),
+       [ tech_at(Tech, Site),
+         hosts(Site, Node),
+         carrying(Tech, NewPart),
+         installed(Node, OldPart),
+         failed(Node),
+         credential(Tech, Node)
+       ],
+       [ installed(Node, NewPart),
+         restored(Node)
+       ],
+       [ installed(Node, OldPart),
+         failed(Node),
+         carrying(Tech, NewPart)
+       ]).
+#+end_src
+
+The goal is just:
+
+#+begin_src prolog
+[restored(node7)]
+#+end_src
+
+A valid plan should emerge from state transitions, not from a hard-coded procedure:
+
+#+begin_example
+step(pick_part, pick_up(tech1, psu42, depot))
+step(travel, travel(tech1, depot, site_a))
+step(replace_psu, replace_psu(tech1, node7, psu42, psu_old))
+#+end_example
+
+The =step/2= wrapper matters. =pick_up(...)= tells us what concrete action was selected. =pick_part= tells us which reusable schema justified that action. Later explanation work can retain both identities instead of trying to reverse-engineer provenance from a printed action string.
+
+The returned plan also carries every world state along the selected route. That makes effect bugs inspectable: if =ticket_open(inc7)= vanishes after travel, or =installed(node7,psu_old)= survives replacement, the plan artifact itself shows the exact transition where the invariant broke.
+
+** 8.8 Search now generates edges on demand
+Chapter 7's successor function selected explicit =edge/3= terms. The planner's successor function instead does this for each schema:
+
+#+begin_src prolog
+member(Schema, Schemas),
+applicable(Schema,
+           State,
+           instance(Id, Action, Add, Delete)),
+apply_instance(instance(Id, Action, Add, Delete),
+               State,
+               NextState)
+#+end_src
+
+If the action produces no state change, the planner drops it:
+
+#+begin_src prolog
+NextState \== State
+#+end_src
+
+If the state is already closed, it is not generated as useful new work.
+
+Everything after that looks familiar. A frontier node still stores state, reverse path data, and depth. Breadth-first search still keeps old frontier entries before newly generated children. The search loop still records =expanded(State,Depth)= separately from the selected result.
+
+This is the payoff of deriving mechanisms in layers. Chapter 8 does not need to reinvent search while introducing action semantics. It replaces one component—successor generation—behind a frontier model the reader already knows how to debug.
+
+** 8.9 A plan is not an expansion trace
+The successful result is:
+
+#+begin_src prolog
+found(plan(Steps, States))
+#+end_src
+
+It answers:
+
+- which grounded schema instances form the selected plan?
+- which canonical states appear before and after them?
+
+The separate trace still contains:
+
+#+begin_src prolog
+expanded(State, Depth)
+#+end_src
+
+It answers:
+
+- which states did BFS expand before finding the goal?
+- at what depths were they expanded?
+
+Those are different artifacts. The plan may have three steps even though BFS explored several dead-end or longer alternatives first. Printing only the final plan hides search behavior. Printing only the expansion trace fails to say which transitions actually justify the selected solution.
+
+The same distinction will matter even more when Chapter 9 adds costs and heuristic priorities.
+
+** 8.10 Failure lab: delete too much
+The easiest catastrophic effect bug is to build a successor from =Add= alone:
+
+#+begin_src prolog
+% Wrong: everything not re-added disappears.
+bad_apply(instance(_, _, Add, _), _, Add).
+#+end_src
+
+After one travel action, credentials, topology, installed hardware, failure status, and the open ticket all vanish. The next action may become impossible for reasons that look like a search failure even though the real bug is state destruction.
+
+Repair the implementation by treating effects as a delta over the current state:
+
+#+begin_example
+Next = (State - Delete) union Add
+#+end_example
+
+Then write a regression for one irrelevant fact such as =ticket_open(inc7)= and at least one structural fact such as =link(depot,site_a)=. “It seems preserved” is not a state invariant.
+
+** 8.11 Failure lab: leave one output variable unconstrained
+Take the unsafe schema from Section 8.5 and temporarily remove the post-match groundness checks.
+
+Now ask for successors of the initial field-service state. A state containing =revealed(_)= can enter the frontier.
+
+Questions to answer before restoring the check:
+
+1. Are two separately generated =revealed(_)= states identical under ===/2=?
+2. Can sorting a nonground state make variable order part of the representation?
+3. What happens to duplicate-state pruning after those variables are later instantiated?
+4. Which chapter invariant did the planner violate first?
+
+The point of this lab is not to memorize that variables are “bad.” Prolog variables are exactly what make schemas relational. The design rule is narrower: *variables belong while constructing a candidate operator instance; the search-state boundary for this milestone requires the resulting transition to be ground*.
+
+** 8.12 Failure lab: omit a precondition
+Remove =credential(Tech,Node)= from =replace_psu=. The planner will still produce a syntactically valid repair plan.
+
+That is a more interesting failure than a type error. The code is internally consistent; the domain model is wrong.
+
+This is why planning systems need semantic tests in addition to generic engine tests. A good suite asks both:
+
+- does the planner implement its transition contract correctly?
+- do the domain schemas encode the intended permissions and physical constraints?
+
+For this chapter, the fixture is synthetic and bounded. Later projects will add provenance and explanation structures that can tell us *which sourced domain assertion or rule* supported a decision. We are not going to fake that provenance early just because the final book will need it.
+
+** 8.13 Why we stop before A*, CLP(FD), and “real STRIPS”
+It is tempting to keep going. Add costs. Add heuristics. Add resource constraints. Add negative preconditions. Add temporal actions. Parse PDDL. At that point Chapter 8 would become a framework tour and the mechanism we just derived would disappear under features.
+
+Instead we freeze a precise milestone:
+
+- finite ground positive-fact states;
+- variable-bearing reusable action schemas;
+- relational positive precondition matching;
+- ground add/delete effects;
+- canonical successor states;
+- breadth-first forward state-space search;
+- plan steps with stable schema identity;
+- expansion diagnostics separate from plan provenance.
+
+Chapter 9 can now ask a focused question: what changes when frontier order depends on depth, path cost, or a heuristic rather than FIFO order?
+
+Chapter 10 can ask another: what changes when some planning subproblem is better represented by constraints and propagation than by enumerating grounded states first?
+
+That sequencing is deliberate. We want to know exactly which mechanism buys us each new capability.
+
+** 8.14 Exercises
+1. Add a second technician at =site_a= who lacks the =credential(Tech,node7)= fact. Enumerate applicable schemas in the initial state and explain why being physically present is insufficient to perform replacement.
+2. Add a second replacement PSU at the depot. Use the returned =step/2= terms to show which part the selected plan used. Then explain which clause/data order currently breaks ties among equal-depth plans.
+3. Introduce =part_at(psu99,site_a)=. Predict whether BFS now finds a plan that travels first and picks up on site. Verify the state sequence and compare plan depth.
+4. Add a one-way =link(site_a,remote)= without a return link. Explain why links are represented as ordinary directed facts rather than assuming symmetry in the planner.
+5. Write a malformed schema whose action contains a variable absent from all preconditions. Confirm that the applicability boundary rejects it before a successor state is generated.
+6. Modify =replace_psu= so it forgets to delete =failed(Node)=. Write a regression that catches the contradictory resulting state containing both =failed(node7)= and =restored(node7)=. Do not “fix” this by teaching the generic engine that those predicates are opposites; repair the domain schema.
+7. Add a =close_ticket= schema requiring =restored(Node)= and =ticket_for(Ticket,Node)=. Change the goal to require both restoration and ticket closure. Explain why the previous three-step plan becomes an intermediate prefix rather than a complete solution.
+8. Construct two distinct paths that reach the same canonical fact set. Inspect the expansion trace and verify that the closed-set policy expands that state once. Then identify one piece of path history which, if it mattered to future legality, would have to become part of the state representation.
+9. Replace one precondition list with a reordered but logically equivalent list. Does this change the set of grounded instances? Can it change their enumeration order? Explain why enumeration order and logical applicability are different API concerns.
+10. Extend the result renderer—not the planner kernel—to print each plan step with its schema ID, concrete action, and the facts added/deleted by that instance. What extra data would you need to retain in =step/2= if you wanted this rendering without recomputing applicability?
+
+** 8.15 Project 2 checkpoint B
+At this checkpoint the planner has crossed an important boundary. Chapter 7 searched a graph supplied as data. Chapter 8 can *construct that graph lazily from relational action descriptions* while preserving explicit state identity, plan provenance, and search diagnostics.
+
+That still does not make Project 2 finished. We have not established cost optimality, heuristic properties, constraint propagation, negative or conditional effects, temporal semantics, or production scalability. Those remain later work, and the implementation should continue to say so plainly.
+
+What we do have is a mechanism small enough to reason about:
+
+#+begin_example
+state
+  -> fresh schema
+  -> consistent precondition bindings
+  -> ground action/effects
+  -> delete/add transition
+  -> canonical successor
+  -> explicit BFS frontier
+  -> plan + separate trace
+#+end_example
+
+Every arrow is represented in code. Every boundary has a failure case. That is enough machinery to build on without asking the reader to trust a planner-shaped black box.

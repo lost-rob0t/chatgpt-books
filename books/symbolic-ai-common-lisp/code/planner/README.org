@@ -1,0 +1,34 @@
+#+title: Symbolic Planner -- Project 3 Milestone A
+:PROPERTIES:
+:ID:       758215ad-bb74-492b-8ca4-0ad83fc8493a
+:END:
+
+* Purpose
+This directory contains the first executable Symbolic Planner slice for /Symbolic AI in Common Lisp/.  It derives planning from the book's already-accepted Search Library and Pattern Matcher/Unifier instead of importing an opaque planner framework.
+
+The implemented language is deliberately small: finite ground fact-set states; positive-precondition action schemas; add/delete effects; nonnegative action costs; deterministic grounding through the public unifier/substitution interface; and state-space solving through the public BFS/UCS/A* search interface.
+
+It is a course-local STRIPS-style subset, not a PDDL implementation or a claim of full historical STRIPS equivalence.
+
+* Files
+- =package.lisp= -- public planner teaching interface.
+- =planner.lisp= -- schemas, grounding, state canonicalization, effects, Search adapter, and solver dispatch.
+- =tests.lisp= -- semantic regressions and the warehouse/logistics scenario.
+- =run-tests.lisp= -- direct SBCL entry point.
+- =symbolic-ai-planner.asd= -- ASDF systems for the implementation and tests.
+
+* Run
+From the repository root:
+
+#+begin_src sh
+sbcl --script books/symbolic-ai-common-lisp/code/planner/run-tests.lisp
+#+end_src
+
+For the ASDF test operation, load the Search, Pattern/Unifier, and Planner ASD files, then run:
+
+#+begin_src lisp
+(asdf:test-system "symbolic-ai-planner/tests")
+#+end_src
+
+* Evidence boundary
+The source and tests are not evidence merely because they exist.  Record behavior as TESTED only after the exact branch head's executable suite has completed successfully.  No performance benchmark, PDDL conformance, arbitrary planning completeness result, or production claim belongs to this milestone without separate evidence.

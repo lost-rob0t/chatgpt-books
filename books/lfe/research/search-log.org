@@ -62,3 +62,27 @@ Question: Does Project 3's public supervisor helper accidentally rely on an OTP 
 Sources inspected: Erlang/OTP 29.0.6 =supervisor= STDLIB documentation; Project 3 source; focused workflow environment record.
 Result: current =supervisor:stop/1,3= are documented as introduced in OTP 29.0, while the focused book gate executes on OTP 25. The teaching helper therefore uses =gen_server:stop/1= and the Erlang interoperability regression now invokes that helper and requires both registered supervisor and worker names to disappear after the synchronous stop. The helper's OTP-25 compatibility remains TESTED evidence, not a claim that =supervisor:stop/1= exists there.
 Remaining uncertainty: later release/application chapters should revisit shutdown ownership from an application-tree perspective instead of treating this local helper as the production lifecycle API.
+
+** 2026-09-16 -- EUnit contracts and fixture isolation
+Question: What current OTP testing semantics support a deterministic contract suite around the compiled LFE =gen_server=?
+Sources inspected: current Erlang/OTP 29 EUnit guide and =eunit= API reference.
+Result: EUnit treats test functions/test objects as executable failure oracles, supports separate =*_tests= modules, and provides =setup=/=foreach= fixtures with cleanup. The Project 3 test layer can therefore start a fresh locally registered router for each service contract and tear it down afterward rather than sharing hidden process state across cases.
+Remaining uncertainty: the authored suite remains UNTESTED until the exact branch head passes the focused workflow; test success will not imply production availability or race freedom.
+
+** 2026-09-16 -- EUnit from pinned LFE
+Question: Is EUnit merely an Erlang-side convenience, or does the pinned LFE implementation itself consume it?
+Sources inspected: tagged LFE v2.2.2 =test/ltest-macros.lfe=.
+Result: the tagged LFE source imports =eunit/include/eunit.hrl= with =include-lib= and defines helper macros expanding to EUnit assertions. EUnit is a legitimate BEAM/LFE testing facility. This checkpoint still uses a separate Erlang EUnit module intentionally to prove the compiled LFE public boundary.
+Remaining uncertainty: a later tooling chapter may compare LFE-authored EUnit helpers with Erlang-authored test modules, but no claim that one is universally preferable is warranted.
+
+** 2026-09-16 -- EUnit versus Common Test
+Question: Should Chapter 13 add both EUnit and Common Test merely because both ship with OTP?
+Sources inspected: current Common Test =Writing Test Suites= guide and API reference.
+Result: Common Test provides suite/testcase lifecycle, configuration, logging, protocol/system helpers, distributed-test control, and current =ct_doctest=. Project 3 has only one local supervisor/worker and already has an explicit lifecycle harness, so adding a CT suite now would duplicate coverage. Defer executable Common Test to Project 4 when multiple nodes/configuration create a real system-test boundary.
+Remaining uncertainty: Project 4 must perform a fresh distribution/Common Test compatibility pass rather than inheriting this architectural decision as tested behavior.
+
+** 2026-09-16 -- =sys= and trace as debugging boundaries
+Question: How should the testing chapter use OTP observability without turning logs into specifications?
+Sources inspected: current =sys= STDLIB documentation, =sys and proc_lib= system documentation, and Kernel =trace= reference.
+Result: =sys= exposes state inspection, suspend/resume, statistics, and system-event tracing for behaviour processes; lower-level trace sessions can observe calls/messages/scheduling. Use these tools to reproduce and explain a failing contract. Keep assertions/protocol outcomes as the oracle; tracing is diagnostic evidence, not proof of correctness.
+Remaining uncertainty: production tracing/telemetry policy, overhead, retention, and operator workflow remain a later observability slice and require measurements before performance claims.
