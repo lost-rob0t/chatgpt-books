@@ -74,6 +74,9 @@ jobs:
             --eval '(asdf:load-asd (truename "books/symbolic-ai-common-lisp/code/planner/symbolic-ai-planner.asd"))' \
             --eval '(asdf:test-system "symbolic-ai-planner/tests")'
 
+      - name: Heuristic laboratory reader examples
+        run: sbcl --script books/symbolic-ai-common-lisp/code/planner/run-heuristic-labs.lisp
+
       - name: Formal Reasoning Workbench executable tests
         run: sbcl --script books/symbolic-ai-common-lisp/code/formal/run-tests.lisp
 
@@ -95,13 +98,14 @@ jobs:
           dot -Tsvg books/symbolic-ai-common-lisp/assets/unification-worklist.dot >/dev/null
           dot -Tsvg books/symbolic-ai-common-lisp/assets/planner-state-space.dot >/dev/null
           dot -Tsvg books/symbolic-ai-common-lisp/assets/planner-heuristic-explanation.dot >/dev/null
+          dot -Tsvg books/symbolic-ai-common-lisp/assets/heuristic-three-costs.dot >/dev/null
           dot -Tsvg books/symbolic-ai-common-lisp/assets/formal-verification-flow.dot >/dev/null
 
       - name: Validate focused draft citations and Org parsing
         shell: bash
         run: |
           set -euo pipefail
-          for draft in formal-methods pattern-unification unification-validation planning heuristics; do
+          for draft in formal-methods pattern-unification unification-validation planning heuristics heuristic-laboratory; do
             pandoc "books/symbolic-ai-common-lisp/manuscript/${draft}.org" \
               --from=org \
               --to=html5 \
@@ -134,6 +138,7 @@ jobs:
               "A formal system is language plus rules",
               "Planning Is Search over Meaningful Actions",
               "Planning Heuristics and Checked Explanation",
+              "Laboratory: Three Costs, Two Approximations",
           ):
               if needle not in rendered:
                   raise SystemExit(f"published EPUB is missing included content: {needle!r}")

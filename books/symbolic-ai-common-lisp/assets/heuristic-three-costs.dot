@@ -1,0 +1,10 @@
+digraph ThreeCosts {
+  graph [rankdir=LR, bgcolor="white", pad="0.2", nodesep="0.35", ranksep="0.5"];
+  node [shape=box, fontname="DejaVu Sans", fontsize=12, margin="0.14,0.12"];
+  edge [fontname="DejaVu Sans", fontsize=11];
+  real [label="Real transitions\nExisting UCS\n\nWarehouse: 4\nIndependent: 5\nShared: 4\nConsumable: NOT-FOUND"];
+  relaxed [label="Ignore deletes\nExisting UCS\n\nWarehouse: 4\nIndependent: 5\nShared: 4\nConsumable: 2"];
+  estimate [label="Individual fact costs\nMAX aggregation\n\nWarehouse: 3\nIndependent: 3\nShared: 4\nConsumable: 1"];
+  real -> relaxed [label="change transition\nsemantics"];
+  relaxed -> estimate [label="approximate\njoint work"];
+}

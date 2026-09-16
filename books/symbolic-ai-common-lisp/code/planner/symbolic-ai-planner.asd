@@ -10,7 +10,8 @@
 (asdf:defsystem #:symbolic-ai-planner/tests
   :depends-on (#:symbolic-ai-planner)
   :serial t
-  :components ((:file "tests"))
+  :components ((:file "tests")
+               (:file "heuristic-labs"))
   :perform (asdf:test-op (operation component)
              (declare (ignore operation component))
              (uiop:symbol-call '#:symbolic-ai.planner.tests '#:run-tests)))
