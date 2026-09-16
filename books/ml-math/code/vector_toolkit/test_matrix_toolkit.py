@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 
+from vector_toolkit import add, scale
 from matrix_toolkit import (
     MatrixError,
     column,
@@ -107,6 +108,31 @@ class MatrixToolkitTests(unittest.TestCase):
 
         np.testing.assert_allclose(matvec(a, x), np.asarray(a) @ np.asarray(x))
         np.testing.assert_allclose(matmul(a, b), np.asarray(a) @ np.asarray(b))
+
+    def test_basis_images_are_matrix_columns(self):
+        values = [[2, -1], [3, 4], [5, 0]]
+        self.assertEqual(matvec(values, [1, 0]), column(values, 0))
+        self.assertEqual(matvec(values, [0, 1]), column(values, 1))
+
+    def test_matrix_map_preserves_addition_and_scaling(self):
+        values = [[2, -1], [0.5, 3]]
+        u = [4, -2]
+        v = [-1, 5]
+        scalar = -2.5
+        self.assertEqual(
+            matvec(values, add(u, v)),
+            add(matvec(values, u), matvec(values, v)),
+        )
+        self.assertEqual(
+            matvec(values, scale(scalar, u)),
+            scale(scalar, matvec(values, u)),
+        )
+
+    def test_matrix_multiplication_is_associative_for_compatible_example(self):
+        a = [[1, 2], [0, 1]]
+        b = [[2, 0, -1], [1, 3, 2]]
+        c = [[1, 0], [2, 1], [-1, 4]]
+        self.assertEqual(matmul(matmul(a, b), c), matmul(a, matmul(b, c)))
 
     def test_transform_points_uses_one_linear_map_consistently(self):
         shear = [[1, 0.5], [0, 1]]
