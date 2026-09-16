@@ -130,10 +130,11 @@
            #:support-report-current-dependent-fact-ids
            #:retraction-report
            #:retraction-report-requested-fact-id
-           #:retraction-report-retracted-p
+           #:retraction-report-base-support-removed-p
+           #:retraction-report-requested-occurrence-removed-p
            #:retraction-report-requested-stamp
            #:retraction-report-cascaded-fact-ids
-           #:retraction-report-removed-stamps
+           #:retraction-report-removed-occurrence-stamps
            #:truth-maintained-network
            #:truth-maintained-network-incremental-network
            #:truth-maintained-network-base-support-stamps
