@@ -3,7 +3,7 @@
 :ID:       892d2db3-009e-5775-9ed1-183e882114a5
 :END:
 * Phase
-Foundational research and progressive project-backed manuscript drafting. Project 1 foundations/macros and Project 2 checkpoint A are editorially accepted and merged; Project 3 checkpoint A is a tested worker draft awaiting Editor-in-Chief review. The whole book remains far from release-ready and is not DONE.
+Foundational research and progressive project-backed manuscript drafting. Project 1 foundations/macros, Project 2 checkpoint A, and Project 3 checkpoint A are editorially accepted and merged. Chapter 13 / Project 3 testing checkpoint B is an active worker draft. The whole book remains far from release-ready and is not DONE.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
 - Foundations Pass 01 records a current LFE v2.2.2 baseline plus primary-source BEAM term/pattern/process semantics.
@@ -16,10 +16,14 @@ Foundational research and progressive project-backed manuscript drafting. Projec
 - Chapters 8--10 derive ordinary Erlang/LFE interoperability, raw process state, explicit request/reply protocol terms, guarded correlation references, selective receive, scoped same-sender ordering, timeout semantics, monitoring, and failure observation.
 - Project 2 checkpoint A, the pre-OTP *Actor Router*, is TESTED with a real process loop around Project 1's pure =event-rules:route/2= kernel, executable LFE regressions, direct Erlang process interoperability/failure smoke, and an editable actor-protocol diagram.
 - PR #51 was editorially APPROVED for this bounded raw-process milestone and merged to canonical =main= as =81f44de683433c5d7affd8ee130d0ef976877089=.
+- OTP Behaviour and Supervision Pass 04 plus Chapters 11--12 derive ordinary LFE =gen_server= callbacks, explicit call/cast/system-message boundaries, one-for-one supervision, controlled restart, volatile-state loss after replacement, and restart-intensity escalation without presenting supervision as persistence magic.
+- PR #72 was editorially APPROVED for Project 3 checkpoint A and merged as =347fca0850beca2380581bab6eb8b57519751e6b=. The accepted exact head =66f6cc97fae8ee93e144a3d6f8e9c95a3d21b44e= passed focused =lfe-book= run =35145402344= and generic =books-ci= run =35145402397= before merge.
 * Active draft/research
-- PR #72 advances OTP Behaviour and Supervision Pass 04 plus Chapters 11--12 and Project 3 checkpoint A. The draft refactors the raw Actor Router into an ordinary LFE =gen_server=, preserves =event-rules:route/2= as the pure semantic kernel, adds an LFE =supervisor= with explicit =one_for_one= and restart-intensity policy, and tests the LFE/Erlang/sys/failure boundaries rather than treating OTP as syntax sugar.
-- The Project 3 failure labs distinguish caller timeout from remote cancellation, worker restart from state recovery, and supervision from unbounded restart. Application resources/releases, persistence/replay, distribution, production tracing/telemetry, and production restart-number recommendations remain later dependency-ordered work.
-- Worker state for PR #72 is TESTED / READY_FOR_EDITOR_REVIEW when its exact current-head gates are green. Exact handoff evidence is maintained on the PR; this worker does not declare APPROVED or DONE.
+- Testing and Debugging Pass 05 is DOCUMENTED from tagged LFE v2.2.2 EUnit support plus current official EUnit, Common Test, =sys=, and trace documentation.
+- Chapter 13 derives a layered testing model from the accepted project boundaries: pure routing regressions, LFE service checks, EUnit fixture-isolated service contracts, explicit Erlang failure/lifecycle scenarios, and separate publication gates. It treats traces/logs as diagnostics rather than specifications and explains why Common Test is deferred until Project 4 has a real multi-node/system-test boundary.
+- Project 3 testing checkpoint B adds =otp_router_eunit_tests.erl= without changing production =otp-router=/=otp-router-sup= semantics. Each EUnit contract receives a fresh registered compiled LFE server; cleanup removes that process before the next case. The prior LFE and direct-Erlang failure harnesses remain in the same runner.
+- Application resources/releases, persistence/replay, distribution, production tracing/telemetry policy, coverage/benchmark claims, and production restart-number recommendations remain later dependency-ordered work.
+- Worker state for this slice is DRAFT / UNTESTED until the exact branch head passes focused LFE and generic repository gates. The worker does not declare APPROVED or DONE.
 * Verification status
 - Final reviewed foundation PR head =0707aec3d2e249ef62a8eee2f3d68a9a15e6edf5= passed =lfe-book= run =35094433564= and generic =books-ci= run =35094433649= before merge.
 - Macro Pass 02 was reconciled non-destructively with canonical =main= =93895bd846b1dd89867d44a803b432c6cf762f2d= at integration head =e38011501490730f06be28ff52155598bbed17b0=. =lfe-book= run =35105562366= and generic =books-ci= run =35105562313= both completed SUCCESS on that integrated head. The focused gate built pinned LFE v2.2.2, ran the kernel/macro-expansion/capture/invalid-syntax/Erlang-interop regressions, built and checked the book, validated the EPUB, and exercised the Nix gate.
@@ -31,16 +35,18 @@ Foundational research and progressive project-backed manuscript drafting. Projec
 - Exact editorial-approval head =4e49b4c9ec85446a8ad9febba230fc05f3b9f950= passed focused =lfe-book= run =35118704888= and generic =books-ci= run =35118704944= before merge.
 - Canonical merge commit =81f44de683433c5d7affd8ee130d0ef976877089= then passed push-triggered generic =books-ci= run =35118915198=.
 - Project 3 authored head =bf3127496202cc6fc5523cce6c2a300d89d6b145= passed focused =lfe-book= run =35124600836= and generic =books-ci= run =35124600925=. The focused workflow built pinned LFE v2.2.2, reran Project 1 and Project 2, executed the Project 3 OTP service/supervision regression, validated all four teaching diagrams, ran =make book BOOK=lfe= and =make check BOOK=lfe=, and passed its separate =nix flake check -L= job.
-- That authored-head evidence is not a substitute for current-head evidence after reconciliation/material edits. PR #72 owns the exact final-head gate record used for editorial handoff.
-- The recorded execution environment distinguishes the OTP 29 documentation baseline from the observed runner OTP; version-sensitive surfaces continue to require their own fresh gates.
+- PR #72 final accepted head =66f6cc97fae8ee93e144a3d6f8e9c95a3d21b44e= passed focused =lfe-book= run =35145402344= and generic =books-ci= run =35145402397= immediately before the Editor-in-Chief merge. Those runs verify checkpoint A, not the new checkpoint-B files.
+- Testing Pass 05 exact-head execution evidence is pending. No test output for the new EUnit suite is claimed until observed.
+- The recorded execution environment distinguishes the current OTP documentation baseline from the observed runner OTP; version-sensitive surfaces continue to require their own fresh gates.
 - No performance benchmark claim is made by any current LFE milestone.
 * Unverified claims
-Application/release layout, distribution, persistence/replay, production tracing/observability, production packaging, and production restart-number recommendations remain RESEARCH/UNTESTED until their owning slices verify them. Project 3 checkpoint A does not claim those mechanisms merely because it uses =gen_server= and =supervisor=.
+Application/release layout, distribution, persistence/replay, production tracing/observability, production packaging, Common Test execution, property testing, coverage percentages, performance behavior, and production restart-number recommendations remain RESEARCH/UNTESTED until their owning slices verify them. Testing checkpoint B does not claim those mechanisms merely because it uses EUnit, =sys=, =gen_server=, and =supervisor=.
 * Technical/editorial/visual review
 - Chapters 1--3 / Event Routing DSL foundation milestone: editorially APPROVED and merged as a bounded slice.
 - Chapters 4--7 / Macro Pass 02: editorially APPROVED and merged as a bounded slice after primary-source review and executable evidence.
 - Chapters 8--10 / Project 2 checkpoint A: editorially APPROVED and merged as a bounded raw-process milestone after rereview of the manuscript, implementation, failure evidence, corrected evidence-state wording, exact-head checks, and post-merge repository CI.
-- Chapters 11--12 / Project 3 checkpoint A: TESTED worker draft; exact current-head evidence is tracked on PR #72 and editorial review remains with the Editor-in-Chief. Not worker-approved.
+- Chapters 11--12 / Project 3 checkpoint A: editorially APPROVED and merged through PR #72. This is a bounded milestone, not whole-book completion.
+- Chapter 13 / Project 3 testing checkpoint B: worker DRAFT / UNTESTED pending exact-head gates and Editor-in-Chief review. Not worker-approved.
 - Whole book: not DONE and not in final technical/editorial/visual review.
 * Blockers
-No content blocker remains in the Project 3 worker draft. Editorial review/approval and merge remain exclusively with the Editor-in-Chief. Later application/release, distribution, persistence, testing/tracing/observability, and packaging slices remain dependency-ordered behind this checkpoint.
+No known content dependency blocks Testing Pass 05. The immediate objective gate is fresh exact-head execution of the Project 1/2/3 runners, EUnit fixture suite, diagram validation, =make book BOOK=lfe=, =make check BOOK=lfe=, generic books CI, and the focused Nix job. Editorial approval/merge remain exclusively with the Editor-in-Chief.
