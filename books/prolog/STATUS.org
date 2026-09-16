@@ -11,18 +11,34 @@ Foundational research and progressive chapter/project drafting.
 - Relational Query System milestone 1 has a synthetic knowledge base and PL-Unit regression suite.
 - The accepted foundation slice links to the standalone =prolog-llms= sibling without moving core pure-Prolog depth out of this volume.
 - PR #20 was editorially APPROVED for this bounded milestone and merged to canonical main as =565ee3993dc446ed5ba373e40c73c558619cca55=.
+* Active draft -- Project 1 milestone 2
+Issue #76 owns the dependency-ready recursion/lists/backtracking/termination slice.
+- Chapters 4--6 are drafted as a continuation of the existing Relational Query System, not a new toy.
+- Project data now includes finite topic lists and a deliberately cyclic directed =follows/2= graph.
+- =topic_member/2= and =list_reverse/2= derive list recursion from first principles before comparing the teaching relations with current SWI =library(lists)= behavior.
+- =connection_path/3= carries explicit branch-local Seen state and uses =dif/2= constraints to enumerate simple paths without revisiting the deliberate cycle.
+- =first_connection_path/3= is the explicitly named =once/1= commitment boundary; the underlying path relation remains multi-answer.
+- A second named PL-Unit suite adds list, multi-answer path, no-repeat, cycle, unreachable-target, and first-answer regressions. The runner now fails closed if either named Project 1 suite is missing.
+- An editable/rendered search-flow diagram connects choice points, redo, visited-state rejection, and the explicit commitment boundary.
+- Research note =research/recursion-lists-backtracking.org= records current official SWI claims for =once/1=, =member/2=, =reverse/2=, and =call_with_time_limit/2=. The timeout remains a SWI-specific regression guard, never benchmark evidence.
+
+Worker state: DRAFT / RESEARCH-DOCUMENTED / OBJECTIVE VERIFICATION PENDING. This is not editorial approval.
 * Active research
-Foundational primary-source research is still incomplete for recursion, lists, operational control/backtracking, modules, DCGs, search, constraints/CLP(FD), meta-programming, persistence/integration, debugging tooling, advanced testing, and indexing/performance.
+Foundational primary-source research is still incomplete for arithmetic, cut, negation, modules, DCGs, search beyond the beginner traversal, constraints/CLP(FD), meta-programming, persistence/integration, debugging tooling, advanced testing, and indexing/performance.
 * Verification
 - Source claims in =research/foundations-01.org= are DOCUMENTED from official SWI-Prolog sources retrieved 2026-09-16.
-- Final reviewed PR head =9220d54b51914d20b8a32d1b1e6c5b9a8ff46cab= passed =prolog-book= run =35094308426= and generic =books-ci= run =35094308474= before merge.
-- The focused gate executed the Project 1 SWI-Prolog/PL-Unit suite, production =make book BOOK=prolog=, =make check BOOK=prolog=, and =nix flake check -L= successfully. The earlier full exact-runtime record for this same implementation observed SWI-Prolog 9.0.4 and 11 successful PL-Unit tests with no test warnings.
+- Project 1 milestone 2 source claims in =research/recursion-lists-backtracking.org= are DOCUMENTED from current official SWI-Prolog sources retrieved 2026-09-16. Executable milestone-2 claims remain UNTESTED until exact-head CI completes.
+- Final reviewed milestone-1 PR head =9220d54b51914d20b8a32d1b1e6c5b9a8ff46cab= passed =prolog-book= run =35094308426= and generic =books-ci= run =35094308474= before merge.
+- The milestone-1 focused gate executed the Project 1 SWI-Prolog/PL-Unit suite, production =make book BOOK=prolog=, =make check BOOK=prolog=, and =nix flake check -L= successfully. The earlier full exact-runtime record for that implementation observed SWI-Prolog 9.0.4 and 11 successful PL-Unit tests with no test warnings.
 - EPUBCheck 5.3.0 reported zero findings on the accepted foundation slice.
 - The previous repository-wide fixed-book-set structural failure is RESOLVED by issue #27 / PR #29; it is no longer a Prolog blocker.
 * Coordination
 [[file:../prolog-llms/README.org][Prolog + LLMs: Neuro-Symbolic Systems from First Principles]] is now a canonical standalone sibling. This book remains the strongest pure-Prolog foundation; cross-linking must not remove the language/runtime depth needed by a reader who never opens the LLM volume.
+
+=books/symbolic-ai-prolog= remains the deeper classical/general symbolic-AI volume. This milestone teaches recursion and finite graph traversal only as foundational Prolog mechanics; it does not claim the planner/meta-interpreter/abduction curriculum owned there.
 * Technical/editorial/visual review
 - Chapters 1--3 / Project 1 milestone 1: editorially APPROVED as a bounded slice.
+- Chapters 4--6 / Project 1 milestone 2: worker draft awaiting objective verification and later Editor-in-Chief review.
 - Whole book: not DONE and not in final technical/editorial/visual review.
 * Blockers
-No conceptual or repository-wide CI blocker for the next foundation slice. The next work is dependency-ordered research and drafting for recursion, lists, backtracking/control, and termination while extending the same Relational Query System rather than starting another disposable toy.
+No known conceptual blocker. Milestone 2 must pass actual SWI-Prolog tests, =make book BOOK=prolog=, =make check BOOK=prolog=, focused CI, generic CI, and the existing Nix gate before it is handed to the Editor-in-Chief.
