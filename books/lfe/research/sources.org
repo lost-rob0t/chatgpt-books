@@ -17,18 +17,27 @@ Affects: executable baseline, tooling notes, later packaging chapter.
 URL: https://github.com/lfe/lfe/blob/v2.2.2/doc/src/lfe_guide.7.md
 Authority: official LFE repository; guide attributed to Robert Virding in-file.
 Revision: tag v2.2.2; file header 2008--2020.
-Relevant material: literals, list/binary strings, function references and core language forms.
-Affects: Chapters 1--5.
+Relevant material: literals, list/binary strings, function references and core language forms; macro definitions, =$ENV=, =eval-when-compile=, backquote, exported macros, and the explicit non-hygiene warning.
+Affects: Chapters 1--7 and Project 1.
+
+** LFE v2.2.2 macro expander manual
+URL: https://github.com/lfe/lfe/blob/v2.2.2/doc/src/lfe_macro.3.md
+Authority: official LFE repository; manual attributed to Robert Virding in-file.
+Revision: tag v2.2.2; file header 2008--2020.
+Relevant material: one-step, repeated top-level, recursive expansion APIs and macro environments.
+Affects: Chapters 6--7 and Project 1 expansion/debugging tests.
 
 ** LFE v2.2.2 implementation/examples
 URLs:
 - https://github.com/lfe/lfe/blob/v2.2.2/dev/pattern-test.lfe
 - https://github.com/lfe/lfe/blob/v2.2.2/examples/fizzbuzz.lfe
 - https://github.com/lfe/lfe/blob/v2.2.2/examples/messenger.lfe
+- https://github.com/lfe/lfe/blob/v2.2.2/examples/core-macros.lfe
+- https://github.com/lfe/lfe/blob/v2.2.2/test/examples_SUITE.lfe
 - https://github.com/lfe/lfe/blob/v2.2.2/bin/lfec
 Authority: official tagged LFE implementation.
-Relevant material: recurring pattern variables, function-clause matching/guards/recursion, process receive/send example, compiler CLI.
-Affects: Chapters 1--3 now; Chapters 8--10 later.
+Relevant material: recurring pattern variables, function-clause matching/guards/recursion, process receive/send example, exported =defmacro= examples, cross-module macro expansion tests, and compiler =-pa= / =-o= mechanics.
+Affects: Chapters 1--7 now; Chapters 8--10 later.
 
 ** Erlang System Documentation -- data types
 URL: https://www.erlang.org/doc/system/data_types.html
