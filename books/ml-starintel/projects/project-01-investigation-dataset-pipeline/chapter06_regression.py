@@ -154,6 +154,64 @@ def _targets(rows: Sequence[WorkloadRow]) -> np.ndarray:
     return np.asarray([row.review_minutes for row in rows], dtype=float)
 
 
+def _rank_deficiency_probe(
+    model: LinearRegression,
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    x_test: np.ndarray,
+) -> dict[str, object]:
+    """Duplicate one predictor to expose coefficient non-identifiability.
+
+    The duplicated feature adds no information. The diagnostic asks whether the
+    dense design loses full column rank while predictions remain equivalent to
+    the original fit on the same held-out rows.
+    """
+    duplicate_train = np.column_stack((x_train, x_train[:, 0]))
+    duplicate_test = np.column_stack((x_test, x_test[:, 0]))
+    duplicated_model = LinearRegression()
+    duplicated_model.fit(duplicate_train, y_train)
+
+    base_prediction = model.predict(x_test)
+    duplicated_prediction = duplicated_model.predict(duplicate_test)
+    prediction_delta = np.abs(base_prediction - duplicated_prediction)
+    duplicate_coefficient_sum = float(
+        duplicated_model.coef_[0] + duplicated_model.coef_[-1]
+    )
+
+    return {
+        "claim_scope": "deterministic exact-duplicate-feature identifiability probe",
+        "duplicated_feature": FEATURE_NAMES[0],
+        "augmented_feature_names": [*FEATURE_NAMES, "token_count_duplicate"],
+        "base_design": {
+            "feature_count": int(x_train.shape[1]),
+            "rank": int(model.rank_),
+            "singular_values": [float(value) for value in model.singular_],
+        },
+        "duplicated_design": {
+            "feature_count": int(duplicate_train.shape[1]),
+            "rank": int(duplicated_model.rank_),
+            "singular_values": [
+                float(value) for value in duplicated_model.singular_
+            ],
+        },
+        "base_token_coefficient": float(model.coef_[0]),
+        "duplicated_token_coefficients": {
+            "token_count": float(duplicated_model.coef_[0]),
+            "token_count_duplicate": float(duplicated_model.coef_[-1]),
+        },
+        "duplicated_token_coefficient_sum": duplicate_coefficient_sum,
+        "prediction_max_abs_delta": float(prediction_delta.max()),
+        "predictions_equivalent_within_1e_10": bool(
+            np.allclose(
+                base_prediction,
+                duplicated_prediction,
+                rtol=1e-10,
+                atol=1e-10,
+            )
+        ),
+    }
+
+
 def run_regression_control(
     rows: Sequence[WorkloadRow] | None = None,
 ) -> dict[str, object]:
@@ -236,6 +294,12 @@ def run_regression_control(
             "prediction": float(model.predict(probe)[0]),
             "label_available": False,
         },
+        "rank_deficiency_probe": _rank_deficiency_probe(
+            model,
+            x_train,
+            y_train,
+            x_test,
+        ),
     }
 
 
