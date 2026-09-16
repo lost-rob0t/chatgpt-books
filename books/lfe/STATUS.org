@@ -19,7 +19,7 @@ Foundational research and progressive project-backed manuscript drafting. Projec
 * Active draft/research
 - PR #72 advances OTP Behaviour and Supervision Pass 04 plus Chapters 11--12 and Project 3 checkpoint A. The draft refactors the raw Actor Router into an ordinary LFE =gen_server=, preserves =event-rules:route/2= as the pure semantic kernel, adds an LFE =supervisor= with explicit =one_for_one= and restart-intensity policy, and tests the LFE/Erlang/sys/failure boundaries rather than treating OTP as syntax sugar.
 - The Project 3 failure labs distinguish caller timeout from remote cancellation, worker restart from state recovery, and supervision from unbounded restart. Application resources/releases, persistence/replay, distribution, production tracing/telemetry, and production restart-number recommendations remain later dependency-ordered work.
-- Worker state for PR #72 is TESTED / READY_FOR_EDITOR_REVIEW only after its final current-main exact-head gates are green. This worker does not declare APPROVED or DONE.
+- Worker state for PR #72 is TESTED / READY_FOR_EDITOR_REVIEW when its exact current-head gates are green. Exact handoff evidence is maintained on the PR; this worker does not declare APPROVED or DONE.
 * Verification status
 - Final reviewed foundation PR head =0707aec3d2e249ef62a8eee2f3d68a9a15e6edf5= passed =lfe-book= run =35094433564= and generic =books-ci= run =35094433649= before merge.
 - Macro Pass 02 was reconciled non-destructively with canonical =main= =93895bd846b1dd89867d44a803b432c6cf762f2d= at integration head =e38011501490730f06be28ff52155598bbed17b0=. =lfe-book= run =35105562366= and generic =books-ci= run =35105562313= both completed SUCCESS on that integrated head. The focused gate built pinned LFE v2.2.2, ran the kernel/macro-expansion/capture/invalid-syntax/Erlang-interop regressions, built and checked the book, validated the EPUB, and exercised the Nix gate.
@@ -31,7 +31,7 @@ Foundational research and progressive project-backed manuscript drafting. Projec
 - Exact editorial-approval head =4e49b4c9ec85446a8ad9febba230fc05f3b9f950= passed focused =lfe-book= run =35118704888= and generic =books-ci= run =35118704944= before merge.
 - Canonical merge commit =81f44de683433c5d7affd8ee130d0ef976877089= then passed push-triggered generic =books-ci= run =35118915198=.
 - Project 3 authored head =bf3127496202cc6fc5523cce6c2a300d89d6b145= passed focused =lfe-book= run =35124600836= and generic =books-ci= run =35124600925=. The focused workflow built pinned LFE v2.2.2, reran Project 1 and Project 2, executed the Project 3 OTP service/supervision regression, validated all four teaching diagrams, ran =make book BOOK=lfe= and =make check BOOK=lfe=, and passed its separate =nix flake check -L= job.
-- That authored-head evidence is not a substitute for final current-main evidence after reconciliation/material edits. PR #72 owns the exact final-head gate record used for editorial handoff.
+- That authored-head evidence is not a substitute for current-head evidence after reconciliation/material edits. PR #72 owns the exact final-head gate record used for editorial handoff.
 - The recorded execution environment distinguishes the OTP 29 documentation baseline from the observed runner OTP; version-sensitive surfaces continue to require their own fresh gates.
 - No performance benchmark claim is made by any current LFE milestone.
 * Unverified claims
@@ -40,7 +40,7 @@ Application/release layout, distribution, persistence/replay, production tracing
 - Chapters 1--3 / Event Routing DSL foundation milestone: editorially APPROVED and merged as a bounded slice.
 - Chapters 4--7 / Macro Pass 02: editorially APPROVED and merged as a bounded slice after primary-source review and executable evidence.
 - Chapters 8--10 / Project 2 checkpoint A: editorially APPROVED and merged as a bounded raw-process milestone after rereview of the manuscript, implementation, failure evidence, corrected evidence-state wording, exact-head checks, and post-merge repository CI.
-- Chapters 11--12 / Project 3 checkpoint A: worker draft with executable authored-head evidence; awaiting final current-main gates and Editor-in-Chief review. Not worker-approved.
+- Chapters 11--12 / Project 3 checkpoint A: TESTED worker draft; exact current-head evidence is tracked on PR #72 and editorial review remains with the Editor-in-Chief. Not worker-approved.
 - Whole book: not DONE and not in final technical/editorial/visual review.
 * Blockers
-No content blocker remains in the Project 3 worker draft. The handoff requires final exact-head current-main CI; editorial approval/merge remains exclusively with the Editor-in-Chief. Later application/release, distribution, persistence, testing/tracing/observability, and packaging slices remain dependency-ordered behind this checkpoint.
+No content blocker remains in the Project 3 worker draft. Editorial review/approval and merge remain exclusively with the Editor-in-Chief. Later application/release, distribution, persistence, testing/tracing/observability, and packaging slices remain dependency-ordered behind this checkpoint.
