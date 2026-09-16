@@ -13,4 +13,11 @@
 
 #+include: "heuristics.org" :lines "11-" :minlevel 2
 
+* Production Systems: Working Memory, Joins, and Agenda
+:PROPERTIES:
+:ID:       bdd600fa-3042-4afe-9de6-98d6215e831c
+:END:
+
+#+include: "production-systems.org" :lines "11-" :minlevel 2
+
 #+include: "index-before-planner-b.inc" :lines "284-"
