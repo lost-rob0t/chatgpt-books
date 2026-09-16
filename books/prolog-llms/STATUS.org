@@ -1,0 +1,30 @@
+#+title: Prolog + LLMs -- Status
+:PROPERTIES:
+:ID:       1fba4fc7-9bda-50be-81fd-f85edee2f005
+:END:
+
+* Phase
+Scope/curriculum scaffold and foundational research queue.
+
+* Completed
+- Standalone audience and teaching contract defined.
+- Cross-book boundaries recorded for =prolog=, =symbolic-ai-prolog=, and =expert-systems=.
+- Six-stage project progression defined from deterministic Prolog foundations through a Prolog-RLM capstone.
+- Research/evidence policy established: model output and benchmarks are never treated as factual evidence without recorded execution.
+
+* Active research
+None has yet been promoted to DOCUMENTED claims beyond repository-local curriculum decisions. The first research pass must verify current SWI-Prolog behavior and primary literature/implementations for structured generation, tool use, neuro-symbolic systems, and recursive language-model architectures.
+
+* Verification
+- UNTESTED as a book: no Prolog/LLM project code exists yet.
+- UNTESTED publication: this scaffold must pass the repository structural gate plus =make book BOOK=prolog-llms= and =make check BOOK=prolog-llms= before the initial infrastructure slice can be accepted.
+- No benchmark, model-quality, latency, cost, or accuracy claim is currently made.
+
+* Editorial state
+REVIEW. The scaffold is substantial enough to guide workers but is not chapter-complete, project-complete, or release-ready. Stable IDs must be preserved as sections evolve.
+
+* Next dependency-ready slice
+Research and draft the compact standalone Prolog foundation through unification, recursion, lists, and explicit testing; seed Project 1 with runnable SWI-Prolog code and failure labs. Cross-link the deeper pure-Prolog volume without replacing the local explanations needed by a standalone reader.
+
+* Blockers
+None conceptual. Version-sensitive LLM/provider examples remain blocked until a focused research slice chooses current, primary-source-backed interfaces for each example and records exact tested versions.

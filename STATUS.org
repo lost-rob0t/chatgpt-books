@@ -1,23 +1,36 @@
-#+title: Bootstrap Status
+#+title: Repository Status
 :PROPERTIES:
 :ID:       3aca3fd1-5971-567f-ac81-338155b9ee27
 :END:
 * Phase
-Bootstrap infrastructure and curriculum design.
-* Completed in this bootstrap slice
-- Nine independent book directories with substantial curricula and project specifications.
+Bootstrap infrastructure is established; multiple books are now in foundational research/authoring while most volumes remain far from release.
+
+* Completed infrastructure
+- Principal book directories have substantial curricula and project specifications; the paused StarLang scaffold is tracked separately from the active principal-book contract.
 - Project-local Org-roam design and Emacs Lisp implementation.
 - Pandoc/EPUBCheck publishing pipeline and representative fixture.
 - Deterministic Graphviz/plot/cover tooling.
 - Structural validator and CI workflow.
 - Initial cross-book Org-roam nodes and research architecture.
 - Issue #4 publication hardening: explicit EPUB accessibility metadata, Pandoc Org-reader contract checks, deterministic Org-ID-to-XHTML mapping, SVG/PNG/JPEG coverage, and packaged-EPUB regression assertions.
+- Issue #27 scaffold introduces the standalone =prolog-llms= curriculum and removes the obsolete fixed-nine-book assumption from structural validation.
+
+* Active authoring/editorial work
+- =prolog=, =erlang=, and =lfe= have foundational project-driven draft PRs under editorial review.
+- =symbolic-ai-prolog= has an active Project 1 implementation/draft transaction that is not yet editorially ready.
+- =ml-starintel= has an active research/implementation transaction that remains separate from manuscript completion.
+- Other books remain in earlier research/curriculum phases unless their own STATUS files say otherwise.
+
 * Verification state
-- TESTED locally: structural validator, Graphviz fixture diagram, Python plot, Pandoc EPUB fixture export (when host dependencies support it).
-- TESTED locally on a Nix-capable host: =nix flake check=, =nix develop=, =nix develop --command ./tools/check-structure=, fixture build, EPUBCheck 5.3.0 (=0 fatals / 0 errors / 0 warnings / 0 infos=), and the non-Org-roam ERT suite via =nix develop --command make ert=.
+- TESTED historically: structural validator, Graphviz fixture diagram, Python plot, Pandoc EPUB fixture export on supported hosts.
+- TESTED on a Nix-capable host: =nix flake check=, =nix develop=, =nix develop --command ./tools/check-structure=, fixture build, EPUBCheck 5.3.0 (=0 fatals / 0 errors / 0 warnings / 0 infos=), and the non-Org-roam ERT suite via =nix develop --command make ert=.
 - TESTED in CI: full ERT including the real project-scoped Org-roam database sync (CI installs =org-roam= before running ERT; that step is the authoritative path for the Org-roam slice).
-- Issue #4 CI now independently gates the pinned Pandoc Org-reader AST contract, EPUBCheck 5.3.0, and repository-specific inspection of the final EPUB package/XHTML.
+- Issue #4 CI independently gates the pinned Pandoc Org-reader AST contract, EPUBCheck 5.3.0, and repository-specific inspection of the final EPUB package/XHTML.
 - DOCUMENTED platform limitation: the minimal Nix devShell intentionally does not bundle =org-roam=, so =chatgpt-books-roam-real-database-sync= is skipped under =nix develop= and runs in CI instead. The remaining ERT tests pass under Nix.
-- EPUBCheck is downloaded/validated in CI; local result is recorded when runnable.
-* Blockers
-See CI and open issues. Do not mark runtime checks complete until they actually run.
+- EPUBCheck is downloaded/validated in CI; local result is recorded only when runnable.
+
+* Current repository-wide blocker being repaired
+Canonical main still carries the historical structural validator that expects the original nine-book set, while =books/starlang= already exists. That makes generic =books-ci= red before later publication checks. Issue #27 repairs this by validating required principal books plus any additional active discovered books while explicitly keeping the paused StarLang scaffold out of the active manuscript gate. The repair is not considered complete until exact-head CI passes and the editorial/infrastructure PR is merged.
+
+* Definition-of-done reminder
+No book is DONE merely because its outline builds or a foundational PR is merged. Finished chapters/projects still require sourced claims, executed significant examples/tests, promised assets/accessibility metadata, and successful production export/check evidence.
