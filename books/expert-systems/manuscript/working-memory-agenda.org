@@ -1,0 +1,556 @@
+* Chapter 8 -- Working Memory Makes Time Part of the Semantics
+:PROPERTIES:
+:ID:       e4db140a-6f5c-43c8-96d9-352c93544c15
+:END:
+
+Milestone A could pretend the world stood still. It received one frozen list of facts, joined conditions over that list, returned complete matches, and stopped. That was exactly the right simplification for learning matching. It is also exactly the simplification we must now remove.
+
+A production system becomes interesting when inference changes the state that future inference sees. An observation arrives. A rule becomes applicable. Its action derives another fact. That new fact makes a second rule applicable. An operator retracts stale evidence. A previously possible activation disappears. Once facts have a history, “the set of facts” is no longer enough to explain what the engine should do next.
+
+The next reference implementation therefore earns three new concepts in dependency order:
+
+1. *working memory* owns current asserted fact occurrences;
+2. *productions* attach stable rule identity and actions to conditions;
+3. *activations* represent complete rule instantiations over particular evidence occurrences.
+
+We still refuse to optimize. After every firing, the engine deliberately rematches every production from scratch. That sounds wasteful because it is wasteful. The redundancy is now visible, measurable later, and—most importantly—sitting behind an executable semantic oracle.
+
+** 8.1 From a fact list to a working-memory history
+The old matcher accepted a list like this:
+
+#+begin_example
+obs.api.state.failed
+cfg.api.restart.on-failure
+obs.api.exit-code.1
+dep.frontend.api
+obs.frontend.state.degraded
+#+end_example
+
+Order made traces deterministic, but it had no temporal meaning. The list could not tell us whether a fact had just arrived, had been present for an hour, or had been retracted and reasserted.
+
+Milestone B wraps each current fact in a =wm-entry=:
+
+#+begin_src lisp
+(defstruct wm-entry
+  fact
+  sequence)
+#+end_src
+
+=sequence= is a monotonically increasing assertion-occurrence number. It starts at 1 inside one working memory and is never reused. Retraction removes an entry but does not roll the counter backward.
+
+Why not use a timestamp? Because this mechanism needs an ordering primitive, not a clock claim. Wall clocks can jump, two assertions can share the same timestamp resolution, and distributed timestamps introduce an entirely different set of problems. A local monotonic sequence says only what we can actually guarantee here: assertion occurrence B happened after assertion occurrence A inside this engine session.
+
+Later persistence chapters will need real event IDs, observed time, valid time, and database transaction boundaries. Do not overload this teaching counter with those meanings.
+
+** 8.2 Stable identity and assertion occurrence answer different questions
+Suppose the fact with stable ID =obs.api.state.failed= is asserted at sequence 1, later retracted, and then asserted again at sequence 9.
+
+The stable ID answers:
+
+#+begin_quote
+Which logical evidence record are we talking about?
+#+end_quote
+
+The assertion sequence answers:
+
+#+begin_quote
+Which current occurrence of that record caused this activation?
+#+end_quote
+
+Keeping both matters for refraction. If we remember only the stable ID, then “this rule already fired on =obs.api.state.failed=” can accidentally suppress a genuinely new assertion occurrence forever. If we remember only the sequence, later explanation loses the durable evidence identity that other records can cite.
+
+The engine therefore uses a pair:
+
+#+begin_example
+("obs.api.state.failed" . 1)
+#+end_example
+
+and after retract/reassert:
+
+#+begin_example
+("obs.api.state.failed" . 9)
+#+end_example
+
+Same logical record. Different working-memory occurrence.
+
+** 8.3 Duplicate policy cannot be inferred from equal content
+Two collectors may both produce:
+
+#+begin_example
+(service-state api failed)
+#+end_example
+
+Are those duplicates? They might be two independent observations, a retry of one event, two samples at different times, or the same event accidentally ingested twice. Relation and arguments cannot answer that question.
+
+Milestone B therefore makes a narrow identity policy:
+
+- a stable fact ID may occur at most once in current working memory;
+- equal content with *different* stable IDs is allowed;
+- reasserting a stable ID is allowed only after its previous occurrence has been retracted.
+
+That policy is ours. It is not smuggled in as an OPS5 or CLIPS rule. It is useful because it protects provenance identity without pretending content equality is domain-level deduplication.
+
+The batch assertion path validates every proposed fact before changing working memory. If the second item in a two-fact batch collides with an existing ID, the first item does not leak into memory. This gives the in-memory project a clean fail-before-mutation boundary for validation errors.
+
+Do not generalize that result into “rule firing is transactional.” We have not touched a database or external side effect yet.
+
+** 8.4 Retraction makes absence explicit
+Retraction operates on stable identity:
+
+#+begin_src lisp
+(multiple-value-bind (fact present-p)
+    (retract-fact memory "obs.api.state.failed")
+  ...)
+#+end_src
+
+If the ID is present, the current occurrence disappears. If it is absent, the operation returns =NIL, NIL= instead of inventing an error about a fact it cannot find.
+
+This seems boring until derived knowledge exists. Later truth-maintenance chapters must answer a harder question: if a derived fact depended on the retracted observation, should that derived fact disappear too? Milestone B deliberately does *not* answer that yet. Retraction changes current matching state; cascading dependency maintenance comes later.
+
+That separation gives us a useful failure exercise: after deriving =needs-investigation frontend=, retract the original API failure. In milestone B the previously derived facts remain because we have not built truth maintenance. That is not a hidden bug. It is an explicit capability boundary that motivates the next mechanism.
+
+** 8.5 A production finally connects conditions to consequences
+The source-backed production-system cycle separates working data, productions, matching, and selection [cite:@forgy1981ops5]. Current CLIPS documentation likewise exposes rules, activations, an agenda, salience, and conflict resolution in its execution cycle [cite:@clips642bpg]. Our implementation now needs its own minimal production object:
+
+#+begin_src lisp
+(defstruct production
+  id
+  conditions
+  action
+  salience
+  provenance)
+#+end_src
+
+The stable =id= is not just a pretty rule name. Firing traces and derived provenance use it. Later KB versioning will separate logical rule identity from immutable rule-version identity, but a stable rule ID is the minimum useful seed.
+
+The =conditions= are exactly the milestone-A matcher language. We do not add negative, existential, temporal, or aggregate conditions yet. Keeping the language fixed means any surprising behavior in this slice is about mutation, activation, or agenda semantics—not a second wave of pattern syntax.
+
+The =action= receives one complete activation and returns a list of new =fact= structures. It does *not* receive working memory. The engine validates and asserts the returned facts.
+
+This boundary is intentionally less magical than letting arbitrary rule code call =assert-fact= whenever it wants. A rule proposes consequences. The engine owns mutation and can validate the whole batch first.
+
+Common Lisp cannot stop a closure from mutating global state behind our back. “Do not perform external side effects in milestone-B actions” is therefore an explicit project contract, not a theorem enforced by the language.
+
+** 8.6 Activations are rule instances, not rules
+Consider one production:
+
+#+begin_example
+rule.dependency-impact
+  IF (service-state ?dependency failed)
+ AND (depends-on ?service ?dependency)
+THEN derive (dependency-impact ?service ?dependency)
+#+end_example
+
+With our synthetic facts it has one complete instantiation:
+
+#+begin_example
+production: rule.dependency-impact
+bindings:
+  ?dependency -> api
+  ?service    -> frontend
+support IDs:
+  obs.api.state.failed
+  dep.frontend.api
+support occurrences:
+  (obs.api.state.failed . 1)
+  (dep.frontend.api . 4)
+#+end_example
+
+That object is an *activation candidate*. A second dependent service would produce another activation of the same production with different bindings/support.
+
+Milestone B stores the production, bindings, support IDs, support occurrence stamps, a recency score, a structural-specificity score, and a refraction key. Nothing in that list is decorative. Each field answers a later debugging question:
+
+- Which rule instance are we considering?
+- What did each variable mean?
+- Which evidence supported it?
+- Which assertion occurrence made it new?
+- Why did it outrank another activation?
+- Has this exact support occurrence already fired?
+
+** 8.7 Forward chaining versus backward chaining
+The book outline names both because readers should know the distinction before production-system machinery gets too comfortable.
+
+*Forward chaining* begins from available facts and repeatedly asks which productions are now applicable. The agenda chooses among applicable activations; firing changes working memory; the process continues until quiescence or an external bound.
+
+*Backward chaining* begins from a goal and asks which rules could establish it, recursively turning rule conditions into subgoals. Prolog and many goal-directed systems make that style natural.
+
+They are not merely two buttons on the same implementation. They create different control questions, data access patterns, and explanation traces. This volume's Progressive Inference Engine is intentionally production-system/forward-chaining first because we are deriving agendas and RETE-like incremental matching. Goal-directed reasoning appears later where it helps compare architectures; we do not bolt a fake backward-chaining switch onto this milestone.
+
+** 8.8 Worked cycle: the first derived fact
+The first synthetic teaching production uses the API failure and topology edge:
+
+#+begin_example
+(service-state api failed)
+(depends-on frontend api)
+#+end_example
+
+It proposes:
+
+#+begin_example
+(dependency-impact frontend api)
+#+end_example
+
+with stable fact ID:
+
+#+begin_example
+derived.dependency-impact.frontend.api
+#+end_example
+
+and provenance containing:
+
+#+begin_example
+:kind :derived
+:rule-id "rule.dependency-impact"
+:support-fact-ids ("obs.api.state.failed" "dep.frontend.api")
+#+end_example
+
+The rule itself is explicitly a synthetic teaching rule. The systemd manual grounds service terminology [cite:@systemd-service]; it does not certify this fictional incident or elevate the rule into production operational doctrine.
+
+Once that derived fact is asserted, a second production can combine it with the observed degraded frontend:
+
+#+begin_example
+(dependency-impact frontend api)
+(service-state frontend degraded)
+#+end_example
+
+and derive:
+
+#+begin_example
+(needs-investigation frontend)
+#+end_example
+
+Now we have a real multi-cycle reason to build an agenda.
+
+** 8.9 Failure lab -- mutate the wrong layer
+Try each bad design on paper before touching code:
+
+1. Let production actions call =assert-fact= directly and then fail halfway through two assertions. What state survives?
+2. Treat equal relation/arguments as duplicates. Which independent-evidence scenario becomes impossible to represent?
+3. Reuse an assertion sequence after retraction. Can a refraction key distinguish the new occurrence?
+4. Key retraction by relation/arguments instead of stable ID. Which one of two equal-content observations gets removed?
+5. Give two productions the same stable ID. What happens to firing provenance?
+
+The goal is not “never make mistakes.” The goal is to make each correctness boundary explicit enough that a test can pin it down.
+
+* Chapter 9 -- An Agenda Is a Decision Procedure
+:PROPERTIES:
+:ID:       5eb1359f-2a49-47f3-a98c-019b66b283b7
+:END:
+
+Once more than one activation exists, “fire a matching rule” is not an algorithm. It is an underspecified sentence.
+
+Current CLIPS 6.4.2 documentation makes the problem visible: activated rules are placed on an agenda, placement is affected by salience and the configured conflict-resolution strategy, and the rule at the top is selected next [cite:@clips642bpg]. CLIPS provides several strategies and warns against depending on residual arbitrary ordering.
+
+We need the same *kind* of explicitness without pretending to implement CLIPS. Milestone B defines one small deterministic ordering and tests every component independently.
+
+** 9.1 Conflict set first, agenda second
+A useful vocabulary split is:
+
+- *conflict set*: complete non-refracted activations currently eligible to fire;
+- *agenda*: that set after applying an explicit ordering policy.
+
+The distinction matters because matching and selection are different contracts. A matcher bug can omit an activation. A conflict-resolution bug can find every correct activation and still choose the wrong one first.
+
+=build-agenda= deliberately recomputes every complete match, filters refraction keys, then sorts the remaining activations. Later incremental matching will change how the conflict set is maintained, but the selection policy can remain a separate function.
+
+#+caption: Milestone B rule cycle. Every iteration completely rematches current working memory, builds activations, filters exact fired support occurrences, deterministically orders the agenda, validates the selected action's output, asserts the batch, and repeats.
+#+attr_html: :alt Working memory flows into complete rematching, activation construction, refraction filtering, agenda sorting by salience recency specificity and stable ID, firing and output validation, then asserted facts return to working memory for another cycle.
+[[file:assets/agenda-cycle.svg]]
+
+The editable Graphviz source is =books/expert-systems/assets/agenda-cycle.dot=.
+
+** 9.2 Policy key one: salience is explicit priority
+Every milestone-B production has an integer =salience=. Higher salience wins first.
+
+That lets a knowledge engineer say “this class of activation should be considered before that one,” but salience is not a substitute for correct conditions. If a rule is applicable too broadly, setting its salience to =-100= only makes the wrong conclusion arrive later.
+
+The synthetic dependency-impact rule uses salience 10 and the follow-up investigation rule uses 0. In the starting fixture only the first rule is applicable, so salience is not secretly responsible for the causal chain. The second rule becomes applicable only after the first derived fact exists.
+
+** 9.3 Policy key two: recency uses support occurrences
+If salience ties, the teaching engine prefers the activation whose newest support occurrence has the larger assertion sequence.
+
+For support stamps:
+
+#+begin_example
+((obs.api.state.failed . 1)
+ (dep.frontend.api . 4))
+#+end_example
+
+the activation recency is 4.
+
+This is a deliberately simple local recency definition. It does not claim to implement CLIPS depth/LEX/MEA behavior. The value exists so the reader can see exactly what “newer evidence first” means in this engine and write a regression that disproves an accidental reversal.
+
+A later chapter can compare richer strategies only after we can state their inputs and consequences as clearly.
+
+** 9.4 Policy key three: structural specificity is a defined score
+“Prefer the more specific rule” sounds reasonable until someone asks what *specific* means.
+
+We make the term executable. For milestone B, structural specificity is the number of non-variable terms across all LHS conditions, including relation names.
+
+Compare:
+
+#+begin_example
+(service-state ?service ?state)
+#+end_example
+
+with:
+
+#+begin_example
+(service-state ?service failed)
+#+end_example
+
+The second has one additional literal constraint, so under equal salience and recency it ranks first.
+
+This score is intentionally crude. It does not measure domain expertise, proof strength, information content, or probability. It is not CLIPS's documented simplicity/complexity strategy. It is a course-local rule that is simple enough to derive, inspect, and later replace.
+
+** 9.5 Policy keys four and five remove accidental list-order semantics
+Suppose two activations tie on salience, recency, and specificity. We still need reproducible behavior.
+
+The next key is lexicographic stable production ID. If =rule.a= and =rule.b= otherwise tie, =rule.a= wins regardless of the order in which the production objects happened to be supplied to =make-engine=.
+
+A final stable rendering of the activation key breaks any remaining tie between distinct activations of the same production.
+
+Why care? Because tests that pass only because one list literal happened to put =rule.a= first are not testing a conflict-resolution policy. They are testing an accident of construction order.
+
+** 9.6 Worked agenda table
+Imagine four eligible activations:
+
+| Activation | Salience | Recency | Specificity | Production ID |
+|------------+----------+---------+-------------+---------------|
+| A          |       50 |       7 |           2 | rule.z        |
+| B          |       10 |      12 |           5 | rule.c        |
+| C          |       10 |      12 |           6 | rule.b        |
+| D          |       10 |      12 |           6 | rule.a        |
+
+The ordering is:
+
+#+begin_example
+A  ; salience wins immediately
+D  ; C/D tie until stable ID; rule.a < rule.b
+C
+B  ; same salience/recency as C/D, lower specificity
+#+end_example
+
+Notice what *doesn't* happen. B does not jump ahead of A merely because its evidence is newer. Policy keys are ordered. If that is not the behavior a domain needs, change the declared policy and its tests—do not quietly swap sort keys inside an optimization.
+
+** 9.7 Agenda traces are explanation infrastructure
+A production system debugger should eventually answer:
+
+- Which activations exist right now?
+- Which were filtered by refraction?
+- Why is this activation above that one?
+- Which facts and bindings created it?
+- Which firing added or removed the evidence that changed the agenda?
+
+Milestone B does not yet build the full workbench, but its activation and firing records preserve the raw data needed for those views.
+
+This is a recurring design tactic: retain semantic evidence at the moment it is cheap and authoritative. Reconstructing agenda history after the fact from only final working memory is lossy and often impossible.
+
+** 9.8 Failure lab -- manufacture nondeterminism
+Run these thought experiments:
+
+1. Delete the stable-ID tie-break and rely on Common Lisp list order. Can a refactor of production construction change behavior without changing any rule?
+2. Compute recency from stable fact IDs rather than assertion occurrences. What meaning does lexical ID order have?
+3. Count variables instead of literals for specificity but leave the prose unchanged. Which tests should fail?
+4. Sort ascending salience by mistake. Can a happy-path forward-chain scenario notice if only one activation is available at each step?
+5. Test only the final derived fact. Could the wrong activation order remain invisible?
+
+That last question is why the suite tests each agenda key independently instead of trusting one end-to-end scenario.
+
+* Chapter 10 -- Forward Chaining Without Trivial Loops
+:PROPERTIES:
+:ID:       d8f3669c-a837-4a14-b80b-dc07f72080c5
+:END:
+
+We can now match productions and choose the next activation. One problem remains before this becomes a usable cycle: after a rule fires, its supporting facts may still be present. Complete rematching will rediscover the same activation immediately.
+
+Without an explicit policy, a no-op action can fire forever.
+
+** 10.1 The naive cycle is intentionally literal
+The engine loop is conceptually:
+
+#+begin_src lisp
+(loop
+  (let ((agenda (build-agenda engine)))
+    (when (endp agenda)
+      (return :quiescent))
+    (fire-activation engine (first agenda))))
+#+end_src
+
+=build-agenda= rescans every production against all current facts. =fire-activation= asks the selected rule action for proposed facts, validates the complete batch, asserts it, records the firing, and marks the exact activation occurrence as refracted.
+
+After assertion, the engine starts over. No hidden incremental state preserves partial matches. This is slow in the obvious way and wonderful for semantics: every cycle can be understood using the matcher we already trust.
+
+** 10.2 Refraction needs a key, not a vibe
+We define a refraction key from:
+
+#+begin_example
+(production-id
+ support-occurrence-stamps
+ bindings)
+#+end_example
+
+For example:
+
+#+begin_example
+("rule.dependency-impact"
+ (("obs.api.state.failed" . 1)
+  ("dep.frontend.api" . 4))
+ ((?dependency . api)
+  (?service . frontend)))
+#+end_example
+
+After that activation fires, complete rematching may rediscover the same production, bindings, and support occurrences. The refraction filter removes it from the eligible conflict set.
+
+Why include occurrence sequences? Because retract/reassert is a state change. If =obs.api.state.failed= disappears and later returns as occurrence 9, the new support stamp makes a different activation key. The production may fire again on the new occurrence.
+
+Why include bindings if the support stamps already tend to determine them? Because the key states the semantic identity directly instead of relying on a coincidence of the current pattern language. It is cheap in the reference engine and makes traces easier to inspect.
+
+Again: this is our explicit teaching-engine contract, not a claim about the internal refraction data structure of CLIPS or OPS5.
+
+** 10.3 Firing commits only validated proposed facts
+The action boundary is:
+
+#+begin_example
+activation -> action -> proposed fact list -> validate entire batch -> assert
+#+end_example
+
+Suppose an action proposes two facts and the second reuses a stable ID already in working memory. The whole batch is rejected before either proposed fact is appended. The activation is not marked refracted and no firing record is written.
+
+That ordering matters. If we marked the activation fired first, then discovered invalid output, the engine would suppress a rule instance whose consequences never committed.
+
+The implementation tests that exact failure mode.
+
+This is still not a general transaction manager. A future action that sends email, restarts a service, writes a database, or publishes a message creates failure windows that an in-memory list cannot solve. Production operations need explicit idempotency, durable intent/outbox patterns where appropriate, and observability. Those belong downstream of the pure inference semantics.
+
+** 10.4 Quiescence and “we stopped” are not the same result
+A forward-chaining engine can stop for different reasons.
+
+Milestone B distinguishes:
+
+- =:quiescent= -- no eligible non-refracted activation remains;
+- =:limit= -- the caller's firing bound was reached and eligible work remains.
+
+If the limit is 1 in our two-step service scenario, the engine fires =rule.dependency-impact=, derives =dependency-impact frontend api=, discovers that the second rule is now eligible, and returns =:limit= with a remaining activation key.
+
+Calling that quiescence would be a lie. A bound is a safety/control decision, not evidence that inference reached a fixed point.
+
+The same distinction will matter later for bounded planners, external work queues, and distributed inference: “we saw no more work” and “we stopped looking” are different propositions.
+
+** 10.5 The complete service trace
+Starting current facts include:
+
+#+begin_example
+obs.api.state.failed              seq 1
+cfg.api.restart.on-failure        seq 2
+obs.api.exit-code.1               seq 3
+dep.frontend.api                  seq 4
+obs.frontend.state.degraded       seq 5
+#+end_example
+
+Cycle 1 rematches both productions. Only =rule.dependency-impact= has a complete match. Its activation is selected and derives:
+
+#+begin_example
+derived.dependency-impact.frontend.api   seq 6
+#+end_example
+
+Its firing record stores the stable rule ID, bindings, support IDs, support occurrence stamps, and asserted fact ID.
+
+Cycle 2 completely rematches again. The first activation is rediscovered but filtered because its exact support occurrence has already fired. The new =dependency-impact= fact plus the degraded frontend observation activates =rule.investigate-degraded-dependent=. It derives:
+
+#+begin_example
+derived.needs-investigation.frontend     seq 7
+#+end_example
+
+Cycle 3 rematches again. Both previously fired activation occurrences are filtered. No new activation exists. *Now* the engine is quiescent.
+
+This tiny chain is deliberately more useful than a toy “if feathers then bird” example. It already forces us to carry topology, state, derived provenance, multiple cycles, agenda state, and exact supports—the same kinds of bookkeeping a larger troubleshooting KB will require.
+
+It is still synthetic. No benchmark and no production diagnosis claim follows from it.
+
+** 10.6 What retraction currently breaks—and why that is good curriculum
+Now retract =obs.api.state.failed= after the two-step chain.
+
+The original rule activation disappears from current matching. But the already-derived =dependency-impact= and =needs-investigation= facts remain in working memory.
+
+That is *wrong for a truth-maintained derived-knowledge model* and *correct for milestone B's declared semantics*. We have not yet recorded dependency edges in a system that knows how to retract unsupported consequences.
+
+This is the exact point where truth maintenance stops being an abstract chapter title. We can create stale derived knowledge on demand, inspect why it persists, and later require the truth-maintenance milestone to repair that failure without breaking the forward-chain oracle.
+
+A good curriculum does not hide the old system's limitation when introducing the new mechanism. It preserves the failing scenario as a regression target.
+
+** 10.7 Refraction is not a termination proof
+Refraction prevents one obvious loop: firing the *same activation occurrence* repeatedly while its support is unchanged.
+
+It does not prove the rule set terminates. Rules can generate fresh facts forever:
+
+#+begin_example
+(counter 0) -> (counter 1) -> (counter 2) -> ...
+#+end_example
+
+Each activation can have a new support occurrence and therefore a new key. Cycles can also alternate between different derived states if the rule language permits them.
+
+That is why =run-engine= accepts an explicit firing limit and reports it honestly. Later static analysis, rule validation, truth maintenance, and operational controls can improve the situation, but none should be sold as a universal termination theorem without one.
+
+** 10.8 Exercises
+*** ★ Trace identity
+Given stable fact ID =x= asserted at sequence 3, retracted, then reasserted at sequence 11, write the two support stamps. Explain why a stable-ID-only refraction set cannot distinguish them.
+
+*** ★★ Add a competing activation
+Create a second production that also matches =(service-state api failed)=. Give it equal salience and make one condition structurally less specific. Predict agenda order before running the suite.
+
+*** ★★ Break batch validation
+Temporarily move the first assertion before validation of the second proposed fact. Add an action that returns one fresh fact followed by one duplicate ID. What partial state appears? Restore the implementation and keep the regression.
+
+*** ★★★ Show refraction is not termination
+Write a bounded synthetic rule family that can continually derive a fresh counter fact. Confirm that =run-engine= returns =:limit= rather than =:quiescent=. Do not turn that experiment into a benchmark.
+
+*** ★★★ Design the truth-maintenance handoff
+For =derived.needs-investigation.frontend=, sketch the justification graph needed to retract it after =obs.api.state.failed= disappears. Which edges belong to the first firing and which to the second? Which stable IDs and rule IDs are already available from milestone B, and what new object does truth maintenance still need?
+
+** 10.9 Project 1 checkpoint B
+At this checkpoint, the reference engine can now:
+
+- assert and retract provenance-bearing facts by stable ID;
+- distinguish stable evidence identity from assertion occurrence;
+- reject duplicate current IDs without conflating equal content;
+- represent stable productions and complete activations;
+- rebuild a conflict set by complete rematching;
+- order an agenda by a declared deterministic policy;
+- forward-chain across multiple rule firings;
+- refract an exact fired support occurrence;
+- allow retract/reassert to create a new occurrence;
+- validate action outputs before mutating working memory;
+- retain an append-only firing trace;
+- distinguish genuine quiescence from an explicit firing bound.
+
+It still cannot:
+
+- incrementally maintain matches;
+- propagate retractions through cached partial matches;
+- retract unsupported derived facts;
+- reason about explicit counterevidence or uncertainty;
+- guarantee transaction semantics for external side effects;
+- persist sessions;
+- claim any measured performance advantage.
+
+Those absences define the next chapters instead of being papered over.
+
+The immediate next optimization slice is incremental matching: alpha-like filtering, beta-like partial matches, join/token/production nodes, then a RETE-like network. Its correctness gate is not “looks like the RETE diagram.” It must reproduce this reference engine's activation set and declared agenda behavior on controlled scenarios while we separately measure what work it avoids.
+
+* Project 1 -- Progressive Inference Engine, Milestone B
+:PROPERTIES:
+:ID:       49458900-30a5-4bdd-98e1-fe26a89c7291
+:END:
+
+Status: DRAFT/VERIFY until the exact branch test/build workflows execute successfully. This manuscript does not promote the code to TESTED merely because it is present in the source tree.
+
+Milestone-B deliverables:
+
+- =code/inference-engine/engine.lisp= -- working memory, productions, activations, agenda, refraction, firing trace, bounded forward chaining;
+- extended =fixtures.lisp= -- two explicitly synthetic derived-rule steps;
+- extended =tests.lisp= -- identity/mutation, agenda-key, refraction, action-failure, forward-chain, and bound/quiescence regressions;
+- =assets/agenda-cycle.dot= and rendered SVG -- editable cycle/agenda diagram;
+- =research/foundations-02.org= -- source-backed boundaries and frozen milestone semantics.
+
+The code remains a deliberately naive semantic oracle. Alpha/beta/RETE, truth maintenance, uncertainty, persistence, and performance claims are outside this checkpoint.
