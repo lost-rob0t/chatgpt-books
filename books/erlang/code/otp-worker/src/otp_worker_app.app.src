@@ -1,0 +1,7 @@
+{application, otp_worker_app,
+ [{description, "OTP worker service teaching application"},
+  {vsn, "0.1.0"},
+  {modules, [otp_worker_app, otp_worker_sup, otp_worker]},
+  {registered, [otp_worker_sup, otp_worker]},
+  {applications, [kernel, stdlib]},
+  {mod, {otp_worker_app, []}}]}.
