@@ -41,13 +41,15 @@ This book does not copy CLIPS syntax or semantics wholesale. CLIPS is used as a 
 ** Fact
 A fact has a stable ID, relation name, argument sequence, and provenance payload. The matcher treats provenance as opaque metadata in this milestone. Stable fact identity is retained in match results so later explanation/truth-maintenance work can build on actual supports rather than reconstruct them after the fact.
 
+The Common Lisp implementation uses an ordinary =DEFSTRUCT=. That representation is not deeply immutable: generated accessors can be used to mutate slots, and =arguments= or =provenance= can themselves refer to mutable Lisp objects. Milestone A instead adopts a *frozen-input discipline*: callers do not mutate the supplied fact list, records, or nested values while a match is running, and the matcher does not mutate them. Stronger ownership or immutability guarantees are deferred until mutable working-memory semantics are designed and tested.
+
 ** Literal condition
 A literal condition is a list shaped like =(relation field ...)=. It matches a fact only when relation and full argument sequence compare equal.
 
 ** Pattern variable
 A pattern variable is a symbol whose printed name begins with =?=, for example =?service=. Variables occur in conditions, not in the working facts for this milestone.
 
-When a variable is unbound, matching extends the current immutable binding environment. When already bound, the candidate fact field must be =equal= to the existing value. This makes repeated variables inside one condition a real equality constraint rather than two unrelated wildcards.
+When a variable is unbound, matching non-destructively extends the current binding environment. When already bound, the candidate fact field must be =equal= to the existing value. This makes repeated variables inside one condition a real equality constraint rather than two unrelated wildcards.
 
 ** Join
 A multi-condition match is a sequence of facts plus one consistent binding environment satisfying every condition. Conditions are evaluated left to right and candidate facts are visited in input order, giving deterministic teaching traces.
