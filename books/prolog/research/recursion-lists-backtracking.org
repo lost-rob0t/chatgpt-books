@@ -1,0 +1,82 @@
+#+title: Prolog foundation research -- backtracking, recursion, lists, and termination
+:PROPERTIES:
+:ID:       ab6f93a0-5fe5-4eb4-9e7b-2b3206403410
+:END:
+
+* Scope
+Issue #76 extends the already accepted Project 1 community query system through Chapters 4--6. This note records only claims needed for that slice. Retrieval date: 2026-09-16.
+
+The slice deliberately does not teach cut, negation-as-failure, tabling, modules, meta-predicates, DCGs, or constraints as implementation techniques. Those remain dependency-later topics in this book.
+
+* DOCUMENTED -- multiple answers and explicit first-answer commitment
+Current official SWI-Prolog documentation for =once/1= describes it as making a possibly nondeterministic goal semideterministic: it succeeds at most once. The manual gives the operational definition =once(Goal) :- call(Goal), !.= and warns that its interaction with disjunction matters.
+
+Source inspected:
+- https://www.swi-prolog.org/pldoc/doc_for?object=once/1
+
+Book consequence:
+- relations such as =connection_path/3= and =project_peer/3= remain multi-answer relations;
+- the book introduces =first_connection_path/3= only after the reader has observed backtracking over the underlying relation;
+- the helper's name advertises the commitment and uses =once/1= at the boundary instead of silently discarding alternatives inside the relation;
+- Chapter 8 still owns a full treatment of cut. The fact that SWI documents =once/1= using cut is not used to smuggle a cut tutorial into Chapter 4.
+
+* DOCUMENTED -- list membership remains a relation
+Current official =library(lists)= documentation states that =member(?Elem, ?List)= is true when Elem is a member of List and demonstrates successive answers on backtracking. SWI's implementation has implementation-specific determinism details on the last element; those are not needed for the hand-derived beginner relation.
+
+Source inspected:
+- https://www.swi-prolog.org/pldoc/doc_for?object=member/2
+
+Book consequence:
+- Chapter 6 first derives the two structural cases of a proper list from =[Head|Tail]= and =[]=;
+- =topic_member/2= is intentionally tiny so readers can see why enumeration works;
+- the text then cross-checks the relation against official =member/2= rather than pretending the teaching definition is a reason to replace the maintained library in production code;
+- no claim is made that every open/improper-list mode is terminating. The official page explicitly shows that open-list queries can generate unbounded alternatives.
+
+* DOCUMENTED -- reversal and accumulator state
+Current official =reverse/2= documentation says it relates two lists whose elements occur in reverse order and notes that it is deterministic if either argument is a proper list. It also documents unbounded generation when both arguments are partial lists.
+
+Source inspected:
+- https://www.swi-prolog.org/pldoc/doc_for?object=reverse/2
+
+Book consequence:
+- Project 1 derives =list_reverse/2= with an explicit accumulator only for the finite proper lists used by the project;
+- the implementation is a teaching mechanism for recursion and branch-local state, not a replacement claim about =library(lists):reverse/2=;
+- the manuscript must state the useful tested mode rather than saying the teaching predicate "works in every direction".
+
+* DOCUMENTED -- timeout is a test-harness guard, not performance evidence
+Current SWI =library(time)= documentation states that =call_with_time_limit/2= watches a wall-time limit, raises =time_limit_exceeded= if exceeded, and calls the goal as in =once/1=.
+
+Source inspected:
+- https://www.swi-prolog.org/pldoc/doc_for?object=call_with_time_limit/2
+
+Book consequence:
+- one PL-Unit regression wraps an unreachable cyclic-graph query in a one-second wall-time guard;
+- success means the cycle-safe relation failed before the guard expired on the tested interpreter/runner;
+- the one-second number is not a benchmark, latency target, complexity result, or portable guarantee;
+- because the guard calls as =once/1=, it is used only around a query expected to fail, not to count alternatives.
+
+* Derived design -- termination is a relation plus search-order property
+Acyclic logical intent alone does not make depth-first recursive execution terminate on a cyclic input graph. Project 1 therefore carries an explicit finite =Seen= list down each search branch.
+
+=connection_path/3= follows this contract for the tested =(+Start,+Goal,-Path)= mode:
+1. initialize Seen with Start;
+2. choose a directed =follows/2= edge;
+3. require the candidate node to be =dif/2= from every Seen node;
+4. recurse with the candidate prepended to Seen;
+5. reverse the finite accumulated path at the public boundary.
+
+For the finite project graph, each recursive branch either reaches Goal or extends Seen with a previously unseen graph node. A branch therefore cannot revisit the deliberate =ada -> ... -> noor -> ada= cycle indefinitely. This is a design argument that is then checked with executable regressions; it is not presented as a proof about arbitrary Prolog programs.
+
+* TESTED versus not-yet-tested boundary
+The following are intended executable claims for issue #76 and remain TESTED only after an exact-head workflow actually runs them:
+- all earlier Project 1 tests still pass;
+- Ada's topic relation enumerates the recorded three topics;
+- =connection_path(ada, ben, Path)= has three simple paths in the synthetic fixture;
+- =connection_path(noor, lina, Path)= can cross the deliberate cycle edge without revisiting a node;
+- an unreachable target terminates and fails under the SWI wall-time guard;
+- =first_connection_path/3= commits to the first depth-first proof while =connection_path/3= retains alternatives.
+
+No benchmark, memory-use figure, asymptotic measurement, portable timeout behavior, or current SWI optimizer/indexing claim is asserted by this slice.
+
+* Cross-book boundary
+This remains the pure-Prolog foundations volume. The graph traversal is here because recursion, backtracking, list shape, and termination are foundational language/program-design topics. It is not developed into the classical planning/meta-interpreter material owned by =books/symbolic-ai-prolog=, and it has no model/provider or neuro-symbolic behavior from =books/prolog-llms=.
