@@ -45,6 +45,12 @@ Authority: official tagged LFE implementation/example.
 Relevant material: =(behaviour gen_server)= declaration, direct =gen_server:start_link=/=call=/=stop= use, and ordinary =init=/=handle_call=/=handle_cast=/=handle_info=/=terminate=/=code_change= callbacks.
 Affects: Chapter 11 and Project 3.
 
+** LFE v2.2.2 EUnit test support
+URL: https://github.com/lfe/lfe/blob/v2.2.2/test/ltest-macros.lfe
+Authority: official tagged LFE implementation/test source.
+Relevant material: =include-lib "eunit/include/eunit.hrl"= from LFE and LFE helper macros expanding to EUnit assertions.
+Affects: Chapter 13 and Project 3 checkpoint B.
+
 ** Erlang System Documentation -- data types
 URL: https://www.erlang.org/doc/system/data_types.html
 Authority: official Erlang/OTP documentation.
@@ -95,3 +101,37 @@ Authority: official Erlang/OTP System Documentation.
 Version inspected: v29.0.6.
 Relevant material: supervision principles, restart strategy definitions, map-based example.
 Affects: Chapter 12 and Project 3.
+
+** Erlang/OTP EUnit guide and API
+URLs:
+- https://www.erlang.org/doc/apps/eunit/chapter.html
+- https://www.erlang.org/doc/apps/eunit/eunit.html
+Authority: official Erlang/OTP EUnit documentation.
+Version inspected: OTP 29 documentation / EUnit 2.11.
+Relevant material: test functions/generators, assertions, separate test modules, test objects as data, =setup=/=foreach= fixtures, cleanup behavior, and =eunit:test/1,2=.
+Affects: Chapter 13 and Project 3 checkpoint B.
+
+** Erlang/OTP Common Test
+URLs:
+- https://www.erlang.org/doc/apps/common_test/write_test_chapter.html
+- https://www.erlang.org/doc/apps/common_test/api-reference.html
+Authority: official Erlang/OTP Common Test documentation.
+Version inspected: OTP 29.0.6 / Common Test 1.31.1.
+Relevant material: suite and testcase lifecycle, configuration/logging/system-test boundary, distributed-test support, and current =ct_doctest= module inventory.
+Affects: Chapter 13's framework-selection boundary and future Project 4 planning. No Common Test execution is claimed in this slice.
+
+** Erlang/OTP =sys= debugging
+URLs:
+- https://www.erlang.org/doc/apps/stdlib/sys.html
+- https://www.erlang.org/doc/system/spec_proc.html
+Authority: official Erlang/OTP STDLIB/System Documentation.
+Version inspected: OTP 29 documentation line.
+Relevant material: behaviour-process state inspection, suspend/resume, statistics, system-event tracing, and system-message semantics.
+Affects: Chapters 11--13 and Project 3 deterministic timeout/debugging labs.
+
+** Erlang/OTP trace interface
+URL: https://www.erlang.org/doc/apps/kernel/trace.html
+Authority: official Erlang/OTP Kernel documentation.
+Version inspected: OTP 29 documentation line.
+Relevant material: trace sessions and runtime trace points for calls, messages, garbage collection, and scheduling; guidance toward higher-level debugging/profiling tools.
+Affects: Chapter 13 debugging method. No production tracing policy or performance claim is made.
