@@ -84,6 +84,18 @@
                              `((at robot ,x))
                              '()))))
 
+(deftest exported-instantiation-rejects-ungrounded-world-facts
+  (let* ((x (v 'x))
+         (loc (v 'loc))
+         (schema (make-action-schema
+                  'inspect
+                  (list loc)
+                  `((at robot ,loc))
+                  `((inspected ,loc))
+                  '())))
+    (signals ungrounded-world-fact
+      (instantiate-applicable-actions schema `((at robot ,x))))))
+
 (deftest repeated-variable-bindings-must-be-consistent
   (let* ((x (v 'x))
          (schema (make-action-schema
