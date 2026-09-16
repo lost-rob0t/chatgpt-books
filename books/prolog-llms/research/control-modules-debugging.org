@@ -1,0 +1,191 @@
+#+title: Prolog + LLMs -- Control, Modules, Debugging, and Testing Research Pass
+:PROPERTIES:
+:ID:       5b136251-cb9b-4bcd-9fc8-ad81553d59e2
+:END:
+
+* Scope
+Retrieval date: 2026-09-16.
+
+This pass supports Chapters 4--5 and Project 1 milestone B.  It deliberately
+stops before DCGs, CLP(FD), meta-programming, and any live model/provider
+integration.
+
+Claim-status vocabulary follows the repository policy:
+- DOCUMENTED :: supported by an inspected current official SWI-Prolog source;
+- TESTED :: reproduced by executable code/tests in this book after CI runs;
+- UNTESTED :: not reproduced by this book yet;
+- EXPERIMENTAL :: a proposed design or exercise rather than established behavior.
+
+No benchmark, model output, provider result, or performance measurement was
+performed in this research pass.
+
+* Backtracking and explicit control
+** Choice points belong to the operational reading
+DOCUMENTED: SWI-Prolog's control-predicate manual describes conjunction,
+disjunction, cut, if-then-else, and related control constructs as part of the
+runtime search behavior.  A successful goal may retain alternatives that can
+be revisited on backtracking; control constructs can deliberately discard or
+commit those alternatives.
+
+Source:
+- https://www.swi-prolog.org/pldoc/man?section=control
+
+Teaching consequence: Chapter 4 first exposes a relation with multiple answers
+(=ready_task/2=) and asks the reader to enumerate them.  Only then does it
+introduce a first-answer boundary.  "The first answer" is an operational
+property of the current program/search order, not a domain-level priority
+claim.
+
+** once/1 is an explicit first-success boundary
+DOCUMENTED: SWI-Prolog documents =once/1= as committing to the first solution
+of its argument.  The control manual relates it to an explicit call followed by
+cut, while also noting parsing/portability reasons to prefer =once/1= when that
+is the intended abstraction.
+
+Source:
+- https://www.swi-prolog.org/pldoc/man?section=control
+
+Project decision: =first_ready_task/2= is intentionally named as a first-answer
+boundary and implemented with =once/1=.  The manuscript explicitly rejects the
+interpretation that it chooses the "best" or "highest-priority" task.
+
+TESTED only after CI: Project 1's PL-Unit suite must show that =ready_task/2=
+returns all three fixture answers while =first_ready_task/2= returns only the
+first current answer and leaves no unexpected choice point in its test.
+
+** cut is local search control, not truth
+DOCUMENTED: the SWI manual states that =!/0= discards choice points created
+since entering the predicate in which the cut appears, with scope details for
+control structures and meta-calls.
+
+Source:
+- https://www.swi-prolog.org/pldoc/man?section=control
+
+Teaching consequence: Chapter 4 derives cut from the choice points it removes.
+It does not teach cut as a generic speed button, and the canonical task solver
+does not add a cut merely to silence nondeterminism.  A future LLM boundary
+must not smuggle model ambiguity away by taking the first proof and calling it
+validated.
+
+** if-then-else commits inside the condition
+DOCUMENTED: SWI-Prolog documents =(If -> Then ; Else)= as a control construct
+whose condition commits to its first solution.  The two-argument =(If -> Then)=
+behaves as an if-then with failure when =If= fails.
+
+Source:
+- https://www.swi-prolog.org/pldoc/man?section=control
+
+Teaching consequence: mode-sensitive examples belong in a failure lab.  A
+predicate that is sensible for a ground identifier can become accidentally
+non-relational when queried with variables if its condition commits too early.
+
+** negation-as-failure is finite-failure control
+DOCUMENTED: SWI-Prolog describes =\+/1= as succeeding when its argument cannot
+be proven by finite failure.  This is not a warrant to turn absence of a proof
+into a universal claim about the external world.
+
+Source:
+- https://www.swi-prolog.org/pldoc/man?section=control
+
+Teaching consequence: Chapter 4 gives only the operational boundary needed for
+control/debugging.  Open-world evidence semantics remain a later
+neuro-symbolic topic.
+
+* Modules and interface discipline
+** A module declares a public predicate interface
+DOCUMENTED: SWI-Prolog module files use =module/2= (or related module
+directives) to name a module and its public/exported predicates.  The module
+system partitions predicate namespaces; =use_module/1= and =use_module/2= load
+module files and import exports.
+
+Sources:
+- https://www.swi-prolog.org/pldoc/man?section=modules
+- https://www.swi-prolog.org/pldoc/man?section=defmodule
+- https://www.swi-prolog.org/pldoc/man?section=import
+
+Teaching consequence: Project 1 already has =relational_task_solver=.  Milestone
+B adds =task_report= as a consumer module using explicit =use_module/2= imports,
+so readers can see a small public API compose across files.
+
+Boundary: this is namespace/interface discipline for maintainability.  It is not
+presented as a security sandbox.  The later model gateway still requires a
+closed parser/schema/permission boundary rather than assuming "not exported"
+is an authorization system.
+
+TESTED only after CI: the consumer module must load and derive a
+provenance-bearing report using only exported project predicates.
+
+* Debugging and tracing
+** Trace ports expose search events
+DOCUMENTED: SWI-Prolog's debugger documentation uses the procedure-box model.
+The ordinary ports include call, exit, redo, and fail; current manuals also
+describe additional SWI ports such as unify and exception.  =trace/0= enables
+interactive trace mode and =notrace/0= leaves it.
+
+Sources:
+- https://www.swi-prolog.org/pldoc/man?section=debugoverview
+- https://www.swi-prolog.org/pldoc/man?section=trace-example
+- https://www.swi-prolog.org/pldoc/man?section=trace-summary-trace-mode
+
+Teaching consequence: Chapter 5 uses call/exit/redo/fail as the beginner's
+minimum trace vocabulary.  It does not fabricate a transcript.  Readers run
+the tracer against the actual Project 1 predicates and annotate where a choice
+point is created and revisited.
+
+** Debug mode can change operational details
+DOCUMENTED: the SWI debugger documentation notes that debug mode disables
+last-call optimization and aggressive choice-point destruction so debugging
+information remains available.
+
+Source:
+- https://www.swi-prolog.org/pldoc/man?section=spy-points-debug-mode
+
+Teaching consequence: a trace is diagnostic evidence about control flow, not a
+performance benchmark.  Timing, stack use, or optimization conclusions require
+separate measurement outside debugger mode.
+
+UNTESTED in this book at this milestone: the interactive tracer transcript
+itself.  CI exercises the underlying predicates, but an interactive debugger
+session is not promoted to TESTED merely because the manual documents it.
+
+* PL-Unit and nondeterministic relations
+DOCUMENTED: =library(plunit)= supports named test units and tests with options
+including =fail=, =throws(...)=, =all(...)=, =set(...)=, =nondet=, and timeout
+controls.  The implementation's current option table and documentation expose
+these behaviors.
+
+Sources:
+- https://www.swi-prolog.org/pldoc/doc/_SWI_/library/ext/plunit/index.html
+- https://www.swi-prolog.org/pldoc/doc/_SWI_/library/ext/plunit/plunit.pl?show=src
+
+Teaching decision: when the answers themselves are the contract, prefer
+=all(...)= or =set(...)= so the test asserts them.  =nondet= is appropriate only
+when leaving a choice point is expected and the particular remaining answers
+are not the claim under test.  A test that merely suppresses a choice-point
+warning is weaker than one that verifies the relation's answer set.
+
+TESTED only after CI: Project 1 milestone B uses =all(...)= to assert the exact
+ready-task enumeration and an ordinary deterministic test for the
+=once/1=-backed first-answer boundary.
+
+* Cross-book boundary
+REPOSITORY-LOCAL DESIGN:
+- =books/prolog= keeps the deeper treatment of backtracking, cut, negation,
+  modules, debugging, testing, indexing, and performance.
+- =books/prolog-llms= teaches enough of those mechanisms to make the later
+  typed model boundary inspectable and safe.
+- =books/symbolic-ai-prolog= owns explicit meta-interpreters, planning,
+  abduction, proof machinery, and classical/general symbolic-AI algorithms.
+
+This pass therefore does not introduce a meta-interpreter, planner, or
+production-rule engine into Project 1.
+
+* Remaining questions
+- Research and implement the Project 1 DCG mini-language without accepting
+  arbitrary Prolog source.
+- Research current =library(clpfd)= semantics and design a constraint subproblem
+  that genuinely benefits from constraints rather than disguising arithmetic.
+- Research meta-call/reflection boundaries only after the reader has an
+  executable parser and constraint baseline.
+- Keep provider/version research deferred until the typed gateway slice; no
+  current vendor API is needed to teach these control/runtime mechanisms.

@@ -3,6 +3,8 @@
             depends_on/2,
             has_tag/2,
             owned_active_task/2,
+            ready_task/2,
+            first_ready_task/2,
             dependency_path/3,
             explain_task/2,
             explain_dependency/3
@@ -10,11 +12,16 @@
 
 :- multifile dependency_record/3.
 
-/** <module> Relational Task Solver -- Project 1, milestone A
+/** <module> Relational Task Solver -- Project 1, milestone B
 
-A deliberately small, deterministic symbolic baseline for the opening
-chapters of _Prolog + LLMs_.  All data below is synthetic book fixture data.
-No model or external service participates in any result.
+A deliberately small symbolic baseline for the opening chapters of
+_Prolog + LLMs_.  All data below is synthetic book fixture data.  No model or
+external service participates in any result.
+
+Milestone B makes one operational distinction explicit: ready_task/2 is a
+relational enumeration with multiple answers, while first_ready_task/2 is an
+intentional once/1 boundary that commits to the first answer in current
+program order.  The latter is not a priority relation.
 */
 
 % task_record(Id, Owner, Status, Tags, Provenance).
@@ -53,8 +60,19 @@ owned_active_task(Owner, Task) :-
     task(Task, Owner, Status, _),
     dif(Status, done).
 
+% ready_task(?Task, ?Owner)
+% Deliberately nondeterministic when more than one ready task exists.
+ready_task(Task, Owner) :-
+    task(Task, Owner, ready, _).
+
+% first_ready_task(?Task, ?Owner)
+% Operational boundary for examples that explicitly want one answer.  This
+% means "first in current program/search order", not "highest priority".
+first_ready_task(Task, Owner) :-
+    once(ready_task(Task, Owner)).
+
 % A small list relation is kept explicit for the course instead of hiding the
-% mechanism behind member/2 in the first milestone.
+% mechanism behind member/2 in the first milestones.
 list_contains(Item, [Item|_]).
 list_contains(Item, [_|Rest]) :-
     list_contains(Item, Rest).
