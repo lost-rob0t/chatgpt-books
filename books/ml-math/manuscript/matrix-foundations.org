@@ -1,0 +1,651 @@
+* Chapter 6 -- Matrices: A Machine for Many Weighted Sums
+:PROPERTIES:
+:ID:       a7d18f62-a7be-4531-a350-4ddaeb85d72a
+:END:
+
+A matrix is often introduced as “a rectangular array of numbers.” That description is true, but it is about storage rather than purpose. For machine learning we need a stronger mental model: a matrix is a compact way to describe many related linear combinations at once.
+
+The vector chapters gave us the ingredients. A dot product takes two equal-length vectors and returns one weighted sum. A matrix lets us arrange several weight vectors so that one input vector can produce several weighted sums in one operation.
+
+** 6.1 Shape is part of the meaning
+Write an \(m\)-by-\(n\) matrix as
+
+#+begin_example
+A = [a11 a12 ... a1n
+     a21 a22 ... a2n
+      .   .       .
+     am1 am2 ... amn]
+#+end_example
+
+It has \(m\) rows and \(n\) columns. We will write its shape as \(m \times n\).
+
+The order matters. A \(2 \times 3\) matrix has two rows and three columns; a \(3 \times 2\) matrix has three rows and two columns. Both contain six entries, but they do not represent the same map and they do not have the same multiplication boundaries.
+
+For example,
+
+#+begin_example
+A = [2 -1  3
+     0  4  1]
+#+end_example
+
+has shape \(2 \times 3\). Its first row is \((2,-1,3)\). Its second column is \((-1,4)\).
+
+The current NumPy 2.5 documentation likewise treats an array's =shape= as the tuple of its dimensions; Project 1 uses NumPy only as an independent oracle, not as the definition of our teaching representation. [cite:@numpy250]
+
+*** Why ragged rows are not a matrix here
+Consider
+
+#+begin_example
+[[1, 2, 3],
+ [4, 5]]
+#+end_example
+
+A general programming language can store that nested structure. Our matrix project rejects it. There is no single column count, so expressions such as “the third column” or “multiply this \(2 \times 3\) matrix by a three-dimensional vector” no longer have a stable meaning.
+
+Project 1 therefore extends the vector contract with a rectangular-matrix contract:
+
+- at least one row;
+- at least one column;
+- every row has the same length;
+- every entry is a finite real value;
+- the stored representation is immutable.
+
+That is a *project contract*, not a universal law about all matrix software. Sparse matrices, symbolic matrices, masked arrays, and matrices over other number systems deserve different representations. We are deliberately holding those concerns out until the finite real case is understood.
+
+** 6.2 Indexing should answer a geometrical question
+For a matrix \(A\), \(a_{ij}\) means the entry in row \(i\), column \(j\). In mathematical notation indexing usually begins at one; the Python teaching code uses zero-based indices. The difference is notation, not mathematics, but confusing the conventions is a classic off-by-one bug.
+
+Rows and columns play different roles in the two most useful views of matrix-vector multiplication:
+
+1. each *row* asks one dot-product question about the input;
+2. each *column* is one output direction scaled by the corresponding input coordinate.
+
+Those two views are algebraically identical. Seeing both is more useful than memorizing a grid algorithm.
+
+** 6.3 Matrix-vector multiplication begins with a dimension question
+Let \(A\) have shape \(m \times n\) and \(x\) be an \(n\)-dimensional column vector. Then \(Ax\) is defined and has dimension \(m\).
+
+Why must the input have \(n\) components? Each row of \(A\) has length \(n\), and we compute a dot product between that row and \(x\). The dot product already taught us that the dimensions must match.
+
+Using the matrix above,
+
+#+begin_example
+A = [2 -1  3
+     0  4  1]
+
+x = [ 5
+      2
+     -1]
+#+end_example
+
+we get one dot product per row:
+
+#+begin_example
+row 1 · x = 2*5 + (-1)*2 + 3*(-1) = 5
+row 2 · x = 0*5 +    4*2 + 1*(-1) = 7
+
+Ax = [5
+      7]
+#+end_example
+
+The shape trace is
+
+#+begin_example
+(2 x 3) @ (3) -> (2)
+#+end_example
+
+The inner size 3 must agree. The remaining outer size 2 is the output dimension.
+
+*** The same product as a linear combination of columns
+Write the columns of \(A\) as
+
+#+begin_example
+a1 = [2, 0]
+a2 = [-1, 4]
+a3 = [3, 1]
+#+end_example
+
+and the components of \(x\) as \(x_1=5\), \(x_2=2\), \(x_3=-1\). Then
+
+#+begin_example
+Ax = 5 a1 + 2 a2 - 1 a3
+   = 5[2,0] + 2[-1,4] - [3,1]
+   = [10,0] + [-2,8] + [-3,-1]
+   = [5,7]
+#+end_example
+
+This is the viewpoint we prepared for in Chapter 3. The input coordinates tell us how much of each column to combine. Strang's sixth-edition sequence emphasizes both the row-dot-product and column-linear-combination views before moving to matrix-matrix multiplication. [cite:@strang2023ila]
+
+For ML, that column view is not decorative. If columns encode feature effects, \(Ax\) says that the output is a combination of those effects using the feature coordinates in \(x\). Later, a weight matrix in a neural network will do exactly this at a larger scale.
+
+** 6.4 A matrix can change dimension
+A common beginner mistake is to assume that a matrix maps a vector “back into the same kind of vector.” Only square matrices do that automatically.
+
+A \(2 \times 3\) matrix maps three coordinates to two outputs:
+
+#+begin_example
+(3-dimensional input) -> A -> (2-dimensional output)
+#+end_example
+
+A \(5 \times 2\) matrix maps two coordinates to five outputs. This matters when debugging model layers: the number of matrix columns must match the number of incoming features, and the number of rows determines how many outputs the layer produces.
+
+Dimension is therefore not bookkeeping added after the formula. It is part of the function's type-like contract.
+
+** 6.5 Transpose swaps the row and column viewpoints
+The transpose \(A^T\) turns rows into columns. If \(A\) is \(m \times n\), then \(A^T\) is \(n \times m\).
+
+For
+
+#+begin_example
+A = [1 2 3
+     4 5 6]
+#+end_example
+
+we have
+
+#+begin_example
+A^T = [1 4
+       2 5
+       3 6]
+#+end_example
+
+Project 1 implements transpose because matrix multiplication naturally asks for columns of the right-hand matrix. We could repeatedly index those columns in place, but materializing the transpose makes the row-by-column logic readable in teaching code.
+
+** Failure lab -- shapes that almost fit
+Diagnose the conceptual error before changing code.
+
+1. A \(2 \times 3\) matrix is multiplied by a two-dimensional vector because “both start with 2.”
+2. A ragged nested list is accepted, and a later transpose silently drops the final entry of the longer row.
+3. A program reports =shape([[1,2,3],[4,5,6]]) == (3,2)= because it counted columns first while the rest of the API assumes rows first.
+4. A model layer was intended to map 100 features to 32 outputs, but its weight matrix was stored with shape \(100 \times 32\) while the implementation computes \(Wx\). Which side of the interface is inconsistent?
+5. A transpose function returns the same object for every square matrix because “the shape does not change.” What information did that reasoning ignore?
+
+** Exercises
+- ★ State the shape of a matrix with four rows and seven columns.
+- ★ For a \(4 \times 7\) matrix, what vector dimension can appear on the right in \(Ax\), and what is the output dimension?
+- ★★ Compute \(Ax\) for \(A=[[1,2],[-3,4],[0,5]]\) and \(x=(2,-1)\) by row dot products.
+- ★★ Recompute the same result as a linear combination of the two columns of \(A\).
+- ★★ Transpose the previous matrix and state the new shape.
+- ★★★ Design one test that would catch a matrix constructor that checks only the first and last row for equal length.
+- ★★★ Explain why shape behaves like useful type information even though Python's runtime type =tuple= does not encode the dimensions.
+
+* Chapter 7 -- Matrix Multiplication Is Composition Written in Coordinates
+:PROPERTIES:
+:ID:       3ce06ce2-3f0d-41e8-a3e1-aa5336c9d405
+:END:
+
+Matrix multiplication looks arbitrary if we start with the rule “multiply rows by columns.” It becomes much less arbitrary if we start with a problem: *how do we combine two linear transformations into one transformation?*
+
+** 7.1 Start from two matrix-vector operations
+Suppose \(B\) maps an input vector \(x\) to an intermediate vector:
+
+#+begin_example
+z = Bx
+#+end_example
+
+and then \(A\) maps that intermediate vector to an output:
+
+#+begin_example
+y = Az
+#+end_example
+
+Substituting the first relationship into the second gives
+
+#+begin_example
+y = A(Bx)
+#+end_example
+
+We want one matrix \(C\) such that
+
+#+begin_example
+Cx = A(Bx)
+#+end_example
+
+for every admitted \(x\). That combined matrix is the product
+
+#+begin_example
+C = AB
+#+end_example
+
+So \(AB\) means “apply \(B\) first, then apply \(A\).” The written order can feel backwards if you are thinking in chronological English, but it follows ordinary function-composition notation.
+
+** 7.2 The shape rule falls out of composition
+Let \(B\) have shape \(k \times n\). It accepts an \(n\)-vector and returns a \(k\)-vector.
+
+Let \(A\) have shape \(m \times k\). It accepts that \(k\)-vector and returns an \(m\)-vector.
+
+Therefore the composition has the shape
+
+#+begin_example
+(m x k) @ (k x n) -> (m x n)
+#+end_example
+
+The shared inner dimension \(k\) is the interface between the two maps. If those inner dimensions disagree, the output of \(B\) is not a valid input to \(A\).
+
+NumPy's current =matmul= documentation states the same core two-dimensional signature as =(n,k),(k,m)->(n,m)= and raises a =ValueError= when the multiplication dimensions do not line up. Our project tests ordinary 2-D behavior against its deliberately pinned NumPy 2.5.0 oracle while keeping a much narrower API than general NumPy arrays. [cite:@numpy250]
+
+** 7.3 Row by column is a consequence, not the motivation
+Take
+
+#+begin_example
+A = [1 2 3
+     4 5 6]
+
+B = [ 7  8
+      9 10
+     11 12]
+#+end_example
+
+The shapes are \(2 \times 3\) and \(3 \times 2\), so \(AB\) has shape \(2 \times 2\).
+
+Each output entry asks: how strongly does this row of \(A\) combine with this column of \(B\)?
+
+#+begin_example
+(AB)11 = [1,2,3] · [7,9,11]  = 58
+(AB)12 = [1,2,3] · [8,10,12] = 64
+(AB)21 = [4,5,6] · [7,9,11]  = 139
+(AB)22 = [4,5,6] · [8,10,12] = 154
+
+AB = [ 58  64
+      139 154]
+#+end_example
+
+The row-by-column algorithm is exactly what makes the combined map agree with applying \(B\) and then \(A\).
+
+*** A second interpretation: columns of the product
+Let \(b_j\) be column \(j\) of \(B\). Then column \(j\) of \(AB\) is
+
+#+begin_example
+A b_j
+#+end_example
+
+In words: apply \(A\) to each column of \(B\). This is a useful way to debug a product because it reuses the matrix-vector operation we already understand. [cite:@strang2023ila]
+
+** 7.4 Why multiplication is usually not commutative
+Ordinary scalar multiplication satisfies \(ab=ba\). Matrix multiplication usually does not.
+
+Take
+
+#+begin_example
+A = [1 1
+     0 1]
+
+B = [1 0
+     1 1]
+#+end_example
+
+Then
+
+#+begin_example
+AB = [2 1
+      1 1]
+
+BA = [1 1
+      1 2]
+#+end_example
+
+Both products exist, but they are different. This should make sense from composition: “do \(B\), then \(A\)” need not have the same effect as “do \(A\), then \(B\).” Rotating then stretching can differ from stretching then rotating. Reordering transformations is a semantic change, not a harmless algebraic rearrangement.
+
+** 7.5 Associativity is what lets pipelines collapse
+Although multiplication is not generally commutative, it is associative:
+
+#+begin_example
+(AB)C = A(BC)
+#+end_example
+
+when the shapes make the products meaningful.
+
+Function composition is associative too. If three compatible transformations are applied in sequence, we may group the multiplications differently without changing the mathematical map.
+
+This fact will later matter computationally because different groupings can require different amounts of work. We are not benchmarking or optimizing matrix-chain multiplication in this checkpoint; we are establishing the algebraic property that makes such optimization possible.
+
+** 7.6 Identity is the transformation that changes nothing
+The \(n \times n\) identity matrix \(I\) has ones on the diagonal and zeros elsewhere:
+
+#+begin_example
+I = [1 0 0
+     0 1 0
+     0 0 1]
+#+end_example
+
+For an \(n\)-vector \(x\),
+
+#+begin_example
+Ix = x
+#+end_example
+
+and for a compatible matrix \(A\),
+
+#+begin_example
+IA = A
+AI = A
+#+end_example
+
+The identity is useful in tests because “do nothing” gives us a simple invariant. If multiplying by identity changes a matrix, our implementation or dimension logic is wrong.
+
+** 7.7 Matrix multiplication in an ML pipeline
+Suppose an input example has three features and a hidden representation has two components. A \(2 \times 3\) weight matrix \(W_1\) can map the input to two weighted sums.
+
+Suppose a second *linear* stage maps those two values to one output using a \(1 \times 2\) matrix \(W_2\). With no nonlinear function between them,
+
+#+begin_example
+W2(W1 x) = (W2 W1)x
+#+end_example
+
+The two linear stages collapse into one matrix. This observation explains something important about neural networks before we have even built one: stacking only linear maps does not create a fundamentally richer class of linear functions. Nonlinear activation functions are what prevent the entire stack from collapsing into one linear map.
+
+Do not jump ahead and call this a neural-network implementation. It is a mathematical preview. The capstone will earn that name only after derivatives, optimization, nonlinearities, probability, and numerical stability have been built and tested.
+
+** Failure lab -- multiplication that returns plausible nonsense
+1. A multiplication loop pairs row 1 of \(A\) with row 1 of \(B\) instead of a column of \(B\). For square matrices it still returns a square grid. Why is shape alone unable to catch the bug?
+2. A function silently truncates a dot product when the inner dimensions disagree. Why can this produce convincing but meaningless output?
+3. An engineer changes \(AB\) to \(BA\) because both are \(2 \times 2\). Which algebraic assumption did they smuggle in?
+4. A composition test checks only \(ABx = ABx\). Why does that test prove nothing about composition order?
+5. A matrix product overflows to infinity from finite inputs and the result is accepted. Which numerical contract from the vector project should carry forward?
+
+** Exercises
+- ★ Multiply \([[1,2],[3,4]]\) by \([[2,0],[1,2]]\).
+- ★ Verify by hand that the product applied to \(x=(5,-1)\) equals applying the right-hand matrix first and the left-hand matrix second.
+- ★★ Give shapes for \(A\), \(B\), and \(AB\) when \(A\) maps 8 intermediate features to 3 outputs and \(B\) maps 20 input features to 8 intermediate features.
+- ★★ Find two \(2 \times 2\) matrices for which \(AB \ne BA\), different from the example above.
+- ★★ Prove from the row/column definition that multiplying by a compatible identity matrix leaves a matrix unchanged.
+- ★★★ Write a regression that would fail if =matmul= accidentally used rows of both operands.
+- ★★★ Explain why replacing two adjacent *linear* model layers by their matrix product is valid mathematically but replacing two layers separated by a nonlinear activation generally is not.
+
+* Chapter 8 -- Linear Transformations: Watch the Basis Move
+:PROPERTIES:
+:ID:       561f0610-ad3f-4c8a-83b1-454a9bd18745
+:END:
+
+So far a matrix has been a collection of weighted sums and a representation of function composition. Now we connect that algebra to geometry.
+
+A linear transformation \(T\) preserves vector addition and scalar multiplication:
+
+#+begin_example
+T(u + v) = T(u) + T(v)
+T(cu)    = c T(u)
+#+end_example
+
+When coordinates are fixed, a matrix represents such a transformation by \(T(x)=Ax\).
+
+** 8.1 Why the columns tell the whole story
+In two dimensions, let the standard basis vectors be
+
+#+begin_example
+e1 = [1,0]
+e2 = [0,1]
+#+end_example
+
+Every vector \(x=(x_1,x_2)\) is
+
+#+begin_example
+x = x1 e1 + x2 e2
+#+end_example
+
+By linearity,
+
+#+begin_example
+T(x)
+= T(x1 e1 + x2 e2)
+= x1 T(e1) + x2 T(e2)
+#+end_example
+
+If \(T(x)=Ax\), then
+
+#+begin_example
+T(e1) = A e1 = first column of A
+T(e2) = A e2 = second column of A
+#+end_example
+
+That is why the column-linear-combination view of \(Ax\) is so powerful: once we know where a linear map sends the basis vectors, we know where it sends every vector.
+
+Consider
+
+#+begin_example
+A = [1    0.5
+     0.25 1]
+#+end_example
+
+Then
+
+#+begin_example
+Ae1 = [1, 0.25]
+Ae2 = [0.5, 1]
+#+end_example
+
+The unit square is built from \(0\), \(e_1\), \(e_2\), and \(e_1+e_2\). Under the transformation those corners become
+
+#+begin_example
+0
+Ae1
+Ae2
+Ae1 + Ae2
+#+end_example
+
+so the square becomes a parallelogram.
+
+#+caption: The dashed unit square and basis vectors are inputs. The solid parallelogram and arrows are generated by applying the teaching matrix implementation; the columns of A are exactly the transformed basis vectors.
+#+attr_html: :alt Dashed unit square and standard basis vectors are overlaid with a solid transformed parallelogram; solid arrows from the origin show the two columns of matrix A as the images of the basis vectors.
+[[file:../assets/matrix_transform.svg]]
+
+** 8.2 Common transformations are matrices with a visible effect
+A horizontal scaling by factor \(s\) can be represented by
+
+#+begin_example
+[s 0
+ 0 1]
+#+end_example
+
+A vertical scaling by \(t\) is
+
+#+begin_example
+[1 0
+ 0 t]
+#+end_example
+
+A simple horizontal shear is
+
+#+begin_example
+[1 h
+ 0 1]
+#+end_example
+
+because
+
+#+begin_example
+[x]     [x + h y]
+[y] --> [y      ]
+#+end_example
+
+These examples are not a complete catalog of transformations. Their job is to let you predict a geometric effect from the columns and then check the prediction by calculation.
+
+** 8.3 The origin reveals what linear transformations cannot do
+For any linear transformation,
+
+#+begin_example
+T(0) = 0
+#+end_example
+
+One quick derivation is
+
+#+begin_example
+T(0) = T(0 + 0) = T(0) + T(0)
+#+end_example
+
+so subtracting \(T(0)\) from both sides gives \(T(0)=0\).
+
+Therefore an ordinary matrix multiplication cannot represent a translation such as “move every point right by 3” in the same coordinate space, because translation moves the origin.
+
+Later systems often handle an affine map
+
+#+begin_example
+y = Ax + b
+#+end_example
+
+where \(b\) is a translation/bias vector. You already saw the scalar version \(wx+b\) in Chapter 2. The distinction matters: \(Ax\) is linear; \(Ax+b\) is generally affine when \(b \ne 0\).
+
+This is exactly why ML layers so often speak separately about *weights* and *biases*.
+
+** 8.4 Composition becomes visible
+Take a shear \(S\) and a scale \(D\). Applying the shear and then the scale gives
+
+#+begin_example
+D(Sx) = (DS)x
+#+end_example
+
+Reversing the order gives
+
+#+begin_example
+S(Dx) = (SD)x
+#+end_example
+
+and those two products need not agree. The noncommutativity from Chapter 7 now has a picture: changing the order changes which geometry the second transformation receives.
+
+A debugging technique follows from this. When a transformation pipeline looks wrong, do not stare only at the final product matrix. Apply each stage to the basis vectors and a few diagnostic points. The first stage whose geometry violates your expectation is where the semantic error entered.
+
+** 8.5 Numerical implementation versus mathematical definition
+The mathematical matrix product is defined over exact real arithmetic. Our project stores ordinary binary floating-point values and inherits the vector kernel's fail-closed policy for non-finite outputs.
+
+That means two things can both be true:
+
+1. the algebraic derivation is correct;
+2. a particular floating-point computation can overflow or round.
+
+Project 1 tests the ordinary admitted cases against NumPy 2.5.0 and deliberately includes finite inputs whose product exceeds finite float range. The latter must raise rather than return an apparently usable infinity.
+
+This is not a claim that the teaching implementation has production numerical-library stability or speed. It does not. Its purpose is to make the contract and mechanism inspectable while using the vector kernel's more careful dot-product accumulation.
+
+** 8.6 Debugging a transformation from symptoms
+Suppose a square intended to be sheared turns into a shape that looks reflected and scaled. Work from invariants:
+
+1. Check the matrix shape.
+2. Compute \(Ae_1\) and \(Ae_2\); these must equal the columns you intended.
+3. Apply the matrix to one simple point such as \((1,1)\).
+4. If multiple matrices are composed, compare \((AB)x\) with \(A(Bx)\).
+5. Check whether a translation was incorrectly stuffed into a linear \(2 \times 2\) matrix.
+6. Only after the semantics are right should you blame rendering coordinates or plotting scale.
+
+That order separates mathematical bugs from visualization bugs.
+
+** Exercises
+- ★ For \(A=[[2,0],[0,0.5]]\), compute \(Ae_1\), \(Ae_2\), and \(A(1,1)\). Describe the geometric effect.
+- ★ For \(S=[[1,2],[0,1]]\), transform the four corners of the unit square.
+- ★★ Given a \(2 \times 2\) matrix only by its two columns, explain how you can predict the image of \((3,-2)\) without using row-dot-product language.
+- ★★ Show directly from the definition of linearity that a nonzero translation is not linear.
+- ★★ Choose a scale and shear matrix and compute both products. Sketch or generate the transformed unit square for each order.
+- ★★★ Modify the deterministic figure generator to draw three more grid lines. The matrix code must remain unchanged; explain why rendering density is not part of the transformation itself.
+- ★★★ A plot looks correct for \(e_1\) and \(e_2\) but wrong for \(e_1+e_2\). Which linearity invariant should immediately fail, and what classes of bug could cause that?
+
+* Project 1, Checkpoint B -- Matrices We Can Explain and Break
+:PROPERTIES:
+:ID:       362a9696-754c-4be7-995e-18991d9ca495
+:END:
+
+Checkpoint A established a finite-real vector kernel. Checkpoint B grows that kernel rather than replacing it with a numerical library.
+
+** B.1 Source layout
+The project directory now contains both layers:
+
+#+begin_example
+books/ml-math/code/vector_toolkit/
+  vector_toolkit.py
+  matrix_toolkit.py
+  test_vector_toolkit.py
+  test_matrix_toolkit.py
+  plot_vector_geometry.py
+  plot_matrix_transform.py
+
+books/ml-math/assets/
+  vector_geometry.svg
+  matrix_transform.svg
+#+end_example
+
+=matrix_toolkit.py= imports the vector constructor and dot product because rows, columns, and matrix-vector products should inherit the semantics already established in checkpoint A. It does not import NumPy.
+
+The matrix layer exposes:
+
+#+begin_example
+matrix(rows)
+shape(values)
+column(values, index)
+transpose(values)
+matvec(values, coefficients)
+column_combination(values, coefficients)
+matmul(left, right)
+identity(size)
+transform_points(values, points)
+#+end_example
+
+** B.2 What the implementation is trying to make obvious
+The central implementation is deliberately boring:
+
+- =matvec= computes one dot product per row;
+- =column_combination= exposes the equivalent linear-combination interpretation;
+- =matmul= transposes the right matrix so every output entry is visibly one row/column dot product;
+- =identity= gives the tests a neutral transformation;
+- =transform_points= repeatedly applies the same admitted matrix so the diagram is generated from the same operation taught in the text.
+
+We are not attempting to reproduce NumPy's broadcasting, batched array semantics, BLAS dispatch, arbitrary dtypes, sparse storage, or performance. A small inspectable kernel is useful precisely because those production concerns are out of scope here.
+
+** B.3 Executable invariants
+The matrix regression suite checks, among other cases:
+
+- immutable rectangular admission and explicit shape;
+- rejection of empty, ragged, non-real, NaN, and infinite entries;
+- columns and transpose on rectangular matrices;
+- matrix-vector multiplication by row dot products;
+- matrix-vector equality with the column-linear-combination interpretation;
+- explicit dimension mismatch failures;
+- a hand-computed rectangular matrix product;
+- a concrete noncommutativity example;
+- the composition invariant \((AB)x = A(Bx)\);
+- left and right identity behavior;
+- fail-closed overflow from finite inputs;
+- selected matrix-vector and matrix-matrix comparisons against NumPy;
+- consistent transformation of a set of diagnostic points.
+
+These are bounded tests of this implementation. They are not a proof that every floating-point matrix calculation is correct.
+
+Run both checkpoint suites with:
+
+#+begin_src sh
+cd books/ml-math/code/vector_toolkit
+python -m unittest -v test_vector_toolkit.py test_matrix_toolkit.py
+#+end_src
+
+Regenerate the matrix teaching figure with:
+
+#+begin_src sh
+python plot_matrix_transform.py
+#+end_src
+
+CI regenerates the checked-in SVG and requires a clean diff, so changing the transformation code without updating the figure cannot quietly leave stale teaching material behind.
+
+** B.4 Debugging assignment -- make the algebra lie, then catch it
+Make one deliberate mutation at a time and predict the failing regression before running tests.
+
+1. Let =matrix= accept a ragged final row.
+2. Make =matvec= compare its vector dimension with the number of matrix *rows* rather than columns.
+3. Build =matmul= from row/row dot products.
+4. Reverse the operands inside the composition test.
+5. Change one off-diagonal value of =identity= from 0 to 1.
+6. Remove the fail-closed behavior inherited from =dot= and accept infinity.
+7. Change the plot generator to transform only three corners of the square while leaving the fourth untouched.
+
+For each mutation, write down the violated mathematical invariant. The point is not “tests are good” in the abstract. The point is that every useful test should correspond to a claim you can state mathematically.
+
+** B.5 Checkpoint boundary
+Checkpoint B establishes matrix representation, matrix-vector multiplication, matrix multiplication, composition, and two-dimensional transformation geometry. It does *not* yet implement:
+
+- solving linear systems;
+- determinants or inverses;
+- eigenvalues/eigenvectors;
+- decompositions such as SVD;
+- automatic differentiation;
+- optimization;
+- linear regression training;
+- neural-network layers.
+
+Those later topics stay later. The immediate payoff of this checkpoint is that the next derivations can use matrices without treating them as magic library objects.
+
+Project 2 can eventually express a batch of linear-model predictions compactly, but first the book still owes the reader derivatives and optimization. We have earned the notation; we have not skipped the math.

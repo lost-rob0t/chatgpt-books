@@ -20,7 +20,7 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Published :: 2026-09-01.
 - Retrieved :: 2026-09-16.
 - Relevant sections :: package metadata / version tree.
-- Used for :: Current documented OTP 29 patch level at research time.
+- Used for :: Current released patch baseline; the package records ERTS 17.0.6 and stdlib 8.0.4.
 - Claim status :: DOCUMENTED.
 
 ** Data Types -- Erlang System Documentation v29.0.5
@@ -45,9 +45,9 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Authority :: Official Erlang/OTP reference documentation.
 - Retrieved :: 2026-09-16.
 - Relevant sections :: process creation/termination, signals, signal ordering, message queue insertion, links, monitors.
-- Used for :: Chapters 4--6 and Project 1 protocol claims.
+- Used for :: Chapters 4--9 and Project 1 protocol/failure claims.
 - Claim status :: DOCUMENTED.
-- Version-sensitive note :: OTP 28 added priority-message reception. Ordinary queue-order explanations in this slice explicitly exclude processes that enable priority messages.
+- Version-sensitive note :: OTP 28 added priority-message reception. Ordinary queue-order explanations explicitly exclude participating priority-message cases.
 
 ** Processes -- Efficiency Guide v29.0.6
 - URL :: https://www.erlang.org/doc/system/eff_guide_processes.html
@@ -64,14 +64,6 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Relevant sections :: terminology, exception classes, exit reasons.
 - Used for :: Pattern-match/function-clause failure language and Project 1 deliberate crash discussion.
 - Claim status :: DOCUMENTED.
-
-** gen_server -- stdlib v8.0.3 / OTP 29.0.4 documentation
-- URL :: https://www.erlang.org/doc/apps/stdlib/gen_server.html
-- Authority :: Official Erlang/OTP stdlib reference documentation.
-- Retrieved :: 2026-09-16.
-- Relevant sections :: behavior purpose, start/start_link, call/cast, callback mapping, tracing/system messages.
-- Used for :: Chapter 3 preview and Chapter 6 explanation of what OTP standardizes.
-- Claim status :: DOCUMENTED. No Project 2 implementation claim yet.
 
 * Inspected 2026-09-16 -- failure-semantics pass 02
 ** Processes -- Erlang System Documentation v29.0.6, failure relationships
@@ -90,4 +82,47 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Relevant sections :: =monitor/2=, =demonitor/2=, =unlink/1=, =process_flag/2= with =trap_exit=, =exit_signal/2=, deprecated =exit/2= note.
 - Used for :: Chapters 7--9, teardown-race explanation, and the Project 1 failure lab.
 - Result :: =unlink/1= gives a post-return no-future-link-effect guarantee while permitting an already-queued trapped exit message. =demonitor(Ref,[flush])= removes the monitor and flushes a matching =DOWN= already in the mailbox. OTP 29.0 introduced =exit_signal/2=; explicit reason =kill= is untrappable and the target terminates with reason =killed=. The reference says application processes normally are not to trap exits.
-- Claim status :: DOCUMENTED. The checkpoint-B runtime examples at implementation head =4472458a666db2fac70f79f9b8dc3dd48fda48c1= were EXECUTION VERIFIED on pinned OTP 29.0.6 by PR #40 focused workflow run =35096523655=; later branch revisions still require their own fresh integration gate.
+- Claim status :: DOCUMENTED; runtime evidence is recorded separately for the merged checkpoint.
+
+* Inspected 2026-09-16 -- OTP pass 03
+** Official Erlang/OTP downloads page
+- URL :: https://www.erlang.org/downloads
+- Authority :: Official Erlang/OTP project.
+- Retrieved :: 2026-09-16.
+- Result :: Page identified Erlang/OTP 29.0.6 as the latest released version at retrieval time.
+- Used for :: Choosing the released research/execution baseline instead of following a drifting documentation route.
+- Claim status :: DOCUMENTED.
+
+** OTP Design Principles overview at tag =OTP-29.0.6=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.0.6/system/doc/design_principles/design_principles.md
+- Authority :: Official Erlang/OTP source repository, immutable release tag.
+- Retrieved :: 2026-09-16.
+- Relevant sections :: Supervision Trees; Behaviours.
+- Used for :: Chapter 10 generic-behaviour/callback split and worker/supervisor vocabulary.
+- Result :: Behaviours formalize recurring process patterns by splitting a generic OTP behaviour module from an application callback module; supervision trees distinguish worker processes from supervisor processes.
+- Claim status :: DOCUMENTED.
+
+** =gen_server= source documentation at tag =OTP-29.0.6=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.0.6/lib/stdlib/src/gen_server.erl
+- Authority :: Official Erlang/OTP source repository, immutable release tag.
+- Version :: OTP 29.0.6 / stdlib 8.0.4 according to patch metadata.
+- Retrieved :: 2026-09-16.
+- Relevant sections :: module documentation; callback map; =start_link=; =call=; =cast=; =handle_call=; =handle_cast=; =terminate=; system-message integration.
+- Used for :: Chapters 10--11 and Project 2 worker behavior.
+- Result :: =gen_server= owns the generic server process; callback functions own application-specific behavior. =call= is synchronous and exits the caller on timeout. Starting with OTP 24 its call protocol uses process aliases so late replies to an abandoned call are not delivered. =cast= provides no reply acknowledgement. The behavior participates in =sys= system messages/debugging.
+- Claim status :: DOCUMENTED. Executable Project 2 claims remain UNTESTED until branch CI runs.
+
+** =supervisor= source documentation at tag =OTP-29.0.6=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.0.6/lib/stdlib/src/supervisor.erl
+- Authority :: Official Erlang/OTP source repository, immutable release tag.
+- Version :: OTP 29.0.6 / stdlib 8.0.4 according to patch metadata.
+- Retrieved :: 2026-09-16.
+- Relevant sections :: supervision principles; child specs; restart types/strategies; intensity/period; shutdown; =stop=.
+- Used for :: Chapter 12 and Project 2 supervisor/failure lab.
+- Result :: supervisors start/stop/monitor children; static children start left-to-right and stop right-to-left; strategies encode which children are affected by a required restart; more than =intensity= restarts within =period= seconds terminates children and supervisor with supervisor reason =shutdown=; child restart type and shutdown policy are explicit child-spec fields. =supervisor:stop/1= is documented as introduced in OTP 29.0.
+- Claim status :: DOCUMENTED. Executable Project 2 claims remain UNTESTED until branch CI runs.
+
+** Documentation routing caveat observed during pass 03
+- Observation :: On 2026-09-16, =https://www.erlang.org/downloads= reported 29.0.6 as latest released OTP while the unversioned =https://www.erlang.org/doc/apps/stdlib/gen_server.html= route rendered a page labelled OTP 29.1 / stdlib 8.1.
+- Handling :: Do not infer that 29.1 is a released baseline. Exact Project 2 citations point to the official immutable =OTP-29.0.6= tag and the book workflow continues to pin OTP 29.0.6.
+- Claim status :: DOCUMENTED observation; no release-status claim beyond the official downloads page.

@@ -1,0 +1,23 @@
+digraph dcg_boundary {
+  rankdir=LR;
+  graph [fontname="DejaVu Sans", bgcolor="transparent", pad="0.25", nodesep="0.45", ranksep="0.7"];
+  node [shape=box, style="rounded", fontname="DejaVu Sans", fontsize=11, margin="0.15,0.1"];
+  edge [fontname="DejaVu Sans", fontsize=10];
+
+  tokens [label="atom token list\n[tasks, tagged, prolog]"];
+  grammar [label="trusted DCG grammar\ntask_command//1"];
+  ast [label="closed AST data\ntasks(tag(prolog))"];
+  dispatcher [label="explicit allowlisted dispatcher\nexecute_task_command/2"];
+  solver [label="Project 1 relations\ntask/4 · has_tag/2 · dependency_path/3"];
+  results [label="structured result terms"];
+  syntax_reject [shape=note, label="reject malformed syntax\nor trailing tokens"];
+  ast_reject [shape=note, label="reject unknown AST\n(no call/1 fallback)"];
+
+  tokens -> grammar [label="parse"];
+  grammar -> ast [label="construct data"];
+  ast -> dispatcher [label="explicit handoff"];
+  dispatcher -> solver [label="fixed clauses only"];
+  solver -> results [label="query"];
+  grammar -> syntax_reject [style=dashed, label="no full parse"];
+  dispatcher -> ast_reject [style=dashed, label="unknown constructor"];
+}
