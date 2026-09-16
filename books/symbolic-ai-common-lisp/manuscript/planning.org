@@ -1,0 +1,259 @@
+#+title: Symbolic Planning from Search and Unification
+:PROPERTIES:
+:ID:       5a993d55-dfe3-422e-a460-239a4e26e5ce
+:END:
+#+bibliography: ../references.bib
+
+* Chapter 9 -- Planning Is Search over Meaningful Actions
+:PROPERTIES:
+:ID:       ffd7b363-4081-4518-b22f-1e89cc9e96b4
+:END:
+
+A graph-search engine does not know what a *plan* is.  It knows only states, successor transitions, costs, and goals.  That is exactly why the Search Library is useful here: instead of replacing it with a planner framework, we can derive planning by supplying the missing semantics.
+
+A planner needs to answer four questions:
+
+1. What facts make up a world state?
+2. When is an action applicable?
+3. How does the action change the state?
+4. Which resulting state satisfies the goal?
+
+The historical STRIPS work made explicit operators and changing world models central to automated problem solving [cite:@fikesnilsson1971].  The original system was richer than the tiny kernel we build here, and the authors' later retrospective is useful precisely because it discourages treating every later textbook convention as if it were literally the 1971 implementation [cite:@fikesnilsson1993].  Our milestone is therefore described carefully as a *STRIPS-style teaching subset*: positive preconditions, add effects, delete effects, and graph search over ground fact sets.
+
+The implementation lives in =../code/planner/=.  It is intentionally composed from the book's previous mechanisms:
+
+#+begin_example
+symbolic facts
+     |
+     v
+positive action preconditions --UNIFY--> substitutions
+     |                                    |
+     |                                    v
+     +------------------------------> grounded actions
+                                          |
+                                          v
+                              delete/add state transition
+                                          |
+                                          v
+                               Search Library transition
+                                          |
+                                          v
+                                BFS / UCS / A* frontier
+#+end_example
+
+The planner does not inspect the unifier's alist representation and does not reimplement BFS.  It calls the accepted public operations.  This is a major architectural lesson: once small symbolic mechanisms have honest interfaces, more sophisticated systems become compositions rather than rewrites.
+
+** 9.1 A world state is a set of ground facts
+
+For this milestone, a state is a finite set such as:
+
+#+begin_src lisp
+'((at robot dock)
+  (at package-17 dock)
+  (empty robot)
+  (connected dock hall)
+  (connected hall office))
+#+end_src
+
+Facts are ground: no project variables remain in a concrete state.  Order is not meaningful and duplicate facts do not mean “more true.”  The implementation therefore canonicalizes a state into a deterministic, duplicate-free list before using it as the Search Library's =EQUAL= key.
+
+That choice is not cosmetic.  Suppose two action sequences produce:
+
+#+begin_example
+((at robot hall) (empty robot) (connected hall office))
+#+end_example
+
+and:
+
+#+begin_example
+((connected hall office) (at robot hall) (empty robot) (empty robot))
+#+end_example
+
+If list order and duplicate entries leak into state identity, graph search sees two nodes where the planning semantics say there is one world.  Duplicate-state pruning becomes accidental rather than meaningful.  =CANONICAL-STATE= turns the representation invariant into executable code.
+
+** 9.2 An action schema is a relation waiting for bindings
+
+Consider a move action.  We use the variable representation introduced by Project 2:
+
+#+begin_src lisp
+(let ((from (symbolic-ai.pattern:make-variable 'from))
+      (to   (symbolic-ai.pattern:make-variable 'to)))
+  (make-action-schema
+   'move
+   (list from to)
+   `((at robot ,from)
+     (connected ,from ,to))
+   `((at robot ,to))
+   `((at robot ,from))))
+#+end_src
+
+This says more than “call a function named MOVE.”  It states a relation between a current world and a possible successor:
+
+- =robot= must be at some =FROM=;
+- =FROM= must be connected to some =TO=;
+- afterward, =(at robot FROM)= is removed;
+- afterward, =(at robot TO)= is present.
+
+The variables become concrete only when the schema is matched against a state.  That distinction between a schema and a grounded action is easy to blur in ad-hoc code and becomes critical once explanation, provenance, or planner debugging arrives.
+
+** 9.3 Joining preconditions is the first real planning mechanism
+
+One precondition can be unified with one fact.  A useful action usually has several preconditions that must agree on variables.
+
+For =MOVE=, suppose the state contains:
+
+#+begin_example
+(at robot dock)
+(connected dock hall)
+(connected warehouse office)
+#+end_example
+
+Unifying =(at robot ?from)= with the first fact binds =?from -> dock=.  The next precondition is *not* matched from scratch.  It is unified with candidate facts under the existing substitution.  Therefore =(connected warehouse office)= fails for this action instance, while =(connected dock hall)= extends the same substitution with =?to -> hall=.
+
+The implementation makes this join explicit by repeatedly calling the public =UNIFY= operation with the substitution returned by the preceding successful step.  It never reaches into the unifier's internal association-list layout.  This is exactly the consumer boundary Project 2 was preparing.
+
+A regression test keeps this honest.  A schema requiring both =(at ?x room)= and =(tag ?x heavy)= must not become applicable when the state contains =(at crate room)= and =(tag other heavy)=.  Both preconditions may match separately, but no single consistent substitution satisfies them together.
+
+** 9.4 Ground before changing the world
+
+Once all preconditions succeed, the action name and every effect are rewritten through the accepted substitution operation.  Any remaining variable is a bug in the schema/binding boundary and raises =UNGROUNDED-ACTION= before a successor state is produced.
+
+That fail-before-mutation rule matters.  Consider this malformed schema:
+
+#+begin_src lisp
+(make-action-schema
+ 'invent
+ (list (symbolic-ai.pattern:make-variable 'x))
+ '()
+ `((exists ,(symbolic-ai.pattern:make-variable 'x)))
+ '())
+#+end_src
+
+With no precondition binding =?x=, there is no legitimate grounded effect.  Silently inserting =(:var x)= into the world would mix schema syntax with world facts and poison later equality, search, and explanation.  The planner rejects the transition instead.
+
+** 9.5 State transition means delete, then add
+
+For this subset, applying a grounded action is deliberately mechanical:
+
+#+begin_example
+next = (state - delete-effects) union add-effects
+#+end_example
+
+Deletion and addition are set-like under =EQUAL=.  The result is canonicalized again.
+
+The order is visible because an effect may appear in both sets in extensions or malformed teaching examples.  This implementation removes the delete set first and then inserts the add set.  More important than the convention is that it is specified, tested, and not buried in mutation order.
+
+The planner also keeps state values fresh rather than destructively modifying states that may already be stored as graph-search keys.  That preserves the state-identity contract established in Chapter 1.
+
+** 9.6 The warehouse project: four mechanisms, one plan
+
+Project 3 starts with a small logistics domain that is large enough to expose real composition.  The robot begins at the dock with a package:
+
+#+begin_example
+(at robot dock)
+(at package-17 dock)
+(empty robot)
+(connected dock hall)
+(connected hall office)
+#+end_example
+
+Three schemas are sufficient for the first milestone:
+
+- =PICKUP(?pkg, ?loc)= requires robot and package at the same location plus an empty robot; it removes package-at-location and empty, then adds carrying;
+- =MOVE(?from, ?to)= requires robot-at and a directed connection; it replaces robot location;
+- =DROP(?pkg, ?loc)= requires robot-at and carrying; it removes carrying and adds package-at-location plus empty.
+
+The goal is:
+
+#+begin_example
+(at package-17 office)
+#+end_example
+
+For unit-cost actions, breadth-first graph search should obtain the four-action plan:
+
+#+begin_example
+(pickup package-17 dock)
+(move dock hall)
+(move hall office)
+(drop package-17 office)
+#+end_example
+
+This result is meaningful because it crosses every mechanism boundary developed so far.  Unification grounds schemas.  Substitution grounds effects.  Effect application creates immutable successor states.  Canonical state identity prevents equivalent worlds from multiplying.  The Search Library reconstructs the action path.
+
+The test suite asserts the result; the manuscript does not invent a run transcript.  Until the exact branch head passes CI, treat the implementation as UNTESTED rather than assuming this example works because it looks plausible.
+
+#+caption: Project 3 milestone A composes the existing unifier and graph-search engine around one explicit action/state boundary.
+#+attr_html: :alt Action schemas and current state feed precondition unification. Consistent substitutions create grounded actions. Delete and add effects create canonical successor states which enter the existing graph search. Search reconstructs a plan or a not-found result.
+[[file:assets/planner-state-space.svg]]
+
+** 9.7 Costs belong to actions; strategy still belongs to search
+
+The action schema carries a nonnegative numeric cost because the Search Library already knows how to reason about path cost.  The planner need not acquire a second priority queue.
+
+A controlled regression gives one direct action cost 10 and a two-action route costs 2 + 2.  Uniform-cost search must choose the longer sequence with total cost 4.  That test is about interface composition: action costs flow through grounded actions into ordinary search transitions.
+
+A* is exposed through the same adapter, but milestone A does not invent a heuristic and does not claim optimality for an arbitrary caller-supplied one.  Later work should derive useful planning heuristics and state their admissibility/consistency assumptions before making stronger claims.
+
+** 9.8 “No plan found” has several possible causes
+
+A =:not-found= search result does not automatically mean the real-world task is impossible.  It means no goal state was reached in the finite state space induced by *this representation, these schemas, these connections, and this search contract*.
+
+Debugging should therefore walk the semantic pipeline:
+
+1. Is the initial state represented correctly and ground?
+2. Is the goal itself ground and spelled in the same vocabulary?
+3. Which schemas become applicable in the initial state?
+4. For a schema that should apply, which precondition first loses a consistent binding?
+5. Does grounding leave a variable in the action/effects?
+6. Are delete effects erasing a fact required later?
+7. Are two semantically equal worlds receiving different canonical keys?
+8. Is the domain missing a transition, such as a directed connection back from =hall= to =dock=?
+
+That last case is especially useful.  The planner does not assume that =connected= is symmetric.  If the world model includes only =(connected dock hall)=, moving from hall to dock is impossible unless another fact says so.  “Helpful” implicit symmetry would be hidden domain semantics.
+
+** 9.9 Tiny syntax does not mean tiny search
+
+The representation in this chapter is intentionally compact, but compact operators do not make planning computationally easy.  Bylander's analysis of propositional STRIPS planning gives formal complexity results for carefully stated variants [cite:@bylander1994].  The lesson for this chapter is modest: state-space growth is a first-class engineering concern, and later heuristics/constraints need motivation.
+
+Do not quote a complexity class as if it were a benchmark for this Common Lisp program.  The paper studies formal decision problems; this project has not run a performance experiment and makes no timing, memory, or scaling claim.
+
+** 9.10 What this planner is not
+
+The milestone intentionally excludes negative preconditions, conditional effects, quantifiers, derived predicates, temporal/numeric fluent semantics beyond action cost, PDDL parsing/conformance, partial-order planning, hierarchical planning, probabilistic effects, and online replanning.  Those omissions keep the mechanism visible while we learn to debug it.
+
+Likewise, this is not the production-rule engine from the Expert Systems volume.  A planner asks, “Which action sequence reaches a goal?”  A forward-chaining rule engine asks which productions should fire as working memory changes.  They can share matching ideas without having the same control semantics.
+
+The sibling /Symbolic AI in Prolog/ book can exploit Prolog's native relational search and meta-interpretation.  Here, the point is different: make substitution, state identity, action grounding, and frontier policy explicit in Common Lisp so there is nowhere for control to hide.
+
+** 9.11 Project lab -- break the semantics on purpose
+
+Run the planner tests from the repository root:
+
+#+begin_src sh
+sbcl --script books/symbolic-ai-common-lisp/code/planner/run-tests.lisp
+#+end_src
+
+Then perform these failure labs:
+
+1. Remove canonicalization after effect application.  Add two schemas that create the same fact set in different orders.  Does graph search now expand duplicate worlds?
+2. Reset the substitution before every precondition.  Which action becomes spuriously applicable when two occurrences of the same variable disagree?
+3. Permit an ungrounded effect to enter state.  Trace how the reserved =(:var NAME)= syntax becomes ambiguous with world data.
+4. Swap the costs in the UCS fixture.  Predict the action sequence and total cost before running it.
+5. Remove =(connected hall office)= from the warehouse.  Explain why =:not-found= is evidence about the encoded model, not a proof about physical logistics.
+
+The test suite should be treated as executable semantic documentation.  A regression is useful when it names the misconception that would create it.
+
+** 9.12 Exercises
+
+1. ★ Write the substitution produced when =MOVE= grounds against =(at robot dock)= and =(connected dock hall)=.
+2. ★ Explain why a list of facts needs canonicalization before it can stand for a set-valued world state.
+3. ★★ Add a =CHARGE= schema that requires the robot at a charger and changes a symbolic battery-state fact.  Write tests before using it in a plan.
+4. ★★ Add a second package and demonstrate that repeated-variable constraints prevent picking up one package while deleting the other's location.
+5. ★★ Construct two schemas that lead to the same semantic state by different fact insertion orders and assert that the search duplicate counter increases.
+6. ★★★ Add a domain-specific admissible heuristic for a tiny directed location graph.  State the assumptions under which it is a lower bound and compare A* with UCS using *counts already exposed by Search*, not invented timing numbers.
+7. ★★★ Design a representation for negative preconditions without implementing it.  List which current applicability, state, and explanation invariants would have to change.
+8. ★★★ Explain why “our bounded warehouse suite passes” is TESTED evidence but not a proof that the planner is sound and complete for all finite STRIPS problems.
+
+* Project 3 checkpoint
+
+Milestone A is complete only after the source, tests, diagram, citations, book build, and focused CI all agree on one exact head.  It establishes a transparent state-space planning kernel and a dependency boundary for later heuristics, explanation, rules, knowledge representation, and formal verification.  It does not establish whole-project or whole-book completion.
