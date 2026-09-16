@@ -1,0 +1,24 @@
+digraph meta_capability_boundary {
+  graph [rankdir=LR, bgcolor="transparent", pad="0.2", nodesep="0.45", ranksep="0.65"];
+  node [shape=box, style="rounded", fontname="DejaVu Sans", fontsize=11, margin="0.12,0.08"];
+  edge [fontname="DejaVu Sans", fontsize=10];
+
+  request [label="Request data\nrequest(Tag, Arguments)"];
+  shape [label="Shape + argument validation\nproper atom list\nexact authored arity"];
+  map [label="Closed capability table\nTag -> trusted handler\n(no runtime discovery)"];
+  closure [label="Trusted in-module closure\nrun_tasks_by_owner / ..."];
+  meta [label="Explicit meta-call boundary\ncall/N appends validated args"];
+  result [label="Structured Project 1 results\nordinary data"];
+  reject [label="Reject\nunknown tag / wrong arity\ncallable-looking payload", shape=octagon];
+  inspect [label="Term decomposition\ndescribe_term/2\nreflection only", style="rounded,dashed"];
+
+  request -> shape;
+  shape -> map [label="valid"];
+  shape -> reject [label="invalid", style=dashed];
+  map -> closure [label="known tag"];
+  map -> reject [label="unknown tag", style=dashed];
+  closure -> meta;
+  meta -> result;
+  request -> inspect [label="may inspect as data", style=dotted];
+  inspect -> reject [label="description is not authority", style=dotted];
+}
