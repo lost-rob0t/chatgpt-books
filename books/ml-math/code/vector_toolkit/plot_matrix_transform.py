@@ -25,8 +25,8 @@ def line(a: tuple[float, float], b: tuple[float, float], **attrs: object) -> str
     )
     return (
         f'<line x1="{x1:.3f}" y1="{y1:.3f}" x2="{x2:.3f}" y2="{y2:.3f}" '
-        f"{rendered}/>"
-    ).removesuffix('"')
+        f'{rendered}/>'
+    )
 
 
 def polygon(points: tuple[tuple[float, float], ...], **attrs: object) -> str:
