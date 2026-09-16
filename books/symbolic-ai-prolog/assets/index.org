@@ -15,5 +15,6 @@
 - =frontier-evolution.dot= / =frontier-evolution.svg= -- side-by-side DFS/BFS frontier evolution over the service-recovery fixture, including the closed-on-expansion duplicate-state policy.
 - =relational-planning-flow.dot= / =relational-planning-flow.svg= -- Chapter 8 schema freshening, precondition grounding, fail-closed effect validation, successor-state transformation, and BFS handoff.
 - =search-strategy-frontiers.dot= / =search-strategy-frontiers.svg= -- Chapter 9 comparison of FIFO depth, uniform-cost =g=, A* =g+h=, best-known-cost replacement, stale heap entries, and the closed heuristic-data boundary.
+- =heuristic-audit-flow.dot= / =heuristic-audit-flow.svg= -- Chapter 9 finite reachable-closure gate, cutoff-without-verdict branch, exact remaining-cost audit, edge-consistency audit, and the separation between validated heuristic data and theorem-premise evidence.
 * Rule
 Do not add decorative assets merely to inflate the book. Every informative figure gets caption + alt text.
