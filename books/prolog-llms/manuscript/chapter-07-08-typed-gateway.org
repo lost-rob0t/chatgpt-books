@@ -79,7 +79,7 @@ This is why the model payload does not contain its own accepted provenance field
 
 ** 7.4 The boundary as a pipeline
 
-[[file:../assets/typed-gateway-boundary.svg]]
+[[file:assets/typed-gateway-boundary.svg]]
 
 The diagram is deliberately asymmetric. Every rejection edge terminates before =execute_capability/2=. There is no "best effort" fallback that turns malformed content into a Prolog query.
 
