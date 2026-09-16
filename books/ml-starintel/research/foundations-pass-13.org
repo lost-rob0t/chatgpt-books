@@ -4,7 +4,7 @@
 :END:
 
 * Status
-RESEARCH / DOCUMENTED / IMPLEMENTED. Executable status remains UNTESTED until the updated branch CI is observed green.
+RESEARCH / DOCUMENTED / IMPLEMENTED / TESTED.
 
 * Question
 How should Project 1 hand its already-validated =composite_group_id= values to scikit-learn without weakening entity/duplicate/lineage constraints or pretending a grouped random split enforces chronological validity?
@@ -57,7 +57,7 @@ raw records
 
 The splitter is intentionally handed only a sample count and the composite group vector. Model features and labels stay outside this layer so the split planner cannot accidentally fit or transform the data it is supposed to partition.
 
-* Acceptance tests added
+* Acceptance tests
 The executable tests require:
 
 - an uneven three-record composite component to remain atomic under =GroupShuffleSplit=;
@@ -67,7 +67,23 @@ The executable tests require:
 - grouped splitting to reject a future-only feature before partitioning;
 - a deliberately omitted hard entity edge to be caught by the post-split hard-rule contamination audit.
 
-Until CI is observed, these acceptance cases are IMPLEMENTED/UNTESTED rather than TESTED.
+* Exact verification observed
+PR integration for branch head =e12d43800afb9b57c52bc471ca328a7f81ce686a= was checked out by GitHub Actions as merge ref =da77ea3e8e0ff8f6cc45cc40e9296b33a55a8bb7= against current =main= =20417c796582b2e18410b86e6902285368a2b794=.
+
+=ml-starintel-research= run =35099487725=, job =104804995647= completed successfully on 2026-09-16:
+
+- Ubuntu 24.04.5 / Python 3.12.3;
+- pinned scikit-learn 1.9.0, matplotlib 3.11.1, datasketch 2.0.0, jsonschema 4.26.0;
+- 44 selected research-harness tests passed, including all 11 composite-planner tests and the five new grouped-handoff regressions;
+- all prior Project 1 experiments and diagnostics re-executed successfully;
+- =make book BOOK=ml-starintel= passed;
+- =make check BOOK=ml-starintel= passed;
+- EPUBCheck 5.3.0 reported =0 fatals / 0 errors / 0 warnings / 0 infos=;
+- research/EPUB artifact =10447836607= was uploaded; artifact ZIP SHA-256 =a29776ea67bcf062c420101276c8da1ec9710082af2859824b87ed36a9961b0c=.
+
+Generic =books-ci= run =35099487718= also completed its =validate= job successfully on the same integration state, including structural validation, Pandoc Org-reader contract, deterministic asset/fixture checks, EPUB validation, publication regressions, per-book citation rendering, ERT, and real Org-roam DB synchronization.
+
+These results establish the grouped-split handoff only under the pinned Project 1 environment and tested fixtures. They do not establish temporal validity for grouped random folds, production model performance, or a complete transitive dependency lock.
 
 * What this slice does not claim
 - It does not claim grouped random splitting is temporally valid.
@@ -77,7 +93,7 @@ Until CI is observed, these acceptance cases are IMPLEMENTED/UNTESTED rather tha
 - It does not change the StarIntel runtime, storage, actor, routing, or search boundaries.
 
 * Next gate
-After this handoff is green, the remaining foundational blockers before Chapters 2--5 harden are:
+The remaining foundational blockers before Chapters 2--5 harden are:
 
 1. freeze and execute the predeclared =num_perm= larger-corpus candidate benchmark without post-hoc tuning;
 2. define and verify a transitive Python dependency-lock/reproduction policy;
