@@ -18,7 +18,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y build-essential git erlang-nox graphviz python3-matplotlib curl unzip default-jre-headless
+          sudo apt-get install -y build-essential git erlang-nox erlang-dev graphviz python3-matplotlib curl unzip default-jre-headless
           curl --fail --location --retry 3 \
             --output pandoc.deb \
             https://github.com/jgm/pandoc/releases/download/3.10.1/pandoc-3.10.1-1-amd64.deb
@@ -28,6 +28,7 @@ jobs:
             https://github.com/w3c/epubcheck/releases/download/v5.3.0/epubcheck-5.3.0.zip
           unzip -q epubcheck.zip -d .cache
           erl -noshell -eval 'io:format("OTP ~s~n", [erlang:system_info(otp_release)]), halt().'
+          test -f "$(erl -noshell -eval 'io:format("~s", [code:lib_dir(eunit, include)]), halt().' 2>/dev/null)/eunit.hrl"
           pandoc --version | head -1
           java -jar .cache/epubcheck-5.3.0/epubcheck.jar --version
 
@@ -56,6 +57,7 @@ jobs:
           dot -Tsvg books/lfe/assets/macro-expansion.dot >/dev/null
           dot -Tsvg books/lfe/assets/actor-protocol.dot >/dev/null
           dot -Tsvg books/lfe/assets/otp-supervision.dot >/dev/null
+          dot -Tsvg books/lfe/assets/testing-layers.dot >/dev/null
 
       - name: Build LFE book
         run: make book BOOK=lfe
