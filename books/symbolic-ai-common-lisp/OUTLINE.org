@@ -61,15 +61,23 @@ Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modific
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 8 -- Planning
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for planning.
-Dependencies: previous chapter.
+** Chapter 8 -- Unification
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for unification before later systems consume substitutions.
+Dependencies: Pattern Matching plus the Search Library foundations.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
 Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 9 -- Production Systems
+** Chapter 9 -- Planning
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for planning.
+Dependencies: Search, heuristics, pattern matching, and unification.
+Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
+Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
+Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
+Expected code: executable examples and tests when the topic is implementable.
+Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 10 -- Production Systems
 Goal: develop working intuition, precise terminology, and an implementation/debugging angle for production systems.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
@@ -77,7 +85,7 @@ Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modific
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 10 -- Semantic Networks
+** Chapter 11 -- Semantic Networks
 Goal: develop working intuition, precise terminology, and an implementation/debugging angle for semantic networks.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
@@ -85,7 +93,7 @@ Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modific
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 11 -- Frames
+** Chapter 12 -- Frames
 Goal: develop working intuition, precise terminology, and an implementation/debugging angle for frames.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
@@ -93,7 +101,7 @@ Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modific
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 12 -- Logic
+** Chapter 13 -- Logic
 Goal: develop working intuition, precise terminology, and an implementation/debugging angle for logic.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
@@ -101,7 +109,7 @@ Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modific
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 13 -- Knowledge Representation
+** Chapter 14 -- Knowledge Representation
 Goal: develop working intuition, precise terminology, and an implementation/debugging angle for knowledge representation.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
@@ -111,14 +119,6 @@ Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
 
 * Part III -- Advanced Design, Integration, and Failure
-** Chapter 14 -- Unification
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for unification.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
 ** Chapter 15 -- Forward Chaining
 Goal: develop working intuition, precise terminology, and an implementation/debugging angle for forward chaining.
 Dependencies: previous chapter.
