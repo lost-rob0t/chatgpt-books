@@ -12,3 +12,6 @@
 Do not add decorative assets merely to inflate the book. Every informative figure gets caption + alt text.
 * Project 1 assets
 - =process-request-flow.dot= -> =process-request-flow.svg= :: Editable Graphviz source and deterministic render for the Chapter 6 request/reply, monitor, timeout, and late-reply flow. The manuscript provides caption and alt text.
+- =failure-propagation.dot= -> =failure-propagation.svg= :: Editable Graphviz source and deterministic render for the Chapters 7--9 link/monitor/trap-exit failure relationships. The manuscript provides caption and alt text.
+* Project 2 assets
+- =otp-worker-lifecycle.dot= -> =otp-worker-lifecycle.svg= :: Editable Graphviz source and deterministic render for Chapters 10--12. The worker cluster makes the process boundary explicit: =gen_server= generic machinery invokes =otp_worker= callbacks inside one worker process, while the supervisor owns linked-child lifecycle and restart policy. The manuscript provides caption and alt text.
