@@ -12,7 +12,7 @@ This directory is the executable Project 2 planner lab. Chapter 8 / milestone B 
 - =test_planner.pl= -- PL-Unit semantic regressions for binding consistency, freshening, effects, plan provenance, impossible goals, and fail-closed unsafe schemas.
 - =cost_search.pl= -- non-negative-integer uniform-cost and A* frontiers, best-known-cost state map, strict-improvement replacement, stale/dominated diagnostics, deterministic heap tie-breaking, and a closed heuristic-data interface.
 - =weighted_recovery_domain.pl= -- synthetic weighted technical-recovery fixture where fewest actions and lowest total cost intentionally disagree.
-- =test_cost_search.pl= -- PL-Unit regressions for BFS/UCS objective disagreement, stale and equal-cost dominated entries, zero-cost cycles, UCS/A* fixture agreement, zero heuristic behavior, exhaustion, and fail-closed cost/heuristic inputs.
+- =test_cost_search.pl= -- PL-Unit regressions for BFS/UCS objective disagreement, stale and equal-cost dominated entries, zero-cost cycles, UCS/A* fixture agreement, zero heuristic behavior, exhaustion, malformed/duplicate heuristic data, rejection of callable heuristic terms, and a deliberate overestimating-heuristic counterexample where A* returns a costlier goal than UCS.
 
 * Data contracts
 A world state is a ground list of symbolic facts canonicalized with =sort/2= into the standard term order with duplicates removed.
@@ -58,7 +58,7 @@ zero
 table([estimate(State, H), ...])
 #+end_src
 
-It does not execute caller-supplied heuristic predicates. Missing, duplicate, negative, or non-integer heuristic data is rejected rather than silently repaired. The implementation consumes estimates; it does not prove admissibility or consistency.
+It does not execute caller-supplied heuristic predicates. Missing, duplicate-after-canonicalization, negative, or non-integer heuristic data is rejected rather than silently repaired. The implementation consumes estimates; it does not prove admissibility or consistency. The regression suite makes that boundary executable in both directions: a callable-looking heuristic term is rejected as data, while a syntactically valid but deliberately overestimating finite table is accepted and can make A* return the fixture's cost-12 goal before UCS's cost-11 optimum. Validation of representation is therefore not a proof of heuristic quality.
 
 Constraints, negative-cost planning, temporal/probabilistic planning, PDDL compatibility, and production performance remain later/out-of-scope work.
 
