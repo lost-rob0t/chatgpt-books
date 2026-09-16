@@ -41,17 +41,34 @@ jobs:
         working-directory: books/ml-math/code/vector_toolkit
         run: python -m unittest -v test_vector_toolkit.py test_matrix_toolkit.py
 
+      - name: Run calculus foundation regression suite
+        working-directory: books/ml-math/code/calculus
+        run: python -m unittest -v test_calculus_lab.py
+
       - name: Regenerate deterministic teaching figures
-        working-directory: books/ml-math/code/vector_toolkit
+        shell: bash
         run: |
           set -euo pipefail
+          cd books/ml-math/code/vector_toolkit
           python plot_vector_geometry.py
           python plot_matrix_transform.py
           git diff --exit-code -- ../../assets/vector_geometry.svg ../../assets/matrix_transform.svg
+          cd ../calculus
+          python plot_calculus_secants.py
+          python plot_gradient_geometry.py
+          git diff --exit-code -- ../../assets/calculus_secants.svg ../../assets/gradient_geometry.svg
 
       - name: Compile teaching Python
-        working-directory: books/ml-math/code/vector_toolkit
-        run: python -m py_compile vector_toolkit.py matrix_toolkit.py plot_vector_geometry.py plot_matrix_transform.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile books/ml-math/code/vector_toolkit/vector_toolkit.py \
+            books/ml-math/code/vector_toolkit/matrix_toolkit.py \
+            books/ml-math/code/vector_toolkit/plot_vector_geometry.py \
+            books/ml-math/code/vector_toolkit/plot_matrix_transform.py \
+            books/ml-math/code/calculus/calculus_lab.py \
+            books/ml-math/code/calculus/plot_calculus_secants.py \
+            books/ml-math/code/calculus/plot_gradient_geometry.py
 
       - name: Structural validation
         run: ./tools/check-structure
