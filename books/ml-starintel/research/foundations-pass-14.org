@@ -1,0 +1,99 @@
+#+title: ML-StarIntel foundational research pass 14 -- reproducible Python environment
+#+property: header-args :eval never-export
+
+* Scope
+:PROPERTIES:
+:ID: ml-starintel-foundations-pass-14
+:END:
+This pass closes the Project 1 transitive Python *version-lock* gap without pretending that a version lock is stronger than it is.  The research harness remains book-local and does not own StarIntel runtime behavior.
+
+The dependency contract has two intentionally different files:
+
+- =requirements.txt= is the small human-maintained set of direct research dependencies.
+- =requirements.lock= is the complete installed distribution set observed for the tested CPython/platform contract, including transitive dependencies.
+
+The lock is tested under CPython 3.12.3 on Linux x86_64 in a fresh virtual environment.  CI installs every locked distribution with =--no-deps=, runs =pip check=, and then independently compares the direct pins, lock contents, and installed distributions with =verify_dependency_lock.py=.
+
+* Why the old direct pins were not enough
+Before this pass, Project 1 pinned =jsonschema=, =scikit-learn=, =matplotlib=, and =datasketch= but allowed pip to choose every transitive dependency anew.  That made top-level package selection repeatable while still allowing the numerical/runtime environment to drift under the same Git commit.
+
+Python documents virtual environments as isolated, disposable environments that should be recreated rather than committed.  pip's repeatable-install guidance distinguishes pinning direct packages from pinning the complete dependency graph and specifically notes that installing a fully pinned set with =--no-deps= adds protection against dependency-resolution changes.  pip also documents that =pip freeze= reports what is installed; it is not itself a solver result or a lockfile format.  Those distinctions define this pass's boundary rather than marketing the generated snapshot as magic reproducibility.
+
+* Authoritative references
+- Python 3.12 =venv= documentation: https://docs.python.org/3.12/library/venv.html
+- pip repeatable installs: https://pip.pypa.io/en/latest/topics/repeatable-installs/
+- pip =freeze=: https://pip.pypa.io/en/latest/cli/pip_freeze/
+- pip requirements-file format: https://pip.pypa.io/en/latest/reference/requirements-file-format/
+- pip =install= / =--require-hashes=: https://pip.pypa.io/en/latest/cli/pip_install/
+- =actions/setup-python= current project documentation: https://github.com/actions/setup-python
+
+On 2026-09-16 the current upstream GitHub Action releases checked for this book-specific workflow were =actions/checkout v7.0.1=, =actions/setup-python v7.0.0=, and =actions/upload-artifact v7.0.1=.  The workflow uses those exact release tags.
+
+* Resolver capture -- TESTED
+The first isolation run intentionally installed the four direct pins into a clean CPython 3.12.3 =venv= and captured the complete installed set before introducing the lock.  =ml-starintel-research= workflow run =35106255999= / job =104828118561= succeeded on 2026-09-16.
+
+Observed environment:
+- Ubuntu 24.04.5 hosted runner;
+- CPython =3.12.3=;
+- virtual-environment pip =24.0=;
+- =pip check=: no broken requirements;
+- 44 selected Project 1 tests passed;
+- all existing Project 1 experiments reran;
+- =make book BOOK=ml-starintel=: PASS;
+- =make check BOOK=ml-starintel=: PASS;
+- EPUBCheck 5.3.0: 0 fatals / 0 errors / 0 warnings / 0 infos.
+
+The resolver produced this 24-distribution research dependency set:
+
+#+begin_example
+attrs==26.1.0
+cloudpickle==3.1.2
+contourpy==1.4.0
+cycler==0.12.1
+datasketch==2.0.0
+fonttools==4.65.0
+joblib==1.6.0
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+kiwisolver==1.5.1
+matplotlib==3.11.1
+narwhals==2.26.0
+numpy==2.5.3
+packaging==26.3
+pillow==12.3.0
+pyparsing==3.3.2
+python-dateutil==2.9.0.post0
+referencing==0.37.0
+rpds-py==2026.6.3
+scikit-learn==1.9.0
+scipy==1.18.1
+six==1.17.0
+threadpoolctl==3.7.0
+typing_extensions==4.16.0
+#+end_example
+
+This capture is evidence for the lock contents.  It is not evidence that the same wheel bytes exist forever or that another OS/Python ABI resolves identically.
+
+* Lock verification contract
+=verify_dependency_lock.py= is deliberately independent of pip's resolver.  It:
+
+1. accepts only exact =name==version= pins in the direct and lock files;
+2. normalizes Python distribution names so =_=, =-=, and =.= spellings cannot create accidental duplicates;
+3. requires every direct pin to be present at the same version in the lock;
+4. enumerates the live environment with =importlib.metadata=;
+5. ignores pip itself because pip is installation tooling rather than a Project 1 research dependency;
+6. fails on a missing, extra, or version-drifted installed distribution.
+
+The CI environment is then built *from the lock* using =pip install --no-deps -r requirements.lock=.  =pip check= remains a second, metadata-level dependency-consistency check.
+
+* Claim status
+- DOCUMENTED: Python =venv= isolation semantics; pip repeatable-install, =freeze=, requirements, and hash-checking semantics; current GitHub Action release tags checked above.
+- TESTED: the isolated CPython 3.12.3 resolver capture and its 24-distribution snapshot from run =35106255999=.
+- IMPLEMENTED / AWAITING FINAL CI AT TIME OF DRAFT: =requirements.lock=, =verify_dependency_lock.py=, lock-focused unit tests, exact Python setup, =--no-deps= install, =pip check=, and live environment equality verification.
+- UNTESTED: this exact dependency contract on another Python version, OS, architecture, or libc; byte-identical artifact recreation.
+- NOT CLAIMED: that version pinning is a cryptographic package-content lock; that =pip freeze= is a solver/lockfile generator; that the book's research environment reproduces production StarIntel dependencies.
+
+* Remaining hardening boundary
+pip's hash-checking mode is stronger than version-only pinning because it constrains package artifacts as well as versions.  This pass does not add hashes.  If the book later needs a supply-chain/byte-identity claim rather than a controlled research-version claim, add an explicitly generated =--require-hashes= lock with platform-aware artifact policy and test that separate contract.
+
+For the foundational Project 1 research claim needed now, the tested contract is narrower: exact CPython version + isolated environment + complete transitive version pins + resolver bypass + dependency-metadata check + independent environment equality check.
