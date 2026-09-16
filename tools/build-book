@@ -4,8 +4,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BOOK="${1:-${BOOK:-}}"
 [[ -n "$BOOK" ]] || { echo "usage: build-book BOOK|BOOK=name" >&2; exit 2; }
 SRC="$ROOT/books/$BOOK/manuscript/index.org"
+BIB="$ROOT/books/$BOOK/references.bib"
 OUT="$ROOT/books/$BOOK/dist/$BOOK.epub"
 [[ -f "$SRC" ]] || { echo "unknown book: $BOOK" >&2; exit 2; }
+[[ -f "$BIB" ]] || { echo "missing bibliography: $BIB" >&2; exit 2; }
 mkdir -p "$(dirname "$OUT")"
 PREPARED="$(mktemp "$ROOT/books/$BOOK/manuscript/.index-pandoc.XXXXXX.org")"
 trap 'rm -f "$PREPARED"' EXIT
@@ -15,6 +17,8 @@ pandoc "$PREPARED" \
   --to=epub3 \
   --standalone \
   --mathml \
+  --citeproc \
+  --bibliography="$BIB" \
   --resource-path="$ROOT/books/$BOOK:$ROOT" \
   --css="$ROOT/assets/styles/epub.css" \
   --metadata-file="$ROOT/books/$BOOK/metadata.yaml" \

@@ -1,0 +1,38 @@
+* Where the book goes next
+
+We now have the low-level failure vocabulary needed to stop treating OTP as magic. Project
+1 has explicit request/reply protocols, timeouts that do not pretend to be cancellation,
+monitor-based failure observation, link-based shared fate, exit trapping, and controlled
+failure injection. The next chapters ask what changes when those mechanics are given
+standard ownership and lifecycle contracts.
+
+Chapter 10 introduces OTP design principles as conventions around process ownership and
+system structure. Chapter 11 converts the messaging service into Project 2's
+=gen_server=-based worker service, including callback boundaries, synchronous and
+asynchronous requests, system messages, termination, and testing. Chapter 12 then adds a
+real supervisor and makes restart strategy/intensity executable rather than rhetorical.
+Applications and releases follow only after those local lifecycle boundaries are concrete.
+
+Before moving on, the reader should be able to answer these questions without hand-waving:
+
+1. Why is a link a different architectural claim from a monitor?
+2. Which facts determine whether an incoming exit signal is dropped, terminates a process,
+   or becomes an =EXIT= message?
+3. Why does =process_flag(trap_exit, true)= not make a process a supervisor?
+4. What does =demonitor(Ref, [flush])= protect the caller mailbox from after a request
+   finishes?
+5. Why can starting a replacement process restore availability while still losing all of
+   the old process's in-memory state?
+6. Which failures in Project 1 are observed, which propagate automatically, and which have
+   no recovery policy yet?
+
+Those questions become the checklist for OTP. We will keep the manual implementation as a
+small executable reference, then replace ad-hoc lifecycle machinery with standard
+behaviours one boundary at a time. The point is not that OTP hides processes. The point is
+that it gives recurring process relationships names, callback contracts, ownership, and
+well-tested operational policy.
+
+Later projects continue outward: applications/releases, distributed Erlang and connection
+failure, explicit persistence/recovery boundaries, Common Test, tracing and runtime
+observability, mailbox/backpressure experiments, and production debugging. Each layer must
+state what it adds and what failure uncertainty remains.

@@ -1,0 +1,50 @@
+#+title: Prolog + LLMs -- Status
+:PROPERTIES:
+:ID:       1fba4fc7-9bda-50be-81fd-f85edee2f005
+:END:
+
+* Phase
+Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / milestone A are editorially APPROVED and merged via PR #39. Chapters 4--5 / milestone B have passed substantive Editor-in-Chief review and are awaiting the final exact-head/current-main objective gates. The complete long-form book remains in progress and is not DONE.
+
+* Accepted baseline
+- Standalone audience and teaching contract defined.
+- Cross-book boundaries recorded for =prolog=, =symbolic-ai-prolog=, and =expert-systems= so this volume remains standalone without consuming the deeper pure-Prolog or classical-symbolic-AI curricula.
+- Six-stage project progression defined from deterministic Prolog foundations through a Prolog-RLM capstone.
+- Research/evidence policy established: model output and benchmarks are never treated as factual evidence without recorded execution.
+- Chapters 1--3 teach relations/queries, shared-variable joins, terms/unification, finite-term versus cyclic-term boundaries, recursion/lists, graph termination, provenance-bearing explanations, tests, and deliberate failure labs.
+- Project 1 milestone A has runnable SWI-Prolog source, provenance-bearing explanations, cycle-safe dependency traversal, a named PL-Unit suite, and fail-closed test loading. It remains model-free by design.
+- PR #39 was editorially APPROVED and merged. Its final focused run =35103064124= passed 13/13 PL-Unit cases on SWI-Prolog 9.0.4 plus structure/book/check/EPUBCheck/Nix; generic =books-ci= run =35103064145= also passed.
+
+* Active milestone B draft
+- DOCUMENTED research pass [[file:research/control-modules-debugging.org][control-modules-debugging.org]] verifies current official SWI behavior needed for explicit backtracking/control, =once/1=, cut, if-then-else, finite-failure negation, module/import composition, debugger tracing, and PL-Unit multi-answer assertions.
+- Chapters 4--5 derive choice points/backtracking and explicit commitment before teaching cut, show a mode-sensitive if-then-else failure case, distinguish finite failure from world truth, then teach modules, public interfaces, PL-Unit determinism contracts, and debugger trace ports.
+- =ready_task/2= deliberately exposes every ready task through backtracking.
+- =first_ready_task/2= is an explicitly named =once/1= boundary whose contract is “first answer in current program/search order”, not “highest priority”.
+- New =task_report= consumer module imports only =ready_task/2= and =explain_task/2= and composes a provenance-bearing report. The manuscript explicitly states that modules are namespace/interface discipline, not a security sandbox.
+- The PL-Unit suite adds regressions for exact ready-task enumeration, first-answer commitment, and cross-module public-API composition while retaining all milestone A regressions.
+- A first CI pass exposed a leftover choice point in the consumer-module test. The test was strengthened to assert the complete result set instead of suppressing the warning with =nondet=; the verified rerun is warning-free.
+- No LLM/provider call, model output, arbitrary generated callable Prolog goal, Prolog-RLM runtime execution, or benchmark is introduced by milestone B.
+
+* Verification
+Accepted milestone A verification is recorded above and must not be inherited by the new draft.
+
+Milestone B implementation content at commit =eea12da990d4ce43df52c7a9afe6808dbb4741d6= was TESTED against the then-current main =11b1841b1cfe64c1908579a60a4350ba03e2174c= at PR integration commit =d8abb2ca0257708942f93673f8979ff14d76b052=:
+- focused =prolog-llms-book= run =35109295239=: SUCCESS on Ubuntu 24.04.5 / SWI-Prolog 9.0.4;
+- all 16 Project 1 PL-Unit cases completed cleanly (=................=) with no choice-point warning;
+- structural validation passed: 10 active principal books plus one paused scaffold;
+- =make book BOOK=prolog-llms=: PASS with Pandoc 3.10.1;
+- =make check BOOK=prolog-llms=: PASS; EPUBCheck 5.3.0 reported 0 fatals / 0 errors / 0 warnings / 0 infos;
+- focused Nix job / =nix flake check -L=: PASS;
+- generic =books-ci= run =35109295346=: SUCCESS through structure, Pandoc Org-reader, deterministic publication assets/fixture, EPUB validation, publication assertions, per-book citation rendering, ERT, and real Org-roam DB synchronization.
+
+Later status-only/reconciliation heads also passed focused and generic CI. Because canonical =main= can advance independently while other book PRs merge, final merge eligibility is determined from the exact current PR head and the base revision recorded by its final pull-request workflow runs, not by inheriting older green evidence.
+
+* Editorial state
+EDITORIAL_REVIEW / SUBSTANCE ACCEPTED / OBJECTIVE GATES PENDING. The Editor-in-Chief has reviewed the actual Chapters 4--5 manuscript, Project 1 module/control changes, regressions, research record, and sibling-book boundaries. No substantive rewrite blocker remains. APPROVED is withheld until the exact current head is non-draft, mergeable, and its focused plus generic pull-request checks complete successfully against the current integration base. Passing this milestone will not mark the whole book DONE.
+
+* Next dependency-ready slice
+After milestone B is accepted, research and implement the Project 1 DCG mini-language, a genuine CLP(FD) scheduling/constraint subproblem, and carefully bounded meta-programming. Keep live model/provider work behind the later typed gateway boundary.
+
+* Blockers
+- The exact editorial head must remain mergeable and pass its focused/generic checks against the current integration base at merge time.
+- Version-sensitive LLM/provider examples remain intentionally deferred until a focused typed-gateway research slice chooses current primary-source-backed interfaces and records exact tested versions.

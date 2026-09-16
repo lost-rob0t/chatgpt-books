@@ -1,0 +1,192 @@
+#+title: Ingest Boundary Pass 02 — Rabbit Settlement, CouchDB Outbox, and HTTP Evidence
+:PROPERTIES:
+:ID:       f8ed4c12-7b42-47f7-a2f5-22aee520b6b3
+:END:
+
+* Scope
+Research date: 2026-09-16.
+
+Primary implementation snapshot:
+- =lost-rob0t/starintel-server=
+- revision =d4e8447c6049eaed65a93e81668ae1ec4b65c25c=
+
+This pass answers one dependency question before actor expansion: after the
+canonical HTTP handler publishes a document, what does the *currently loaded*
+server actually do at the RabbitMQ consumer and CouchDB mutation boundaries?
+It does not claim a live multi-service benchmark or exactly-once delivery.
+
+* Evidence ranking
+The active ASDF load graph is the first filter.  In particular,
+=source/consumers/rabbit-settlement.lisp= exists in the repository but is not a
+component of the current =starintel-gserver= ASDF system.  It is therefore
+PRESENT/INACTIVE for this book pass, not evidence for live behavior.
+
+The loaded path includes =consumers/consumers.lisp=,
+=consumers/retry-policy.lisp=, =producers/producers.lisp=, =actors.lisp=,
+=databases/outbox.lisp=, =rabbit.lisp=, and the later authorized HTTP routes.
+
+* Findings
+** HTTP return is a publication observation, not a persistence proof
+Status: DOCUMENTED from current loaded source; live multi-service round trip
+UNTESTED by this book pass.
+
+The later-loaded authorized =POST /new/document/:dtype= handler validates the
+body/path contract, crosses authorization, calls =publish-document=, and then
+returns the document response.  =publish-document-unchecked= derives
+=documents.ingest.<dtype>= and calls =star.actors:publish=.
+
+The active producer is pinned to one Sento agent thread.  Its underlying
+=star.producers:publish= invokes =cl-rabbit:basic-publish=.  A five-second local
+publish timeout protects the HTTP caller from an indefinitely stuck producer.
+No publisher-confirm selection/wait path was found in these inspected publish
+functions.
+
+Official RabbitMQ 4.3 documentation distinguishes a publisher API call from a
+publisher confirm and treats publisher confirms as orthogonal to consumer
+acknowledgements.  Therefore the book must not promote "the publish function
+returned" into "RabbitMQ durably accepted the message" without additional
+confirm evidence.
+
+** Consumer settlement is owner-thread state
+Status: DOCUMENTED from active source and TESTED by the upstream hermetic
+FiveAM suite; live broker behavior UNTESTED in this book pass.
+
+The active =rabbit-queue-stream= opens one Rabbit connection/channel on its
+owner thread, sets QoS/prefetch, declares durable exchange/queue state, binds
+the queue, and starts a consumer.  Worker clones get distinct streams rather
+than sharing one channel.
+
+Settlement actions are explicit: =:ack=, =:filtered-ack=, =:retry=,
+=:dead-letter=, and =:reject=.  ACK maps to =basic-ack=.  Base retry maps to a
+requeued NACK, while dead-letter/reject use a non-requeue NACK.  The active
+retrying stream adds a richer bounded-retry layer described below.
+
+Upstream =t/consumers-test.lisp= tests settlement normalization, single
+settlement for accepted deliveries, filtered credit restoration, configured
+failure settlement, distinct per-worker streams, wrong-thread rejection,
+bounded retry-policy decisions, startup retry recovery/exhaustion, and the
+transient-document predicate.  The canonical unit entry point is
+=(asdf:test-system :starintel-gserver-tests)=.  Those are hermetic tests, not a
+live RabbitMQ integration run.
+
+** Bounded retry republishes before acknowledging the original
+Status: DOCUMENTED from current retry-policy source.  No live broker fault
+injection executed by this book pass.
+
+The loaded retry policy defaults to a finite retry budget and exponential
+backoff with jitter.  It distinguishes transient from permanent failures.
+Schema/authorization/permanent failures do not receive the same retry path as
+connection/timeout/transient failures.
+
+For a transient failure, the retrying Rabbit path republishes a persistent
+message to the original exchange/routing key with server retry metadata and
+then ACKs the original delivery.  When the retry budget is exhausted, or the
+error is permanent, the path persists a quarantine record, publishes a
+quarantine copy, and then ACKs the original.
+
+That order matters.  Because the inspected republish calls use
+=basic-publish= without evidenced publisher confirms, the book records an
+*uncertainty window*: source inspection alone does not establish that the
+republished copy is durably accepted before the original ACK is sent.  This is
+a research finding, not a fabricated production-loss measurement.
+
+** Canonical mutation persistence uses a per-document durable outbox
+Status: DOCUMENTED from current loaded source.  Selected semantics are covered
+by upstream code/tests; no service-backed crash experiment was run here.
+
+=rabbit.lisp= strictly decodes/validates canonical mutation messages before
+persistence.  Non-transient documents pass to
+=couchdb-process-outbox-mutation=.  The CouchDB outbox implementation stores
+the document mutation and a pending server-private outbox entry before
+publishing the post-mutation event.  After publication it marks the entry
+published.
+
+The server-private ledger uses =_server_outbox= and =_server_mutations=.  A
+caller-supplied =mutation_id= or =idempotency_key= can define logical mutation
+identity; otherwise the server derives a SHA-256 mutation identity from the
+operation plus the public document shape.  Event identity is deterministic
+from the mutation identity.
+
+A repeated mutation ID with the same content hash is treated as the same
+logical mutation.  Reusing the mutation ID with materially different content
+raises a mutation conflict.  New-document persistence also preserves the
+ordinary CouchDB conflict boundary; updates carry/refetch revision state as
+needed by the current mutation code.
+
+** Outbox recovery is at-least-once, not exactly-once
+Status: DOCUMENTED from source plus generic RabbitMQ/CouchDB semantics.
+
+If event publication fails before the pending entry is marked published, the
+pending entry remains in CouchDB.  Startup recovery enumerates pending outbox
+entries, orders them stably per document/sequence, republishes them, and then
+marks them published.
+
+There is an unavoidable reasoning trap here: publication can succeed and the
+process can fail before the publish marker is saved.  Recovery can then publish
+the same logical event again.  Stable event identity makes deduplication
+possible; it does not turn the distributed side effect into exactly-once
+processing.  The book therefore teaches at-least-once reasoning and
+idempotence.
+
+** Current messaging prose contains historical drift
+Status: DOCUMENTED contradiction.
+
+The current =doc/messaging.org= remains useful, but at least two statements no
+longer match the loaded source at this revision:
+
+1. It describes the update-ingest queue/binding as
+   =documents.updates.ingest= / =documents.updated.#=.  The active constants in
+   =rabbit.lisp= are queue =documents.update=, input binding
+   =documents.update.#=, and post-update event family
+   =documents.updated.<dtype>=.
+2. It says legacy =POST /new/target/:actor= skips strict schema validation.  The
+   later-loaded authorized route normalizes the legacy envelope and calls
+   =validate-document-input= with target dtype before dispatch.
+
+For this book pass, loaded source wins.  The mismatches are preserved as a
+source-audit lesson rather than silently copied into the manuscript.
+
+* Project 2 design consequence
+The book's ingest adapter must stay thin.  It should:
+- send an already-formed document to the real current HTTP route with
+  =Authorization: Bearer=;
+- call a successful POST only an HTTP publication-boundary observation;
+- optionally poll the current authorized =GET /document/:id= route to record a
+  *separate* persistence observation;
+- never reimplement schema validation, Rabbit routing, retry, CouchDB, or
+  outbox semantics.
+
+Hermetic unit tests can verify the client's request/evidence logic.  A live
+HTTP -> RabbitMQ -> consumer -> CouchDB result remains UNTESTED until a
+service-backed environment is actually exercised.
+
+* Source paths inspected
+- =source/starintel-gserver.asd=
+- =source/frontends/http-authorization-routes.lisp=
+- =source/frontends/http-bulk-jobs.lisp=
+- =source/actors.lisp=
+- =source/producers/producers.lisp=
+- =source/consumers/consumers.lisp=
+- =source/consumers/retry-policy.lisp=
+- =source/rabbit.lisp=
+- =source/databases/outbox.lisp=
+- =t/consumers-test.lisp=
+- =starintel-gserver-tests.asd=
+- =starintel-gserver-integration-tests.asd=
+- =doc/messaging.org=
+
+External primary documentation inspected:
+- RabbitMQ 4.3, Consumer Acknowledgements and Publisher Confirms,
+  https://www.rabbitmq.com/docs/confirms
+- RabbitMQ 4.3, Reliability Guide,
+  https://www.rabbitmq.com/docs/reliability
+- Apache CouchDB 3.5 documentation,
+  https://docs.couchdb.org/en/latest/
+
+* Next dependency gates
+- Run a disposable service-backed Project 2 trace with an authorized test
+  credential and record POST/read-back evidence without exposing secrets.
+- Add broker/database fault injection before claiming observed retry,
+  quarantine, or crash-recovery behavior.
+- Research the current actor registry/restart/remote-delivery model before
+  drafting Chapter 7 / Project 3.

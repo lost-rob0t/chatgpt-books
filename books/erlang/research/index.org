@@ -6,5 +6,37 @@
 - Which primary sources define the foundational concepts?
 - Which behavior is version-sensitive in the current toolchain?
 - Which claims require reproduction/benchmarking rather than citation alone?
-* Records
-Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
+
+* Passes
+** Foundational pass 01 -- terms, matching, processes, mailboxes, message protocols
+Status: DOCUMENTED + EXECUTION VERIFIED for Project 1 checkpoint A.
+
+Primary-source scope: OTP 29 release/patch metadata; current Data Types, Pattern Matching, Processes, Errors, process Efficiency Guide, and gen_server documentation. See [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
+
+The pass supports manuscript Chapters 1--6 and Project 1 checkpoint A. It explicitly records the OTP 28+ priority-message caveat so the book does not teach an obsolete unconditional mailbox-ordering simplification.
+
+Execution evidence at =c33951f24feafaf7a9d7623169041ab321e8c580=: exact Erlang/OTP 29.0.6 via =erlef/setup-beam@v1.24.1=; all 9 EUnit tests passed; book build and EPUBCheck 5.3.0 validation passed with zero messages; repository =nix flake check -L= passed. Later editorial reconciliation records the final reviewed/merged foundation head separately.
+
+** Failure-semantics pass 02 -- links, trapping exits, monitors, unlink, kill
+Status: DOCUMENTED + EXECUTION VERIFIED for the checkpoint-B implementation revision recorded below.
+
+Primary-source scope: current OTP 29.0.6 Processes reference plus the OTP 29.0.6 =erlang= BIF reference. See [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
+
+This pass supports Chapters 7--9 and Project 1 checkpoint B. The contract taught by the book is intentionally narrower than folklore:
+- links are bidirectional failure relationships and abnormal linked exits propagate unless the receiver traps exits;
+- a non-trapping process normally ignores a linked exit whose reason is =normal=;
+- =process_flag(trap_exit, true)= converts eligible exit signals into ordinary ={'EXIT', From, Reason}= messages; it does not create a restart policy;
+- process monitors are unidirectional observations with independent references and correlated ={'DOWN', Ref, process, Pid, Reason}= messages;
+- after =unlink(Pid)= returns, the former link has no future effect on the caller unless re-established, although an =EXIT= message may already be queued when exits are trapped;
+- =demonitor(Ref, [flush])= combines monitor removal with removal of one already-queued matching =DOWN= notification when present;
+- OTP 29 introduced =erlang:exit_signal/2= as the direct exit-signal API. An explicit =kill= signal is untrappable and the target terminates with reason =killed=.
+
+Execution evidence for implementation head =4472458a666db2fac70f79f9b8dc3dd48fda48c1= was produced by PR #40 focused workflow run =35096523655=, which tested that head integrated with then-current main on pinned Erlang/OTP 29.0.6. =erlc -Werror= plus EUnit executed all 14 foundations/failure tests successfully, including the five new link/monitor/trap/unlink/kill regressions. The same run built the Erlang book, validated it with EPUBCheck 5.3.0 at zero findings, and passed =nix flake check -L=. Generic =books-ci= run =35096523992= also passed its structural, publication/citation, ERT, and Org-roam gates for the same PR revision. Later branch changes require their own fresh CI before review readiness.
+
+* Open research queue
+- OTP behavior contracts: =gen_server=, supervisor strategies/restart intensity, applications.
+- Releases and upgrade boundaries.
+- Distributed Erlang connectivity, security/TLS, partitions, and failure visibility.
+- Persistence boundaries and restart recovery semantics.
+- EUnit/Common Test, tracing, logger/telemetry, Observer/runtime tools, production debugging.
+- Performance experiments for mailbox pressure and selective receive; do not substitute anecdotes for measurements.

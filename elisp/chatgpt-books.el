@@ -29,18 +29,25 @@
     (file-truename root)))
 (defun chatgpt-books--books-directory () (expand-file-name "books" (chatgpt-books-root)))
 (defun chatgpt-books-book-slugs ()
-  "Return sorted book slugs."
+  "Return sorted slugs for every in-tree book or book scaffold."
   (sort (seq-filter (lambda (name)
                       (file-exists-p (expand-file-name "README.org" (expand-file-name name (chatgpt-books--books-directory)))))
                     (directory-files (chatgpt-books--books-directory) nil "^[^.].*")) #'string<))
+(defun chatgpt-books-project-book-slugs ()
+  "Return sorted book slugs that currently expose a PROJECTS.org contract."
+  (seq-filter (lambda (slug)
+                (file-exists-p
+                 (expand-file-name "PROJECTS.org"
+                                   (expand-file-name slug (chatgpt-books--books-directory)))))
+              (chatgpt-books-book-slugs)))
 (defun chatgpt-books-open-book (slug)
   "Prompt for and open book SLUG README."
   (interactive (list (completing-read "Book: " (chatgpt-books-book-slugs) nil t)))
   (find-file (expand-file-name "README.org" (expand-file-name slug (chatgpt-books--books-directory)))))
 (defun chatgpt-books-open-project ()
-  "Open a major-project document for a selected book."
+  "Open a major-project document for a selected active book."
   (interactive)
-  (let ((slug (completing-read "Book: " (chatgpt-books-book-slugs) nil t)))
+  (let ((slug (completing-read "Book: " (chatgpt-books-project-book-slugs) nil t)))
     (find-file (expand-file-name "PROJECTS.org" (expand-file-name slug (chatgpt-books--books-directory))))))
 ;;;###autoload
 (defun chatgpt-books ()

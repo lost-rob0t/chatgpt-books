@@ -3,4 +3,21 @@
 :ID:       e04fc04d-4b5e-56c2-adc2-b3c6a90fad5e
 :END:
 * Entries
-No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.
+** 2026-09-16 -- production-system and RETE foundations
+Questions: What semantics must exist before RETE optimization? How are working memory, productions, pattern matching, and conflict resolution described in primary sources? What current maintained production-system documentation is suitable for cross-checking terminology?
+
+Inspected:
+- Charles L. Forgy, /OPS5: A Rule-Based Programming System/, February 1981, Carnegie-Mellon University.
+- Charles L. Forgy, /Rete: A Fast Algorithm for the Many Pattern/Many Object Pattern Match Problem/, /Artificial Intelligence/ 19(1), 1982, DOI 10.1016/0004-3702(82)90020-0.
+- /CLIPS Reference Manual, Volume I: Basic Programming Guide/, Version 6.4.2, January 16 2025, official CLIPS documentation.
+
+Result: foundation slice freezes a deliberately naive literal/variable/join matcher as the future correctness oracle. RETE, agenda semantics, refraction, truth maintenance, and benchmarks remain deferred rather than being guessed.
+
+** 2026-09-16 -- Linux/service fixture provenance
+Question: Which authoritative sources can ground an eventual Linux/server diagnosis KB without turning synthetic teaching scenarios into fake operational evidence?
+
+Inspected:
+- official current systemd =systemd.service= manual;
+- official Linux kernel =/proc= documentation.
+
+Result: milestone A uses only synthetic service observations, marks them synthetic in provenance, and cites systemd only for the meaning of service configuration/state concepts. No load threshold or real-host observation is claimed.

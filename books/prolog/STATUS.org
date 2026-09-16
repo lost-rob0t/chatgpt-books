@@ -3,14 +3,26 @@
 :ID:       02e3eb9e-492b-5ae1-a225-e5e34e27df67
 :END:
 * Phase
-Bootstrap curriculum and architecture.
+Foundational research and progressive chapter/project drafting.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
+- Foundation research pass 01 documents current SWI-Prolog behavior needed by Chapters 1--3: basic load/query workflow, default variable syntax, anonymous variables, atom/string boundary, unification/occurs-check boundary, PL-Unit surface, and current release channels.
+- Chapters 1--3 contain real manuscript material with exercises, debugging work, and Project 1 integration rather than only bootstrap prose.
+- Relational Query System milestone 1 has a synthetic knowledge base and PL-Unit regression suite.
+- The accepted foundation slice links to the standalone =prolog-llms= sibling without moving core pure-Prolog depth out of this volume.
+- PR #20 was editorially APPROVED for this bounded milestone and merged to canonical main as =565ee3993dc446ed5ba373e40c73c558619cca55=.
 * Active research
-Foundational primary-source research has not yet been declared complete.
-* Unverified claims
-All version-sensitive implementation details remain RESEARCH/UNTESTED until the relevant issue verifies them.
+Foundational primary-source research is still incomplete for recursion, lists, operational control/backtracking, modules, DCGs, search, constraints/CLP(FD), meta-programming, persistence/integration, debugging tooling, advanced testing, and indexing/performance.
+* Verification
+- Source claims in =research/foundations-01.org= are DOCUMENTED from official SWI-Prolog sources retrieved 2026-09-16.
+- Final reviewed PR head =9220d54b51914d20b8a32d1b1e6c5b9a8ff46cab= passed =prolog-book= run =35094308426= and generic =books-ci= run =35094308474= before merge.
+- The focused gate executed the Project 1 SWI-Prolog/PL-Unit suite, production =make book BOOK=prolog=, =make check BOOK=prolog=, and =nix flake check -L= successfully. The earlier full exact-runtime record for this same implementation observed SWI-Prolog 9.0.4 and 11 successful PL-Unit tests with no test warnings.
+- EPUBCheck 5.3.0 reported zero findings on the accepted foundation slice.
+- The previous repository-wide fixed-book-set structural failure is RESOLVED by issue #27 / PR #29; it is no longer a Prolog blocker.
+* Coordination
+[[file:../prolog-llms/README.org][Prolog + LLMs: Neuro-Symbolic Systems from First Principles]] is now a canonical standalone sibling. This book remains the strongest pure-Prolog foundation; cross-linking must not remove the language/runtime depth needed by a reader who never opens the LLM volume.
 * Technical/editorial/visual review
-Not started.
+- Chapters 1--3 / Project 1 milestone 1: editorially APPROVED as a bounded slice.
+- Whole book: not DONE and not in final technical/editorial/visual review.
 * Blockers
-Dependency-aware backlog must be executed before chapter prose is promoted to DONE.
+No conceptual or repository-wide CI blocker for the next foundation slice. The next work is dependency-ordered research and drafting for recursion, lists, backtracking/control, and termination while extending the same Relational Query System rather than starting another disposable toy.

@@ -1,0 +1,19 @@
+digraph formal_verification_flow {
+  rankdir=LR;
+  graph [fontname="DejaVu Sans", bgcolor="transparent", pad="0.2", nodesep="0.5", ranksep="0.7"];
+  node [shape=box, style="rounded", fontname="DejaVu Sans"];
+  edge [fontname="DejaVu Sans"];
+
+  spec [label="Specification\nInit + Next"];
+  property [label="Property\nInvariant I"];
+  checker [label="Reachable-state checker\n(BFS + duplicate detection)"];
+  proved [label="PROVED\nfinite reachable model exhausted"];
+  refuted [label="REFUTED\nshortest counterexample trace"];
+  incomplete [label="BOUNDED / UNKNOWN\nno universal proof claim"];
+
+  spec -> checker;
+  property -> checker;
+  checker -> proved [label="all reached states satisfy I"];
+  checker -> refuted [label="reachable state violates I"];
+  checker -> incomplete [label="bound hit / model incomplete"];
+}

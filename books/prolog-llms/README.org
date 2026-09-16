@@ -1,0 +1,49 @@
+#+title: Prolog + LLMs: Neuro-Symbolic Systems from First Principles
+:PROPERTIES:
+:ID:       5f997607-4c76-52a5-90e3-1ee8cc5af161
+:END:
+
+* Purpose
+A standalone, project-driven technical book that teaches enough Prolog to build trustworthy integrations with language models, then uses that foundation to study and implement neuro-symbolic systems. The book is not a prompt-engineering catalog and not an excuse to hide reasoning behind an API call. Readers should understand the symbolic program, the model boundary, the failure modes, and the evidence supporting every claimed capability.
+
+The intended finished scope is roughly 300--700 rendered EPUB pages. The current manuscript is an in-progress foundation, not a finished book.
+
+* Audience
+Programmers who want to combine Prolog with LLMs, including readers who have never used Prolog before. Prior experience with Python or another general-purpose language is useful but not required for the logic-programming sections.
+
+* Standalone promise
+The book teaches a compact but real Prolog foundation: facts, rules, queries, unification, recursion, lists, backtracking, modules, DCGs, constraints, meta-programming, testing, and debugging appear before the reader is asked to trust a Prolog/LLM integration. The sibling [[file:../prolog/README.org][Prolog for Beginners]] remains the deeper pure-Prolog course; this volume does not hollow it out or require it as a prerequisite.
+
+* Boundaries with sibling books
+- [[file:../prolog/README.org][Prolog for Beginners]] owns the broadest pure-Prolog beginner-to-capable treatment.
+- [[file:../symbolic-ai-prolog/README.org][Symbolic AI in Prolog]] owns deeper symbolic-AI algorithms, explicit meta-interpreters, planning, abduction, and proof machinery as symbolic systems in their own right.
+- [[file:../expert-systems/README.org][Expert Systems]] owns production rule engines, RETE/TREAT-style matching, truth maintenance, and knowledge-engineering workbenches.
+- This book owns the integration problem: typed model boundaries, structured generation, tool use, retrieval/knowledge handoff, symbolic verification, repair loops, evaluation, provenance, and concrete Prolog-RLM-style architectures.
+
+* Teaching method
+Every major idea enters through a system that currently fails in an understandable way. We begin with deterministic Prolog programs and tests, introduce an LLM only when the symbolic program has a crisp boundary for it, then deliberately inject malformed model output, hallucinated predicates, schema mismatches, timeouts, contradictory evidence, nontermination, and misleading explanations. Readers should learn to separate DOCUMENTED behavior, TESTED behavior, EXPERIMENTAL hypotheses, and model-dependent observations.
+
+* Major projects
+- [[id:1ea72957-2339-5040-bdef-6418512180d3][Project 1: Relational Task Solver]] -- compact standalone Prolog foundation with tests and explanation traces.
+- [[id:81558c55-246d-5d27-861d-b25c27b08d62][Project 2: Typed LLM-to-Prolog Gateway]] -- constrain model output behind explicit schemas, parsers, validation, and provenance.
+- [[id:4f7d4fd6-86d6-5358-aace-800088a1c43b][Project 3: Retrieval + Symbolic Verification Pipeline]] -- retrieve candidate evidence, map it into typed facts, and verify claims with Prolog.
+- [[id:4300c738-bbba-56f6-aea6-dd6c97ebeddf][Project 4: Repairing Reasoner]] -- bounded generate/verify/repair loops with failure classification and replayable traces.
+- [[id:63a8d0e2-c373-5aba-84aa-03e9c5a08f6b][Project 5: Neuro-Symbolic Evaluation Harness]] -- measure correctness, calibration, trace quality, cost, latency, and failure recovery without fake benchmarks.
+- [[id:26e34055-8f6f-52f6-9415-bc6ebef3aff2][Capstone: Prolog-RLM Study System]] -- a concrete research-grade recursive language-model architecture in which Prolog owns orchestration/verification contracts and model calls remain replaceable external capabilities.
+
+* Current implementation slice
+Project 1 currently carries the standalone foundation through relations/unification, recursion and cycle-safe dependency traversal, explicit multi-answer backtracking versus a named first-answer =once/1= boundary, module/API composition, PL-Unit contracts, and provenance-bearing explanations. Chapters 4--5 add the operational/control and debugging model needed before the later parser/constraint/gateway work. The project remains intentionally model-free.
+
+* Research and evidence
+Current behavior of SWI-Prolog, model APIs, structured-output facilities, tool protocols, and any named neuro-symbolic system must be verified against primary sources/current implementations before version-sensitive prose is promoted. Record queries and retrieval dates in =research/search-log.org= and verified source metadata in =research/sources.org= / =references.bib=. Never fabricate model output, benchmark numbers, or execution results.
+
+* Build
+From repository root:
+
+#+begin_src sh
+swipl -q -s books/prolog-llms/code/relational-task-solver/run_tests.pl
+make book BOOK=prolog-llms
+make check BOOK=prolog-llms
+#+end_src
+
+Exact TESTED status belongs to recorded CI/runtime evidence for the current head. Passing one Project 1 milestone does not imply that later DCG, CLP(FD), model-provider, neuro-symbolic, or RLM claims have been executed.

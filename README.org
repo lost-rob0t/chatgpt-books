@@ -4,7 +4,7 @@
 :END:
 
 * Mission
-This PRIVATE repository is an Org-mode-first environment for researching, writing, testing, illustrating, and publishing nine independent long-form technical books. Each finished principal book targets roughly 300--700 rendered EPUB pages when the subject warrants it. Depth, tested implementation, source quality, and useful projects matter more than mechanical page count.
+This PRIVATE repository is an Org-mode-first environment for researching, writing, testing, illustrating, and publishing a growing set of independent long-form technical books. The ten principal books listed below target roughly 300--700 rendered EPUB pages when the subject warrants it; an additional paused StarLang volume remains in-tree and is validated by the same publishing system. Depth, tested implementation, source quality, and useful projects matter more than mechanical page count.
 
 No repository/book license has been selected yet. Do not infer one.
 
@@ -16,16 +16,29 @@ No repository/book license has been selected yet. Do not infer one.
 - Never publish investigation secrets, credentials, private data, or copyrighted passages without permission.
 - Generated prose is reviewed like code: verify claims, run examples, preserve provenance, and remove filler.
 
-* The nine books
+* The ten principal books
 - [[file:books/ml-starintel/README.org][Machine Learning for StarIntel: From Zero to Useful Models]]
 - [[file:books/ml-math/README.org][Machine Learning Math for People Who Actually Want to Understand It]]
 - [[file:books/starintel/README.org][StarIntel: Primer, Architecture, Internals, and Hacker's Guide]]
 - [[file:books/prolog/README.org][Prolog for Beginners: Thinking in Relations]]
+- [[file:books/prolog-llms/README.org][Prolog + LLMs: Neuro-Symbolic Systems from First Principles]]
 - [[file:books/erlang/README.org][Erlang for Beginners: Building Systems That Refuse to Die]]
 - [[file:books/lfe/README.org][LFE for Beginners: Lisp on the Erlang VM]]
 - [[file:books/symbolic-ai-common-lisp/README.org][Symbolic AI in Common Lisp]]
 - [[file:books/symbolic-ai-prolog/README.org][Symbolic AI in Prolog]]
 - [[file:books/expert-systems/README.org][Expert System Design and Implementation: From Rules to Production Knowledge Systems]]
+
+* Additional in-tree volume
+- [[file:books/starlang/README.org][StarLang from Zero to Durable Actors]] -- paused/scaffold-only; its presence must not break repository validation or cause unrelated book workers to resume the former StarLang campaign.
+
+* Prolog-family boundaries
+The four Prolog-adjacent volumes are complementary and independently useful:
+- =prolog= is the deepest beginner-to-capable pure Prolog course.
+- =prolog-llms= is standalone but deliberately compact on language foundations so it can focus on typed LLM/Prolog integration, neuro-symbolic architectures, evaluation, and a concrete Prolog-RLM capstone.
+- =symbolic-ai-prolog= focuses on symbolic-AI algorithms implemented in Prolog: meta-interpreters, planning, abduction, semantic knowledge, proof/explanation machinery, and hybrid symbolic reasoning.
+- =expert-systems= owns production rule-engine engineering, RETE/TREAT-style matching, truth maintenance, knowledge engineering, workbenches, persistence, and production operations.
+
+Cross-link rather than copy long passages, but never delete the local explanations required to keep any volume standalone.
 
 * Repository map
 - =books/= -- separate book projects and manuscripts.
@@ -120,4 +133,4 @@ The real dotfiles repository owns package availability and a tiny loader hook. T
 A unit is not DONE until its important factual claims are sourced, runnable examples/tests have actually run, unresolved experiment status is explicit, diagrams/assets are present where promised, accessibility metadata exists, and its production export path succeeds.
 
 * Bootstrap status
-This repository is infrastructure + curriculum bootstrap, not nine completed books. See [[file:STATUS.org][STATUS.org]] and [[file:ROADMAP.org][ROADMAP.org]].
+This repository is infrastructure + curriculum bootstrap with active foundational authoring, not a set of completed books. See [[file:STATUS.org][STATUS.org]] and [[file:ROADMAP.org][ROADMAP.org]].

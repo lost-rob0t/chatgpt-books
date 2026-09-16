@@ -1,0 +1,126 @@
+#+title: Prolog + LLMs -- Detailed Outline
+:PROPERTIES:
+:ID:       09444dfa-36d7-5467-b19b-0221d1c6dbf6
+:END:
+
+* Part I -- Learn enough Prolog to distrust magic
+** Chapter 1 -- Relations before prompts
+Facts, rules, queries, predicate indicators, variables, atoms, compound terms, and the idea that a logic program describes relations rather than a sequence of assignments. Project 1 begins immediately with a small task-domain knowledge base.
+
+Research questions: which syntax and top-level behaviors are portable Prolog ideas, and which examples are explicitly SWI-Prolog behavior? What minimum failure vocabulary does a beginner need before any LLM enters the system?
+
+Exercises: predict query answers, introduce capitalization/arity defects, and distinguish logical failure from syntax/runtime errors.
+
+** Chapter 2 -- Unification as the first verifier
+Finite-term unification, shared variables, substitutions, occurs-check boundaries, disequality, and why unification is stronger than string matching yet weaker than semantic truth. Connect unification directly to later structured-output validation.
+
+Asset: term/unification walk diagram showing bindings accumulated across a clause body.
+
+** Chapter 3 -- Recursion, lists, and termination
+Recursive relations, list structure, accumulators where appropriate, graph reachability, duplicate answers, cycles, and the difference between a declaratively sensible relation and an operationally terminating query.
+
+Failure lab: a left-recursive or cyclic relation that loops, then repair it with a better relation/search strategy without claiming all recursion problems are solved.
+
+** Chapter 4 -- Backtracking and explicit control
+Choice points, goal order, determinism, cuts only after the logical alternatives are understood, once/1 and if-then-else as operational tools, and how hidden control choices become dangerous when model-generated goals are involved.
+
+** Chapter 5 -- Modules, tests, and debugging
+SWI modules, explicit exports/imports, PL-Unit, tracing, exception boundaries, typed-ish term conventions, and a disciplined way to label TESTED vs DOCUMENTED behavior. Project 1 becomes a reusable module with explanation output.
+
+** Chapter 6 -- DCGs, constraints, and meta-programming
+DCGs as relational sequence processors; CLP(FD) as a constraint example; call/N, predicate indicators, clause reflection boundaries, and safe meta-programming patterns. The goal is not maximal language coverage but enough depth to understand why arbitrary model-produced Prolog source must never be trusted implicitly.
+
+* Part II -- Put a typed wall around the model
+** Chapter 7 -- Models are external, fallible processes
+Define the integration threat/failure model: malformed output, invented predicates, contradictory statements, stale context, truncation, timeouts, duplicate requests, partial provider failures, and apparently fluent explanations unsupported by the symbolic state.
+
+The model does not become “the reasoner” just because it emits Prolog-shaped text.
+
+** Chapter 8 -- Structured generation without wishful thinking
+Compare JSON/schema-constrained output, grammar-constrained generation where supported, tool/function calling, and plain text followed by parsing. Version-sensitive provider behavior must be researched before examples are fixed. Introduce the Typed LLM-to-Prolog Gateway project.
+
+Acceptance idea: every model response is either parsed into a closed internal term vocabulary with provenance or rejected; no response is consulted directly as executable code.
+
+** Chapter 9 -- Normalize before asserting
+Canonical identifiers, explicit relation schemas, provenance fields, confidence/epistemic labels, deduplication, and contradiction surfaces. Show the distinction between “the model said X,” “source S states X,” and “the Prolog knowledge base entails X under rules R.”
+
+** Chapter 10 -- Safe tool and query boundaries
+Allowlisted predicates, argument-domain validation, bounded query time, resource limits, module boundaries, cancellation, and result serialization. Demonstrate why accepting a predicate name from an LLM is not equivalent to safe tool selection.
+
+** Chapter 11 -- Explanation that survives contact with evidence
+Proof/explanation trees, provenance threading, counterexamples, rejected candidate facts, and how to present uncertainty without converting every failed proof into “false in the world.”
+
+* Part III -- Retrieval plus symbolic verification
+** Chapter 12 -- Retrieval is candidate generation
+Text/vector retrieval, lexical search, structured stores, and source selection as candidate-generation stages. Retrieval does not become truth merely by returning a highly ranked passage.
+
+** Chapter 13 -- From evidence to facts
+Entity/value normalization, relation extraction behind a typed schema, source-span references, temporal qualifiers, and explicit unknown/ambiguous values. Project 3 starts with synthetic/public evidence so tests are reproducible.
+
+** Chapter 14 -- Contradictions, missing evidence, and open-world thinking
+Separate absent proof, explicit negation, contradictory sources, and unresolved ambiguity. Avoid teaching negation-as-failure as a universal statement about reality.
+
+** Chapter 15 -- Verify claims and return useful failures
+Represent checks as Prolog goals with structured success/failure/explanation results. Use failure reasons to guide a bounded repair request without leaking raw executable control to the model.
+
+* Part IV -- Bounded generate/verify/repair systems
+** Chapter 16 -- The repair loop
+Generate candidate -> parse -> validate -> verify -> classify failure -> optionally repair. Freeze request identity, iteration counters, budgets, and trace data. Project 4 introduces replayable runs.
+
+** Chapter 17 -- Budgets, recursion, and stopping rules
+Maximum model calls, token/cost ceilings where observable, wall-clock deadlines, symbolic search limits, recursion depth, duplicate-state detection, and stopping when the model keeps producing the same invalid candidate.
+
+** Chapter 18 -- State, replay, and provenance
+Separate transient conversational state from durable experiment state. Record prompts/templates, model/provider/version, normalized symbolic inputs, accepted/rejected outputs, verifier results, and timing without storing secrets.
+
+** Chapter 19 -- Parallelism and stale work
+What changes when multiple candidate-generation/model calls race: request correlation, stale completion rejection, deterministic acceptance order where required, and the difference between throughput and semantic authority.
+
+* Part V -- Neuro-symbolic architectures
+** Chapter 20 -- Taxonomy without marketing fog
+Compare architectures where neural components propose, retrieve, rank, translate, or learn while symbolic components constrain, prove, search, execute, or explain. Claims about named systems require primary papers or implementation evidence.
+
+** Chapter 21 -- Program synthesis and semantic parsing
+Treat LLM-to-logic translation as a program/term synthesis problem with syntax, type/schema, execution, and semantic tests. Discuss held-out examples and adversarial ambiguity.
+
+** Chapter 22 -- Symbolic feedback to models
+Use proof failures, unsatisfied constraints, counterexamples, and execution traces as structured feedback. Compare one-shot correction with bounded iterative repair and show when feedback can accidentally reward verifier gaming.
+
+** Chapter 23 -- Memory, retrieval, and symbolic state
+Differentiate vector retrieval memory, append-only traces, symbolic knowledge bases, and learned model parameters. Study consistency, updates, deletion, and provenance instead of calling all persistence “memory.”
+
+** Chapter 24 -- Research replication discipline
+Read a primary paper, identify the actual claim, reconstruct the smallest falsifiable experiment, pin artifacts and versions, and report negative results. No invented benchmark tables.
+
+* Part VI -- Evaluation and production debugging
+** Chapter 25 -- What to measure
+Task correctness, symbolic acceptance rate, invalid-output classes, false acceptance, repair success, proof coverage, retrieval quality, trace completeness, latency, and cost when actually observable. Project 5 builds the evaluation harness.
+
+** Chapter 26 -- Adversarial inputs and failure injection
+Malformed schemas, prompt injection in retrieved text, invented predicate names, recursive blowups, contradictory evidence, provider timeouts, partial streams, duplicate completion, and stale retry responses.
+
+** Chapter 27 -- Debugging across the boundary
+Trace one request through model call, parser, normalizer, Prolog assertion/query, proof result, and response. Teach readers where to put logs and identifiers so “the AI was wrong” becomes a debuggable statement.
+
+** Chapter 28 -- Deployment boundaries
+Secrets, provider configuration, process isolation, persistence, reproducibility, redaction, observability, and replaceable provider adapters. Avoid accidental coupling between symbolic correctness and one commercial API.
+
+* Part VII -- Capstone: Prolog-RLM Study System
+** Chapter 29 -- Capstone architecture
+Define a recursive language-model study system in which Prolog owns task decomposition/orchestration contracts, budgets, verification, and experiment state while model providers remain external replaceable capabilities. Clearly distinguish the concrete study system from general claims about RLMs.
+
+** Chapter 30 -- Recursive execution with explicit invariants
+Implement bounded recursive/subproblem calls, correlation IDs, provenance, typed intermediate results, duplicate detection, and verifier-controlled acceptance. Every recursive step must have a stopping/accounting story.
+
+** Chapter 31 -- Comparative experiments
+Compare direct model answering, retrieval-augmented answering, single-pass Prolog verification, and recursive Prolog-orchestrated variants on a frozen task set. Report only experiments actually executed; preserve failures and confidence intervals/statistical caveats where appropriate.
+
+** Chapter 32 -- Postmortem and extension paths
+Which errors came from retrieval, translation, symbolic modeling, the verifier, model generation, orchestration, or the benchmark itself? Identify extensions such as alternative model providers, richer constraint solvers, and learned components without turning proposals into measured claims.
+
+* Appendices
+- SWI-Prolog setup and command reference used by the book.
+- Minimal provider-adapter interface examples once researched.
+- Experiment record schema and provenance checklist.
+- Failure taxonomy reference.
+- Cross-book reading map for deeper pure Prolog, symbolic AI, and expert systems.

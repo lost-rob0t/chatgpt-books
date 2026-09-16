@@ -3,14 +3,28 @@
 :ID:       892d2db3-009e-5775-9ed1-183e882114a5
 :END:
 * Phase
-Bootstrap curriculum and architecture.
+Foundational research and progressive project-backed manuscript drafting.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
+- Foundations Pass 01 records a current LFE v2.2.2 baseline plus primary-source BEAM term/pattern/process semantics.
+- Chapters 1--3 contain substantive manuscript material tied to the Event Routing DSL foundation kernel.
+- Project 1 has a data-first LFE implementation, regression module, direct Erlang interoperability smoke, editable diagram source, and book-local run instructions.
+- Version-sensitive manuscript claims in the accepted slices use canonical Org citations backed by verified bibliography entries rather than raw narrative URLs.
+- PR #23 was editorially APPROVED for its bounded milestone and merged to canonical main as =93ddcde1c9a8943af507d61ebf4cd0a79b61c2e2=.
+- Chapters 4--7 / Macro Pass 02 are editorially APPROVED as a bounded milestone in PR #41: functions and protocol-shaped data lead into an exported =routes= macro, exact expansion testing, an explicit non-hygienic capture lab, compile-time syntax rejection, and a compile-time/runtime boundary diagram. This approval does not make the whole book DONE.
 * Active research
-Foundational primary-source research has not yet been declared complete.
+- Processes/message passing, OTP behaviours/supervision, release tooling, distribution and production packaging remain dependency-ordered future passes. Foundational research as a whole is not declared complete.
+* Verification status
+- Final reviewed foundation PR head =0707aec3d2e249ef62a8eee2f3d68a9a15e6edf5= passed =lfe-book= run =35094433564= and generic =books-ci= run =35094433649= before merge.
+- Macro Pass 02 was reconciled non-destructively with canonical =main= =93895bd846b1dd89867d44a803b432c6cf762f2d= at integration head =e38011501490730f06be28ff52155598bbed17b0=, leaving the branch 0 commits behind. =lfe-book= run =35105562366= and generic =books-ci= run =35105562313= both completed SUCCESS on that integrated head. The focused gate built pinned LFE v2.2.2, ran the kernel/macro-expansion/capture/invalid-syntax/Erlang-interop regressions, built and checked the book, validated the EPUB, and exercised the Nix gate.
+- The Editor-in-Chief rechecked the current upstream LFE release and tagged =lfe_macro(3)= contract before approval. A stale test-runner comment was corrected so =expand_expr/2= is described as repeated top-level expansion rather than a one-step expansion oracle.
+- The recorded execution environment distinguishes the OTP 29 documentation baseline from the observed OTP 25 execution runner; later version-sensitive surfaces require their own fresh gates.
+- The previous repository-wide fixed-book-set structural failure is RESOLVED by issue #27 / PR #29; it is no longer an LFE blocker.
 * Unverified claims
-All version-sensitive implementation details remain RESEARCH/UNTESTED until the relevant issue verifies them.
+Process/message, OTP, supervision, release, distribution, and production-packaging behavior remains RESEARCH/UNTESTED until the owning slices verify it. No macro performance or generated-code-size claim is made by Pass 02.
 * Technical/editorial/visual review
-Not started.
+- Chapters 1--3 / Event Routing DSL foundation milestone: editorially APPROVED as a bounded slice.
+- Chapters 4--7 / Macro Pass 02: editorially APPROVED as a bounded slice after primary-source review, executable evidence, and current-main integration verification.
+- Whole book: not DONE and not in final technical/editorial/visual review.
 * Blockers
-Dependency-aware backlog must be executed before chapter prose is promoted to DONE.
+No repository-wide blocker is known for the accepted macro milestone. The next dependency-ordered implementation work is process/message semantics and the Actor Application boundary, followed by OTP service/supervision and later production packaging.

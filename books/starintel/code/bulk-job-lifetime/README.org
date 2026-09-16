@@ -1,0 +1,19 @@
+#+title: StarIntel bulk-job lifecycle evidence lab
+:PROPERTIES:
+:ID:       2189c876-b01b-4595-9def-348560b7ede6
+:END:
+
+* Purpose
+This book-side lab audits sanitized observations from an asynchronous bulk-job lifecycle. It is not StarIntel server code and it does not contact RabbitMQ, CouchDB, or the HTTP API.
+
+A trusted test or instrumentation boundary supplies snapshots. The auditor asks whether the observations are strong enough to prove the narrow terminal-state invariant documented by the current server: terminal jobs retain stable status/count metadata while request-only document payloads and service context are released.
+
+* Evidence states
+- =proven= -- every observed job reached a terminal state and the terminal snapshot satisfies the retention/count contract.
+- =incomplete= -- no contradiction was observed, but at least one job lacks a terminal release observation.
+- =contradicted= -- an observed terminal snapshot still retains request-only state or violates its terminal count contract.
+
+Missing evidence is never promoted to success.
+
+* Scope boundary
+The lab does not reproduce the upstream heap-exhaustion incident, measure SBCL heap use, inspect the live process, or prove that current production instrumentation exists. Its tests cover only the book-side evidence logic with synthetic traces.

@@ -5,13 +5,17 @@
 * Phase 0 -- scope
 DONE bootstrap purpose, audience, topics, and project boundaries.
 * Phase 1 -- foundational research
-Verify theory, current toolchain behavior, canonical implementations, and source bibliography.
+IN-PROGRESS verify theory, current toolchain behavior, canonical implementations, and source bibliography.
+
+Foundation pass A covers the arithmetic-to-vector dependency chain, author-maintained linear-algebra sequencing, the current NumPy numerical oracle, and Python floating-point primitives used by Project 1 checkpoint A. Matrix operations, calculus, probability, information theory, optimization, and later-project research remain open.
 * Phase 2 -- curriculum
-Review sequence and cross-book dependencies.
+IN-PROGRESS review sequence and cross-book dependencies while executable chapter slices are written. The current sequence preserves arithmetic/functions/coordinates before vector algebra, then matrices/transformations before calculus-heavy projects.
 * Phase 3 -- detailed outline
-Turn each chapter item into research questions, examples, exercises, and asset requirements.
+IN-PROGRESS turn each chapter item into research questions, examples, exercises, and asset requirements. Chapters 1--5 have now been promoted from generic outline prompts into manuscript material; the remaining chapter outline stays intentionally broad until its research slice begins.
 * Phases 4--6 -- progressive chapters/projects
-Implement projects in the order listed in PROJECTS.org; later projects depend on foundations from earlier ones.
+IN-PROGRESS implement projects in the order listed in PROJECTS.org; later projects depend on foundations from earlier ones.
+
+Project 1 checkpoint A is the vector semantic baseline: validated finite vectors, component-wise operations, dot product, Euclidean norm/distance, normalization, cosine similarity, projection, NumPy oracle tests, numerical failure cases, and a reproducible projection diagram. Checkpoint B adds matrices and transformations only after this baseline is reviewed.
 * Phase 7 -- capstone
 The last project is the major integrated capstone and depends on the previous project/tooling slices.
 * Phase 8 -- technical review

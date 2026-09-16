@@ -1,0 +1,22 @@
+digraph StarIntelDocumentFlow {
+  rankdir=LR;
+  graph [bgcolor="transparent", pad="0.2", nodesep="0.45", ranksep="0.7"];
+  node [shape=box, style="rounded", fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  client [label="client\ncanonical 0.9 wire document"];
+  http [label="HTTP boundary\nparse + strict schema validation\n+ authorization"];
+  ingest [label="RabbitMQ\ndocuments.ingest.<dtype>"];
+  consumer [label="ingest consumer\nvalidate + process"];
+  couch [label="CouchDB\ndurable document"];
+  event [label="RabbitMQ\ndocuments.new.<dtype>"];
+  actors [label="local / external actors\nderive more documents"];
+
+  client -> http [label="POST"];
+  http -> ingest [label="publish"];
+  ingest -> consumer [label="delivery"];
+  consumer -> couch [label="insert/update"];
+  couch -> event [label="post-persistence event"];
+  event -> actors [label="fan-out"];
+  actors -> ingest [label="derived data may recurse"];
+}

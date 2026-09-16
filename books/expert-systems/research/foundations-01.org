@@ -1,0 +1,93 @@
+#+title: Expert Systems Foundations Research -- Matcher to Joins
+:PROPERTIES:
+:ID:       9adf9987-8f71-4a79-95c1-a4c3ae74cfd1
+:END:
+
+* Scope
+This record supports the first implementation/teaching slice of issue #15: literal matching, variables/bindings, and multi-condition joins. It deliberately stops before working-memory mutation, agenda semantics, RETE construction, truth maintenance, persistence, or benchmark claims.
+
+Retrieval date for all web sources below: 2026-09-16.
+
+* Questions
+** What is the minimal production-system model we need before optimization?
+Forgy's 1981 OPS5 paper describes a pure production-system architecture with data represented as working-memory elements, productions, pattern matching, and conflict resolution. The abstract explicitly separates the language from a single built-in problem-solving strategy and describes efficient algorithms plus debugging support [cite:@forgy1981ops5].
+
+For this book, the useful teaching decomposition is therefore:
+
+#+begin_example
+facts -> condition matching -> production instantiations -> conflict set/agenda
+      -> selection -> actions -> changed facts -> next match cycle
+#+end_example
+
+The first code milestone implements only the left edge of that diagram. It must be a semantic oracle before it becomes an optimization target.
+
+** What does RETE optimize?
+Forgy's 1982 RETE paper is the primary source for the many-pattern/many-object pattern-match problem [cite:@forgy1982rete]. The course must not introduce RETE as magical graph machinery. We first need executable semantics for:
+
+1. literal equality tests;
+2. variable bindings inside one condition;
+3. repeated-variable consistency;
+4. joins that propagate bindings across conditions;
+5. complete production matches over a set of facts.
+
+Only then can the later chapters show what is cached and incrementally propagated. The first matcher is intentionally a left-to-right nested-loop implementation. No performance superiority claim is attached to it.
+
+** How do modern production-rule systems expose these ideas?
+The current official CLIPS 6.4.2 Basic Programming Guide defines facts as a primary data abstraction, rules as a collection of conditions and actions, a basic cycle of rule execution, conflict-resolution strategies, and explicit LHS conditional/pattern syntax [cite:@clips642bpg]. It also documents that fact/instance changes invoke pattern matching, while global-variable changes do not. This is useful contemporary evidence for teaching why inference-driving state belongs in working memory rather than in an invisible side channel.
+
+This book does not copy CLIPS syntax or semantics wholesale. CLIPS is used as a maintained production-system reference implementation; our engine is derived transparently for teaching and gets its own explicitly tested semantics.
+
+* Semantic contract for Project 1 milestone A
+** Fact
+A fact has a stable ID, relation name, argument sequence, and provenance payload. The matcher treats provenance as opaque metadata in this milestone. Stable fact identity is retained in match results so later explanation/truth-maintenance work can build on actual supports rather than reconstruct them after the fact.
+
+The Common Lisp implementation uses an ordinary =DEFSTRUCT=. That representation is not deeply immutable: generated accessors can be used to mutate slots, and =arguments= or =provenance= can themselves refer to mutable Lisp objects. Milestone A instead adopts a *frozen-input discipline*: callers do not mutate the supplied fact list, records, or nested values while a match is running, and the matcher does not mutate them. Stronger ownership or immutability guarantees are deferred until mutable working-memory semantics are designed and tested.
+
+** Literal condition
+A literal condition is a list shaped like =(relation field ...)=. It matches a fact only when relation and full argument sequence compare equal.
+
+** Pattern variable
+A pattern variable is a symbol whose printed name begins with =?=, for example =?service=. Variables occur in conditions, not in the working facts for this milestone.
+
+When a variable is unbound, matching non-destructively extends the current binding environment. When already bound, the candidate fact field must be =equal= to the existing value. This makes repeated variables inside one condition a real equality constraint rather than two unrelated wildcards.
+
+** Join
+A multi-condition match is a sequence of facts plus one consistent binding environment satisfying every condition. Conditions are evaluated left to right and candidate facts are visited in input order, giving deterministic teaching traces.
+
+The milestone intentionally allows one fact to satisfy more than one condition if its shape permits. Distinctness is not silently inferred from condition position; a later rule-language feature must express it explicitly if needed.
+
+** Correctness oracle
+The naive matcher compares each condition against the full fact sequence for every partial match. That is deliberately redundant. Later incremental/RETE chapters must preserve this observable result set while changing the amount and location of matching work.
+
+A future benchmark may compare naive and incremental engines only after both produce the same canonical matches on frozen scenarios. No benchmark number is claimed here.
+
+* Linux/service diagnosis fixture
+The substantial book project will become a sourced Linux/server/distributed-service troubleshooting KB. Milestone A seeds only a tiny synthetic scenario to keep matching semantics concrete.
+
+The scenario uses service-state, restart-policy, exit-code, and dependency facts. systemd's official service documentation is the authority for actual service-unit semantics; the fixture's particular =api= and =frontend= observations are explicitly labelled synthetic [cite:@systemd-service]. We do not claim they came from a real host.
+
+Later KB work will add source-specific collectors and stronger observation schemas. For load/pressure material, Linux kernel documentation is the source of truth for fields such as =/proc/loadavg= rather than folklore thresholds [cite:@linux-proc]. No load threshold is encoded in this milestone.
+
+* Adversarial cases required by the tests
+- relation matches but one literal differs;
+- first occurrence of a variable binds successfully;
+- repeated variable sees the same value and succeeds;
+- repeated variable sees a different value and fails;
+- a pre-existing binding cannot be overwritten by a later fact;
+- two-condition join propagates a shared variable;
+- three-condition join extends bindings and preserves support fact IDs;
+- a failed condition yields no complete match;
+- synthetic diagnostic facts retain provenance metadata.
+
+* Deferred research
+- exact working-memory assertion/retraction semantics and duplicate-fact policy;
+- production identity and refraction;
+- conflict-set/agenda ordering and tie-breaking;
+- negative/existential conditions;
+- alpha/beta memory ownership and retraction propagation;
+- truth-maintenance model;
+- uncertainty/counterevidence semantics;
+- persistence/versioning;
+- benchmarks.
+
+Those are intentionally not guessed in the milestone-A implementation.

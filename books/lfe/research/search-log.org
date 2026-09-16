@@ -3,4 +3,32 @@
 :ID:       307487a4-810c-5c7c-9193-df348ee4dbf8
 :END:
 * Entries
-No foundational book-specific searches have been falsely marked complete during bootstrap. Future searches record date, exact question/query, sources inspected, result, and remaining uncertainty.
+** 2026-09-16 -- current LFE release and OTP compatibility
+Question: What LFE release should the first executable book slice pin, and what current OTP compatibility does upstream claim?
+Sources inspected: LFE GitHub release =v2.2.2= and its tagged Makefile/source.
+Result: =v2.2.2= was published 2026-08-05. The release explicitly adds OTP 28/29 compatibility and a regression for the OTP 28+ =lfe -eval= startup change. Pin v2.2.2 for this slice; record the actual OTP release separately in CI.
+Remaining uncertainty: later release/rebar3 chapters need a fresh toolchain pass and must not assume this pin is still current.
+
+** 2026-09-16 -- LFE syntax, patterns, recursion, and direct Erlang facilities
+Question: Which upstream artifacts demonstrate the semantics needed for Chapters 1--3 without relying on secondary tutorials?
+Sources inspected: tagged =doc/src/lfe_guide.7.md=, =examples/fizzbuzz.lfe=, =examples/messenger.lfe=, =dev/pattern-test.lfe=, and =bin/lfec= at LFE v2.2.2.
+Result: current tagged sources document list/binary strings and function references; examples exercise function-clause patterns, guards, recursion, direct Erlang module calls, spawn/receive; the pattern test explicitly covers recurring variables; =lfec= documents direct compilation with =-o=.
+Remaining uncertainty: macro expansion/hygiene is intentionally deferred to the macro research pass.
+
+** 2026-09-16 -- current Erlang term/pattern/process semantics
+Question: Which BEAM semantics must the LFE book teach directly rather than treating LFE as isolated syntax?
+Sources inspected: Erlang System Documentation =data_types.html= v29.0.5, =expressions.html= and =patterns.html= v29.0.6, and =ref_man_processes.html= v29.0.6.
+Result: terms/lists/tuples/maps and single-assignment pattern semantics remain the foundation. Process communication is asynchronous signaling. Message ordering is not a universal cross-sender FIFO guarantee; current docs state same-sender-to-same-destination signal ordering, and OTP 28 priority-message reception can change queue ordering relative to signal arrival.
+Remaining uncertainty: priority-message APIs themselves are outside the current project slice and require dedicated testing before use.
+
+** 2026-09-16 -- LFE macro expansion and hygiene
+Question: What does current pinned LFE actually promise about macro expansion and hygiene?
+Sources inspected: tagged =doc/src/lfe_guide.7.md= and =doc/src/lfe_macro.3.md= at LFE v2.2.2.
+Result: macros run at expansion time with access to the current macro environment. The guide explicitly states that LFE macros are not hygienic. =lfe_macro= distinguishes one top-level expansion attempt, repeated top-level expansion, and recursive all-expression expansion. For Project 1's module-qualified exported macro, the acceptance contract is the documented repeated top-level =expand_expr/2= path used by LFE's own exported-macro regression; =expand_expr_1/2= only performs the first normalization step and is not the DSL expansion oracle.
+Remaining uncertainty: no production macro in the current project needs to introduce bindings; if a later macro does, its generated-name policy and capture tests require a fresh design/test slice.
+
+** 2026-09-16 -- exported macros and compiler path
+Question: Can the book prove a DSL macro works as a real compiler input across LFE modules instead of only inside a local test form?
+Sources inspected: tagged =examples/core-macros.lfe=, =test/examples_SUITE.lfe=, and =bin/lfec= at LFE v2.2.2.
+Result: upstream exports macros from modules, tests module-qualified macro expansion, and supports =lfec -pa PATH=. Project 1 can compile the macro module first, add its beam directory to the compiler code path, and then compile a separate consumer module. This is the book's acceptance boundary for the macro source layer.
+Remaining uncertainty: application/rebar3 packaging of exported macros belongs to the later tooling/release pass rather than this direct compiler milestone.

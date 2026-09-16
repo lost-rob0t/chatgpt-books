@@ -6,5 +6,9 @@
 - Which primary sources define the foundational concepts?
 - Which behavior is version-sensitive in the current toolchain?
 - Which claims require reproduction/benchmarking rather than citation alone?
+* Active records
+- [[file:search-project-1.org][Search Library Research -- Graph Search, A*, and Common Lisp State Keys]] -- VERIFIED source basis for issue #22; executable verification remains tracked by the implementation PR.
+- [[file:search-project-1-validation.org][Search Library Validation -- Cross-Algorithm Oracles]] -- source-backed metamorphic regression relationships for the Project 1 executable suite.
+- [[file:formal-methods-foundations.org][Formal Methods Foundations for Symbolic AI in Common Lisp]] -- primary-source baseline and staged curriculum for formal systems, invariants, model checking, SMT boundaries, ACL2, and verified symbolic-AI components; issue #42.
 * Records
 Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].

@@ -1,0 +1,31 @@
+#+title: Prolog + LLMs -- Source Inventory
+:PROPERTIES:
+:ID:       35608453-2f3d-5a4c-adcd-2d27bccf4937
+:END:
+
+* Promotion rule
+Only sources actually inspected for a concrete research question belong here. Record enough metadata to distinguish current official documentation from historical material and to reproduce the lookup where possible. Bibliographic entries move to =../references.bib= only after title/author/venue/date/URL or source revision metadata has been verified.
+
+* Verified entries
+** SWI-Prolog official documentation
+- =SWI-Prolog downloads / stable artifacts= -- official project site, retrieved 2026-09-16. Stable artifacts include 10.0.2. Used only for release-channel/version claims.
+- =SWI-Prolog Reference Manual: Getting started quickly= -- official project documentation, retrieved 2026-09-16. Used for load/query workflow context.
+- =SWI-Prolog Reference Manual: The SWI-Prolog syntax= -- official project documentation, retrieved 2026-09-16. Used for lexical/variable/SWI-extension boundaries.
+- =SWI-Prolog Reference Manual: Comparison and Unification of Terms= -- official project documentation, retrieved 2026-09-16. Used for =/2=, cyclic terms, =occurs_check=, =unify_with_occurs_check/2=, and finite-term caveats.
+- =SWI-Prolog Reference Manual: Control Predicates= -- official project documentation, retrieved 2026-09-16. Used for =once/1=, =!/0=, if-then-else commitment, and finite-failure =\+/1= semantics.
+- =SWI-Prolog Reference Manual: Modules= / =Defining a Module= / =Importing Predicates into a Module= -- official project documentation, retrieved 2026-09-16. Used for =module/2=, exported predicate interfaces, and =use_module/[1,2]= imports.
+- =SWI-Prolog Reference Manual: debugger overview / trace mode / spy points= -- official project documentation, retrieved 2026-09-16. Used for call/exit/redo/fail trace vocabulary and the warning that debug mode changes optimization/choice-point retention.
+- =SWI-Prolog library(plunit): Unit Testing= -- official library documentation, retrieved 2026-09-16. Used for named test units and =run_tests= behavior.
+- =SWI-Prolog library(plunit) current source documentation= -- official source documentation, retrieved 2026-09-16. Inspected for accepted test options including =fail=, =throws=, =all=, =set=, =nondet=, and timeout.
+
+** Recursive-language-model primary sources
+- Zhang, Alex L.; Kraska, Tim; Khattab, Omar. =Recursive Language Models=. arXiv:2512.24601, first submitted 2025-12-31. Inspected 2026-09-16. Architecture claims are DOCUMENTED; reported benchmark/cost results are UPSTREAM-REPORTED unless independently reproduced later.
+- =alexzhang13/rlm= -- authors' reference implementation repository, inspected 2026-09-16 for implementation context. No benchmark result reproduced in this book pass.
+
+** Current Prolog-RLM implementation context
+- =lost-rob0t/prolog-rlm= main commit =51d2530f0e18c84cff860b7c0bf3afcc3c488057=, inspected 2026-09-16. README, typed-plan docs, =prolog/rlm_plan.pl=, =prolog/rlm_completion.pl=, and plan tests were read. This is read-only source evidence for later capstone chapters. Its runtime tests/benchmarks were not executed by this book pass.
+
+* Still unresearched
+- provider-specific structured outputs/tool calls used in future examples;
+- Chapter 6 DCG/CLP(FD)/meta-call semantics and safe term parsing;
+- broader neuro-symbolic architecture/evaluation literature.

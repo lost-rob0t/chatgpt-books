@@ -1,0 +1,112 @@
+name: starintel-book
+
+on:
+  pull_request:
+    paths:
+      - 'books/starintel/**'
+      - '.github/workflows/starintel-book.yml'
+  workflow_dispatch:
+
+jobs:
+  records-and-book:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install publication and diagram tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y git graphviz python3-pip curl unzip default-jre-headless
+          curl --fail --location --retry 3 \
+            --output pandoc.deb \
+            https://github.com/jgm/pandoc/releases/download/3.10.1/pandoc-3.10.1-1-amd64.deb
+          sudo dpkg -i pandoc.deb
+          curl --fail --location --retry 3 \
+            --output epubcheck.zip \
+            https://github.com/w3c/epubcheck/releases/download/v5.3.0/epubcheck-5.3.0.zip
+          unzip -q epubcheck.zip -d .cache
+          python3 --version
+          dot -V
+          pandoc --version | head -1
+          java -jar .cache/epubcheck-5.3.0/epubcheck.jar --version
+
+      - name: Fetch pinned StarIntel document adapter and schema
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p .cache/starintel-doc
+          git -C .cache/starintel-doc init
+          git -C .cache/starintel-doc remote add origin https://github.com/lost-rob0t/starintel-doc.git
+          git -C .cache/starintel-doc fetch --depth=1 origin 5857914a1e34ad18a6956b8ff0df5349de0ca099
+          git -C .cache/starintel-doc checkout --detach FETCH_HEAD
+          test "$(git -C .cache/starintel-doc rev-parse HEAD)" = "5857914a1e34ad18a6956b8ff0df5349de0ca099"
+
+          mkdir -p .cache/starintel-schema/schemas
+          curl --fail --location --retry 3 \
+            --output .cache/starintel-schema/schemas/starintel-doc-v0.9.0.schema.json \
+            https://raw.githubusercontent.com/lost-rob0t/starintel-gpt-auto-dig/6479c0a9dc88ce9fed183515fc4df5d245de0b3a/schemas/starintel-doc-v0.9.0.schema.json
+          test -s .cache/starintel-schema/schemas/starintel-doc-v0.9.0.schema.json
+
+          python3 -m pip install .cache/starintel-doc
+
+      - name: Run Project 1 record-contract tests
+        run: bash books/starintel/code/records/run-tests
+
+      - name: Run Project 2 ingest-adapter tests
+        run: |
+          bash books/starintel/code/ingest-adapter/run-tests
+          python3 -m py_compile \
+            books/starintel/code/ingest-adapter/adapter.py \
+            books/starintel/code/ingest-adapter/test_adapter.py
+
+      - name: Run ambiguous-bulk failure-analysis lab
+        run: |
+          bash books/starintel/code/ambiguous-bulk/run-tests
+          python3 -m py_compile \
+            books/starintel/code/ambiguous-bulk/reconcile.py \
+            books/starintel/code/ambiguous-bulk/test_reconcile.py
+
+      - name: Run bulk-job lifetime evidence lab
+        run: |
+          bash books/starintel/code/bulk-job-lifetime/run-tests
+          python3 -m py_compile \
+            books/starintel/code/bulk-job-lifetime/audit.py \
+            books/starintel/code/bulk-job-lifetime/test_audit.py
+
+      - name: Validate editable diagram sources
+        run: |
+          dot -Tsvg books/starintel/assets/document-flow.dot -o /tmp/starintel-document-flow.svg
+          dot -Tsvg books/starintel/assets/ingest-settlement.dot -o /tmp/starintel-ingest-settlement.svg
+
+      - name: Build StarIntel book
+        run: make book BOOK=starintel
+
+      - name: Validate StarIntel book
+        env:
+          EPUBCHECK_JAR: .cache/epubcheck-5.3.0/epubcheck.jar
+        run: make check BOOK=starintel
+
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Nix
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y nix-bin
+          sudo mkdir -p /etc/nix
+          echo 'experimental-features = nix-command flakes' | sudo tee -a /etc/nix/nix.conf
+          nix --version
+
+      - name: Flake check
+        run: sudo nix flake check -L

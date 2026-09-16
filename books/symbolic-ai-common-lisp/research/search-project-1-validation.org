@@ -1,0 +1,33 @@
+#+title: Search Library Validation -- Cross-Algorithm Oracles
+:PROPERTIES:
+:ID:       748e9e80-e93f-4f73-a668-7a2ab764bb41
+:END:
+
+* Scope
+This note supports issue #22 and complements [[file:search-project-1.org][the Project 1 graph-search research record]].  It records the source-backed relationships used as executable regression oracles.  It does not claim that superficially similar implementations are interchangeable on every graph or under every tie-breaking policy.
+
+* Source check
+Retrieved 2026-09-16 from the official AIMA fourth-edition Chapter 3 PDF: breadth-first search is optimal when all step costs are equal, and uniform-cost search becomes identical to breadth-first search under equal step costs.  This is the theoretical basis for a controlled unit-cost BFS/UCS cross-check. [cite:@russellnorvig2020]
+
+A* orders nodes by =f(n)=g(n)+h(n)=.  Setting =h(n)=0= reduces the priority expression to =g(n)=, the same priority used by uniform-cost search.  In this project that algebraic reduction is stronger than a paper citation alone because UCS and A* intentionally share the same =BEST-G= replacement logic, stale-entry rejection, and serial tie-break mechanism.  A zero-heuristic A* run should therefore agree with UCS on every exposed result field for the same deterministic problem.
+
+The ANSI Common Lisp hash-key rule remains unchanged: states used as =EQUAL= keys must not be visibly modified while the table relies on them.  These validation oracles do not weaken that caller contract.
+
+* Why metamorphic tests belong in a teaching search library
+An isolated expected path proves one scenario.  A relationship between algorithms can catch a broader class of defects:
+
+- if unit-cost BFS and UCS disagree on a controlled deterministic graph, either frontier ordering, duplicate admission, or cost accumulation has drifted;
+- if zero-heuristic A* and UCS disagree, the bug is likely in heuristic priority integration or in code that was expected to remain shared;
+- if a root that already satisfies the goal causes successor expansion, the implementation is doing needless work and can trigger effects that should never occur for a zero-step solution.
+
+These are regression oracles, not substitutes for the targeted tests already covering cycles, stale entries, inconsistent heuristics, invalid costs, and structural duplicate keys.
+
+* Acceptance consequences
+- The executable suite must include a deterministic equal-unit-cost problem on which BFS and UCS return the same path/actions/cost.
+- The executable suite must include a zero-heuristic problem on which A* and UCS agree on path, actions, cost, and the exposed instrumentation counters.
+- Every search entry point must return a zero-step solution for an initial state that is already a goal, without asking the problem for successors.
+- Exact observed pass counts and compiler versions are recorded only after execution; this note does not fabricate them.
+
+* Sources inspected
+- Russell, Norvig, et al., /Artificial Intelligence: A Modern Approach/, fourth-edition official Chapter 3 PDF, retrieved 2026-09-16 from https://aima.cs.berkeley.edu/4th-ed/pdfs/newchap03.pdf . [cite:@russellnorvig2020]
+- ANSI Common Lisp HyperSpec section 18.1.2, retrieved 2026-09-16 from https://www.lispworks.com/documentation/HyperSpec/Body/18_ab.htm .

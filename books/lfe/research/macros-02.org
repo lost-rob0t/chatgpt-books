@@ -1,0 +1,86 @@
+#+title: LFE Macro Expansion and Hygiene Research Pass 02
+:PROPERTIES:
+:ID:       eeb21f4d-97d2-461d-9537-5ee0674395ac
+:END:
+
+* Scope and claim status
+Retrieval date: 2026-09-16.
+
+This pass supports Chapters 4--7 and Project 1's first macro surface. Status vocabulary follows repository policy:
+- DOCUMENTED :: inspected in tagged/current primary documentation or implementation source.
+- TESTED :: executed by this repository's LFE-book gate at the exact branch head recorded below.
+- UNTESTED :: planned or plausible behavior not promoted to an executed claim.
+
+* DOCUMENTED -- current LFE release boundary
+The latest upstream LFE release inspected on 2026-09-16 remains =v2.2.2=, published 2026-08-05. Project 1 continues to pin that tag so macro behavior is tied to one reproducible compiler/expander version rather than floating =develop=.
+
+Source: https://github.com/lfe/lfe/releases/tag/v2.2.2
+
+* DOCUMENTED -- what a macro is in LFE
+The tagged v2.2.2 user guide defines macros as compile-time functions receiving the macro-call arguments and the current macro environment. It documents =defmacro=, local =macrolet=, automatic =$ENV= availability inside =defmacro=/=macrolet= expansions, =eval-when-compile= helpers, backquote/unquote, and exported macros. The guide is explicit that LFE macros are *not hygienic*.
+
+Source: https://github.com/lfe/lfe/blob/v2.2.2/doc/src/lfe_guide.7.md
+Relevant section: =Macros=.
+
+Teaching consequence: the book must not imply Scheme-style hygiene. Production macros should minimize introduced bindings and test their expansion shape; capture must be demonstrated deliberately so readers can recognize it.
+
+* DOCUMENTED -- macro-expansion API
+The tagged =lfe_macro= manual documents these distinctions:
+- =expand_expr_1/2= tries one top-level macro expansion;
+- =expand_expr/2= repeatedly expands the top expression while it remains a macro call;
+- =expand_expr_all/2= recursively expands macro calls throughout an expression.
+
+Source: https://github.com/lfe/lfe/blob/v2.2.2/doc/src/lfe_macro.3.md
+
+The tagged upstream exported-macro regression uses =lfe_macro:expand_expr/2= for module-qualified macro calls such as =core-macros:caar=. Project 1 mirrors that acceptance boundary for =event-rules-dsl:routes=. An observed failed regression on 2026-09-16 also established a useful implementation detail: =expand_expr_1/2= stopped after normalizing the module-qualified call into its =:= form, so treating that first step as the exported macro's expansion was incorrect. The project therefore uses =expand_expr/2= to reach the exported macro while still comparing the resulting top-level expansion against an exact explicit rule form. It does not use =expand_expr_all/2=, which would recursively expand nested forms and widen the regression surface.
+
+* DOCUMENTED -- exported macros are real cross-module compiler inputs
+The tagged upstream =examples/core-macros.lfe= declares =(export-macro ...)= and defines macros with =defmacro=. The tagged upstream test suite compiles that module, then expands module-qualified macro calls such as =core-macros:caar= through =lfe_macro:expand_expr= using a fresh LFE environment.
+
+Sources:
+- https://github.com/lfe/lfe/blob/v2.2.2/examples/core-macros.lfe
+- https://github.com/lfe/lfe/blob/v2.2.2/test/examples_SUITE.lfe
+
+Project consequence: Project 1 puts its syntax layer in a separate =event-rules-dsl= module and proves that a separate consumer module can compile against the exported macro. This is stronger than defining the macro only inside its own tests.
+
+* DOCUMENTED -- compile path needed for exported macros
+The tagged =bin/lfec= implementation accepts =-pa path= and adds that path to LFE's code path before compiling source files. Project tests therefore compile the macro-exporting module first, then compile its consumer with the macro module's beam directory on =-pa=.
+
+Source: https://github.com/lfe/lfe/blob/v2.2.2/bin/lfec
+
+* DESIGN USED BY THIS SLICE -- macro surface remains a source layer
+Project 1's semantic kernel remains ordinary BEAM data interpreted by =event-rules:route/2=. The first macro surface is:
+
+#+begin_src lfe
+(event-rules-dsl:routes
+ (when-level 'critical 'pager)
+ (when-service 'billing 'billing-queue)
+ (otherwise 'archive))
+#+end_src
+
+The macro expands to the same explicit list of =when-level=/=when-service=/=otherwise= tuples used by the already-tested data-first kernel. It does not add a second evaluator, process, registry, or hidden mutable runtime.
+
+The macro performs structural syntax validation at expansion time. An unsupported clause is rejected with =bad-event-rule-syntax= rather than compiling into an opaque runtime failure.
+
+* Capture experiment
+LFE v2.2.2 documentation says macros are non-hygienic and identifies same-named macro-generated variables as the practical capture hazard. This slice includes a deliberately unsafe teaching macro that introduces =value=, while the caller also references =value=. The expected result is capture of the caller reference by the macro-introduced binding.
+
+This experiment is pedagogical evidence, not a recommendation. The production =routes= macro introduces no bindings at all, avoiding that capture class by construction.
+
+* TESTED -- authored macro slice
+Authored head =9aaf283a6092c9b86c53372fba6ef7528b84c3b3= was executed by focused =lfe-book= run =35098575157= and generic =books-ci= run =35098575156= on 2026-09-16.
+
+The focused gate:
+- built the pinned LFE v2.2.2 tag (upstream tag commit =dae7489ebf9588e5f746a34cd4f8ff83d1469eef=) on the observed OTP 25 runner;
+- executed the Project 1 harness, whose success line was =event-rules: kernel, macro expansion, capture lab, invalid-syntax gate, and Erlang interop passed=;
+- built the production LFE EPUB with =make book BOOK=lfe=;
+- passed =make check BOOK=lfe=;
+- reported EPUBCheck 5.3.0 =0 fatals / 0 errors / 0 warnings / 0 infos=;
+- passed the workflow's Nix flake check.
+
+The branch was later reconciled normally with newer =main=. That integration does not convert the evidence above into an exact-head claim for later commits; fresh CI remains the authority for the current PR head.
+
+* Deferred questions
+- Macros that deliberately introduce bindings need a stronger naming/generation policy and dedicated tests before Project 1 uses any.
+- Process/message syntax, OTP behaviours, supervision, releases, and distribution remain separate future research passes.
+- No macro compile-time performance or generated-code size claims are made in this pass.

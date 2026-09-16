@@ -1,0 +1,21 @@
+digraph lfe_macro_expansion {
+  rankdir=LR;
+  graph [fontname="sans-serif", label="Project 1: macro source layer versus runtime kernel", labelloc="t"];
+  node [fontname="sans-serif", shape=box];
+  edge [fontname="sans-serif"];
+
+  source [label="LFE route source\n(routes ...)"];
+  macro [label="event-rules-dsl:routes\ncompile-time expansion"];
+  data [label="explicit BEAM rule data\nlist of tuples"];
+  runtime [label="event-rules:route/2\nruntime evaluator"];
+  result [label="tagged route result"];
+  invalid [label="unsupported clause", shape=box];
+  error [label="compile-time\nbad-event-rule-syntax", shape=box];
+
+  source -> macro;
+  macro -> data [label="valid syntax"];
+  data -> runtime;
+  runtime -> result;
+  invalid -> macro;
+  macro -> error [label="reject"];
+}

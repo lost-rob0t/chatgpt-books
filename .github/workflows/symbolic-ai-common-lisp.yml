@@ -1,0 +1,130 @@
+name: symbolic-ai-common-lisp
+
+on:
+  pull_request:
+    paths:
+      - "books/symbolic-ai-common-lisp/**"
+      - ".github/workflows/symbolic-ai-common-lisp.yml"
+      - "tools/prepare-org-for-pandoc"
+      - "tools/test-prepare-org-for-pandoc"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Common Lisp and publication tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y sbcl graphviz curl unzip default-jre-headless
+          curl --fail --location --retry 3 \
+            --output pandoc.deb \
+            https://github.com/jgm/pandoc/releases/download/3.10.1/pandoc-3.10.1-1-amd64.deb
+          sudo dpkg -i pandoc.deb
+          curl --fail --location --retry 3 \
+            --output epubcheck.zip \
+            https://github.com/w3c/epubcheck/releases/download/v5.3.0/epubcheck-5.3.0.zip
+          unzip -q epubcheck.zip -d .cache
+          sbcl --version
+          pandoc --version | head -1
+          java -jar .cache/epubcheck-5.3.0/epubcheck.jar --version
+
+      - name: Org include preparation regression
+        run: python3 tools/test-prepare-org-for-pandoc
+
+      - name: Search Library executable tests
+        run: sbcl --script books/symbolic-ai-common-lisp/code/search/run-tests.lisp
+
+      - name: Search Library ASDF test operation
+        shell: bash
+        run: |
+          set -euo pipefail
+          sbcl --noinform --non-interactive \
+            --eval '(require :asdf)' \
+            --eval '(asdf:load-asd (truename "books/symbolic-ai-common-lisp/code/search/symbolic-ai-search.asd"))' \
+            --eval '(asdf:test-system "symbolic-ai-search/tests")'
+
+      - name: Formal Reasoning Workbench executable tests
+        run: sbcl --script books/symbolic-ai-common-lisp/code/formal/run-tests.lisp
+
+      - name: Formal Reasoning Workbench ASDF test operation
+        shell: bash
+        run: |
+          set -euo pipefail
+          sbcl --noinform --non-interactive \
+            --eval '(require :asdf)' \
+            --eval '(asdf:load-asd (truename "books/symbolic-ai-common-lisp/code/formal/symbolic-ai-formal.asd"))' \
+            --eval '(asdf:test-system "symbolic-ai-formal/tests")'
+
+      - name: Validate editable diagrams
+        shell: bash
+        run: |
+          set -euo pipefail
+          dot -Tsvg books/symbolic-ai-common-lisp/assets/search-frontier.dot >/dev/null
+          dot -Tsvg books/symbolic-ai-common-lisp/assets/formal-verification-flow.dot >/dev/null
+
+      - name: Validate formal-methods draft citations and Org parsing
+        shell: bash
+        run: |
+          set -euo pipefail
+          pandoc books/symbolic-ai-common-lisp/manuscript/formal-methods.org \
+            --from=org \
+            --to=html5 \
+            --standalone \
+            --citeproc \
+            --bibliography=books/symbolic-ai-common-lisp/references.bib \
+            --resource-path=books/symbolic-ai-common-lisp:. \
+            -o /tmp/formal-methods.html
+          test -s /tmp/formal-methods.html
+
+      - name: Build Symbolic AI in Common Lisp
+        run: make book BOOK=symbolic-ai-common-lisp
+
+      - name: Verify formal chapter is in the EPUB
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from zipfile import ZipFile
+
+          epub = "books/symbolic-ai-common-lisp/dist/symbolic-ai-common-lisp.epub"
+          with ZipFile(epub) as archive:
+              rendered = "\n".join(
+                  archive.read(name).decode("utf-8", errors="ignore")
+                  for name in archive.namelist()
+                  if name.endswith((".xhtml", ".html"))
+              )
+          needle = "A formal system is language plus rules"
+          if needle not in rendered:
+              raise SystemExit(f"published EPUB is missing included formal-methods content: {needle!r}")
+          PY
+
+      - name: Validate Symbolic AI in Common Lisp
+        env:
+          EPUBCHECK_JAR: .cache/epubcheck-5.3.0/epubcheck.jar
+        run: make check BOOK=symbolic-ai-common-lisp
+
+      - name: Repository test target
+        run: make test
+
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y nix-bin
+          sudo mkdir -p /etc/nix
+          echo 'experimental-features = nix-command flakes' | sudo tee -a /etc/nix/nix.conf
+          nix --version
+
+      - name: Flake check
+        run: sudo nix flake check -L

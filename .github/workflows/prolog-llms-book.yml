@@ -1,0 +1,62 @@
+name: prolog-llms-book
+
+on:
+  pull_request:
+    paths:
+      - 'books/prolog-llms/**'
+      - 'tools/check-structure'
+      - 'README.org'
+      - 'STATUS.org'
+      - 'CHANGELOG.org'
+      - '.github/workflows/prolog-llms-book.yml'
+  workflow_dispatch:
+
+jobs:
+  book:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install publication and Prolog tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y graphviz python3-matplotlib curl unzip default-jre-headless swi-prolog-nox
+          curl --fail --location --retry 3 --output pandoc.deb https://github.com/jgm/pandoc/releases/download/3.10.1/pandoc-3.10.1-1-amd64.deb
+          sudo dpkg -i pandoc.deb
+          curl --fail --location --retry 3 --output epubcheck.zip https://github.com/w3c/epubcheck/releases/download/v5.3.0/epubcheck-5.3.0.zip
+          unzip -q epubcheck.zip -d .cache
+          swipl --version
+          pandoc --version | head -1
+          java -jar .cache/epubcheck-5.3.0/epubcheck.jar --version
+
+      - name: Test Project 1 relational baseline
+        run: swipl -q -s books/prolog-llms/code/relational-task-solver/run_tests.pl
+
+      - name: Structural validation
+        run: ./tools/check-structure
+
+      - name: Build Prolog + LLMs book
+        run: make book BOOK=prolog-llms
+
+      - name: Validate Prolog + LLMs book
+        env:
+          EPUBCHECK_JAR: .cache/epubcheck-5.3.0/epubcheck.jar
+        run: make check BOOK=prolog-llms
+
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Nix
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y nix-bin
+          sudo mkdir -p /etc/nix
+          echo 'experimental-features = nix-command flakes' | sudo tee -a /etc/nix/nix.conf
+          nix --version
+      - name: Flake check
+        run: sudo nix flake check -L
