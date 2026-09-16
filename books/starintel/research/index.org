@@ -7,4 +7,6 @@
 - Which behavior is version-sensitive in the current toolchain?
 - Which claims require reproduction/benchmarking rather than citation alone?
 * Records
-Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
+- [[file:foundations-01.org][Foundations Pass 01 -- Live Architecture and Document Contract]] -- current release/wire-version distinction, live server boundary, historical-vs-current evidence, and Project 1 validation contract.
+- [[file:sources.org][Source inventory]]
+- [[file:search-log.org][Search log]]

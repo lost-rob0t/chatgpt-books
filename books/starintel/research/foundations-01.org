@@ -1,0 +1,89 @@
+#+title: StarIntel Foundations Pass 01 -- Live Architecture and Document Contract
+:PROPERTIES:
+:ID:       584af18b-c3e7-4c5f-a98d-4b54b6fb4201
+:END:
+
+* Scope and claim status
+This pass supports Chapters 1--5 and Project 1 of [[file:../README.org][StarIntel: Primer, Architecture, Internals, and Hacker's Guide]]. It was researched on 2026-09-16 from live repository heads and current upstream documentation. It does not claim the entire StarIntel architecture is frozen.
+
+- *TESTED by upstream projects:* the pinned Python binding validates and round-trips the current wire schema; the current StarIntel Server repository records executed v0.9 boundary tests and pins the matching Common Lisp validator revision.
+- *OBSERVED IN CURRENT SOURCE:* load order, route definitions, strict validation calls, authorization wrappers, message publication boundaries, and current component ownership described below.
+- *DOCUMENTED BY PRIMARY SOURCES:* JSON Schema Draft 2020-12 semantics, RabbitMQ acknowledgement/confirm distinctions, and CouchDB revision behavior.
+- *HISTORICAL/STALE:* statements in older/currently-unreconciled StarIntel Server prose that say the HTTP service has no built-in authentication or authorization. The current ASDF system loads authentication and authorization code, then later route files install authorized handlers. Those stale paragraphs are useful evidence that repository prose can lag executable ownership.
+- *UNTESTED BY THIS BOOK PASS:* a live multi-service deployment, RabbitMQ persistence guarantees for the exact producer configuration, CouchDB integration, actor dispatch, Quasar integration, external actor services, and production performance.
+
+* Precise questions
+** What is the current StarIntel release versus the wire schema version?
+The current coordinated release/profile is *0.9.1*. Canonical documents still carry =schema_version="0.9.0"=. Those values are deliberately different. The current Python package is version 0.9.1, while its =SPEC_VERSION= constant remains =0.9.0=. Its schema lock records release =0.9.1=, wire schema =0.9.0=, schema path =starintel-doc-v0.9.0.schema.json=, and canonical schema commit =6479c0a9dc88ce9fed183515fc4df5d245de0b3a=.
+
+The server's current v0.9 runtime document records the same distinction and additionally names schema revision =0.9.0+fields.20260909.1=. Therefore the book must not call the active release "0.9.0" merely because the immutable wire schema is named 0.9.0.
+
+A fourth version-like value exists: a document's integer =version= field. It is a document revision field, not the wire schema version. Once persisted in CouchDB there may also be an =_rev= value, which belongs to CouchDB's MVCC/revision protocol rather than the StarIntel document-version contract.
+
+** Which repository owns which boundary in the first teaching slice?
+At inspected StarIntel Server head =d4e8447c6049eaed65a93e81668ae1ec4b65c25c=:
+
+- =starintel-server= is the Common Lisp backend service layer for ingest, persistence/querying, RabbitMQ routing, HTTP boundaries, local Sento actors, and recursive dataflow.
+- =star-cl= at pinned revision =9ce8f88f57fb7ac143851f7fd2c75dccd6a40cc3= provides the Common Lisp document/validation boundary used by the server.
+- =starintel-doc= at =5857914a1e34ad18a6956b8ff0df5349de0ca099= is the current Python 0.9.1 parser/validator/serializer/conformance adapter. Project 1 consumes it; the book does not reimplement its validator.
+- Quasar and external actor repositories are adjacent systems. They are source context, not duplicated book implementations.
+
+** What actually happens at the canonical HTTP document boundary?
+The current ASDF system loads =frontends/http-boundary-core=, then authentication/authorization files, then =frontends/http-authorization-routes=. The later authorization route file replaces =POST /new/document/:dtype= with =handle-authorized-new-document-route=. That handler performs strict document validation and calls =publish-document=. The latter calls =star.authorization:authorized-publish-document= before the unchecked RabbitMQ publication function.
+
+The strict input validator checks a JSON object, non-empty =_id=, =dataset=, and =dtype=, optional route/body dtype agreement, exact wire =schema_version=, then =star.documents:validate-v09-document=. Schema failures become a typed =422 invalid_document_schema= response.
+
+The server also injects server-side tenancy before RabbitMQ publication/persistence and strips that internal tenancy field on egress. The client-visible 0.9 document contract therefore must not be taught as if callers are expected to forge server-owned authorization/tenant context.
+
+** Does a successful HTTP submit mean the record is durable?
+No. The server's own current documentation says HTTP publication success means the producer call succeeded; it does not prove downstream persistence. The architecture is asynchronous:
+
+#+begin_example
+client
+  -> HTTP boundary: parse + validate + authorize
+  -> RabbitMQ documents.ingest.<dtype>
+  -> ingest consumer
+  -> CouchDB durable document
+  -> RabbitMQ documents.new.<dtype>
+  -> local/external actors
+  -> derived documents may re-enter documents.ingest.<dtype>
+#+end_example
+
+That distinction is not RabbitMQ trivia. RabbitMQ's official documentation separates publisher confirms from consumer acknowledgements: the two mechanisms cover different links and are orthogonal. The book therefore treats "request accepted", "broker accepted", "consumer processed", and "document persisted" as distinct observations unless the exact runtime path proves otherwise.
+
+** What is active, merely present, or historical?
+The current server ASDF file is an executable inventory. It loads the auth/authorization systems, event and matcher actor files, RabbitMQ, HTTP boundary/auth routes, lifecycle, and other active services. A source file existing in the repository is insufficient evidence that it is active. The server architecture document itself calls out files that are present but not loaded.
+
+This is especially important because some prose has drifted. =doc/http-authorization-runtime.org= is marked ACTIVE and its claims match loaded current source. Meanwhile older paragraphs in =README.org= and =doc/architecture.org= still state that built-in HTTP authentication/authorization is absent. For this book, executable load/route evidence wins; the prose conflict is recorded, not silently averaged away.
+
+* Primary sources inspected
+** StarIntel repositories
+- =lost-rob0t/starintel-server=, head =d4e8447c6049eaed65a93e81668ae1ec4b65c25c=, retrieved 2026-09-16. Inspected =README.org=, =source/starintel-gserver.asd=, =doc/v09-runtime.org=, =doc/document-spec.org=, =doc/architecture.org=, =doc/http-authorization-runtime.org=, =source/frontends/http-boundary-core.lisp=, =source/frontends/http-boundary-routes.lisp=, =source/frontends/http-authorization-routes.lisp=, and =source/frontends/http-bulk-jobs.lisp=.
+- =lost-rob0t/starintel-doc=, head =5857914a1e34ad18a6956b8ff0df5349de0ca099=, retrieved 2026-09-16. Inspected =pyproject.toml=, =schema/starintel-schema.lock.json=, =starintel_doc/v090.py=, =starintel_doc/conformance_adapter.py=, =tests/test_v090.py=, and =tests/test_operation_091.py=.
+- =lost-rob0t/star-cl=, head =9ce8f88f57fb7ac143851f7fd2c75dccd6a40cc3=, retrieved 2026-09-16. The StarIntel Server v0.9 runtime lock identifies this as its canonical Common Lisp validator revision.
+
+** External authoritative documentation
+- JSON Schema, Draft 2020-12, published 2022-06-16, retrieved 2026-09-16: https://json-schema.org/draft/2020-12 . This defines the schema dialect family used by the Python adapter's =Draft202012Validator=.
+- RabbitMQ, "Consumer Acknowledgements and Publisher Confirms", current documentation version 4.3 as retrieved 2026-09-16: https://www.rabbitmq.com/docs/confirms . Used only for general acknowledgement/confirm semantics, not to assert uninspected StarIntel producer settings.
+- Apache CouchDB documentation 3.5, retrieved 2026-09-16: https://docs.couchdb.org/en/latest/ . Used for CouchDB revision/change semantics and to keep =_rev= conceptually separate from StarIntel's integer =version= field.
+
+* Project 1 contract
+Project 1 milestone A is a *consumer* of the real Python adapter, not a competing implementation. It pins =starintel-doc= commit =5857914a1e34ad18a6956b8ff0df5349de0ca099= and runs synthetic fixtures through the package's public validation and round-trip functions.
+
+Acceptance oracles for this milestone:
+1. a canonical synthetic =person= validates and round-trips without losing =extensions=;
+2. a canonical synthetic =operation= validates under the 0.9.1 package while retaining wire =schema_version="0.9.0"=;
+3. removing a required =_id= produces =missing_required_field=;
+4. using a rejected dtype alias produces =invalid_enum=;
+5. a date-time without an RFC 3339 zone produces =invalid_datetime=;
+6. changing wire schema version to =0.8.0= raises the package's unsupported-version error.
+
+These are book tests of the imported real boundary. They are not a claim that the book independently proves every schema branch.
+
+* Remaining questions for later passes
+- Exact actor registry/discovery behavior and Quasar-facing ownership at current heads.
+- Current RabbitMQ exchange/queue durability, confirms, retry, dead-letter, and redelivery behavior at the actual producer/consumer settings.
+- Current CouchDB outbox and update-conflict behavior under integration tests.
+- Sento supervision/restart semantics used by current actors.
+- Prolog, Nim, Python, and external actor integration boundaries at their current repository heads.
+- Deployment/authentication setup suitable for a safe local teaching stack.

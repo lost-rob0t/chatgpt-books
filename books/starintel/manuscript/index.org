@@ -4,5 +4,490 @@
 :END:
 #+bibliography: ../references.bib
 
-* Manuscript bootstrap
-This is the canonical manuscript entry point. Long-form drafting begins only after the publishing/research bootstrap and the relevant research issue are ready. See [[file:../OUTLINE.org][OUTLINE.org]].
+* Part I -- Foundations
+:PROPERTIES:
+:ID:       c050e9f0-39f7-4e3c-a13f-e7cdabffad8c
+:END:
+
+** Chapter 1 -- A System for Growing Evidence
+:PROPERTIES:
+:ID:       d8bd0f07-439e-4f7c-b0dd-7ba1efee64c3
+:END:
+StarIntel makes more sense if you begin with *flow* rather than a list of repositories. A useful unit enters the system as a typed document. A service validates it, a durable boundary stores it, messages announce what happened, and actors can derive more documents and relations. The graph grows because new evidence can trigger more work.
+
+That is the first mental model for this book:
+
+#+begin_example
+input -> validated document -> durable corpus -> event -> actor -> derived document
+                                                        ^                    |
+                                                        |____________________|
+#+end_example
+
+The last arrow is why the system feels recursive even though the implementation is not simply one function calling itself. A derived document can re-enter the ingest path, become durable, and cause another round of work. The current server calls this dataflow recursion. [cite:@starintel-server-20260916]
+
+*** What StarIntel is not
+It is tempting to compress the whole project into one slogan: a database, a scraper platform, an actor system, an OSINT UI, a graph explorer, or an inference engine. Each description catches a real piece and misses the architecture.
+
+For the current implementation, =starintel-server= is a Common Lisp backend service layer. It owns persistent document ingest, CouchDB storage/querying, RabbitMQ routing, HTTP service boundaries, local actor integration, and recursive dataflow. Quasar is a separate control-plane concern; browser UI is separate again; external actor services can live outside the server process. [cite:@starintel-server-20260916]
+
+This separation matters to hackers because ownership predicts where a bug belongs. A malformed document rejected before publication is not a CouchDB bug. A document accepted by the HTTP boundary but never persisted might be a producer, queue, consumer, validation, or database problem. An actor that exists as a source file but is not in the server's ASDF load graph is not an active runtime capability.
+
+*** The current architecture at a glance
+#+caption: Current document flow for the foundation slice. The diagram intentionally distinguishes request acceptance, message transport, persistence, and actor fan-out.
+#+attr_html: :alt A StarIntel document moves from a client through HTTP validation and authorization, RabbitMQ ingest, an ingest consumer, CouchDB persistence, a documents.new event, and actors that may derive documents which re-enter ingest.
+[[file:../assets/document-flow.svg]]
+
+The diagram is a teaching model verified against the current server source at revision =d4e8447c6049eaed65a93e81668ae1ec4b65c25c=. It is not a claim that every historical or future StarIntel path has exactly these nodes. One of the habits this book will build is attaching an architectural statement to the revision that made it true.
+
+*** Four questions to ask at every boundary
+When debugging StarIntel, ask these before touching code:
+
+1. *What object crossed the boundary?* A JSON document, a Rabbit delivery, an actor message, a CouchDB response, or something else?
+2. *Which contract admitted it?* Schema validation, authorization, routing, actor protocol, or database revision rules?
+3. *What observation do we actually have?* A local function returned, a broker accepted a message, a consumer acknowledged it, or durable state changed?
+4. *Who owns the next state transition?* The HTTP service, broker, consumer, database, actor, or caller?
+
+These questions prevent a classic distributed-systems mistake: treating an earlier success as proof that every later stage succeeded.
+
+*** First trace: accepted is not persisted
+Suppose a client submits a valid document. The current canonical HTTP path parses the request, validates the document, passes the authorization boundary, and publishes to the ingest route. The server documentation explicitly distinguishes that publication from downstream persistence. [cite:@starintel-server-20260916]
+
+So this reasoning is invalid:
+
+#+begin_example
+HTTP returned success
+therefore the document is in CouchDB
+#+end_example
+
+The corrected reasoning is:
+
+#+begin_example
+HTTP returned success
+therefore this HTTP path reached its successful publication boundary
+
+To prove persistence:
+observe the downstream ingest/database result separately
+#+end_example
+
+RabbitMQ's own documentation reinforces why these observations are separate. Publisher confirms and consumer acknowledgements solve different legs of delivery and are orthogonal mechanisms. [cite:@rabbitmq-confirms-43] This chapter does *not* assert that StarIntel currently enables every RabbitMQ safety option; later messaging chapters inspect that exact configuration before making stronger claims.
+
+*** Exercises
+- ★ Draw the document flow from memory and label the first durable boundary.
+- ★ Explain why a successful HTTP response is weaker evidence than reading the persisted document back.
+- ★★ Given a failure report saying "ingest is broken," write five observations that would narrow the responsible boundary without changing code.
+- ★★★ Find a current StarIntel repository statement about runtime behavior. Identify the exact source revision and classify it as executable evidence, current prose, test evidence, or historical prose.
+
+** Chapter 2 -- Reading a Living Multi-Repository System
+:PROPERTIES:
+:ID:       d5118939-b23f-4a66-97e7-82cd4bdb97c6
+:END:
+A hacker's guide to a living system cannot treat documentation as scripture. Documentation is evidence. Tests are evidence. Package manifests and load graphs are evidence. Running behavior is evidence. They can disagree.
+
+The first source-reading skill is therefore *evidence ranking*.
+
+*** Executable ownership beats filenames
+At the inspected server revision, =source/starintel-gserver.asd= is the active Common Lisp system definition. It loads document access, databases, authentication, authorization, actors, RabbitMQ code, HTTP boundary code, lifecycle code, and the main entry point in a specific serial order. [cite:@starintel-server-20260916]
+
+That means a Lisp file merely existing under =source/= does not prove it runs. The current architecture documentation even lists actor files that are present but not loaded. This is a small lesson with a huge payoff: when you add or debug a capability, check the load graph before tracing runtime messages that can never occur.
+
+A useful classification is:
+
+| State | Meaning for this book |
+|-------+-----------------------|
+| Active | Loaded/started by the current runtime path or independently proven active by current tests/source. |
+| Present, inactive | Code exists but the normal runtime does not load/start it. |
+| Experimental | Loaded or present, but explicitly incomplete or not a stable capability. |
+| Historical | Describes behavior that current source has superseded. |
+| Proposed | Design/issue material not yet evidenced by current implementation. |
+
+*** A real documentation conflict
+The inspected server repository contains older prose saying the HTTP service lacks built-in authentication and authorization. If you stopped reading there, you would teach the wrong current architecture.
+
+Current executable evidence says otherwise. The ASDF system loads =auth/*= and =authorization/*=. It then loads baseline HTTP boundary routes and, later, =frontends/http-authorization-routes=. That later file installs authorized handlers for routes including =POST /new/document/:dtype=. The publish helper itself calls an authorization service before the unchecked Rabbit side effect. The repository also contains an HTTP authorization runtime document marked ACTIVE whose route/action matrix matches these current sources. [cite:@starintel-server-20260916]
+
+The correct conclusion is not "documentation is useless." The correct conclusion is:
+
+- some repository prose has drifted;
+- the current auth/authorization path is evidenced by loaded source and route replacement;
+- stale paragraphs should be treated as historical until reconciled;
+- the book must preserve the disagreement as a debugging lesson rather than silently blending incompatible claims.
+
+This pattern will recur. StarIntel is evolving quickly enough that "I read a README once" is not a verification strategy.
+
+*** Repository roles for the foundation slice
+Three repositories matter immediately:
+
+**** =starintel-server=
+The Common Lisp backend service. For this slice, it defines the live ingest/dataflow/authorization/persistence boundary we are learning to trace. [cite:@starintel-server-20260916]
+
+**** =star-cl=
+The Common Lisp document library pinned by the current server. The inspected server runtime lock converges on revision =9ce8f88f57fb7ac143851f7fd2c75dccd6a40cc3=. [cite:@star-cl-091]
+
+**** =starintel-doc=
+The Python document package. Its current package version is =0.9.1= and it exposes validation, normalization/round-trip behavior, schema inventory, and a conformance adapter. Project 1 uses this real package rather than reimplementing its rules. [cite:@starintel-doc-091]
+
+Later chapters add Quasar, actor repositories, Prolog components, and other language bindings only after inspecting their current heads. This keeps the beginner's mental model small without pretending the broader system does not exist.
+
+*** A repeatable source-audit loop
+When a chapter makes a version-sensitive claim, use this loop:
+
+1. Record the repository and exact head.
+2. Read package/build manifests to identify what is loaded.
+3. Read the narrow source path that implements the claim.
+4. Read tests or executed CI evidence that crosses the same boundary.
+5. Read current docs for intended semantics.
+6. Record contradictions explicitly.
+7. Only then turn the claim into tutorial prose.
+
+For a system this dynamic, the revision is part of the citation.
+
+*** Exercises
+- ★ Why is an ASDF component list stronger evidence of activation than a directory listing?
+- ★ Find one statement in this chapter tagged as current source behavior and identify its repository revision in the research notes.
+- ★★ Imagine a README says an actor is active while the ASDF file omits it. What additional evidence could overturn the ASDF-based conclusion?
+- ★★★ Write a five-line "historical/current" note for a hypothetical route whose old implementation is still in-tree but replaced by a later-loaded handler.
+
+** Chapter 3 -- The Document Contract: Four Versions, One Record
+:PROPERTIES:
+:ID:       f3a00aa5-cab8-4e49-a880-2cbd838c7750
+:END:
+Version numbers are where a beginner can become confused fast, because StarIntel currently has several values that look similar but answer different questions.
+
+*** Release 0.9.1 is not wire =schema_version= 0.9.0
+The current Python package metadata says version =0.9.1=. Its schema lock also records =release_version="0.9.1"=. Yet its validator constant remains =SPEC_VERSION="0.9.0"=, and canonical documents use:
+
+#+begin_src json
+{
+  "schema_version": "0.9.0"
+}
+#+end_src
+
+That is intentional. The current server runtime document describes the active coordinated release/profile as 0.9.1, the wire schema family as 0.9.0, and the schema revision as =0.9.0+fields.20260909.1=. [cite:@starintel-doc-091;@starintel-server-20260916]
+
+The rule for this book is simple:
+
+#+begin_example
+release/profile       0.9.1
+wire schema_version   0.9.0
+schema revision       0.9.0+fields.20260909.1
+document version      integer field such as 1
+CouchDB _rev          database revision token after persistence
+#+end_example
+
+Do not substitute one for another.
+
+*** A minimal synthetic person
+Project 1 starts from a synthetic record so no investigation data or credentials enter the repository:
+
+#+begin_src json
+{
+  "_id": "starintel:person:book-demo",
+  "dataset": "book-demo",
+  "dtype": "person",
+  "schema_version": "0.9.0",
+  "version": 1,
+  "date_added": "2026-09-16T12:00:00Z",
+  "date_updated": "2026-09-16T12:00:00Z",
+  "sources": [
+    {
+      "kind": "synthetic",
+      "name": "StarIntel book demo",
+      "accessed_at": "2026-09-16T12:00:00Z",
+      "notes": "Synthetic fixture; no investigation data."
+    }
+  ],
+  "evidence": [],
+  "data": {
+    "fname": "Alex",
+    "lname": "Example",
+    "bio": "Synthetic record used only by the StarIntel book."
+  },
+  "extensions": {
+    "book.example": {
+      "exercise": "project-1-a",
+      "synthetic": true
+    }
+  }
+}
+#+end_src
+
+Several design choices are visible before we write any code.
+
+- =_id= gives the record an identity.
+- =dataset= places it in a logical corpus and later participates in authorization/policy decisions.
+- =dtype= selects a canonical schema branch.
+- =schema_version= selects the wire schema family.
+- =version= is the record's own integer version field.
+- timestamps are RFC 3339 date-time strings under the current schema validation path.
+- =sources= and =evidence= are explicit provenance surfaces rather than information hidden in a log message.
+- =data= is the type-specific payload.
+- =extensions= is a controlled place for permitted non-core data.
+
+The Python adapter uses JSON Schema Draft 2020-12 through =jsonschema.Draft202012Validator= and installs a format checker, including an explicit RFC 3339-zone check for =date-time=. [cite:@starintel-doc-091;@json-schema-2020-12]
+
+*** Canonical dtypes, not friendly aliases
+The current Python adapter has an explicit set of rejected aliases. For example, changing a canonical dtype to =organization= does not silently rewrite it into some other type; it yields a typed validation failure. [cite:@starintel-doc-091]
+
+This is an important interoperability rule. Silent normalization looks friendly in one client and becomes poison in a multi-language system: two adapters can disagree about which spelling was canonical, what was signed or hashed, or which branch should run. Rejecting unsupported aliases makes the mismatch visible at the boundary.
+
+*** Extensions are not a second schema-free universe
+The fixture includes an extension namespace for a book-only marker. The upstream round-trip function validates before serialization and validates again after JSON round-trip. Our test requires the permitted extension payload to survive unchanged.
+
+That does not mean arbitrary top-level fields are accepted. Current schema sections are intentionally closed where the schema says so. Think of =extensions= as an explicit escape hatch governed by the document contract, not permission to attach mystery keys anywhere.
+
+*** =_rev= is not =version=
+Once CouchDB stores a document, it may have an =_rev= field such as a revision token. CouchDB uses revisions as part of its MVCC/update protocol. The application-level integer =version= in a StarIntel document is a different concept. [cite:@couchdb-docs-35]
+
+If you conflate them, update logic becomes nonsense. A CouchDB revision answers "which stored revision are you updating?" The StarIntel integer can answer an application/schema-defined record-version question. The wire =schema_version= answers yet another question: "which document contract should validate this shape?"
+
+*** Debugging lab: name every version
+Given a failure report containing:
+
+#+begin_example
+package: starintel_doc 0.9.1
+schema_version: 0.9.0
+version: 4
+_rev: 7-abc...
+#+end_example
+
+write one sentence for what each value controls. If you cannot, do not change the record yet.
+
+** Chapter 4 -- Validation, Provenance, and Authority Are Different Contracts
+:PROPERTIES:
+:ID:       81a76cbf-e77a-40cf-8e8c-2197e10830cc
+:END:
+A valid document is not automatically trusted, authorized, true, current, or durable. Those properties belong to different mechanisms.
+
+*** Validation asks whether the object conforms
+At the current Python boundary, =validate_document= first requires an object and exact supported wire version, resolves the dtype against schema branches, then runs Draft 2020-12 validation. It maps schema failures into stable categories such as =missing_required_field=, =undeclared_field=, =invalid_datetime=, =wrong_type=, and others. [cite:@starintel-doc-091]
+
+At the current Common Lisp HTTP boundary, the server requires a JSON object plus non-empty identity/dataset/dtype, checks route/body dtype agreement when relevant, checks the wire version, and invokes =star.documents:validate-v09-document=. [cite:@starintel-server-20260916]
+
+Project 1 deliberately exercises the Python binding because it is easy for a beginner to run in isolation. Later chapters exercise the server boundary as a separate integration test. Passing the Python project is not claimed as proof that HTTP/Rabbit/Couch paths are healthy.
+
+*** Provenance asks where a claim came from
+A record can be schema-valid and still contain a false assertion. Provenance is how we keep the system debuggable when facts come from different collectors, transformations, or operators.
+
+For the synthetic fixture, the source is an object rather than a string because the current 0.9 wire schema models source records structurally:
+
+#+begin_src json
+"sources": [
+  {
+    "kind": "synthetic",
+    "name": "StarIntel book demo",
+    "accessed_at": "2026-09-16T12:00:00Z",
+    "notes": "Synthetic fixture; no investigation data."
+  }
+],
+"evidence": []
+#+end_src
+
+This intentionally boring provenance tells the reader exactly what the fixture is: book data, not field evidence. Future projects will add richer sourced data only when the source is public and the mapping is explicit.
+
+A useful rule for extensions, transformations, and actors is:
+
+#+begin_example
+new assertion -> retain enough source/evidence identity to explain why it exists
+#+end_example
+
+The exact provenance structures evolve with the document contract, so later chapters inspect their current schema rather than hard-code folklore here.
+
+*** Authorization asks whether this caller may perform this action
+The current server's loaded authorization path is default-deny according to its active runtime contract. Route actions include =documents:write= for canonical document submission, with resource dimensions such as tenant and dataset evaluated by policy. Rabbit publication also re-authorizes at the internal publish boundary using server-captured context rather than trusting caller-supplied authority fields. [cite:@starintel-server-20260916]
+
+This yields another debugging distinction:
+
+#+begin_example
+schema-valid + unauthorized -> reject
+schema-invalid + authorized -> reject
+schema-valid + authorized   -> eligible to proceed to the next boundary
+#+end_example
+
+Neither validation nor authorization should be "fixed" by making the other looser.
+
+*** Server-owned tenancy is not caller provenance
+Current HTTP boundary code can stamp server-resolved tenant information before internal publication/persistence and strip that internal field on client egress. [cite:@starintel-server-20260916]
+
+That is an ownership clue: clients should not treat server-owned security context as evidence they can freely invent. A provenance label such as a synthetic source object says where record content came from; a tenant/policy context says where the service permits the operation. They solve different problems.
+
+*** Failure exercises
+1. Remove =_id=. Predict which layer can reject the document before RabbitMQ.
+2. Change =schema_version= to =0.8.0=. Explain why package release 0.9.1 does not make that a supported wire value.
+3. Remove the timezone suffix from =date_added=. Predict the validation category.
+4. Keep the document valid but imagine the caller lacks =documents:write=. Which contract fails now?
+5. Imagine the HTTP publish succeeds and the database is unavailable downstream. Which earlier contracts may still have passed?
+
+** Chapter 5 -- Following a Document Through the Runtime
+:PROPERTIES:
+:ID:       e69e510f-3036-43f4-837d-b85377546515
+:END:
+Now combine the document model with the live runtime.
+
+*** Stage 1: request parsing
+The current HTTP boundary accepts JSON media types, enforces a bounded request body, validates JSON with a standards-oriented parser, and keeps JSOWN as the server's internal representation. Malformed input is turned into a typed HTTP input error rather than being passed downstream. [cite:@starintel-server-20260916]
+
+This is the first place to investigate when the body never becomes a document at all.
+
+*** Stage 2: strict document admission
+For the canonical =/new/document/:dtype= route, the path dtype must be non-empty, the body must be an object, and the document dtype must agree with the path. Strict v0.9 validation runs before publication. [cite:@starintel-server-20260916]
+
+The route name is not allowed to mutate a mismatched body into correctness. If the path says =person= and the body says a different canonical dtype, that mismatch is observable.
+
+*** Stage 3: authorization and server context
+The current route installed later in the load order is the authorized handler. Publication crosses an authorization service before the unchecked Rabbit producer function. The producer projection builds server-owned message properties from verified service context rather than trusting authority-like fields from the document. [cite:@starintel-server-20260916]
+
+This is where a hacker should look when a valid document is denied or when a downstream audit/correlation context looks wrong.
+
+*** Stage 4: ingest publication
+The unchecked producer derives a routing key from the dtype using the server's ingest routing format and publishes the serialized document to RabbitMQ. Before that internal side effect the document may receive server-side tenant stamping. [cite:@starintel-server-20260916]
+
+At this point, do not jump ahead and say "stored." Publication and storage remain separate observations.
+
+*** Stage 5: consumer and durable corpus
+The current architecture uses Rabbit consumers for ingest/update paths. Successful ingest leads to CouchDB persistence. The server documents CouchDB as the durable corpus. After persistence, a =documents.new.<dtype>= event is used for fan-out to actor processing. [cite:@starintel-server-20260916]
+
+The exact ACK/NACK, retry, conflict, outbox, and redelivery mechanics deserve their own chapter and executable failure labs. The foundation chapter only freezes the ownership sequence required to understand the first project.
+
+*** Stage 6: actors and recursive enrichment
+Local Sento actors and external actor services can consume relevant work and emit derived StarIntel documents or relations. Those derived documents can re-enter ingest. This is dataflow recursion: the knowledge graph expands as messages move through durable and event boundaries. [cite:@starintel-server-20260916]
+
+The actor chapter later asks harder questions: ordering, duplication, idempotency, restart, timers, remote boundaries, registry ownership, and what a "successful" actor message means. For now, keep one invariant: actors do not erase the document contract. Derived records still have to cross valid boundaries.
+
+*** A debugging trace template
+When a document disappears, collect observations in order:
+
+| Boundary | Question | Example evidence |
+|----------+----------+------------------|
+| Client -> HTTP | Was valid JSON sent to the expected route? | request body, route, correlation ID |
+| HTTP validation | Did strict schema admission pass? | response status/code, typed category |
+| Authorization | Was the action/resource allowed? | redacted audit decision/correlation ID |
+| HTTP -> Rabbit | Did the producer boundary succeed? | server log/producer result appropriate to current implementation |
+| Rabbit -> consumer | Was the delivery observed/processed? | consumer delivery + ACK/NACK evidence |
+| Consumer -> CouchDB | Was durable state created/updated? | document read/revision evidence |
+| Persistence -> event | Was post-persistence fan-out emitted? | routed event observation |
+| Event -> actor | Did the intended actor receive and process it? | actor/runtime trace |
+| Actor -> derived ingest | Did derived data cross admission again? | new correlation/provenance chain |
+
+Do not skip from the first row to the last. Debugging gets fast when each boundary either has evidence or becomes the next experiment.
+
+* Project 1 -- Create and Break Valid StarIntel Records
+:PROPERTIES:
+:ID:       95600b49-6e43-550d-b202-6aa6ae80ddb2
+:END:
+The first project is intentionally smaller than a server deployment. Before operating an actor graph, you should be able to create a canonical record, validate it using a real maintained binding, predict why malformed variants fail, and explain exactly what that test does *not* prove.
+
+*** Architecture: import the boundary, do not clone it
+The project pins =lost-rob0t/starintel-doc= revision =5857914a1e34ad18a6956b8ff0df5349de0ca099=. That adapter's own schema lock points at canonical schema commit =6479c0a9dc88ce9fed183515fc4df5d245de0b3a= in =lost-rob0t/starintel-gpt-auto-dig=. The package does not vendor that schema file, so the exercise fetches only the exact immutable schema artifact named by the lock. The book owns fixtures, exercises, and assertions; the upstream package and schema remain the validation authority. [cite:@starintel-doc-091]
+
+That produces a clean dependency shape:
+
+#+begin_example
+book fixtures + assertions
+          |
+          v
+pinned starintel_doc 0.9.1 adapter
+          |
+          +----> adapter schema lock
+                        |
+                        v
+              pinned canonical 0.9 schema artifact
+#+end_example
+
+There is no second validator hiding in the tutorial, and fetching that schema data dependency does not run the repository that stores it.
+
+*** Run the project
+From the =chatgpt-books= repository root:
+
+#+begin_src sh
+git clone https://github.com/lost-rob0t/starintel-doc .cache/starintel-doc
+git -C .cache/starintel-doc checkout 5857914a1e34ad18a6956b8ff0df5349de0ca099
+
+mkdir -p .cache/starintel-schema/schemas
+curl --fail --location \
+  --output .cache/starintel-schema/schemas/starintel-doc-v0.9.0.schema.json \
+  https://raw.githubusercontent.com/lost-rob0t/starintel-gpt-auto-dig/6479c0a9dc88ce9fed183515fc4df5d245de0b3a/schemas/starintel-doc-v0.9.0.schema.json
+
+python3 -m pip install .cache/starintel-doc
+bash books/starintel/code/records/run-tests
+#+end_src
+
+The runner points =STARINTEL_SCHEMA= at that separately pinned canonical artifact and executes the book's regression tests. The focused CI workflow pins both authorities so a future upstream branch move cannot silently change the lesson.
+
+*** What the executable tests ask
+The suite uses two synthetic fixtures.
+
+**** Person fixture
+It checks basic canonical envelope fields, permitted extension preservation, and round-trip stability.
+
+**** Operation fixture
+The current 0.9.1 release added/supports an =operation= dtype while the wire schema family remains =0.9.0=. The fixture makes that distinction executable rather than merely memorized. [cite:@starintel-doc-091]
+
+The negative tests deliberately break one thing at a time:
+
+- delete =_id=;
+- use rejected alias =organization=;
+- remove the timezone from =date_added=;
+- substitute wire version =0.8.0=.
+
+A good failure lab changes one variable. If you mutate five fields and get one validation error, you learned almost nothing.
+
+*** Debugging exercise: predict before running
+For each mutation, write the expected *category* before executing the suite. Then run it and compare.
+
+| Mutation | Expected boundary result |
+|----------+--------------------------|
+| remove =_id= | =missing_required_field= |
+| =dtype="organization"= | =invalid_enum= alias rejection |
+| =date_added="2026-09-16T12:00:00"= | =invalid_datetime= |
+| =schema_version="0.8.0"= | unsupported spec/wire version |
+
+If an upstream release changes one of these results, that is not a reason to loosen the test blindly. It is a signal to inspect the new schema/adapter, update the research record, and decide whether the book or dependency pin should move.
+
+*** Explain the result like an operator
+After the suite passes, answer all five questions without looking back:
+
+1. Why does package release 0.9.1 accept a document whose =schema_version= is 0.9.0?
+2. What does =version= mean that =schema_version= does not?
+3. What could a future CouchDB =_rev= tell you that neither of those values tells you?
+4. Why does passing this suite *not* prove a live StarIntel Server can persist the record?
+5. Why is a server authorization failure not evidence that the document schema is invalid?
+
+If those answers are crisp, the project has done its job.
+
+*** Failure lab: a fake green test
+Imagine replacing =validate_document(document)= with this:
+
+#+begin_src python
+assert document["dtype"] == "person"
+#+end_src
+
+The test might be green while missing required fields, invalid dates, unsupported versions, closed-schema violations, and future contract changes. It would test your imitation of the contract, not the contract.
+
+This is why Project 1 imports the real adapter. A tutorial should make the production boundary easier to understand, not create a second source of truth.
+
+*** Where the project grows next
+Later milestones extend this same record work instead of throwing it away:
+
+- validate more dtypes and relation/provenance structures from current schema inventory;
+- exercise the server's actual HTTP validation and authorization boundary in a disposable local stack;
+- trace an accepted record through RabbitMQ to CouchDB;
+- inject a downstream persistence failure and prove that request acceptance is not durability;
+- hand the resulting document to a real actor project while preserving provenance and correlation evidence.
+
+Those steps remain dependency-gated. The foundation project stops exactly where its evidence stops.
+
+* Foundation checklist
+:PROPERTIES:
+:ID:       c74b42bf-0be6-45ef-bddd-a7b5566ad3aa
+:END:
+Before continuing to actors, queues, and databases, you should be able to:
+
+- describe StarIntel as document-driven recursive dataflow rather than one monolithic application;
+- distinguish current implementation evidence from historical or proposed architecture;
+- name release/profile 0.9.1 versus wire =schema_version= 0.9.0 without hesitation;
+- separate document =version= from CouchDB =_rev=;
+- explain validation, provenance, authorization, publication, and persistence as different contracts;
+- follow one document across HTTP -> RabbitMQ -> consumer -> CouchDB -> event -> actor boundaries;
+- run the Project 1 real-adapter tests and explain each intentional failure.
+
+The rest of the book builds outward from these invariants. Common Lisp service internals, RabbitMQ behavior, CouchDB conflict handling, actors, Prolog, search, graphs, testing, security, deployment, and the capstone all become easier once "what crossed which boundary?" is a reflex rather than an afterthought.
