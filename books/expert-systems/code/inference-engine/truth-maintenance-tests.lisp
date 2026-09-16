@@ -106,8 +106,12 @@
     (let ((retraction
             (truth-maintained-retract-base-fact
              truth "obs.api.state.failed")))
-      (truth-check-true (retraction-report-retracted-p retraction)
-                        "base observation is retracted")
+      (truth-check-true
+       (retraction-report-base-support-removed-p retraction)
+       "base observation support classification is removed")
+      (truth-check-true
+       (retraction-report-requested-occurrence-removed-p retraction)
+       "unsupported base observation occurrence is retracted")
       (truth-check-equal (list impact-id investigate-id)
                          (retraction-report-cascaded-fact-ids retraction)
                          "lost support cascades through both derived facts")
@@ -163,6 +167,74 @@
       (truth-check-false
        (find-wm-entry (engine-working-memory engine) "derived.shared")
        "shared conclusion disappears after its last support")))
+
+  ;; Base support and a derived justification are independent support sources.
+  ;; Removing only the base classification must preserve the same current
+  ;; occurrence when another grounded reason exists, including its dependents.
+  (let* ((x (test-fact "mixed.x" 'state '(ready)))
+         (y (test-fact "mixed.y" 'support '(on)))
+         (y-to-x
+           (constant-derived-production
+            "rule.mixed-y-to-x" '((support on))
+            "mixed.x" 'state '(ready)))
+         (x-to-z
+           (constant-derived-production
+            "rule.mixed-x-to-z" '((state ready))
+            "mixed.z" 'dependent '(present)))
+         (engine (make-engine :facts (list x y)
+                              :productions (list y-to-x x-to-z)))
+         (truth (make-truth-maintained-network engine)))
+    (truth-maintained-run-engine truth :firing-limit 10)
+    (let ((x-stamp (current-stamp-for-fact-id truth "mixed.x")))
+      (truth-check-equal 1
+                         (length (current-justifications-for truth "mixed.x"))
+                         "base X also records the independent Y-derived reason")
+      (truth-check-equal '("mixed.z")
+                         (truth-maintained-current-dependents truth "mixed.x")
+                         "X has a current downstream dependent before base removal")
+      (let ((x-retraction
+              (truth-maintained-retract-base-fact truth "mixed.x")))
+        (truth-check-true
+         (retraction-report-base-support-removed-p x-retraction)
+         "mixed-support retraction removes X base support")
+        (truth-check-false
+         (retraction-report-requested-occurrence-removed-p x-retraction)
+         "grounded derived reason keeps X occurrence in working memory")
+        (truth-check-equal '()
+                           (retraction-report-removed-occurrence-stamps
+                            x-retraction)
+                           "retaining X reports no removed working-memory stamp")
+        (truth-check-equal x-stamp
+                           (current-stamp-for-fact-id truth "mixed.x")
+                           "mixed-support X retains the exact same occurrence")
+        (let ((x-report
+                (truth-maintained-support-report truth "mixed.x")))
+          (truth-check-equal :derived (support-report-status x-report)
+                             "retained X becomes derived after base support removal")
+          (truth-check-false (support-report-base-supported-p x-report)
+                             "retained X is no longer base-supported")
+          (truth-check-true (support-report-grounded-p x-report)
+                            "retained X remains grounded through Y"))
+        (truth-check-true
+         (not (null (find-wm-entry (engine-working-memory engine) "mixed.z")))
+         "downstream Z remains present while X occurrence remains")
+        (truth-check-equal '("mixed.z")
+                           (truth-maintained-current-dependents truth "mixed.x")
+                           "retained X keeps its downstream dependency edge"))
+      (let ((y-retraction
+              (truth-maintained-retract-base-fact truth "mixed.y")))
+        (truth-check-true
+         (retraction-report-requested-occurrence-removed-p y-retraction)
+         "removing final base Y occurrence starts mixed-support cascade")
+        (truth-check-equal '("mixed.x" "mixed.z")
+                           (retraction-report-cascaded-fact-ids y-retraction)
+                           "losing Y later retracts X and cascades to Z")
+        (truth-check-false
+         (find-wm-entry (engine-working-memory engine) "mixed.x")
+         "X leaves working memory after its last grounding path disappears")
+        (truth-check-false
+         (find-wm-entry (engine-working-memory engine) "mixed.z")
+         "Z leaves working memory after X disappears"))))
 
   ;; Failure lab: a cycle of derived facts cannot become its own foundation.
   (let* ((seed (test-fact "cycle.seed" 'seed '(on)))
