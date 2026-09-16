@@ -22,7 +22,9 @@ The standalone sibling [[file:../prolog-llms/README.org][Prolog + LLMs: Neuro-Sy
 - [[id:72bc9870-0c97-572e-9c27-5c444141cfc6][Rule/Expert-System Engine]] -- Contrast native Prolog inference with an explicit production-system engine.
 - [[id:dd7637af-b3a4-54bc-aba2-309412a1da1a][Hybrid Symbolic Reasoning System]] -- Capstone combining rules, constraints, planning, explanation, and controlled external integration.
 * Current implementation slice
-Project 1 milestone A derives a closed rule-as-data meta-interpreter, proof/provenance trees, fresh rule invocation semantics, explicit backtracking, path-local variant cycle detection, and an object-rule budget. See =code/meta-interpreter/= and the opening manuscript chapters.
+Project 1 milestone A established the closed rule-as-data meta-interpreter, proof/provenance trees, fresh rule invocation semantics, ordinary alternative-rule backtracking, path-local variant cycle detection, and the object-rule budget.
+
+Milestone B now derives one additional closed control form, =either(Left,Right)=, plus a bounded =search_report/4= diagnostic for ground ordinary object goals. The new report preserves failed matching-rule attempts and explicit =proved=/=cycle=/=exhausted= outcomes without pretending to be SWI-Prolog's runtime debugger trace. Proofs remain justification artifacts; search reports remain bounded diagnostic artifacts. Cut, negation, arbitrary =call/1=, native-clause reflection, and the later planner/abduction/rule-engine mechanisms remain outside this slice.
 * Research
 Record primary-source work under =research/= and bibliography metadata in =references.bib=. Never let version-sensitive prose outrun current documentation.
 * Build
