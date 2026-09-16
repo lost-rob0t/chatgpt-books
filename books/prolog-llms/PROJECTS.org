@@ -1,0 +1,119 @@
+#+title: Prolog + LLMs -- Major Projects
+:PROPERTIES:
+:ID:       4d69ce37-57a1-5a58-8926-54e80435bd08
+:END:
+
+* Project progression
+The projects are one curriculum, not six disconnected demos. Each later system reuses contracts and debugging habits from the earlier stages. Model-dependent behavior is never accepted as deterministic merely because an example happened to work once.
+
+** Project 1: Relational Task Solver
+:PROPERTIES:
+:ID:       1ea72957-2339-5040-bdef-6418512180d3
+:END:
+Build a standalone SWI-Prolog application that represents a small but nontrivial task domain, answers relational queries, explains successful derivations, and exposes enough operational behavior to teach debugging before LLMs appear.
+
+Required capabilities:
+- facts/rules/queries over structured terms;
+- finite-term unification exercises and explicit occurs-check boundary;
+- recursion and list processing with termination/failure cases;
+- modules and PL-Unit tests;
+- a small DCG or parser boundary;
+- one CLP(FD) subproblem where constraints genuinely simplify the solution;
+- structured explanation/provenance terms suitable for later serialization.
+
+Failure labs: variable/atom mistakes, wrong argument roles, accidental nondeterminism, recursive nontermination, duplicate answers, module/import mistakes, and tests that pass without asserting the intended relation.
+
+Deliverable: deterministic symbolic baseline with an explicit query API. No LLM dependency.
+
+** Project 2: Typed LLM-to-Prolog Gateway
+:PROPERTIES:
+:ID:       81558c55-246d-5d27-861d-b25c27b08d62
+:END:
+Add a replaceable model adapter behind a typed gateway. The model may propose data or operations only through a closed schema that is parsed, normalized, validated, and provenance-tagged before the symbolic system can observe it.
+
+Required capabilities:
+- provider-neutral request/result interface;
+- explicit request/correlation identity and deadlines;
+- schema-constrained or parsed structured output, depending on researched provider capabilities;
+- allowlisted relation/predicate vocabulary;
+- rejection of unknown predicates, malformed arguments, unsupported terms, and executable source strings;
+- provenance recording for accepted and rejected model outputs;
+- deterministic fake/model fixture for tests, plus optional live-provider experiments kept separate.
+
+Failure labs: truncated JSON, invented predicates, repeated/duplicate results, timeout, provider error, superficially valid but semantically impossible fact, and prompt injection embedded in user-supplied data.
+
+Deliverable: a gateway where arbitrary model text cannot become executable Prolog simply by looking code-like.
+
+** Project 3: Retrieval + Symbolic Verification Pipeline
+:PROPERTIES:
+:ID:       4f7d4fd6-86d6-5358-aace-800088a1c43b
+:END:
+Build an evidence pipeline in which retrieval proposes candidate material, a typed extraction step maps evidence into provisional facts, and Prolog evaluates explicit claims with provenance-aware rules.
+
+Required capabilities:
+- frozen public/synthetic corpus with source IDs and stable passages;
+- retrieval candidate interface separated from truth/acceptance;
+- normalized entities/relations with source references;
+- explicit representation of unknown, conflicting, or temporally scoped evidence;
+- claim queries returning success/failure/unknown plus explanation data where the symbolic model supports it;
+- regression tests for evidence changes and contradictory sources.
+
+Failure labs: high-ranked irrelevant passage, entity collision, contradictory source pair, missing evidence incorrectly treated as false, and LLM explanation unsupported by the proof/provenance graph.
+
+Deliverable: replayable evidence-to-claim path with no hidden “LLM knows” step.
+
+** Project 4: Repairing Reasoner
+:PROPERTIES:
+:ID:       4300c738-bbba-56f6-aea6-dd6c97ebeddf
+:END:
+Turn verifier failures into a bounded repair protocol. A model may receive structured diagnostics and propose a revised candidate, but the symbolic acceptance boundary and budget remain authoritative.
+
+Required capabilities:
+- explicit generate -> parse -> validate -> verify -> classify -> repair state machine;
+- maximum iterations/model calls and absolute deadline;
+- duplicate-candidate detection;
+- typed failure categories such as parse_error, schema_error, unknown_relation, contradiction, unsatisfied_constraint, timeout, and verifier_rejection;
+- immutable trace of every attempt and why it was accepted/rejected;
+- cancellation and stale-result rejection rules.
+
+Failure labs: model repeats the same invalid candidate, repairs syntax while worsening semantics, callback arrives after deadline/cancel, verifier throws, and repair prompt contains adversarial retrieved text.
+
+Deliverable: bounded correction loop whose stopping behavior is easier to explain than the model itself.
+
+** Project 5: Neuro-Symbolic Evaluation Harness
+:PROPERTIES:
+:ID:       63a8d0e2-c373-5aba-84aa-03e9c5a08f6b
+:END:
+Build a reproducible harness for comparing architecture variants rather than relying on anecdotes.
+
+Required capabilities:
+- frozen task/evidence set and versioned prompt/templates;
+- variants for direct model answer, retrieval-only, symbolic verification, and bounded repair where applicable;
+- correctness labels with explicit adjudication procedure;
+- counts for invalid outputs, verifier rejections, false acceptance, repair success/failure, and provenance completeness;
+- timing/token/cost capture only when actually observable and with provider/version context;
+- deterministic local fixtures so the harness itself is testable without paid model access.
+
+Failure labs: benchmark leakage, accidental retry advantage, provider/version drift, evaluator ambiguity, missing trace data, and a metric that improves while task correctness gets worse.
+
+Deliverable: honest experiment reports that can contain negative results.
+
+** Project 6: Capstone -- Prolog-RLM Study System
+:PROPERTIES:
+:ID:       26e34055-8f6f-52f6-9415-bc6ebef3aff2
+:END:
+Build and study a recursive language-model architecture in which Prolog owns orchestration/verification contracts while one or more LLM providers solve bounded subproblems. The goal is a concrete, falsifiable system—not a claim that recursion automatically creates intelligence.
+
+Required capabilities:
+- typed task/subtask representation;
+- recursive decomposition under explicit depth/call/token/time budgets;
+- request and causation identities for every model invocation;
+- Prolog-controlled acceptance/verification of intermediate results;
+- duplicate-state/subtask detection and deterministic replay of recorded runs;
+- provider abstraction so correctness does not depend on one vendor API;
+- durable experiment/provenance log without secrets;
+- comparative evaluation against simpler baselines;
+- architecture, state-machine, and failure-propagation diagrams;
+- production-style debugging walkthroughs for wrong answers, loops, stale completions, and partial provider outages.
+
+Capstone acceptance is evidence-based: runnable code, tests, recorded environment, repeatable frozen experiments, citations to primary work, honest limitations, and an EPUB build/check. Proposed extensions stay labeled EXPERIMENTAL or UNTESTED until run.
