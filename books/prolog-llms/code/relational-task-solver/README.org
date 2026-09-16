@@ -1,6 +1,6 @@
-#+title: Project 1 -- Relational Task Solver, milestone A
+#+title: Project 1 -- Relational Task Solver, milestone B
 
-This directory is the executable symbolic baseline for Chapters 1--3.  The
+This directory is the executable symbolic baseline for Chapters 1--5.  The
 fixture is synthetic and deterministic; there is intentionally no LLM or
 network dependency yet.
 
@@ -10,11 +10,24 @@ Run from the repository root:
 swipl -q -s books/prolog-llms/code/relational-task-solver/run_tests.pl
 #+end_src
 
-The tests cover directional relation mistakes, shared-variable joins, explicit
-list recursion, direct/transitive dependency paths, logical failure,
-provenance-bearing explanations, and the SWI-Prolog occurs-check boundary.
-The CI job prints the exact SWI-Prolog version used for the run.
+Milestone A established relations, unification, recursion, cycle-safe
+dependency traversal, provenance-bearing explanations, and the SWI-Prolog
+occurs-check boundary.  Milestone B makes operational control visible instead
+of hiding it:
 
-The later Typed LLM-to-Prolog Gateway will consume closed data contracts built
-on top of these deterministic relations.  It must not turn free-form model
-text into an arbitrary =call/1= target.
+- =ready_task/2= deliberately exposes every ready task through backtracking;
+- =first_ready_task/2= uses an explicit =once/1= boundary and therefore means
+  “the first answer in current program/search order”, not “highest priority”;
+- =task_report.pl= is a second module that imports only the public predicates it
+  needs from =task_solver.pl= and composes them into =ready_report/3=;
+- PL-Unit assertions distinguish a genuinely multi-answer relation from a
+  deterministic first-answer boundary.
+
+The suite retains the earlier direction, join, recursion, cycle, provenance,
+and unification regressions.  CI prints the exact SWI-Prolog version used for
+the run.
+
+The module export/import boundary is maintainability and namespace discipline,
+not a security sandbox.  The later Typed LLM-to-Prolog Gateway will add a
+separate closed parser/schema/permission boundary; it must not turn free-form
+model text into an arbitrary =call/1= target.

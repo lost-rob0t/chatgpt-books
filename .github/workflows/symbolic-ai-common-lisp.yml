@@ -48,6 +48,18 @@ jobs:
             --eval '(asdf:load-asd (truename "books/symbolic-ai-common-lisp/code/search/symbolic-ai-search.asd"))' \
             --eval '(asdf:test-system "symbolic-ai-search/tests")'
 
+      - name: Pattern Matcher and Unifier executable tests
+        run: sbcl --script books/symbolic-ai-common-lisp/code/pattern-unify/run-tests.lisp
+
+      - name: Pattern Matcher and Unifier ASDF test operation
+        shell: bash
+        run: |
+          set -euo pipefail
+          sbcl --noinform --non-interactive \
+            --eval '(require :asdf)' \
+            --eval '(asdf:load-asd (truename "books/symbolic-ai-common-lisp/code/pattern-unify/symbolic-ai-pattern.asd"))' \
+            --eval '(asdf:test-system "symbolic-ai-pattern/tests")'
+
       - name: Formal Reasoning Workbench executable tests
         run: sbcl --script books/symbolic-ai-common-lisp/code/formal/run-tests.lisp
 
@@ -65,21 +77,24 @@ jobs:
         run: |
           set -euo pipefail
           dot -Tsvg books/symbolic-ai-common-lisp/assets/search-frontier.dot >/dev/null
+          dot -Tsvg books/symbolic-ai-common-lisp/assets/pattern-unification-flow.dot >/dev/null
           dot -Tsvg books/symbolic-ai-common-lisp/assets/formal-verification-flow.dot >/dev/null
 
-      - name: Validate formal-methods draft citations and Org parsing
+      - name: Validate focused draft citations and Org parsing
         shell: bash
         run: |
           set -euo pipefail
-          pandoc books/symbolic-ai-common-lisp/manuscript/formal-methods.org \
-            --from=org \
-            --to=html5 \
-            --standalone \
-            --citeproc \
-            --bibliography=books/symbolic-ai-common-lisp/references.bib \
-            --resource-path=books/symbolic-ai-common-lisp:. \
-            -o /tmp/formal-methods.html
-          test -s /tmp/formal-methods.html
+          for draft in formal-methods pattern-unification; do
+            pandoc "books/symbolic-ai-common-lisp/manuscript/${draft}.org" \
+              --from=org \
+              --to=html5 \
+              --standalone \
+              --citeproc \
+              --bibliography=books/symbolic-ai-common-lisp/references.bib \
+              --resource-path=books/symbolic-ai-common-lisp:. \
+              -o "/tmp/${draft}.html"
+            test -s "/tmp/${draft}.html"
+          done
 
       - name: Build Symbolic AI in Common Lisp
         run: make book BOOK=symbolic-ai-common-lisp
