@@ -117,3 +117,18 @@ connection_with_hops(Start, Goal, Path, Hops) :-
 connection_within_hops(Start, Goal, Limit, Path, Hops) :-
     connection_with_hops(Start, Goal, Path, Hops),
     Hops =< Limit.
+
+% Chapter 8 makes direct cut semantics visible beside the accepted once/1
+% wrapper.  This predicate has an explicitly committed contract: after the
+% first connection_path/3 proof succeeds, ! discards later path proofs that
+% were created since entering this predicate.
+first_connection_path_cut(Start, Goal, Path) :-
+    connection_path(Start, Goal, Path),
+    !.
+
+% Commit only after the acceptance relation has succeeded.  In the documented
+% mode the limit is ground.  This returns the first path in connection_path/3's
+% search order that satisfies the hop limit; it does NOT compute a shortest path.
+first_connection_within_hops(Start, Goal, Limit, Path, Hops) :-
+    connection_within_hops(Start, Goal, Limit, Path, Hops),
+    !.
