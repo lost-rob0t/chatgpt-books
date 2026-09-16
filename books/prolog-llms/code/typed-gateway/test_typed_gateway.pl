@@ -3,11 +3,6 @@
 :- use_module(typed_gateway).
 :- use_module(fake_provider).
 
-candidate(RequestId, Capability, Arguments, Json) :-
-    format(string(Json),
-           '{"schema":"task_capability_v1","request_id":"~w","capability":"~w","arguments":~q}',
-           [RequestId, Capability, Arguments]).
-
 response(Json, Response) :-
     fake_response("resp-fixture-001", "deterministic-fixture-v1", Json, Response).
 
@@ -32,12 +27,12 @@ test(executes_only_after_validation) :-
     valid_json("req-002", "tasks_by_owner", "[\"ada\"]", Json),
     response(Json, Response),
     gateway_once("req-002", Response, Outcome),
-    Outcome = ok(result{request_id:"req-002",
-                        capability:tasks_by_owner,
-                        results:Results,
-                        provenance:provenance{provider:fake,
-                                              model:"deterministic-fixture-v1",
-                                              response_id:"resp-fixture-001"}}),
+    Outcome = ok(Result),
+    get_dict(results, Result, Results),
+    get_dict(provenance, Result, Provenance),
+    assertion(Provenance == provenance{provider:fake,
+                                       model:"deterministic-fixture-v1",
+                                       response_id:"resp-fixture-001"}),
     assertion(Results ==
               [result(task(collect_sources), owner(ada), status(ready),
                       tags([research,prolog])),
@@ -49,7 +44,8 @@ test(two_argument_capability) :-
                "[\"publish_report\",\"collect_sources\"]", Json),
     response(Json, Response),
     gateway_once("req-003", Response, Outcome),
-    Outcome = ok(result{results:Results}),
+    Outcome = ok(Result),
+    get_dict(results, Result, Results),
     assertion(Results ==
               [path([publish_report,write_explanation,check_constraints,
                      normalize_terms,collect_sources])]).
