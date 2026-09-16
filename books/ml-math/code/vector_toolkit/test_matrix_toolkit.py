@@ -134,6 +134,18 @@ class MatrixToolkitTests(unittest.TestCase):
         c = [[1, 0], [2, 1], [-1, 4]]
         self.assertEqual(matmul(matmul(a, b), c), matmul(a, matmul(b, c)))
 
+    def test_floating_point_execution_can_break_bitwise_associativity(self):
+        a = [[1e308]]
+        b = [[1e-308]]
+        c = [[1e-308]]
+
+        left_grouped = matmul(matmul(a, b), c)
+        right_grouped = matmul(a, matmul(b, c))
+
+        self.assertEqual(left_grouped, ((1e-308,),))
+        self.assertEqual(right_grouped, ((0.0,),))
+        self.assertNotEqual(left_grouped, right_grouped)
+
     def test_transform_points_uses_one_linear_map_consistently(self):
         shear = [[1, 0.5], [0, 1]]
         points = [(0, 0), (1, 0), (1, 1), (0, 1)]
