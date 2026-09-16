@@ -1,6 +1,17 @@
 :- begin_tests(relational_task_solver).
 
 :- use_module(task_solver).
+:- use_module(library(time)).
+
+:- multifile relational_task_solver:dependency_record/3.
+
+% Test-local graph fixture. These clauses extend the solver's private
+% dependency relation only while this test file is loaded; production book
+% fixture data remains unchanged.
+relational_task_solver:dependency_record(cycle_probe_a, cycle_probe_b,
+                  source(test_fixture, dep_cycle_a_b)).
+relational_task_solver:dependency_record(cycle_probe_b, cycle_probe_a,
+                  source(test_fixture, dep_cycle_b_a)).
 
 test(fact_query_binds_owner) :-
     task(collect_sources, Owner, ready, Tags),
@@ -46,6 +57,16 @@ test(transitive_dependency_path_is_unique_in_fixture) :-
 
 test(missing_dependency_path_fails, [fail]) :-
     dependency_path(collect_sources, publish_report, _).
+
+test(cyclic_dependency_graph_terminates_for_unreachable_target) :-
+    assertion(depends_on(cycle_probe_a, cycle_probe_b)),
+    assertion(depends_on(cycle_probe_b, cycle_probe_a)),
+    call_with_time_limit(
+        1,
+        findall(Path,
+                dependency_path(cycle_probe_a, unreachable_target, Path),
+                Paths)),
+    assertion(Paths == []).
 
 test(task_explanation_keeps_provenance) :-
     explain_task(normalize_terms, Explanation),

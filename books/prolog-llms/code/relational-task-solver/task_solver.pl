@@ -8,6 +8,8 @@
             explain_dependency/3
           ]).
 
+:- multifile dependency_record/3.
+
 /** <module> Relational Task Solver -- Project 1, milestone A
 
 A deliberately small, deterministic symbolic baseline for the opening

@@ -1,0 +1,41 @@
+#+title: Search Library -- Executable Core
+:PROPERTIES:
+:ID:       de9dd081-5ea3-4c3f-8b04-49fc5873d0ae
+:END:
+
+* Scope
+This directory is the executable core for Project 1 of /Symbolic AI in Common Lisp/.  It is teaching code, but it is deliberately real code: deterministic search behavior, typed boundary failures, path reconstruction, instrumentation, and regression tests are part of the contract.
+
+* Files
+- =package.lisp= -- public package surface.
+- =search.lisp= -- problem/transition types; DFS, BFS, UCS, A*; FIFO and binary-heap frontier machinery.
+- =tests.lisp= -- dependency-free regression tests.
+- =run-tests.lisp= -- direct test entry point.
+- =symbolic-ai-search.asd= -- ASDF system definitions.
+
+* Run
+From the repository root:
+
+#+begin_src sh
+sbcl --script books/symbolic-ai-common-lisp/code/search/run-tests.lisp
+#+end_src
+
+Or from an image with ASDF:
+
+#+begin_src lisp
+(asdf:load-asd (truename "books/symbolic-ai-common-lisp/code/search/symbolic-ai-search.asd"))
+(asdf:test-system "symbolic-ai-search/tests")
+#+end_src
+
+* State-key rule
+The problem's =KEY= function must return an =EQUAL=-comparable value that remains stable while the search is running.  Do not mutate a list/string/tree after it has become a hash-table key.  Use a canonical immutable projection when the domain state itself is mutable.
+
+* Algorithm contracts
+- DFS/BFS are graph searches with seen-on-enqueue duplicate suppression.
+- UCS/A* require nonnegative real step costs and keep the cheapest =g= observed for each state key.
+- UCS/A* enqueue an improved path rather than mutating a buried heap entry; superseded entries are discarded as stale when popped.
+- A* accepts a caller-supplied heuristic and does not pretend to prove admissibility or consistency.
+- Results expose path/actions/cost plus expanded/generated/duplicate/stale/frontier counters.
+
+* Ownership boundary
+This library owns only the book's explicit search mechanisms.  It is not an expert-system engine and not a Prolog runtime.  Deeper rule-engine implementation belongs to =books/expert-systems=; native logic-programming/backtracking belongs to =books/symbolic-ai-prolog=.

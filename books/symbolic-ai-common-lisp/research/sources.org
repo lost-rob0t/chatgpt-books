@@ -4,3 +4,52 @@
 :END:
 * Policy
 Add only sources actually inspected. Record URL, authority, publication/version date when known, retrieval date, relevant sections, and affected chapters/projects.
+
+* Search Library sources
+** Dijkstra 1959 -- shortest paths
+- Source: E. W. Dijkstra, “A note on two problems in connexion with graphs,” /Numerische Mathematik/ 1, 269--271 (1959).
+- DOI: https://doi.org/10.1007/BF01386390
+- Independent author archive metadata: https://www.cs.utexas.edu/~EWD/indexBibTeX.html
+- Authority: original paper + author's archive.
+- Retrieved: 2026-09-16.
+- Used for: Chapter 5 / uniform-cost search; Project 1 best-cost invariant.
+
+** Hart, Nilsson, Raphael 1968 -- A*
+- Source: Peter E. Hart, Nils J. Nilsson, Bertram Raphael, “A Formal Basis for the Heuristic Determination of Minimum Cost Paths,” /IEEE Transactions on Systems Science and Cybernetics/ 4(2), 100--107 (1968).
+- DOI: https://doi.org/10.1109/TSSC.1968.300136
+- IEEE record: https://ieeexplore.ieee.org/document/4082128/
+- Authority: original paper / publisher record.
+- Retrieved: 2026-09-16.
+- Used for: Chapter 6 / A*; Project 1 heuristic best-first search.
+
+** Russell and Norvig -- current search treatment
+- Source: Stuart Russell and Peter Norvig, /Artificial Intelligence: A Modern Approach/, 4th US ed.
+- Official site: https://aima.cs.berkeley.edu/
+- Official Chapter 3 PDF: https://aima.cs.berkeley.edu/4th-ed/pdfs/newchap03.pdf
+- Official Chapter 4 PDF: https://aima.cs.berkeley.edu/4th-ed/pdfs/newchap04.pdf
+- Authority: authors' official book site.
+- Retrieved: 2026-09-16.
+- Used for: tree-vs-graph search, BFS/UCS properties, admissibility/consistency, repeated-state handling.
+
+** ANSI Common Lisp HyperSpec -- hash-table keys
+- Source: Common Lisp HyperSpec, §18.1.2 “Modifying Hash Table Keys” and =MAKE-HASH-TABLE=.
+- URLs: https://www.lispworks.com/documentation/HyperSpec/Body/18_ab.htm and https://www.lispworks.com/documentation/HyperSpec/Body/f_mk_has.htm
+- Authority: LispWorks-hosted HyperSpec reproduction of the ANSI Common Lisp specification.
+- Retrieved: 2026-09-16.
+- Used for: Chapters 1--2 symbolic representation; Project 1 state-key/equality contract.
+
+** Norvig PAIP -- Common Lisp implementation context
+- Source: Peter Norvig, /Paradigms of Artificial Intelligence Programming: Case Studies in Common Lisp/, Morgan Kaufmann, 1992.
+- Author page: https://www.norvig.com/httpsecure/www/htdocs/paip.html
+- Author source index: https://www.norvig.com/paip/
+- Authority: author-maintained book/source site.
+- Retrieved: 2026-09-16.
+- Used for: historical Common Lisp AI implementation context and project pedagogy; no source copied.
+
+** SBCL current release
+- Source: Steel Bank Common Lisp official download/news pages.
+- URLs: https://www.sbcl.org/platform-table.html and https://www.sbcl.org/all-news.html
+- Observed: SBCL 2.6.8, released 2026-08-28.
+- Authority: implementation's official project site.
+- Retrieved: 2026-09-16.
+- Used for: current executable-test environment record only; project code remains ANSI Common Lisp.
