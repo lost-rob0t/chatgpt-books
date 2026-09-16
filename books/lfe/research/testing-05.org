@@ -145,23 +145,53 @@ concrete:
 The new EUnit suite deliberately does not repeat every failure scenario. Tests
 are organized by semantic boundary, not by a goal of maximizing test count.
 
-* UNTESTED -- authored Testing Pass 05 implementation
-At the time this research record is written, the branch adds
-=otp_router_eunit_tests.erl= and wires it into the Project 3 runner. The intended
-contract is:
+* FAILED -- first executable attempt exposed a missing CI build dependency
+Focused run =35148280506= on authored head
+=5b7d0156f5adf8763f6188b5a7c95103aaecaed2= did not reach the EUnit contracts.
+The Project 1 and Project 2 runners passed, but =erlc= failed compiling
+=otp_router_eunit_tests.erl= because the Ubuntu runner's installed Erlang
+packages did not provide =eunit/include/eunit.hrl= on the compiler include path.
+The EUnit application package itself was present; the missing development header
+was supplied by the distribution's =erlang-dev= package.
 
-- each EUnit case receives a fresh registered =otp-router= fixture;
-- route behavior and =sys:get_state/1= agree on the initial rule state;
-- replacing rules changes both returned state and subsequent route behavior;
-- an unknown request remains a tagged domain error rather than crashing the
-  server;
-- cleanup removes the registered server so cases do not share process state;
-- the prior LFE and direct-Erlang failure harnesses still pass unchanged.
+The correction is infrastructure-specific and bounded: the focused LFE workflow
+now installs =erlang-dev= and explicitly checks that the EUnit header resolved by
+=code:lib_dir(eunit, include)= exists before compiling the project. No production
+router semantics changed to repair this failure. The failed run is preserved as
+evidence rather than rewritten into a green claim.
 
-These statements remain UNTESTED until a workflow run on the exact branch head
-records success. No test output is invented in this file; final exact-head
-execution evidence belongs on the PR and may be promoted here only by a later
-verified commit.
+* TESTED -- Testing Pass 05 implementation
+Corrected branch head =9574c12fb5dd7167272dbded75dd566614f113e3=
+passed focused =lfe-book= run =35148465246= on its pull-request integration
+commit against =main= =c340e5843981e33fe240d19797d9ef1354ed247d=.
+The observed focused environment was Ubuntu 24.04.5, Erlang/OTP 25, pinned LFE
+v2.2.2 at upstream commit =dae7489ebf9588e5f746a34cd4f8ff83d1469eef=,
+Pandoc 3.10.1, and EPUBCheck 5.3.0.
+
+The exact run established the bounded contracts claimed by this slice:
+
+- Project 1 and Project 2 executable regressions still passed;
+- Project 3's LFE callback checks and direct Erlang failure/lifecycle harness
+  passed unchanged around the new EUnit layer;
+- the new EUnit =foreach= suite ran all three fixture-isolated contracts and
+  reported =All 3 tests passed=;
+- the controlled crash/restart scenarios produced their expected OTP error and
+  supervisor reports while the harness still terminated successfully;
+- all five LFE teaching DOT sources, including =testing-layers.dot=, parsed;
+- =make book BOOK=lfe= succeeded;
+- =make check BOOK=lfe= succeeded and EPUBCheck 5.3.0 reported
+  =0 fatals / 0 errors / 0 warnings / 0 infos=;
+- the focused Nix job passed =nix flake check -L=.
+
+Generic =books-ci= run =35148465240= on the same exact head also succeeded through
+structural validation, the Pandoc Org-reader contract, deterministic publication
+assets, EPUBCheck, publication and per-book citation regressions, ERT, real
+Org-roam DB synchronization, and artifact upload.
+
+These results make the declared checkpoint-B implementation TESTED on that exact
+revision/environment. They do not upgrade any excluded production/system claim.
+If the branch changes again, these run IDs remain historical evidence for
+=9574c12...= and the new head requires its own gate before editorial handoff.
 
 * Explicit non-claims
 - EUnit success is regression evidence for the declared contracts, not a proof
