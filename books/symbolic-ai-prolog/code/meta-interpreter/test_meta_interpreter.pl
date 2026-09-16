@@ -33,6 +33,13 @@ test(unsupported_goal_fails, [fail]) :-
     incident_program(Program),
     prove(Program, imaginary(gateway), _).
 
+test(naive_interpreter_reaches_host_depth_guard) :-
+    diagnostic_program(Program),
+    call_with_depth_limit(prove(Program, unstable(sensor), _),
+                          40,
+                          Result),
+    assertion(Result == depth_limit_exceeded).
+
 test(guarded_interpreter_reports_direct_cycle) :-
     diagnostic_program(Program),
     once(prove_guarded(Program,
