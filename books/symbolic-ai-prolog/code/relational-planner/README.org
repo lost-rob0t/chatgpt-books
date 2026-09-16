@@ -4,12 +4,15 @@
 :END:
 
 * Purpose
-This directory is the executable Project 2 milestone-B lab for Chapter 8. It derives a small forward state-space planner from explicit symbolic action schemas. It is intentionally a course-local STRIPS-style subset, not an implementation of the full historical STRIPS system and not a PDDL planner.
+This directory is the executable Project 2 planner lab. Chapter 8 / milestone B derives a small forward state-space planner from explicit symbolic action schemas. Chapter 9 / milestone C keeps that transition model fixed and derives cost-aware and heuristic frontier policies on top of it. The project remains a course-local symbolic planner, not the full historical STRIPS system and not a PDDL planner.
 
 * Files
 - =planner.pl= -- state canonicalization, schema freshening/applicability, explicit add/delete state transitions, goal tests, and breadth-first plan search.
-- =field_service_domain.pl= -- synthetic technical field-service/recovery teaching domain.
+- =field_service_domain.pl= -- synthetic technical field-service/recovery teaching domain for the Chapter 8 unweighted planner.
 - =test_planner.pl= -- PL-Unit semantic regressions for binding consistency, freshening, effects, plan provenance, impossible goals, and fail-closed unsafe schemas.
+- =cost_search.pl= -- non-negative-integer uniform-cost and A* frontiers, best-known-cost state map, strict-improvement replacement, stale/dominated diagnostics, deterministic heap tie-breaking, and a closed heuristic-data interface.
+- =weighted_recovery_domain.pl= -- synthetic weighted technical-recovery fixture where fewest actions and lowest total cost intentionally disagree.
+- =test_cost_search.pl= -- PL-Unit regressions for BFS/UCS objective disagreement, stale and equal-cost dominated entries, zero-cost cycles, UCS/A* fixture agreement, zero heuristic behavior, exhaustion, and fail-closed cost/heuristic inputs.
 
 * Data contracts
 A world state is a ground list of symbolic facts canonicalized with =sort/2= into the standard term order with duplicates removed.
@@ -22,14 +25,42 @@ schema(Id, Action, Preconditions, Add, Delete)
 
 The planner never calls =Action= or any precondition as a Prolog goal. Preconditions are matched only against facts already present in the canonical state. =copy_term/2= freshens the entire schema before each applicability attempt. After matching, the concrete action and every add/delete fact must be ground or the attempt raises an instantiation error rather than admitting a variable-containing state.
 
-A successful search returns:
+Chapter 8 breadth-first search returns:
 
 #+begin_src prolog
 found(plan([step(SchemaId, ConcreteAction), ...],
            [State0, State1, ...]))
 #+end_src
 
-Expansion diagnostics are returned separately as =expanded(State,Depth)= records. Cost-aware/heuristic planning and constraints are deliberately deferred to later Project 2 milestones.
+with =expanded(State,Depth)= diagnostics.
+
+Chapter 9 attaches cost as a wrapper rather than mutating =schema/5=:
+
+#+begin_src prolog
+costed(Schema, NonNegativeIntegerCost)
+#+end_src
+
+Uniform-cost/A* search returns:
+
+#+begin_src prolog
+found(plan(TotalCost,
+           [step(SchemaId, ConcreteAction), ...],
+           [State0, State1, ...]))
+#+end_src
+
+The frontier key is ground =priority(F,Sequence)=. A ground-state =library(assoc)= stores the strict best discovered =g=. Cheaper rediscoveries enqueue a replacement candidate; equal/worse rediscoveries are recorded as =dominated/4=; older queued candidates are reported as =stale/3= when popped after a cheaper route has replaced them.
+
+A* accepts only closed heuristic data:
+
+#+begin_src prolog
+zero
+
+table([estimate(State, H), ...])
+#+end_src
+
+It does not execute caller-supplied heuristic predicates. Missing, duplicate, negative, or non-integer heuristic data is rejected rather than silently repaired. The implementation consumes estimates; it does not prove admissibility or consistency.
+
+Constraints, negative-cost planning, temporal/probabilistic planning, PDDL compatibility, and production performance remain later/out-of-scope work.
 
 * Run
 From the repository root:
