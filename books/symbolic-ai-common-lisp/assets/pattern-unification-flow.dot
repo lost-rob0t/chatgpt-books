@@ -1,0 +1,46 @@
+digraph pattern_unification_flow {
+  graph [rankdir=LR, labelloc=t, label="Pattern matching and unification", fontname="sans-serif"];
+  node [shape=box, fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  pattern [label="Pattern + datum"];
+  pvar [label="Pattern variable?"];
+  pbind [label="Bind or require\nexisting value"];
+  pcons [label="Both conses?"];
+  precurse [label="Match CAR, then CDR\nwith carried bindings"];
+  pfail [label="Typed match failure"];
+  pok [label="MATCHED + bindings"];
+
+  terms [label="Term A + term B"];
+  walk [label="Dereference both\nunder substitution"];
+  equal [label="EQUAL already?"];
+  variable [label="Variable on either side?"];
+  occurs [label="Occurs check"];
+  extend [label="Extend substitution"];
+  conses [label="Both conses?"];
+  recurse [label="Unify CAR, then CDR\nwith carried substitution"];
+  ufail [label="FAILED: clash / occurs-check"];
+  uok [label="UNIFIED + normalized\nsubstitution"];
+
+  pattern -> pvar;
+  pvar -> pbind [label="yes"];
+  pbind -> pok [label="term exhausted"];
+  pvar -> pcons [label="no"];
+  pcons -> precurse [label="yes"];
+  precurse -> pok [label="success"];
+  pcons -> pfail [label="no + unequal"];
+  pbind -> pfail [label="binding disagrees"];
+
+  terms -> walk;
+  walk -> equal;
+  equal -> uok [label="yes / done"];
+  equal -> variable [label="no"];
+  variable -> occurs [label="yes"];
+  occurs -> ufail [label="occurs"];
+  occurs -> extend [label="safe"];
+  extend -> uok [label="term exhausted"];
+  variable -> conses [label="no"];
+  conses -> recurse [label="yes"];
+  recurse -> uok [label="success"];
+  conses -> ufail [label="no"];
+}
