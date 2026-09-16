@@ -1,0 +1,25 @@
+#+title: Symbolic AI in Prolog Research 02 -- Fresh Rule Invocations
+:PROPERTIES:
+:ID:       fa498d18-96ae-4fbd-b4ff-ad9653af6280
+:END:
+
+* Scope
+This note records the source-backed reason Project 1 copies a stored =rule/3= template before head unification.
+
+Retrieval date: 2026-09-16.
+
+* Claim
+DOCUMENTED: SWI-Prolog's =copy_term/2= is ISO-tagged and creates a copy whose variables are renamed fresh while preserving variable-sharing structure. Ground subterms may remain shared because pure Prolog cannot distinguish structurally identical ground terms.
+
+Source: official SWI-Prolog predicate documentation.
+- https://www.swi-prolog.org/pldoc/man?predicate=copy_term/2
+
+* Project consequence
+A =Program= represented as one list of =rule(Id,Head,Body)= terms is itself a Prolog term. Variables appearing inside a stored rule are therefore variables belonging to that list term; direct unification with the stored template does not reproduce the fresh-variable behavior programmers normally receive for each native clause invocation.
+
+Project 1 selects a list element and then applies =copy_term/2= to that selected =rule/3= template before unifying its fresh head with the current object goal. The acceptance suite contains a recursive path that must invoke the same recursive rule more than once; the tests-only baseline demonstrated that direct reuse of the stored rule variables makes this proof fail.
+
+* Verification state
+DOCUMENTED: fresh-variable semantics are supported by the inspected official predicate documentation.
+
+TESTED status for the Project 1 regression belongs to the exact-head CI evidence, not to this research note.

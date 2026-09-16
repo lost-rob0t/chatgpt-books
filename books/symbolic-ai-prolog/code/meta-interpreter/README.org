@@ -1,0 +1,52 @@
+#+title: Project 1 -- Meta-Interpreter, Milestone A
+:PROPERTIES:
+:ID:       b05bc1fb-9974-42d1-bf13-6f7258335c5b
+:END:
+
+* What this milestone builds
+A deliberately small object-language interpreter whose program is ordinary Prolog data:
+
+#+begin_src prolog
+rule(RuleId, Head, Body)
+#+end_src
+
+The engine makes normally implicit machinery inspectable: selecting a rule, freshening its variables, satisfying conjunctions, backtracking to alternatives, producing a proof tree, carrying provenance labels, detecting path-local recursive variants, and bounding interpreted rule applications.
+
+It is a teaching interpreter, not a replacement for SWI-Prolog's compiler, module system, debugger, tabling engine, or full control language.
+
+* Files
+- =meta_interpreter.pl= -- naive proof search plus the guarded runner and provenance traversal.
+- =programs.pl= -- synthetic incident knowledge plus deliberately hostile looping/growing programs.
+- =test_meta_interpreter.pl= -- PL-Unit semantic regressions.
+- =../run-tests= -- book-local executable test runner.
+
+* Run
+From the repository root:
+
+#+begin_src sh
+bash books/symbolic-ai-prolog/code/run-tests
+#+end_src
+
+For an interactive proof:
+
+#+begin_src prolog
+?- [books/symbolic-ai-prolog/code/meta-interpreter/meta_interpreter].
+?- [books/symbolic-ai-prolog/code/meta-interpreter/programs].
+?- incident_program(P), once(prove(P, reachable(gateway, database), Proof)).
+#+end_src
+
+Use =proof_rule_ids/2= to project one successful proof into its ordered provenance labels. Use =prove_guarded/4= when a lab intentionally introduces a recursive cycle or a growing term and you want the object's rule budget/cycle policy to be explicit.
+
+* Semantic boundary
+The object language currently owns only =true=, conjunction, and goals resolved by =rule/3= data. There is no interpreted cut, negation, disjunction, exception handling, arithmetic, native predicate reflection, module qualification, tabling, or I/O yet. Later project milestones may add selected mechanisms only after their semantics and failure behavior are taught.
+
+Every selected rule is copied before head unification. Without that freshening step, variables stored in a list of rule terms can accidentally retain bindings across repeated uses of the same rule in one proof. The regression =recursive_rule_variables_are_fresh_per_use= exists specifically to keep this subtle meta-programming bug dead.
+
+The guarded runner's budget counts *object-language rule selections*. It is not SWI-Prolog's stack depth, inference count, wall-clock timeout, or resource limiter. Path-local variant detection is also intentionally incomplete as a termination method; it catches repeated variants, while growing terms are stopped only by the explicit budget in this milestone.
+
+* Failure labs
+1. Temporarily remove =copy_term/2= from rule selection and run the tests. Explain why a multi-hop proof that reuses =r_reach_step= fails.
+2. Query the naive =prove/3= against =diagnostic_program/1= and =unstable(sensor)= under an external SWI depth guard. Then compare with =prove_guarded/4=.
+3. Lower the guarded rule budget until a known reachable goal reports =exhausted(...)=. Do not call this logical falsity.
+4. Add a second rule with the same provenance ID. The proof search can still run, but explanation/provenance is now ambiguous. Restore unique IDs and keep the regression.
+5. Compare a successful proof tree with SWI's debugger trace. List the operational events the proof tree intentionally omits, especially failed alternatives and redo ports.

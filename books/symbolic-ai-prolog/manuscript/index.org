@@ -4,5 +4,434 @@
 :END:
 #+bibliography: ../references.bib
 
-* Manuscript bootstrap
-This is the canonical manuscript entry point. Long-form drafting begins only after the publishing/research bootstrap and the relevant research issue are ready. See [[file:../OUTLINE.org][OUTLINE.org]].
+* How this book works
+This is a book about *building reasoning machinery in Prolog*. It assumes that facts, rules, queries, unification, recursion, lists, and ordinary backtracking are already familiar. If those ideas still feel like punctuation rather than tools, work through *Prolog for Beginners: Thinking in Relations* first. We will recap a prerequisite when it is essential to a symbolic-AI mechanism, but we will not hollow the foundations book out by teaching them badly a second time.
+
+The projects here make normally implicit things explicit. We will build interpreters that turn proof search into data, planners whose state transitions can be inspected, knowledge graphs with provenance, abductive engines that distinguish evidence from assumptions, explanation systems that expose their justifications, production-rule engines that contrast with Prolog's native backward chaining, and a capstone that composes symbolic subsystems without pretending one inference strategy solves every problem.
+
+The standalone sibling *Prolog + LLMs: Neuro-Symbolic Systems from First Principles* owns the explicit LLM, neuro-symbolic, and RLM arc. The repository-level README and research notes cross-link the two volumes; the packaged manuscript names the sibling without a relative file link that would escape this EPUB. Classical meta-interpretation, search, planning, provenance, constraints, abduction, and expert-system architecture stay here because they are useful whether or not an LLM exists.
+
+Examples target SWI-Prolog and mark implementation-specific behavior. Documentation is not execution evidence: when this book says a behavior is TESTED, the exact runtime and command belong in the repository's verification record rather than being inferred from a manual page.
+
+Project 1 begins immediately. Its first milestone is small enough to understand completely: an object program represented as data, an interpreter that proves goals against it, and a proof term that records *why* a goal succeeded. We then break that interpreter on purpose and add explicit control.
+
+* Chapter 1 -- When the Program Becomes Data
+:PROPERTIES:
+:ID:       08b02f38-f805-40af-8fe4-065173699142
+:END:
+
+** 1.1 The move from using Prolog to interpreting Prolog-like rules
+Ordinary Prolog source already describes relations. Suppose we write:
+
+#+begin_src prolog
+link(gateway, router).
+link(router, cache).
+link(cache, database).
+
+reachable(X, Y) :-
+    link(X, Y).
+reachable(X, Y) :-
+    link(X, Z),
+    reachable(Z, Y).
+#+end_src
+
+When you ask =reachable(gateway, database)=, the Prolog engine chooses clauses, unifies heads with goals, executes bodies, and backtracks when a path fails. For day-to-day programming that implicit machinery is a gift. For symbolic AI it is also worth taking apart, because the moment we want a proof object, a custom search policy, provenance, an explanation, a resource limit, or a different rule language, “the engine does it” is no longer enough detail.
+
+A *meta-interpreter* is a program that interprets another program or a program-like representation. SWI-Prolog exposes general meta-calling with =call/1= [cite:@swi-metacall], but invoking a term is not yet the educational goal. We want to own the object language ourselves so every rule application can be inspected.
+
+** 1.2 Object language and meta language
+Keep two levels separate:
+
+- The *object language* is the little rule system being interpreted.
+- The *meta language* is the Prolog implementation of the interpreter.
+
+For Project 1, an object rule is data:
+
+#+begin_src prolog
+rule(RuleId, Head, Body)
+#+end_src
+
+A fact-like rule uses =true= as its body:
+
+#+begin_src prolog
+rule(f_link_gateway_router,
+     link(gateway, router),
+     true).
+#+end_src
+
+A derived rule stores a normal-looking term as its head and another term as its body:
+
+#+begin_src prolog
+rule(r_reach_direct,
+     reachable(From, To),
+     link(From, To)).
+
+rule(r_reach_step,
+     reachable(From, To),
+     (link(From, Via), reachable(Via, To))).
+#+end_src
+
+Nothing about the term =reachable(From,To)= automatically executes here. It is data inside a =rule/3= term until the meta-interpreter gives it meaning. That distinction is the first big lever of symbolic programming: structures that resemble source code can be inspected, transformed, annotated, searched, or explained before they are ever treated as goals.
+
+** 1.3 Why rule identifiers exist from day one
+The first argument is not decorative. =r_reach_step= is a stable provenance label for this teaching program. A proof that merely says “yes” cannot later explain which rule justified a conclusion. A proof that records the chosen identifiers can.
+
+We will eventually need richer provenance—source documents, timestamps, authorship, confidence policies, versioned assertions—but stable rule identity is the smallest useful seed. It also creates a concrete engineering invariant: two bundled rules should not silently share the same provenance identifier.
+
+This is different from predicate identity. Both =r_risk_temp= and =r_risk_fan= may conclude =risk(Host)= while representing different justifications. The predicate tells us the kind of claim. The rule ID tells us which justification was used.
+
+** 1.4 Why the first project does not start with =clause/2=
+A tiny reflective interpreter is often demonstrated by asking the host Prolog system for a predicate's clauses. SWI-Prolog's =clause/2= can indeed enumerate matching clauses, but its contract includes real implementation boundaries: static-code inspection may be restricted by flags, and reconstructed clauses are guaranteed to be semantically equivalent rather than textually identical to original source [cite:@swi-clause]. Modules, built-ins, cut, compiler transformations, and protected predicates arrive immediately.
+
+Those topics matter. They are exactly why we are *not* hiding them inside the first five lines of the book.
+
+Milestone A therefore uses an explicit list of =rule/3= terms. The interpreter's current object language has only three forms:
+
+1. =true=, which succeeds without selecting another object rule;
+2. conjunction =(A,B)=, which proves =A= and then =B=;
+3. an ordinary goal, which must unify with a rule head in the supplied program.
+
+No interpreted cut. No interpreted negation. No arithmetic escape hatch. No arbitrary host predicate call. The small boundary is a feature: we can reason about it completely.
+
+** 1.5 Lab -- read a rule as data
+Open =books/symbolic-ai-prolog/code/meta-interpreter/programs.pl=. Before running anything, answer:
+
+1. Which =rule/3= terms are facts?
+2. Which two rules can justify =risk(alpha)=?
+3. Which rule introduces recursion?
+4. Which rule IDs should appear in a proof of =reachable(gateway,database)= if the route goes through =router= and =cache=?
+5. Why is =RuleId= not derivable from the predicate name alone?
+
+Then construct one new =rule/3= term by hand without adding it to the program. Ask yourself which pieces are syntax of the *meta language* and which pieces are data belonging to the *object language*.
+
+* Chapter 2 -- Deriving the Smallest Useful Meta-Interpreter
+:PROPERTIES:
+:ID:       af8ad148-74ae-4748-b3d1-8399218187a9
+:END:
+
+** 2.1 Start with the base case
+If the object goal is =true=, there is nothing more to justify:
+
+#+begin_src prolog
+prove_goal(_, true, true).
+#+end_src
+
+The third argument is already becoming useful: the interpreter does not merely succeed; it emits a proof artifact. For the control constant =true=, the proof artifact is simply =true=.
+
+** 2.2 Conjunction makes a proof tree branch
+To prove =(A,B)=, prove both children:
+
+#+begin_src prolog
+prove_goal(Program,
+           (Left, Right),
+           and(LeftProof, RightProof)) :-
+    prove_goal(Program, Left, LeftProof),
+    prove_goal(Program, Right, RightProof).
+#+end_src
+
+The host Prolog engine still performs ordinary backtracking. If =Left= has several proofs, each successful left proof may be paired with successful right proofs. Our proof constructor mirrors the structure that matters to the object language: =and/2= says both subproofs were required.
+
+Notice what we did *not* do. We did not write a special search stack, a mutable agenda, or an AST evaluator framework. Prolog's own relation/search machinery is enough to derive the first interpreter. Later, when we want different operational semantics, we will make more of that machinery explicit.
+
+** 2.3 Selecting a rule is the heart of the interpreter
+For an ordinary object goal, we need a rule whose head unifies with it. The tempting implementation is:
+
+#+begin_src prolog
+member(rule(Id, Goal, Body), Program)
+#+end_src
+
+That is almost right and contains a nasty teaching bug.
+
+A list is a Prolog term. Variables inside a list are variables in that particular term. If the same =rule/3= element must be used recursively more than once in one proof, directly unifying its stored variables can make the second use inherit bindings from the first. Native Prolog clauses do not behave that way: each clause invocation receives fresh variables.
+
+The Project 1 engine therefore copies the selected rule template before head unification:
+
+#+begin_src prolog
+select_rule(Program, Goal, Id, Body) :-
+    member(RuleTemplate, Program),
+    copy_term(RuleTemplate, rule(Id, Head, Body)),
+    Head = Goal.
+#+end_src
+
+=copy_term/2= is ISO-tagged by SWI-Prolog and creates a version with renamed fresh variables while preserving variable-sharing structure [cite:@swi-copy-term]. This one line is not housekeeping. It restores a property that the host compiler normally gives clause invocations for free.
+
+The permanent regression =recursive_rule_variables_are_fresh_per_use= requires a path long enough to select =r_reach_step= more than once. Remove =copy_term/2= temporarily and the proof fails for a semantic reason, not a syntax reason. That is a much better debugging exercise than “spot the missing period.”
+
+** 2.4 Build the proof node at rule application
+Once a rule is selected, a fact-like body creates a leaf:
+
+#+begin_src prolog
+fact(Id, Goal)
+#+end_src
+
+A nontrivial body creates a step around the body's proof:
+
+#+begin_src prolog
+step(Id, Goal, BodyProof)
+#+end_src
+
+The complete unguarded relation in =meta_interpreter.pl= remains intentionally small. That is important enough to say twice: a good meta-interpreter is not impressive because it is long. It is useful because the semantics of each clause are visible.
+
+** 2.5 Backtracking is part of the API
+The synthetic incident program has two ways to derive =risk(alpha)=:
+
+#+begin_src prolog
+rule(r_risk_temp,
+     risk(Host),
+     symptom(Host, high_temp)).
+rule(r_risk_fan,
+     risk(Host),
+     symptom(Host, fan_stopped)).
+#+end_src
+
+and facts for both symptoms. Therefore =prove/3= is intentionally nondeterministic. Asking for another solution should produce another proof, not overwrite the first proof or collapse them into a boolean.
+
+This matters later for abduction and planning. A symbolic engine often needs *candidate derivations*, not merely one truth value. If you accidentally add a cut in rule selection to “make tests deterministic,” you have changed the reasoning semantics.
+
+The tests use =findall/3= where multiplicity is the thing being asserted and =once/1= where the exercise cares only that at least one proof exists. Those choices document intent.
+
+** 2.6 Trace one proof manually
+For =reachable(gateway,database)=, the direct rule first asks for =link(gateway,database)= and fails. Backtracking then selects =r_reach_step=. Its body requires both:
+
+#+begin_example
+link(gateway, Via)
+reachable(Via, database)
+#+end_example
+
+The first relation binds =Via= to =router=. Recursive proof search repeats the pattern at =router=, then finally the direct rule succeeds at =cache= because =link(cache,database)= is a fact.
+
+The proof tree therefore contains repeated use of =r_reach_step=:
+
+#+CAPTION: One successful proof of =reachable(gateway,database)=. Rule labels are provenance identifiers; edges show the conjunction/body structure required by the selected rules.
+#+ATTR_HTML: :alt A proof tree for gateway to database reachability. The root uses r_reach_step, proves link gateway router, recurses with r_reach_step through cache, then uses r_reach_direct and the link cache database fact.
+[[file:assets/proof-tree.svg]]
+
+The ordered provenance projection for that proof is:
+
+#+begin_example
+[r_reach_step,
+ f_link_gateway_router,
+ r_reach_step,
+ f_link_router_cache,
+ r_reach_direct,
+ f_link_cache_database]
+#+end_example
+
+The list deliberately retains repeated rule IDs. If a recursive rule was applied twice, that is part of the derivation, not noise to deduplicate.
+
+* Chapter 3 -- A Proof Tree Is Not a Debugger Trace
+:PROPERTIES:
+:ID:       b91006b3-f914-482a-aeef-c560209419ba
+:END:
+
+** 3.1 Successful explanation and operational history answer different questions
+Our proof object answers:
+
+- Which object rules justified this successful answer?
+- Which subgoals were required by conjunction?
+- What instantiated goal did each selected rule justify?
+
+It does *not* answer:
+
+- Which rule candidates failed before the successful one?
+- Where did the engine create a choice point?
+- Which goal was retried on backtracking?
+- Which unification attempt failed?
+- Did a host predicate throw an exception?
+
+SWI-Prolog's debugger exposes the traditional =call=, =redo=, =exit=, and =fail= ports and adds ports including =unify= and =exception= [cite:@swi-debugger]. =library(prolog_trace)= can instrument selected predicates [cite:@swi-prolog-trace]. That runtime trace and our domain proof tree overlap, but they are not interchangeable.
+
+This distinction prevents a common explanation-system failure: presenting one successful derivation as if it were a complete account of everything the engine considered. It is not.
+
+** 3.2 Proof terms are queryable data
+Once a proof is a term, ordinary Prolog can reason over it. The project exposes:
+
+#+begin_src prolog
+proof_rule_ids(Proof, RuleIds)
+#+end_src
+
+The implementation recursively traverses =fact/2=, =step/3=, and =and/2=. This is a tiny example of a much larger symbolic-AI pattern: make inference artifacts first-class, then write relations over those artifacts.
+
+Later chapters will extend this idea into:
+
+- provenance edges that point at source assertions;
+- explanation templates that distinguish observed facts from derived claims;
+- abductive assumptions that are visibly different from known facts;
+- contradiction records;
+- planner traces that record actions and state transitions;
+- rule-engine firing histories.
+
+Do not jump ahead by stuffing all of that into =Proof= now. A data structure is easier to evolve when its current contract is clear.
+
+** 3.3 Provenance identity has its own invariant
+Suppose two different rule terms both use the ID =r_reach_step=. Proof search may still produce a structurally valid term. But an explanation that later looks up metadata by rule ID is ambiguous.
+
+The bundled incident program therefore has a regression that its rule IDs are unique. That test does not claim every arbitrary user-supplied program is validated globally. It protects the teaching fixture's provenance contract.
+
+This is a useful systems lesson: *logical success* and *operational explainability* are different dimensions. An engine can derive an answer correctly while emitting provenance that is too ambiguous to audit.
+
+** 3.4 Failure lab -- lie with an explanation
+Create a temporary copy of =programs.pl= and give =r_risk_temp= and =r_risk_fan= the same ID. Run the proof query and observe that the interpreter can still find both derivations.
+
+Now answer: if a UI showed only the rule ID, could a reader tell which symptom justified the risk? No. The reasoning layer and explanation layer have different correctness conditions.
+
+Restore unique IDs. Never “fix” this exercise by deduplicating the resulting ID list; that would erase evidence rather than repair provenance.
+
+* Chapter 4 -- Nontermination Is a Semantic Problem, Not a Timeout Message
+:PROPERTIES:
+:ID:       306106ab-bbc2-4eb8-a4de-1bfa749b5998
+:END:
+
+** 4.1 The naive interpreter inherits naive recursive behavior
+Put this rule in an object program:
+
+#+begin_src prolog
+rule(r_loop, unstable(Node), unstable(Node)).
+#+end_src
+
+The unguarded interpreter selects the rule, then tries to prove exactly the same kind of goal, selects the rule again, and so on. Nothing in “meta-interpreter” means “terminating interpreter.” We have simply exposed enough control to see the problem clearly.
+
+A host runtime guard can be useful while debugging. SWI-Prolog provides =call_with_depth_limit/3=, but its own manual warns that the measured depth reflects implementation machinery rather than a clean source-level theoretical metric; special compilation and built-ins complicate the count, and some programs can still behave differently from the simplistic story [cite:@swi-metacall].
+
+So Project 1 does not define its semantics by saying “whatever SWI calls depth.” We define an object-level budget we can teach and test.
+
+** 4.2 Define one unit of budget precisely
+In =prove_guarded/4=, one budget unit is consumed when the interpreter selects one object =rule/3=. The following do not themselves consume a unit:
+
+- encountering object =true=;
+- decomposing a conjunction;
+- checking whether the current goal is a repeated variant;
+- constructing the proof term.
+
+This gives us a deterministic teaching metric for this object language. It is *not* a security sandbox. It is *not* a wall-clock timeout. It is *not* a bound on host memory. It is *not* the same as SWI's inference count or stack depth.
+
+When the next rule would need to be selected but the budget is zero, the guarded interpreter returns:
+
+#+begin_src prolog
+exhausted(Goal)
+#+end_src
+
+That is not logical falsity. It means the search policy declined to continue this branch with the resources it was given.
+
+** 4.3 A path-local loop check catches repeated variants
+Budget alone can stop a loop eventually, but it cannot explain *why* a branch is obviously cycling. The guarded interpreter also remembers goals on the current proof path.
+
+SWI-Prolog's =@=/2 relation tests whether two terms are variants—structurally the same up to consistent variable renaming [cite:@swi-compare]. If the current goal is a variant of an ancestor goal, milestone A reports:
+
+#+begin_src prolog
+cycle(Goal)
+#+end_src
+
+The check is path-local. Once a branch unwinds, its visited goals are not a permanent global closed set. That preserves ordinary exploration of the same subgoal in a different branch.
+
+** 4.4 Loop checking is not magic completeness
+Consider another intentionally hostile rule:
+
+#+begin_src prolog
+rule(r_grow, grow(Term), grow(s(Term))).
+#+end_src
+
+The goals evolve:
+
+#+begin_example
+grow(seed)
+grow(s(seed))
+grow(s(s(seed)))
+...
+#+end_example
+
+These are not variants of one another. The path-local variant check cannot recognize the pattern as a repeated state. The rule budget is what stops this branch.
+
+Conversely, there are advanced logic-programming settings—coinductive reasoning is an example—where a repeated goal can have a useful interpretation rather than simply being an error. Milestone A is not claiming a universal termination theorem. It is teaching two explicit control mechanisms and their limits.
+
+** 4.5 Why cycle and exhaustion are outcomes but ordinary failure is failure
+The guarded API returns =proved(Proof)=, =cycle(Goal)=, or =exhausted(Goal)=. An unsupported goal with no matching rule still fails normally.
+
+That asymmetry is intentional:
+
+- =proved= says the branch established the goal;
+- =cycle= says the branch was cut by a specific loop policy;
+- =exhausted= says the branch was cut by a resource policy;
+- ordinary failure says no derivation was found through the available rules on that search path.
+
+Collapsing all four to false would throw away exactly the diagnostic information we introduced the guarded interpreter to obtain.
+
+** 4.6 Backtracking still matters after a guarded outcome
+Suppose the first rule for a goal recurses immediately, but a later rule is a valid base case. Reporting =cycle(...)= for the recursive branch must not silently erase the later rule. The implementation therefore keeps rule selection nondeterministic. Backtracking can ask for another outcome and may discover a proof through a different rule.
+
+This is a semantic contract, not just prose: the test =guarded_cycle_does_not_hide_later_rule= constructs exactly that ordering and requires both the cycle outcome and the later proof to remain observable.
+
+This makes a subtle API point: a cycle *outcome* describes one explored branch under this policy. It is not necessarily a theorem that the goal can never be proved.
+
+* Chapter 5 -- Debug the Interpreter by Breaking Its Invariants
+:PROPERTIES:
+:ID:       b8076f67-065c-4ad1-8196-e68efe528be8
+:END:
+
+** 5.1 Tests are executable claims about semantics
+The project uses SWI-Prolog's =library(plunit)= [cite:@swi-plunit]. Each regression corresponds to a statement we care about:
+
+- a fact creates a provenance-bearing leaf;
+- conjunction preserves both child proofs;
+- alternative object rules remain visible through backtracking;
+- repeated recursive rule use receives fresh variables each time;
+- unsupported goals fail cleanly;
+- direct recursive variants are reported as cycles by the guarded runner;
+- a cycle outcome does not suppress a later successful rule on backtracking;
+- growing recursion reaches explicit budget exhaustion;
+- a normal recursive proof still works under a sufficient budget;
+- provenance IDs appear in the expected preorder sequence;
+- bundled rule IDs remain unique;
+- invalid negative budgets are rejected at the API boundary.
+
+A test suite that only checks “the file loads” would be worse than useless here. Meta-programs are short enough to look obviously correct while changing search semantics with one cut, one misplaced copy, or one conflated failure case.
+
+** 5.2 Failure lab -- remove rule freshening
+Temporarily replace:
+
+#+begin_src prolog
+copy_term(RuleTemplate, rule(Id, Head, Body)),
+Head = Goal
+#+end_src
+
+with direct destructuring of the stored rule term. Run the tests. The multi-hop reachability regression is designed to need the recursive rule more than once.
+
+Then explain the failure in terms of *variable identity*. Do not say merely “copy_term is required.” The point of the lab is to understand what semantic property it restores.
+
+** 5.3 Failure lab -- confuse exhaustion with falsehood
+Run a reachable query under a budget that is too small. You should be able to produce =exhausted(...)= even though a proof exists with a larger budget.
+
+Now imagine an application layer that maps both =exhausted(_)= and logical failure to =false=. What bug did it introduce? It turned “we stopped searching” into “the proposition is false.” In a production reasoning system that can become a serious explanation or policy error.
+
+This distinction will return in planning search, abductive candidate generation, constraint solving, remote calls, and persistence boundaries. Resource exhaustion is an operational fact about an attempted computation, not automatically a domain fact.
+
+** 5.4 Failure lab -- a proof is not a trace
+Run a successful proof and inspect its =Proof= term. Then use the host debugger on the same top-level call. SWI's debugger ports include events that the proof tree intentionally omits [cite:@swi-debugger].
+
+Make two lists:
+
+- *justification facts* you want in an explanation shown to a domain user;
+- *operational events* you want when debugging the inference engine.
+
+Some systems need both, but combining them into one giant event type usually makes each harder to use.
+
+** 5.5 Project checkpoint
+At this point you should be able to explain every clause in =meta_interpreter.pl= without appealing to “framework magic.” You should also be able to state what it does *not* implement.
+
+Checkpoint tasks:
+
+1. Add a new fact and a new derived rule to the incident program, each with a unique provenance ID.
+2. Write a query with two distinct successful proofs and collect both proof terms.
+3. Draw one proof tree by hand before asking Prolog for it.
+4. Construct a direct recursive cycle and predict the guarded outcome.
+5. Construct a growing recursive goal that avoids variant detection and predict the exact exhausted goal for a chosen budget.
+6. Put a looping rule before a valid base rule and collect both the cycle outcome and the later proof.
+7. Explain why making every rule ID equal to its head predicate loses provenance information.
+8. Explain why using arbitrary =call/1= inside the object language would expand the trust/semantic boundary.
+
+Only after those mechanisms are comfortable should Project 1 grow into reflective native clauses, explicit tracing events, additional control forms, and explanation policies.
+
+* Part I checkpoint -- what we have and what remains
+Milestone A gives us a useful symbolic kernel, not a finished AI system. We can represent rules as data, interpret a deliberately closed object language, enumerate alternative proofs through normal backtracking, preserve fresh rule variables, produce proof/provenance terms, and make two nontermination controls explicit.
+
+The next Project 1 milestone should investigate and derive richer control/tracing rather than bolting random built-ins onto the object language. Later book projects will reuse the habits established here: name the semantic boundary, make reasoning artifacts data, keep operational failure distinct from domain falsity, test multiplicity and failure cases, and expose provenance early enough that explanation does not become an afterthought.

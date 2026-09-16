@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+TEST="$ROOT/books/symbolic-ai-prolog/code/meta-interpreter/test_meta_interpreter.pl"
+
+swipl --version
+swipl -q -s "$TEST" -g "run_tests,halt(0)" -t "halt(1)"

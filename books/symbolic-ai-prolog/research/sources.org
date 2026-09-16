@@ -4,3 +4,54 @@
 :END:
 * Policy
 Add only sources actually inspected. Record URL, authority, publication/version date when known, retrieval date, relevant sections, and affected chapters/projects.
+
+* Inspected 2026-09-16
+** SWI-Prolog Reference Manual -- Meta-Call Predicates
+URL: https://www.swi-prolog.org/pldoc/man?section=metacall
+Authority: official SWI-Prolog reference documentation.
+Relevant material: =call/1=, =call_with_depth_limit/3=, operational caveats around depth accounting.
+Affects: opening meta-interpreter chapters; Project 1 milestone A.
+
+** SWI-Prolog Reference Manual -- Defining a meta-predicate
+URL: https://www.swi-prolog.org/pldoc/man?section=metapred
+Authority: official SWI-Prolog reference documentation.
+Relevant material: module-sensitive meta arguments and =meta_predicate/1=.
+Affects: module-boundary warnings; later reflective interpreter work.
+
+** SWI-Prolog Reference Manual -- =clause/2=
+URL: https://www.swi-prolog.org/pldoc/doc_for?object=clause/2
+Authority: official SWI-Prolog predicate documentation.
+Relevant material: clause enumeration, static-code behavior, =iso=/=protect_static_code= restrictions, semantic-equivalence warning for decompiled clauses.
+Affects: decision to keep milestone A rule-as-data rather than reflective over arbitrary native clauses.
+
+** SWI-Prolog Reference Manual -- Debugger overview
+URL: https://www.swi-prolog.org/pldoc/man?section=debugoverview
+Authority: official SWI-Prolog reference documentation.
+Relevant material: debugger ports =call=, =redo=, =exit=, =fail= plus SWI extensions.
+Affects: trace/proof terminology and debugging exercises.
+
+** SWI-Prolog =library(prolog_trace)=
+URL: https://www.swi-prolog.org/pldoc/man?section=prologtrace
+Authority: official SWI-Prolog library documentation.
+Relevant material: selective runtime predicate tracing.
+Affects: distinction between domain proof trees and runtime trace instrumentation.
+
+** SWI-Prolog Reference Manual -- Comparison and Unification of Terms
+URL: https://www.swi-prolog.org/pldoc/man?section=compare
+Authority: official SWI-Prolog reference documentation.
+Relevant material: variant relation =@=/2 and its implementation notes.
+Affects: path-local cycle guard in Project 1 milestone A.
+
+** SWI-Prolog =library(plunit)=
+URL: https://www.swi-prolog.org/pldoc/doc/_SWI_/library/ext/plunit/index.html
+Authority: official SWI-Prolog package documentation.
+Relevant material: unit declaration and test execution API.
+Affects: all executable Project 1 regressions.
+
+** SWI-Prolog stable manual/download policy
+URLs:
+- https://www.swi-prolog.org/download/stable/doc/
+- https://www.swi-prolog.org/Download.md
+Authority: official SWI-Prolog distribution/documentation pages.
+Relevant material: stable 10.0.2 manual availability and stable/development channel policy.
+Affects: version-sensitive baseline and CI evidence wording.
