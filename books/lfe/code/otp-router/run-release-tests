@@ -8,10 +8,12 @@ BUILD="$(mktemp -d)"
 trap 'rm -rf "$BUILD"' EXIT
 
 APP_EBIN="$BUILD/lib/otp_router-0.1.0/ebin"
+TEST_EBIN="$BUILD/test-ebin"
 REL_DIR="$BUILD/release"
-mkdir -p "$APP_EBIN" "$REL_DIR"
+mkdir -p "$APP_EBIN" "$TEST_EBIN" "$REL_DIR"
 
 command -v lfec >/dev/null || { echo "lfec is required" >&2; exit 2; }
+command -v erlc >/dev/null || { echo "erlc is required" >&2; exit 2; }
 command -v erl >/dev/null || { echo "erl is required" >&2; exit 2; }
 
 lfec -o "$APP_EBIN" \
@@ -19,26 +21,17 @@ lfec -o "$APP_EBIN" \
   "$PROJECT/src/otp-router.lfe" \
   "$PROJECT/src/otp-router-sup.lfe" \
   "$PROJECT/src/otp-router-app.lfe"
+erlc -o "$TEST_EBIN" "$PROJECT/test/otp_router_release_tests.erl"
 cp "$PROJECT/src/otp_router.app.src" "$APP_EBIN/otp_router.app"
 
 # First prove the application resource/callback boundary independently of any
-# release script.  The application controller owns the top supervisor; the
-# worker is still the same compiled LFE gen_server used by previous chapters.
-erl -pa "$APP_EBIN" -noshell -eval '
-  ok = application:load(otp_router),
-  ok = application:start(otp_router),
-  Worker = whereis('\''otp-router'\''),
-  Sup = whereis('\''otp-router-sup'\''),
-  Route = '\''otp-router'\'':route('\''event-rules'\'':sample-event(), 1000),
-  case {Worker, Sup, Route, application:get_application(Worker)} of
-      {WorkerPid, SupPid, {ok, pager}, {ok, otp_router}}
-        when is_pid(WorkerPid), is_pid(SupPid) -> ok;
-      Other -> io:format("application ownership check failed: ~p~n", [Other]), halt(1)
-  end,
-  ok = application:stop(otp_router),
-  case {whereis('\''otp-router'\''), whereis('\''otp-router-sup'\'')} of
-      {undefined, undefined} -> halt(0);
-      Other2 -> io:format("application stop leaked registered processes: ~p~n", [Other2]), halt(1)
+# release script. The assertions live in a compiled Erlang module instead of a
+# long erl -eval expression so the test exercises normal BEAM code rather than
+# erl_eval's deliberately smaller expression surface.
+erl -pa "$TEST_EBIN" -pa "$APP_EBIN" -noshell -eval '
+  case otp_router_release_tests:application_lifecycle() of
+      ok -> halt(0);
+      Other -> io:format("application lifecycle returned: ~p~n", [Other]), halt(1)
   end.'
 
 ERTS_VSN="$(erl -noshell -eval 'io:format("~s", [erlang:system_info(version)]), halt().' )"
@@ -55,7 +48,7 @@ cat > "$REL_BASE.rel" <<REL
   {otp_router, "0.1.0"}]}.
 REL
 
-# local keeps the actual build paths in the boot script.  That is exactly what
+# local keeps the actual build paths in the boot script. That is exactly what
 # we want for a CI proof of construction and boot, and exactly what we do NOT
 # claim is a relocatable installed target system.
 erl -noshell -pa "$APP_EBIN" -eval "
@@ -69,24 +62,15 @@ test -s "$REL_BASE.script"
 test -s "$REL_BASE.boot"
 
 # This is a genuinely fresh VM started from the generated boot file, not the VM
-# that built the artifacts.  The test verifies application identity, ownership
-# of the supervision tree, and one real routed request.
-erl -noshell -boot "$REL_BASE" -eval '
-  Apps = application:which_applications(),
-  Sup = whereis('\''otp-router-sup'\''),
-  Worker = whereis('\''otp-router'\''),
-  Route = '\''otp-router'\'':route('\''event-rules'\'':sample-event(), 1000),
-  case {lists:keyfind(otp_router, 1, Apps), Sup, Worker, Route} of
-      {{otp_router, _, "0.1.0"}, SupPid, WorkerPid, {ok, pager}}
-        when is_pid(SupPid), is_pid(WorkerPid) ->
-          case application:get_application(WorkerPid) of
-              {ok, otp_router} -> halt(0);
-              OtherOwner -> io:format("unexpected application owner: ~p~n", [OtherOwner]), halt(1)
-          end;
-      Other -> io:format("release boot did not own expected tree: ~p~n", [Other]), halt(1)
+# that built the artifacts. The compiled helper verifies application identity,
+# ownership of the supervision tree, and one real routed request.
+erl -noshell -boot "$REL_BASE" -pa "$TEST_EBIN" -eval '
+  case otp_router_release_tests:boot_state() of
+      ok -> halt(0);
+      Other -> io:format("release boot verification returned: ~p~n", [Other]), halt(1)
   end.'
 
-# Failure lab 1: .rel and .app versions are one contract.  Assert the structured
+# Failure lab 1: .rel and .app versions are one contract. Assert the structured
 # failure category rather than brittle human-oriented wording.
 BAD_VERSION_BASE="$REL_DIR/bad_version_release"
 sed 's/{otp_router, "0.1.0"}/{otp_router, "9.9.9"}/' \
@@ -98,7 +82,7 @@ erl -noshell -pa "$APP_EBIN" -eval "
   end."
 
 # Failure lab 2: application dependencies declared by .app must be represented
-# in the release closure.  Inject crypto into a disposable app resource while
+# in the release closure. Inject crypto into a disposable app resource while
 # deliberately omitting it from .rel.
 MISSING_EBIN="$BUILD/missing-dependency/ebin"
 mkdir -p "$MISSING_EBIN"
@@ -113,7 +97,7 @@ erl -noshell -pa "$MISSING_EBIN" -eval "
       Other -> io:format(\"expected missing dependency failure, got: ~p~n\", [Other]), halt(1)
   end."
 
-# Rebuild without local paths and create a release package.  Inspect its shape,
+# Rebuild without local paths and create a release package. Inspect its shape,
 # but do not pretend this proves deployment on a different host or bundled ERTS.
 erl -noshell -pa "$APP_EBIN" -eval "
   case systools:make_script(\"$REL_BASE\", [{path,[\"$APP_EBIN\"]}, no_warn_sasl, warnings_as_errors, silent]) of
