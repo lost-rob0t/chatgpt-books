@@ -4,9 +4,7 @@
 :END:
 
 * Status
-DOCUMENTED from immutable official Erlang/OTP 29.1 sources. The new Project 3 implementation
-remains UNTESTED until the focused branch CI executes it on strict OTP 29.1. No benchmark,
-durability, availability, or distributed-failure result is inferred from source review.
+DOCUMENTED from immutable official Erlang/OTP 29.1 sources. The Project 3 checkpoint-A implementation is TESTED at implementation head =fd8f9489cfcb53f2adda755654dc2a8f8e7058e9= by focused =erlang-book= run =35154089887= and generic =books-ci= run =35154089855=. Those runs also verified the production-EPUB include regression that requires Chapters 13--15. The branch was subsequently reconciled normally with current =main=; exact reconciled-head gates remain the final handoff requirement. No benchmark, durability, availability, or distributed-failure result is inferred from this evidence.
 
 * Questions
 - How does an ordinary supervisor add dynamic children in current OTP?
@@ -77,10 +75,13 @@ failure lab starts a gated worker, kills the queue/admission process, observes t
 replace that process, and then releases the already-running worker. The replacement queue has
 fresh in-memory state and therefore cannot deliver the old job result.
 
-If the executable test passes, that result will establish only this bounded statement:
+Focused run =35154089887= executed this bounded job-processor suite successfully on implementation
+head =fd8f9489cfcb53f2adda755654dc2a8f8e7058e9=. That establishes only this bounded statement:
 /supervision restored the queue process role but did not reconstruct its volatile accepted-work
 ledger/. Durable recovery, replay, exactly-once effects, and distributed failover remain
 separate later mechanisms.
+
+Claim status: TESTED for the bounded local experiment.
 
 * Production-manuscript recovery discovered in this pass
 Before Project 3 drafting, the canonical =books/erlang/manuscript/index.org= on =main= still
@@ -90,12 +91,33 @@ builds could pass while omitting the accepted application/release chapters from 
 EPUB.
 
 Issue #106 therefore treats restoration of Chapters 13 and 14 to the canonical include chain
-as a prerequisite. The focused workflow also gains a post-build EPUB-content regression so a
-future accepted chapter cannot silently fall out of the rendered book while =make book= remains
-green.
+as a prerequisite. This branch restores Chapters 13 and 14, adds Chapter 15, and adds a
+post-build EPUB-content regression. Focused run =35154089887= successfully built the production
+EPUB and verified that all three chapter titles were present.
 
-Claim status: DOCUMENTED repository-state defect. The repair remains UNTESTED until branch CI
-builds the production EPUB and verifies the chapter titles in its XHTML content.
+Claim status: TESTED at implementation head =fd8f9489cfcb53f2adda755654dc2a8f8e7058e9=.
+
+* Exact implementation-head verification
+Focused =erlang-book= run =35154089887= completed SUCCESS on head
+=fd8f9489cfcb53f2adda755654dc2a8f8e7058e9=. The observed successful steps include:
+- Erlang foundations tests;
+- OTP worker/application tests;
+- release construction and fresh-VM boot tests;
+- the bounded job-processor tests;
+- Chapter 13--15 editable diagram validation;
+- production book build;
+- the production-EPUB chapter-presence assertion;
+- =make check BOOK=erlang=;
+- separate =nix flake check -L= evaluation.
+
+Generic =books-ci= run =35154089855= also completed SUCCESS on the same implementation head,
+including structural validation, the Pandoc Org-reader contract, deterministic assets/fixture,
+EPUBCheck 5.3.0, publication/citation regressions, ERT with real Org-roam synchronization, and
+artifact upload.
+
+The implementation head was later found to be behind advancing canonical =main=. The worker
+therefore reconciled normally rather than treating these successful historical gates as the
+final current-main merge gate.
 
 * Explicit non-claims
 - No persistent queue or crash-recovery journal exists in this checkpoint.
