@@ -5,6 +5,8 @@ on:
     paths:
       - "books/symbolic-ai-common-lisp/**"
       - ".github/workflows/symbolic-ai-common-lisp.yml"
+      - "tools/prepare-org-for-pandoc"
+      - "tools/test-prepare-org-for-pandoc"
   workflow_dispatch:
 
 jobs:
@@ -30,6 +32,9 @@ jobs:
           sbcl --version
           pandoc --version | head -1
           java -jar .cache/epubcheck-5.3.0/epubcheck.jar --version
+
+      - name: Org include preparation regression
+        run: python3 tools/test-prepare-org-for-pandoc
 
       - name: Search Library executable tests
         run: sbcl --script books/symbolic-ai-common-lisp/code/search/run-tests.lisp
