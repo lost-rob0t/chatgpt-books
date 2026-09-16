@@ -269,6 +269,29 @@
                  (production-id (activation-production (first agenda)))
                  "stable production ID removes definition-order tie"))
 
+  (let* ((beta (test-fact "candidate.beta" 'candidate '(beta)))
+         (alpha (test-fact "candidate.alpha" 'candidate '(alpha)))
+         (shared (test-fact "shared.newest" 'shared '(ready)))
+         (production
+           (noop-production "rule.activation-key-tie"
+                            '((candidate ?candidate)
+                              (shared ready))))
+         (agenda
+           (build-agenda
+            (make-engine :facts (list beta alpha shared)
+                         :productions (list production)))))
+    (check-equal 2 (length agenda)
+                 "same production yields two tied activation candidates")
+    (check-equal 3 (activation-recency (first agenda))
+                 "first activation shares the same newest support occurrence")
+    (check-equal 3 (activation-recency (second agenda))
+                 "second activation ties on recency before final key")
+    (check-equal '(alpha beta)
+                 (mapcar (lambda (activation)
+                           (activation-binding activation '?candidate))
+                         agenda)
+                 "final activation key deterministically orders same-production tie"))
+
   ;; Refraction keys use support occurrences, not only stable fact IDs.
   (let* ((fact (test-fact "state" 'service-state '(api failed)))
          (production
