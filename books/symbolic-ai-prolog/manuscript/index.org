@@ -11,3 +11,4 @@
 #+include: "search-strategies.org"
 #+include: "search-strategies-counterexample.org"
 #+include: "bounded-search.org"
+#+include: "heuristic-audit.org"

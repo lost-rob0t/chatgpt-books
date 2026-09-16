@@ -1,0 +1,30 @@
+digraph heuristic_audit_flow {
+  rankdir=LR;
+  graph [fontname="DejaVu Sans", labelloc="t", label="Finite heuristic audit: establish closure before checking the premise"];
+  node [shape=box, fontname="DejaVu Sans"];
+  edge [fontname="DejaVu Sans"];
+
+  table [label="closed heuristic data\nzero or State -> H table"];
+  validate [label="representation checks\ncanonical state + nonnegative H"];
+  closure [label="bounded reachable closure\nexplicit MaxStates"];
+  cutoff [label="cutoff\nNO quality verdict"];
+  states [label="complete finite state set\n+ explicit transitions"];
+  ucs [label="UCS from each reachable state\nexact remaining cost on this closure"];
+  adm [label="admissibility check\nH(s) <= h*(s)"];
+  cons [label="consistency check\nH(s) <= c(s,a,s') + H(s')"];
+  report [label="audited report\nviolations stay inspectable"];
+  astar [label="A* runtime\nconsumes H; does not prove it"];
+
+  table -> validate;
+  validate -> closure;
+  closure -> cutoff [label="state cap reached"];
+  closure -> states [label="frontier exhausted"];
+  states -> ucs;
+  ucs -> adm;
+  states -> cons;
+  table -> cons;
+  adm -> report;
+  cons -> report;
+  validate -> astar [style=dashed, label="runtime boundary"];
+  report -> astar [style=dashed, label="optional fixture evidence"];
+}

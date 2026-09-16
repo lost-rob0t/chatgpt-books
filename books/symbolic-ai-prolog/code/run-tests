@@ -8,6 +8,7 @@ TESTS=(
   "$ROOT/books/symbolic-ai-prolog/code/relational-planner/test_planner.pl"
   "$ROOT/books/symbolic-ai-prolog/code/relational-planner/test_cost_search.pl"
   "$ROOT/books/symbolic-ai-prolog/code/relational-planner/test_bounded_search.pl"
+  "$ROOT/books/symbolic-ai-prolog/code/relational-planner/test_heuristic_audit.pl"
 )
 
 swipl --version
