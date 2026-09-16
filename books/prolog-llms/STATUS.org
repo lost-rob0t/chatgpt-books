@@ -4,7 +4,7 @@
 :END:
 
 * Phase
-Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / milestone A are editorially APPROVED and merged via PR #39. Chapters 4--5 / milestone B were editorially accepted and merged via PR #49 at merge commit =747f7f4713a4afa41dc5aee6ea3f9bd99ade8e80=. Chapter 6 / milestone C is editorially APPROVED as a bounded DCG/closed-dispatch slice and awaits fresh exact-head objective gates on the current-main integration/approval head. The complete long-form book remains in progress and is not DONE.
+Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / milestone A are editorially APPROVED and merged via PR #39. Chapters 4--5 / milestone B were editorially accepted and merged via PR #49 at merge commit =747f7f4713a4afa41dc5aee6ea3f9bd99ade8e80=. Chapter 6 / milestone C was editorially APPROVED and merged via PR #61 at merge commit =1e3d0bb1cc4ff8dc8ef57cb3d78d56defacb79d1=. Project 1 milestone D is a worker-authored CLP(FD) scheduling/constraint slice in PR #69 and is not editorially approved or merged. The complete long-form book remains in progress and is not DONE.
 
 * Accepted baseline
 - Standalone audience and teaching contract defined.
@@ -17,16 +17,26 @@ Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / m
 - PR #39 was editorially APPROVED and merged. Its final focused run =35103064124= passed 13/13 PL-Unit cases on SWI-Prolog 9.0.4 plus structure/book/check/EPUBCheck/Nix; generic =books-ci= run =35103064145= also passed.
 - PR #49 was editorially accepted and merged. Its recorded milestone-B verification includes focused =prolog-llms-book= run =35109295239= with 16 clean Project 1 PL-Unit cases on SWI-Prolog 9.0.4, book/check/EPUBCheck/Nix success, and generic =books-ci= run =35109295346= success. Later exact-head/reconciliation evidence remains in the PR discussion.
 
-* Milestone C -- approved bounded slice
-- Issue #59 owns one bounded dependency-ready slice: the Project 1 DCG task-command language. CLP(FD), general meta-programming, live model/provider integration, and Prolog-RLM execution remain later milestones.
+* Milestone C -- accepted and merged
+- Issue #59 owned the bounded Project 1 DCG task-command language slice.
 - DOCUMENTED research pass [[file:research/dcg-task-language.org][dcg-task-language.org]] verifies current official SWI DCG/difference-list semantics, =phrase/[2,3]= complete-versus-prefix contracts, current list-state/string boundaries, and the fact that ={Goal}= invokes ordinary Prolog rather than creating a sandbox.
 - Chapter 6 derives list-state parsing before DCG notation, then builds a closed atom-token language producing only =tasks(owner(...))=, =tasks(status(...))=, =tasks(tag(...))=, and =dependency_path(...,...)= AST terms.
 - =parse_task_command/2= uses =phrase/2= for complete-input parsing. =parse_task_command_prefix/3= exists only to expose =phrase/3= remainder semantics for teaching/debugging.
 - =execute_task_command/2= dispatches the four AST shapes through explicit clauses to =task/4=, =has_tag/2=, and =dependency_path/3=. Input atoms never become predicate names and there is no arbitrary =call/1= fallback.
-- New PL-Unit regressions cover all four syntax forms, malformed/unknown syntax, trailing-token rejection, explicit remainder behavior, exact structured dispatch results, rejection of =call(halt)= as an unknown AST, and an explicit parse-then-dispatch path. The existing milestone A/B suite remains loaded by the same fail-closed runner.
+- PL-Unit regressions cover all four syntax forms, malformed/unknown syntax, trailing-token rejection, explicit remainder behavior, exact structured dispatch results, rejection of =call(halt)= as an unknown AST, and an explicit parse-then-dispatch path. The existing milestone A/B suite remains loaded by the same fail-closed runner.
 - An editable/rendered diagram shows tokens -> trusted DCG -> closed AST -> explicit dispatcher -> Project 1 relations, with separate syntax and unknown-AST rejection paths.
 - No LLM/provider call, model output, benchmark, Prolog-RLM runtime execution, or arbitrary generated callable Prolog goal is introduced by milestone C.
-- The Editor-in-Chief reviewed the actual Chapter 6 manuscript, parser/dispatcher implementation and regressions, standalone curriculum/project boundaries, research record, and current official SWI-Prolog DCG documentation and marked milestone C APPROVED in PR #61.
+- The Editor-in-Chief reviewed the actual Chapter 6 manuscript, parser/dispatcher implementation and regressions, standalone curriculum/project boundaries, research record, and current official SWI-Prolog DCG documentation and marked milestone C APPROVED in PR #61 before merge.
+
+* Milestone D -- worker draft in PR #69
+- Issue #67 owns one bounded dependency-ready slice: a genuine Project 1 CLP(FD) scheduling/constraint problem before any model/provider integration.
+- DOCUMENTED research pass [[file:research/clpfd-scheduling.org][clpfd-scheduling.org]] verifies current official SWI finite-domain membership, propagation versus =labeling/2= search, =ffc= and =min(Expr)= labeling semantics, reification, and scheduling use cases. Markus Triska's primary FLOPS 2012 SWI CLP(FD) paper supplies historical/implementation context; its performance observations remain UPSTREAM-REPORTED, not current-book benchmark evidence.
+- =task_schedule.pl= is intentionally separate from the accepted task/dependency fixture. =schedule_constraints/2= posts finite start domains, precedence, one release time, a derived two-job shared-verifier non-overlap disjunction, and makespan without performing labeling.
+- =first_minimum_schedule/2= exposes optimization/search as a separate operation and visibly commits to one first minimum result with =once(labeling([ffc,min(Makespan)], Starts))=. The API name does not imply that unrestricted backtracking over =labeling/2= would yield only optimal schedules.
+- =deadline_flag/3= reifies whether makespan is after a deadline into explicit finite-domain Boolean data =0/1=; this is a typed-data teaching bridge, not an LLM integration.
+- The Project 1 lab derives the constraint model from the scheduling requirements, hand-derives the expected lower bound, separates feasibility from search policy, adds overlap/slow-order/no-hidden-labeling failure cases, and includes eight exercises plus an editable/rendered constraint -> propagation -> labeling diagram.
+- Six new PL-Unit regressions cover the no-hidden-labeling contract, the hand-derived minimum fixture, shared-resource overlap rejection, the slower-but-feasible reverse verifier order, and both deadline reification outcomes. The fail-closed runner retains all earlier Project 1 suites and now also requires the named =task_schedule= unit.
+- No provider API, model output, generated callable Prolog, benchmark, or Prolog-RLM runtime execution is introduced by milestone D.
 
 * Verification
 Milestone C was first verified on PR #61 head =fd00800ebccd3f39add365080fdf906ed099cdca= against main =09d329e93cd2b7472d7e5ae77a0f24e41b114512= through merge ref =ece67fef5d4028e14232e37923c967dcfb70bb5f=.
@@ -35,18 +45,18 @@ Focused =prolog-llms-book= run =35116162735= completed SUCCESS on Ubuntu 24.04.5
 
 The evidence-only status commit =daeae5cd3926fa5a31f9808afbdb0f9c602c6985= was then tested again. Focused =prolog-llms-book= run =35116561877= completed SUCCESS: Project 1 tests, structural validation, book build, book validation, and separate Nix flake check all passed. Generic =books-ci= run =35116561912= also completed SUCCESS: structural validation, Pandoc Org-reader contract, deterministic publication assets, EPUBCheck, publication/citation regressions, ERT, and real Org-roam DB synchronization all passed.
 
-Exact completed worker-handoff head =06600ac842db37e406c068b3348b8584703ad9a7= passed focused =prolog-llms-book= run =35116842066= and generic =books-ci= run =35116842196=. That focused evidence included the actual Project 1 regressions, structural validation, =make book BOOK=prolog-llms=, =make check BOOK=prolog-llms=, publication validation, and =nix flake check -L=.
+Exact completed milestone-C worker-handoff head =06600ac842db37e406c068b3348b8584703ad9a7= passed focused =prolog-llms-book= run =35116842066= and generic =books-ci= run =35116842196=. That focused evidence included the actual Project 1 regressions, structural validation, =make book BOOK=prolog-llms=, =make check BOOK=prolog-llms=, publication validation, and =nix flake check -L=. The Editor-in-Chief subsequently merged PR #61 as =1e3d0bb1cc4ff8dc8ef57cb3d78d56defacb79d1=.
 
-The branch was then normally reconciled with canonical =main= =ec934223146cbf1a3293ea31e5041728196113c2= at merge integration commit =1615d9d6aec48c12011b535694a4b86317e5f59f=. This approval-state commit is a new exact head and must pass fresh focused =prolog-llms-book= and generic =books-ci= before merge; earlier successful runs remain evidence only for their recorded heads.
+Milestone D worker content was normally reconciled with canonical =main= =c93bc5b2f5077d8fb18b893d37ce5b72581d1c4a= at branch head =ed48b0043ba19c0b608eff83db32ba3de8ec3fde=. Focused =prolog-llms-book= run =35122593759= completed SUCCESS on that exact head: book job =104883779259= passed the complete Project 1 runner including the new scheduling suite, structural validation, =make book BOOK=prolog-llms=, and =make check BOOK=prolog-llms=; Nix job =104883779440= passed =nix flake check -L=. Generic =books-ci= run =35122593842= also completed SUCCESS on the same head.
 
-The implemented code/manuscript/publication behavior is therefore TESTED for the recorded heads, while current official SWI-Prolog DCG semantics are separately DOCUMENTED from primary sources retrieved 2026-09-16. No provider/model behavior, neuro-symbolic benchmark, or Prolog-RLM runtime result is promoted to TESTED by these checks.
+The scheduling implementation/publication behavior is therefore TESTED for exact head =ed48b0043ba19c0b608eff83db32ba3de8ec3fde=. Current official SWI CLP(FD) semantics are separately DOCUMENTED from primary sources retrieved 2026-09-16. The FLOPS 2012 performance discussion remains UPSTREAM-REPORTED. No provider/model behavior, neuro-symbolic benchmark, or Prolog-RLM runtime result is promoted to TESTED by these checks.
 
 * Editorial state
-APPROVED for bounded milestone C only. The whole book is not DONE. Final merge remains gated on fresh exact-head objective checks after current-main integration and this approval-state update.
+Milestone C is editorially accepted and merged. Milestone D is a worker draft with green objective gates and is READY_FOR_EDITOR_REVIEW only after the final status/handoff head itself repeats the required gates. The whole book is not DONE, and this worker does not grant editorial approval.
 
 * Next dependency-ready slice
-After milestone C merges, research and implement a genuine Project 1 CLP(FD) scheduling/constraint subproblem. Follow that with carefully bounded meta-programming that makes the contrast between closed dispatch and arbitrary meta-call explicit. Keep live model/provider work behind the later typed gateway boundary.
+After milestone D is editorially accepted, research and implement carefully bounded meta-programming that makes the contrast between closed dispatch and arbitrary meta-call explicit: =call/N=, predicate indicators, term decomposition/reflection, a closed capability vocabulary, and tests that prove data cannot silently become authority. Keep live model/provider work behind the later typed gateway boundary.
 
 * Blockers
-- No known content, research, or executable blocker remains in milestone C. The sole merge blocker is fresh exact-current-head focused/generic CI on this approval-state commit.
+- No known content, research, or executable blocker remains in the milestone-D implementation head. The final worker handoff is gated only on fresh exact-head focused/generic CI after this status update and any required current-main reconciliation.
 - Version-sensitive LLM/provider examples remain intentionally deferred until a focused typed-gateway research slice chooses current primary-source-backed interfaces and records exact tested versions.
