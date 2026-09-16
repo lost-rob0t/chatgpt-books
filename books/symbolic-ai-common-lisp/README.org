@@ -5,18 +5,21 @@
 * Purpose
 A serious independent technical book, eventually about 300--700 rendered EPUB pages when depth warrants it. It is not a README expansion or generic tutorial dump.
 * Audience
-Lisp programmers and AI learners who want to implement classical symbolic mechanisms explicitly.
+Lisp programmers and AI learners who want to implement classical symbolic mechanisms explicitly, understand why they work, and learn how formal specifications and proofs can constrain the systems they build.
 * Prerequisites
 Basic Common Lisp. The Expert Systems book deepens production-rule implementation.
 * Learning outcomes
-The reader should be able to explain the core ideas, implement important mechanisms, debug failures, evaluate tradeoffs, and extend the systems built in the major projects.
+The reader should be able to explain the core ideas, implement important mechanisms, debug failures, evaluate tradeoffs, extend the systems built in the major projects, and distinguish testing, bounded checking, exhaustive model checking, and deductive proof without overstating what any one technique establishes.
 * Major projects
 - [[id:26337135-20c4-5ddf-b634-9f52ad7ecfe9][Search Library]] -- Implement reusable DFS, BFS, uniform-cost, and A* with instrumentation and tests.
 - [[id:9afe2b74-5542-59c6-b17d-c4a0f862ce14][Pattern Matcher and Unifier]] -- Grow literal matching into variable bindings, substitutions, occurs-check discussion, and tests.
 - [[id:d31db328-6bf2-5d83-8450-8256a563c57a][Symbolic Planner]] -- Build a real planner with state, actions, heuristics, and failure analysis.
 - [[id:87a793f9-f3bf-50ef-bc48-086eefa4f357][Production Rule System]] -- Implement facts, rules, working memory, matching, agenda, and conflict resolution.
 - [[id:d014a501-e228-532a-80d6-32c73ddd5617][Knowledge Representation System]] -- Build frames, semantic networks, inheritance/relations, provenance, and queries.
-- [[id:1bf5fff5-fcb4-5828-bd3b-2f661dd3bf0b][Hybrid Symbolic AI Application]] -- Capstone combining search, knowledge representation, rules, explanation, and an optional controlled LLM interface.
+- [[id:7d473d08-6e1d-4aef-a823-c9dfa5a54457][Formal Reasoning Workbench]] -- Derive explicit proof checking, specifications/invariants, finite-state model checking, proof obligations, solver boundaries, and mechanized verification from small Common Lisp components.
+- [[id:1bf5fff5-fcb4-5828-bd3b-2f661dd3bf0b][Hybrid Symbolic AI Application]] -- Capstone combining search, knowledge representation, rules, formalized invariants/explanations, and an optional controlled LLM interface.
+* Formal-methods track
+Formal reasoning is taught as a mechanism-building progression rather than a survey of tool names.  Readers first learn the anatomy of a formal system, then specifications and invariants, explicit transition systems, counterexample-producing model checking, Hoare-style proof obligations, temporal properties, SAT/SMT boundaries, and finally a Lisp-family theorem-proving case study with ACL2.  Claims remain carefully scoped: exhaustive checking can prove a property of a finite model; bounded exploration is not a proof; a verified model is not automatically a refinement proof of arbitrary Common Lisp implementation code.
 * Research
 Record primary-source work under =research/= and bibliography metadata in =references.bib=. Never let version-sensitive prose outrun current documentation.
 * Build

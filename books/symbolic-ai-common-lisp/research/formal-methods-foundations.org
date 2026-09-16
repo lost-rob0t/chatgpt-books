@@ -1,0 +1,163 @@
+#+title: Formal Methods Foundations for Symbolic AI in Common Lisp
+:PROPERTIES:
+:ID:       b51ab389-0af7-40f7-a0fa-69ca9610e670
+:END:
+
+* Status
+- Research date: 2026-09-16.
+- Scope: formal systems, software verification, model checking, theorem proving, and solver boundaries for the Symbolic AI/Common Lisp curriculum.
+- Claim status: primary-source definitions are DOCUMENTED; the local finite-state workbench remains TESTED only when exact-head CI executes it; no performance benchmark is claimed.
+
+* Why this belongs in this book
+Symbolic AI and formal verification share a core habit: make symbolic structure explicit, define legal transformations, and distinguish a derivation from a guess.  Search, planning, rule firing, proof checking, and model checking all manipulate explicit symbolic states under explicit rules.
+
+The book should therefore teach formal methods as a *mechanism-building track*, not as an appendix that merely names proof assistants.  The reader should implement small checkers in Common Lisp first, then compare those mechanisms with mature systems such as ACL2, TLA+, SMT solvers, and Lean.
+
+This track must preserve clear boundaries:
+- Common Lisp remains the implementation language used to derive mechanisms in this volume.
+- ACL2 is especially relevant because its logic/programming language is based on an applicative subset of Common Lisp, but ACL2 is a distinct logic and theorem prover; ordinary Common Lisp programs are not automatically ACL2 theorems.
+- TLA+ is useful for state-machine specification, safety/liveness reasoning, and model checking; it is not the implementation language of this book.
+- SMT-LIB is a solver interchange standard; an SMT solver result proves a formula in a selected logic/theory under the solver/encoding assumptions, not arbitrary host-language correctness.
+- Lean is a useful comparison point for kernel-checked proof terms and dependent type theory, but should remain comparative rather than taking over the Common Lisp curriculum.
+
+* Terminology contract
+| Term | Meaning in this book |
+|------+----------------------|
+| formal system | A precisely defined language plus rules for forming judgments/derivations. |
+| syntax | The well-formed symbolic expressions of the object language. |
+| semantics | The mathematical meaning assigned to those expressions/models. |
+| judgment | A statement that may be derived under explicit rules, e.g. =Γ ⊢ e : τ=. |
+| inference rule | A rule saying which conclusion may follow from which premises. |
+| derivation/proof | A finite rule-justified tree/sequence ending in the target judgment. |
+| specification | A precise statement/model of required behavior. |
+| invariant | A property intended to hold in every reachable state. |
+| inductive invariant | An invariant established initially and preserved by every transition. |
+| theorem proving | Deriving a proposition from axioms/rules, often with mechanized assistance. |
+| model checking | Exhaustively/symbolically checking whether a model satisfies a property. |
+| testing | Executing selected examples; evidence about those cases, not universal proof. |
+| bounded check | Exploration up to an explicit bound; absence of a counterexample is not proof beyond the bound. |
+| counterexample | A concrete trace/model falsifying a claimed property. |
+| soundness | Roughly: the proof system does not derive false semantic conclusions (relative to its semantics/assumptions). |
+| completeness | Roughly: every semantically valid claim in the target class can be derived; distinct from soundness and often limited by the logic/system. |
+
+* Primary-source baseline
+** Hoare 1969 -- axiomatic program reasoning
+- Source: C. A. R. Hoare, “An Axiomatic Basis for Computer Programming,” /Communications of the ACM/ 12(10), 576--580 (1969).
+- DOI: https://doi.org/10.1145/363235.363259
+- Inspected publisher abstract/record: 2026-09-16.
+- Durable claim: program correctness can be reasoned about using explicit axioms and inference rules connecting program text with assertions about state.
+- Curriculum use: preconditions/postconditions, Hoare triples, loop/state invariants, proof obligations.
+
+** Pnueli 1977 -- temporal reasoning
+- Source: Amir Pnueli, “The Temporal Logic of Programs,” 18th Annual Symposium on Foundations of Computer Science (1977).
+- Primary paper inspected: 2026-09-16.
+- Durable claim: temporal logic provides a formal basis for reasoning about program behavior over time, especially concurrent/nonterminating systems.
+- Curriculum use: motivate why safety invariants alone are not enough for liveness/eventuality claims.
+
+** Clarke, Emerson, Sistla 1986 -- model checking
+- Source: E. M. Clarke, E. A. Emerson, A. P. Sistla, “Automatic Verification of Finite-State Concurrent Systems Using Temporal Logic Specifications,” /ACM TOPLAS/ 8(2), 244--263 (1986).
+- DOI: https://doi.org/10.1145/5397.5399
+- Primary paper/author publication record inspected: 2026-09-16.
+- Durable claim: finite-state systems can be checked automatically against temporal-logic specifications; the original paper gives algorithms linear in the state graph and formula size for its CTL setting.
+- Curriculum use: explicit-state checker first; temporal logic and state explosion later.
+
+** Lamport -- specification and TLA+
+- Source: Leslie Lamport, /Specifying Systems/ (2002), author-maintained online edition/supporting materials.
+- Current supporting source inspected: https://lamport.azurewebsites.net/tla/book.html ; retrieval 2026-09-16.
+- Additional current source inspected: /A Science of Concurrent Programs/ author page, updated 2026-03-25.
+- Durable claim: writing a formal behavioral specification is a tool for understanding system behavior before/alongside implementation; TLC checks finite model instances of TLA+ specifications.
+- Curriculum use: specification as executable/checkable model; safety/liveness; distinction between design proof and implementation conformance.
+
+** ACL2 -- theorem proving in an applicative Lisp logic
+- Source: ACL2 official documentation, https://acl2.org/ ; current manual inspected 2026-09-16.
+- Official docs characterize ACL2 as a logic, programming language, and theorem prover; its programming language is based on a side-effect-free/applicative subset of Common Lisp.
+- Current documentation also exposes software-verification libraries/projects and proof-debugging material.
+- Curriculum use: after readers implement small proof/model checkers themselves, use ACL2 to experience mechanized induction, rewrite-based proof automation, guards/admissibility, and the difference between executable Lisp-like models and unrestricted Common Lisp.
+
+** SMT-LIB 2.7 -- solver interchange
+- Source: SMT-LIB official language standard Version 2.7; current official release inspected at https://smt-lib.org/language.shtml on 2026-09-16.
+- Current site records a Version 2.7 release dated 2026-03-27.
+- Curriculum use: teach encoding/decoding proof obligations and result status without coupling the book to one solver API.  Solver interaction is a later external boundary, not the first reasoning engine.
+
+** Lean -- comparison point for proof kernels
+- Source: official Lean 4 reference/tutorial material, inspected 2026-09-16.
+- Current reference describes Lean as an interactive theorem prover with a small proof-checking kernel; /Theorem Proving in Lean 4/ teaches propositions/proofs, induction, quantifiers, and dependent type theory.
+- Curriculum use: compare proof-producing systems with model checking and ACL2; do not shift this book's implementation language away from Common Lisp.
+
+* Learning progression
+** Stage 1 -- What makes a system formal?
+Readers build a tiny rule checker.  The goal is to feel the separation among object language, metalanguage, inference rules, derivations, and semantics.
+
+** Stage 2 -- Specifications and invariants
+Start with a state machine simple enough to enumerate.  Define initial states, a transition relation, and a property.  Derive the two classic inductive-invariant obligations:
+
+1. every initial state satisfies =I=;
+2. if =I(s)= and =s -> s'=, then =I(s')=.
+
+Explain that an inductive invariant is a proof technique; an invariant that happens to hold on reachable states need not be inductive in the chosen representation.
+
+** Stage 3 -- Explicit finite-state checking
+Implement BFS over reachable states.  If every reachable state is enumerated and satisfies the invariant, report =PROVED= *for that finite model*.  If a bad state is reached, return a shortest counterexample trace.  If a configured exploration bound is hit, report =BOUNDED= rather than “proved.”  If part of the transition relation cannot be enumerated, report =UNKNOWN=.
+
+This stage intentionally reuses the mental machinery of Project 1 Search Library while adding a different correctness contract: search answers reachability/path questions; model checking combines reachability with a property and a proof-status discipline.
+
+** Stage 4 -- Hoare-style proof obligations
+Derive assignment, sequencing, conditional, and loop reasoning on a tiny imperative language.  Readers should generate verification conditions themselves before learning any solver API.
+
+** Stage 5 -- Temporal properties and model checking
+Introduce safety (“nothing bad happens”) and liveness (“something good eventually happens”), then LTL/CTL motivation and finite-state model checking.  State explosion becomes an engineering topic, not a footnote.
+
+** Stage 6 -- SAT/SMT boundaries
+Translate selected finite/bounded obligations to SMT-LIB.  Preserve the distinction among =sat=, =unsat=, and =unknown=.  Teach model extraction/counterexamples and encoding mistakes as first-class failure modes.
+
+** Stage 7 -- ACL2 mechanized theorem proving
+Re-express selected pure recursive functions/data transformations in ACL2.  Prove structural/inductive properties.  Compare ACL2 proof obligations with the Common Lisp executable tests and the finite-state checker.  Make explicit what cannot be carried over unchanged from side-effecting Common Lisp.
+
+** Stage 8 -- Verified symbolic AI
+Apply the techniques to artifacts already built by the book:
+- prove/check representation invariants for search states and substitutions;
+- verify small planner transition systems against safety invariants;
+- check rule-engine state invariants such as agenda/working-memory consistency;
+- attach provenance to proof obligations/results;
+- generate counterexamples that become debugging fixtures.
+
+* First executable slice -- Formal Reasoning Workbench A
+The first implementation is intentionally small: a finite transition-system invariant checker in =code/formal/=.  It is an explicit-state checker, not a theorem prover.
+
+Result meanings:
+- =:proved=: the finite reachable state graph was exhausted and every reached state satisfies the invariant;
+- =:refuted=: a reachable state violates the invariant; return a shortest counterexample trace;
+- =:bounded=: a caller-supplied state bound prevents exhaustive checking; no proof claim;
+- =:unknown=: the model cannot enumerate some reached transition relation.
+
+Required tests:
+- safe cyclic model exhausts and proves;
+- violating model returns an exact shortest counterexample;
+- unreachable bad state does not refute;
+- cycle handling terminates via duplicate detection;
+- bounded exploration cannot return =:proved=;
+- opaque/unknown successor relation returns =:unknown=.
+
+* Failure/debugging curriculum
+- Property too weak: the checker proves something useless.
+- Model too weak: a real implementation behavior is absent, so the proof is irrelevant.
+- State identity too coarse: two semantically different states collapse and a counterexample disappears.
+- State identity too fine: exploration explodes and obscures equivalence.
+- Bound mistaken for proof: no counterexample within N states becomes an unjustified universal claim.
+- Safety mistaken for liveness: an invariant cannot establish that progress eventually occurs.
+- Solver result mistaken for host-language proof: encoding/FFI/model mismatch can invalidate the claimed connection.
+
+* Exercises for the learner
+1. Write a two-state door model with states =closed= and =open=.  Prove the invariant “state is always one of the declared states.”
+2. Add a =locked= flag.  Introduce a buggy transition that opens a locked door.  Ask the checker for the shortest counterexample.
+3. Add a state bound of 1.  Explain in your own words why =BOUNDED= is not the same result as =PROVED=.
+4. Define an inductive invariant for a token-transfer system: total tokens are conserved.  Manually prove initialization and preservation before running the checker.
+5. Create a model whose successor function deliberately signals =UNKNOWN=.  Explain why converting that to =PROVED= would be unsound.
+6. Take one Project 1 search invariant (for example, “every reconstructed path begins at the initial state”) and classify whether you would test it, model-check it, or prove it deductively—and why.
+
+* Open research before later slices
+- Exact ACL2 release/build pin for reproducible CI and which Community Books to use without bloating the teaching dependency.
+- Whether the first Hoare-logic executable should interpret a deliberately tiny imperative language or generate obligations from a symbolic AST used by the planner project.
+- Which SMT solver(s) can be added reproducibly under Nix without turning solver behavior into an unexamined trusted oracle.
+- How to present LTL/CTL in enough depth to be useful without duplicating a dedicated formal-methods textbook.
+- How to relate model-level properties to actual Common Lisp implementation conformance without overstating refinement proof.
