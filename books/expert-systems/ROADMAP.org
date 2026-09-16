@@ -7,7 +7,9 @@ DONE bootstrap purpose, audience, topics, and project boundaries.
 * Phase 1 -- foundational research
 IN-PROGRESS verify theory, current toolchain behavior, canonical implementations, and source bibliography.
 
-Foundation slice A researches production-system structure, naive condition matching, variables/bindings, joins, and provenance using Forgy's OPS5/RETE material, current official CLIPS documentation, and authoritative Linux/systemd sources for the technical fixture. It deliberately leaves working-memory mutation, agenda/refraction, incremental networks, truth maintenance, uncertainty, and persistence for dependency-ordered follow-up research.
+Foundation slice A researches production-system structure, naive condition matching, variables/bindings, joins, and provenance using Forgy's OPS5/RETE material, current official CLIPS documentation, and authoritative Linux/systemd sources for the technical fixture.
+
+Foundation slice B researches mutable working-memory identity, assertion/retraction, production instantiations, agenda/conflict resolution, deterministic control, and refraction. The course-local semantics are explicitly separated from documented CLIPS behavior. Incremental alpha/beta memories, RETE/TREAT, truth maintenance, uncertainty, and persistence remain dependency-ordered follow-up research.
 * Phase 2 -- curriculum
 Review sequence and cross-book dependencies.
 * Phase 3 -- detailed outline
@@ -15,7 +17,11 @@ Turn each chapter item into research questions, examples, exercises, and asset r
 * Phases 4--6 -- progressive chapters/projects
 Implement projects in the order listed in PROJECTS.org; later projects depend on foundations from earlier ones.
 
-Project 1 milestone A is the semantic baseline: literal matcher -> variables/bindings -> deterministic multi-condition joins with supporting fact identities. The next implementation milestone is mutable working memory -> real productions -> forward chaining -> conflict set/agenda -> explicit conflict resolution/refraction. Only after that baseline is verified should incremental alpha/beta and RETE-like machinery begin.
+Project 1 milestone A is the merged semantic baseline: literal matcher -> variables/bindings -> deterministic multi-condition joins with supporting fact identities.
+
+Project 1 milestone B is the current implementation/review slice: mutable working memory -> stable production instantiations -> forward chaining -> conflict set/agenda -> deterministic conflict resolution -> explicit refraction -> bounded quiescence/limit outcomes. Chapters 8--10 and the executable implementation must pass exact-head verification before this milestone is considered TESTED.
+
+After milestone B is accepted, the next dependency-ready engine slice is semantic-equivalence-driven incremental matching: alpha memories -> beta memories -> join/token/production nodes -> RETE-like propagation. No performance claim precedes executable equivalence tests and reproducible benchmarks.
 * Phase 7 -- capstone
 The last project is the major integrated capstone and depends on the previous project/tooling slices.
 * Phase 8 -- technical review
