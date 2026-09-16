@@ -6,5 +6,7 @@
 - Which primary sources define the foundational concepts?
 - Which behavior is version-sensitive in the current toolchain?
 - Which claims require reproduction/benchmarking rather than citation alone?
+* Active foundation record
+The 2026-09-16 opening pass covers vector/dot-product sequencing, the current NumPy numerical oracle, and Python floating-point primitives used by Project 1 milestone A. Matrix operations, linear transformations, calculus, probability, and later-project theory remain research work rather than being implicitly declared complete.
 * Records
 Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
