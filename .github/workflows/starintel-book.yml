@@ -64,6 +64,16 @@ jobs:
             books/starintel/code/ingest-adapter/adapter.py \
             books/starintel/code/ingest-adapter/test_adapter.py
 
+      - name: Run service-trace evidence tests
+        run: |
+          bash books/starintel/code/live-stack/run-tests
+          python3 -m py_compile \
+            books/starintel/code/live-stack/inject_probe.py \
+            books/starintel/code/live-stack/summarize_trace.py \
+            books/starintel/code/live-stack/test_trace.py
+          bash -n books/starintel/code/live-stack/probe.sh
+          bash -n books/starintel/code/live-stack/run-service-trace
+
       - name: Run ambiguous-bulk failure-analysis lab
         run: |
           bash books/starintel/code/ambiguous-bulk/run-tests
@@ -90,6 +100,47 @@ jobs:
         env:
           EPUBCHECK_JAR: .cache/epubcheck-5.3.0/epubcheck.jar
         run: make check BOOK=starintel
+
+  service-backed-trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install service-trace prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y jq
+          python3 --version
+          docker --version
+          docker compose version
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Run pinned disposable StarIntel service trace
+        run: bash books/starintel/code/live-stack/run-service-trace
+
+      - name: Validate sanitized trace artifact
+        run: |
+          test -s .cache/starintel-service-trace.json
+          python3 -m json.tool .cache/starintel-service-trace.json >/dev/null
+          jq -e '.schema == "starintel-book-service-trace-v1" and .claim_status == "TESTED"' \
+            .cache/starintel-service-trace.json >/dev/null
+
+      - name: Upload sanitized service trace
+        uses: actions/upload-artifact@v4
+        with:
+          name: starintel-service-trace
+          path: .cache/starintel-service-trace.json
+          if-no-files-found: error
 
   nix:
     runs-on: ubuntu-latest
