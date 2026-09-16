@@ -1,38 +1,36 @@
 * Where the book goes next
 
-We now have the low-level failure vocabulary needed to stop treating OTP as magic. Project
-1 has explicit request/reply protocols, timeouts that do not pretend to be cancellation,
-monitor-based failure observation, link-based shared fate, exit trapping, and controlled
-failure injection. The next chapters ask what changes when those mechanics are given
-standard ownership and lifecycle contracts.
+We have crossed an important boundary. Project 1 taught the raw process mechanisms. Project
+2 checkpoint A has now given recurring server and failure relationships standard contracts:
+=gen_server= owns the generic server loop and system-message protocol, while a supervisor
+owns child lifecycle and bounded restart policy. The tests also make the limit concrete:
+a replacement process restores a worker process, not the dead worker's private state.
 
-Chapter 10 introduces OTP design principles as conventions around process ownership and
-system structure. Chapter 11 converts the messaging service into Project 2's
-=gen_server=-based worker service, including callback boundaries, synchronous and
-asynchronous requests, system messages, termination, and testing. Chapter 12 then adds a
-real supervisor and makes restart strategy/intensity executable rather than rhetorical.
-Applications and releases follow only after those local lifecycle boundaries are concrete.
+The next chapter turns this process tree into a real OTP application. That means learning
+what an application resource file describes, what the application callback owns, how
+application startup relates to the root supervisor, and which configuration belongs at that
+boundary. Only after that local packaging/lifecycle contract is executable will the book
+move into releases and target-system construction.
 
-Before moving on, the reader should be able to answer these questions without hand-waving:
+Before moving on, the reader should be able to answer these questions from mechanism rather
+than vocabulary:
 
-1. Why is a link a different architectural claim from a monitor?
-2. Which facts determine whether an incoming exit signal is dropped, terminates a process,
-   or becomes an =EXIT= message?
-3. Why does =process_flag(trap_exit, true)= not make a process a supervisor?
-4. What does =demonitor(Ref, [flush])= protect the caller mailbox from after a request
-   finishes?
-5. Why can starting a replacement process restore availability while still losing all of
-   the old process's in-memory state?
-6. Which failures in Project 1 are observed, which propagate automatically, and which have
-   no recovery policy yet?
+1. Which part of a =gen_server= is generic behaviour machinery and which part is the
+   application callback module?
+2. Why can a timed-out =gen_server:call= still complete server-side work even though modern
+   OTP prevents a late synchronous reply from polluting the caller mailbox?
+3. What does =start_link= say about lifecycle ownership that =start= does not?
+4. Why does =one_for_one= express a dependency assumption rather than merely a convenient
+   restart setting?
+5. What exactly happens after more than the configured supervisor restart intensity occurs
+   inside its period?
+6. Why does a new child PID not imply recovery of the old child's process-local state?
+7. Which guarantees still require persistence, idempotency, or replay outside the supervisor?
 
-Those questions become the checklist for OTP. We will keep the manual implementation as a
-small executable reference, then replace ad-hoc lifecycle machinery with standard
-behaviours one boundary at a time. The point is not that OTP hides processes. The point is
-that it gives recurring process relationships names, callback contracts, ownership, and
-well-tested operational policy.
+Chapter 13 will package the worker/supervisor tree as an application without changing those
+answers. Chapters 14 onward then move outward: releases, distributed Erlang and connection
+failure, explicit persistence/recovery boundaries, tracing and runtime observability,
+Common Test, mailbox/backpressure experiments, networking, and production debugging.
 
-Later projects continue outward: applications/releases, distributed Erlang and connection
-failure, explicit persistence/recovery boundaries, Common Test, tracing and runtime
-observability, mailbox/backpressure experiments, and production debugging. Each layer must
-state what it adds and what failure uncertainty remains.
+The discipline stays the same: every new layer must state what contract it adds, what
+failure it can observe or recover, what state it owns, and which uncertainty remains.

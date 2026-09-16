@@ -1,0 +1,342 @@
+** Chapter 12 -- Supervisors: Restart Policy Is Data, Not a Catch Block
+:PROPERTIES:
+:ID:       593b4676-c358-4b84-abfa-ad99d9e1f1b2
+:END:
+
+Chapter 9 ended with a deliberately bad tiny "supervisor": trap exits, respawn a worker,
+repeat. We can now replace that sketch with an actual policy contract.
+
+The official OTP 29.0.6 supervisor implementation describes a supervisor as a process that
+starts, stops, and monitors child processes. Children are described by child specifications.
+The supervisor starts them in specification order, terminates them in reverse order, and
+uses a configured restart strategy plus restart intensity to decide how recovery proceeds.
+[cite:@erlang-supervisor]
+
+The useful word here is *policy*.
+
+A supervisor is not valuable because =spawn_link= is hard. It is valuable because repeated
+failure decisions become declarative, inspectable data instead of being scattered through
+ad-hoc receive clauses.
+
+*** One worker, one ownership relationship
+
+Project 2's first supervisor owns exactly one =otp_worker=:
+
+#+begin_src erlang
+init([]) ->
+    SupFlags = #{
+        strategy => one_for_one,
+        intensity => 2,
+        period => 60
+    },
+    Worker = #{
+        id => otp_worker,
+        start => {otp_worker, start_link, [otp_worker]},
+        restart => permanent,
+        shutdown => 5000,
+        type => worker,
+        modules => [otp_worker]
+    },
+    {ok, {SupFlags, [Worker]}}.
+#+end_src
+
+There is a lot of meaning packed into this small map.
+
+- =start= tells the supervisor how to create the child. The supervisor contract requires a
+  start function that creates and links to the child; standard behaviour =start_link=
+  functions satisfy that requirement. [cite:@erlang-supervisor]
+- =restart => permanent= says this child is to be restarted whenever it terminates.
+- =shutdown => 5000= gives the worker a bounded graceful-shutdown window before stronger
+  termination is used; 5000 ms is also the documented worker default when the key is
+  omitted. [cite:@erlang-supervisor]
+- =type => worker= identifies the child role.
+- =modules= supplies module information used by OTP/release machinery.
+
+This is qualitatively different from "if I see ={'EXIT',Pid,Reason}=, spawn another one."
+The child specification records the ownership/restart contract in one place.
+
+*** =one_for_one= answers a dependency question
+
+A restart strategy is a claim about failure dependency.
+
+For =one_for_one=, a child that needs restarting is restarted without intentionally
+restarting its siblings. This is the default strategy. =one_for_all= terminates the other
+children and restarts the whole child set when one relevant child must restart.
+=rest_for_one= terminates/restarts the failed child and children after it in start order.
+[cite:@erlang-supervisor]
+
+Do not choose among these by habit. Ask what state/dependency relationship the children
+have.
+
+Imagine three workers:
+
+#+begin_example
+configuration loader -> connection manager -> request worker
+#+end_example
+
+If the request worker can reconstruct everything it needs from still-valid siblings,
+=one_for_one= may express the right independence. If all three jointly represent one
+coherent generation of state, =one_for_all= might better express shared fate. If later
+children depend on state initialized by earlier children, =rest_for_one= can encode that
+ordering dependency.
+
+Strategy is therefore architecture, not just crash handling.
+
+*** Restart type asks a different question
+
+The child =restart= field asks /when this child should be restarted/:
+
+- =permanent=: always restart when it terminates;
+- =temporary=: never restart;
+- =transient=: restart only after abnormal termination, not after =normal=, =shutdown=, or
+  ={shutdown, Term}=. [cite:@erlang-supervisor]
+
+This axis is independent of =one_for_one= versus =one_for_all=. One chooses whether the
+child qualifies for restart; the other chooses which children are affected once a restart
+is required.
+
+Project 2 uses =permanent= because the worker represents a service that should remain
+available while its supervisor is alive. Later job-style workers may have a very different
+contract.
+
+*** A replacement PID proves availability, not state recovery
+
+This is the most important executable lab in the chapter.
+
+The test:
+
+1. starts =otp_worker_sup=;
+2. finds the registered worker PID;
+3. publishes an in-memory record;
+4. monitors the worker;
+5. deliberately crashes it with reason =boom=;
+6. waits for the exact correlated =DOWN= for the old PID;
+7. observes a new registered worker PID;
+8. queries the same topic on the replacement.
+
+The expected history is empty.
+
+That is not a supervisor bug. It is the contract we actually built. The child =init/1=
+creates fresh in-memory state. No durable source exists. The supervisor recovers *service
+process availability* by starting another process. It cannot recover information that died
+with the old process unless the child knows how to reconstruct that information.
+
+This distinction scales all the way to production:
+
+| Recovery question | Who can answer it? |
+|-
+| Should a worker process exist? | supervisor policy |
+| How is a replacement started? | child specification/start function |
+| What initial in-memory state does it get? | child =init/1= / recovery code |
+| Which previous facts survive? | persistence/replay/authoritative external source |
+| Are in-flight external effects safe to retry? | application protocol/idempotency design |
+
+"OTP restarted it" answers only the first two rows.
+
+*** Restart intensity prevents a crash loop from becoming infinite churn
+
+A restartable child can still be fundamentally broken. If initialization always crashes, or
+a deterministic request immediately triggers the same defect, "restart forever" converts
+one bug into scheduler/log/resource churn.
+
+OTP supervisor flags therefore include =intensity= and =period=. In the exact OTP 29.0.6
+contract, if more than =intensity= restarts occur within =period= seconds, the supervisor
+terminates its children and then itself with reason =shutdown=. Defaults are intensity 1 and
+period 5. [cite:@erlang-supervisor]
+
+Project 2 intentionally chooses:
+
+#+begin_src erlang
+#{strategy => one_for_one, intensity => 2, period => 60}
+#+end_src
+
+for the failure lab. The wide 60-second window is not a production tuning recommendation.
+It makes the teaching test insensitive to ordinary CI scheduling delays: two rapid worker
+restarts are permitted, and the third restart attempt within the window exceeds the budget.
+The test monitors the supervisor and requires an actual =DOWN= reason of =shutdown=; it does
+not infer escalation from a sleep.
+
+This gives us a failure escalation graph:
+
+#+begin_example
+worker crash #1 -> restart worker
+worker crash #2 -> restart worker
+worker crash #3 -> restart budget exceeded
+                 -> supervisor terminates child set
+                 -> supervisor exits shutdown
+                 -> parent supervisor would decide the next policy
+#+end_example
+
+That last line explains why supervision trees are hierarchical. A supervisor that gives up
+becomes a failure event for the supervisor above it. Restart budgets let the system move a
+persistent failure outward to a boundary with a broader recovery policy instead of looping
+forever at the leaf.
+
+*** Restart limits are not reliability percentages
+
+Do not read =intensity => 2, period => 60= as "the system tolerates two failures per minute"
+in any probabilistic or service-level sense. It is a deterministic local restart-budget
+rule. It says what this supervisor does after a certain recent restart history.
+
+Choosing a real production budget requires evidence about:
+
+- expected transient failure modes;
+- startup cost;
+- dependency recovery time;
+- whether rapid restarts can amplify an external outage;
+- what the parent supervisor can safely do;
+- alerting and operator visibility.
+
+The book makes no universal restart-rate recommendation and no reliability benchmark claim
+here.
+
+*** Startup and shutdown order encode dependency
+
+Supervisors start static children left-to-right in child-specification order and terminate
+them in reverse order. [cite:@erlang-supervisor]
+
+That convention matters once a subtree has multiple children. If B requires A to be ready
+before B starts, ordering can be part of the design. Reverse shutdown can then allow B to
+stop before A disappears.
+
+But start order is not a substitute for a robust runtime dependency protocol. A child that
+calls an external service still needs to handle that service becoming unavailable later.
+Likewise, two siblings should not discover each other only because "the supervisor happened
+to start this one first." Use explicit names/registries/interfaces and explicit failure
+handling.
+
+*** Shutdown is a protocol too
+
+For a worker child with an integer =shutdown= time, the current supervisor contract sends a
+=shutdown= exit signal and waits for the child to terminate with =shutdown=. If the timeout
+expires, the child is killed. Standard OTP behaviours participate in this shutdown
+protocol. [cite:@erlang-supervisor]
+
+This connects directly to Chapters 7--9. Supervisor behavior is not replacing exit signals;
+it is applying disciplined policy around them.
+
+The chapter therefore gives us a layered explanation:
+
+#+begin_example
+raw mechanism: link + exit signals
+standard worker loop: gen_server
+lifecycle owner: supervisor
+policy data: child spec + strategy + intensity/period
+persistence: still a separate design
+#+end_example
+
+If you can point to the layer responsible for an observation, debugging becomes much less
+mystical.
+
+*** Project 2 -- checkpoint A, part 2: supervised worker
+:PROPERTIES:
+:ID:       7786c131-ddab-4e87-9cc0-2e4753f6d13f
+:END:
+
+=otp_worker_sup= turns the Project 2 worker into a minimal one-child supervision tree. The
+checkpoint is intentionally not yet a complete OTP /application/. Chapter 13 will add the
+application resource/module and make startup ownership explicit at the application level.
+This chapter stops at the process/supervision boundary so each abstraction can be tested in
+isolation.
+
+The supervisor regressions establish:
+
+1. the supervisor starts a registered =otp_worker= child;
+2. a deliberate abnormal worker crash produces a correlated =DOWN= for the old PID;
+3. the supervisor starts a different replacement PID under =one_for_one=;
+4. replacement state is freshly initialized, so the pre-crash ephemeral history is absent;
+5. with =intensity => 2= and =period => 60=, the third rapid restart attempt exceeds the
+   configured budget and the supervisor itself terminates with =shutdown=.
+
+The tests synchronize on monitors and observed registration state. Their timeouts bound a
+failed test; an elapsed timeout is never used as proof that a restart happened.
+
+*** Why the test unlinks from the supervisor
+
+The test calls =supervisor:start_link= through our wrapper. That means the new supervisor is
+linked to the test process. If the restart-intensity lab intentionally causes the supervisor
+to terminate, leaving that link in place could kill the test process too.
+
+The test therefore unlinks after successful startup and monitors the supervisor from the
+outside. This reuses the exact distinction Chapters 7 and 8 taught:
+
+- the real supervision relationship between supervisor and child remains a link;
+- the test harness wants observation without shared fate, so it uses a monitor.
+
+Testing architecture should not accidentally change the failure topology being tested.
+
+*** Graceful test cleanup uses a version-specific API
+
+OTP 29.0 added =supervisor:stop/1,3= style stop functions; the current 29.0.6 supervisor API
+can synchronously stop a supervisor and its children. [cite:@erlang-supervisor]
+
+The Project 2 cleanup wrapper uses =supervisor:stop/1=. That is why the executable boundary
+is explicitly pinned to OTP 29.0.6. If this example were intended to support older OTP
+releases, its compatibility contract and cleanup implementation would need to change.
+
+Version-sensitive code should look version-sensitive in the book rather than quietly
+assuming "Erlang is Erlang."
+
+*** Choosing a restart strategy: a reasoning procedure
+
+For each child, answer these questions before selecting flags:
+
+1. *Ownership*: which supervisor is responsible for this child existing?
+2. *State*: what state disappears if it dies, and where can replacement state come from?
+3. *Dependency*: which siblings depend on state or resources owned by this child?
+4. *Failure coupling*: should sibling processes be considered suspect after this child
+   fails?
+5. *Normal completion*: should a normal exit lead to restart?
+6. *Escalation*: how many rapid restart attempts are useful before a broader boundary
+   should take over?
+7. *Shutdown*: how long may cleanup take, and what external guarantees depend on it?
+
+Only after those answers should =one_for_one=, =transient=, =period=, and similar values
+appear in code.
+
+That is what "let it crash" looks like when it grows up: not indifference to failure, but a
+clear statement of where failure is detected, which state is disposable, who retries, and
+when retry stops.
+
+*** Failure lab: permanent bug versus transient crash
+
+Run two thought experiments.
+
+*Transient crash.* A worker encounters one malformed in-memory condition, exits, then
+restarts against healthy dependencies. The replacement serves later requests correctly.
+Restart restored availability and the incident may remain local.
+
+*Permanent bug.* Every replacement crashes immediately when the same configuration is
+loaded. Unlimited restarts cannot repair the code/configuration defect. Restart intensity
+turns repeated local failure into supervisor termination so the parent policy and operators
+can see escalation.
+
+The mechanisms are the same. The usefulness of restart depends on whether a fresh process
+can enter a healthy state.
+
+This is why fault tolerance is not synonymous with restart. Fault tolerance is a system
+property produced by isolation, recovery sources, bounded retry, redundancy where needed,
+and evidence that the recovery path actually works.
+
+*** Exercises
+
+1. ★ For each restart type =permanent=, =transient=, and =temporary=, predict what happens
+   after child exits =normal= and =boom=. Check your answer against the exact OTP 29.0.6
+   supervisor contract.
+2. ★ Draw a three-child tree and apply =one_for_one=, =one_for_all=, and =rest_for_one= to a
+   failure of the middle child. Mark which processes are terminated and restarted.
+3. ★★ Change Project 2's worker from =permanent= to =transient=. Add tests for explicit
+   normal stop versus abnormal crash and explain the different lifecycle claim.
+4. ★★ Modify the restart budget locally to intensity 0. Predict the first abnormal child's
+   effect on the supervisor, then verify it with a monitor rather than a sleep.
+5. ★★★ Add a snapshot file or other durable teaching store for topic history. Define the
+   exact point at which =publish= may claim success, how =init/1= reconstructs state, and
+   what happens if the process crashes between external persistence and replying to the
+   caller. Do not call it "durable" until those failure windows are tested.
+6. ★★★ Design a subtree with a connection manager and request workers. Decide whether
+   =one_for_all=, =rest_for_one=, or nested supervisors better captures the dependency.
+   Defend the design in terms of ownership/state rather than preference.
+7. ★★★ The supervisor reaches restart intensity because an external database is down.
+   Explain how immediate parent-level restarts could amplify the outage. Propose a later
+   architecture with explicit backoff/admission policy; keep that policy out of this simple
+   supervisor until it has its own tests and observability.

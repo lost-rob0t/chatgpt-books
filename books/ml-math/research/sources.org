@@ -11,8 +11,8 @@ Authority: author-maintained MIT book site for the sixth edition.
 URL: https://math.mit.edu/~gs/linearalgebra/ila6/indexila6.html
 Edition/date: Sixth edition, 2023.
 ISBN: 978-17331466-7-8.
-Inspected material: official edition page and linked introductory/preface material establishing the opening vector/matrix sequence and the role of dot products, lengths, angles, linear combinations, and matrices.
-Used by: Chapters 3--7 and Project 1 sequencing. This book derives its own examples and explanations rather than reproducing textbook prose.
+Inspected material: official edition page, table of contents/preface, and the official Section 1.4 sample material establishing the opening vector/matrix sequence; matrix-vector multiplication by row dot products and column linear combinations; compatible matrix multiplication; multiplication by columns; noncommutativity; and associativity.
+Used by: Chapters 3--8 and Project 1 sequencing/mechanism checks. This book derives its own examples and explanations rather than reproducing textbook prose.
 
 ** NumPy 2.5 documentation
 Authority: official NumPy documentation and official NumPy release-news page.
@@ -22,12 +22,21 @@ URLs:
 - https://numpy.org/doc/2.5/reference/generated/numpy.dot.html
 - https://numpy.org/doc/2.5/reference/generated/numpy.linalg.vector_norm.html
 - https://numpy.org/doc/2.5/reference/generated/numpy.testing.assert_allclose.html
-Inspected material: 1-D =numpy.dot= semantics; dimension errors; vector-norm API; numerical comparison support; 2.5-series release chronology.
-Used by: Project 1's independent numerical oracle. NumPy is deliberately not used to implement the teaching algorithms themselves.
+- https://numpy.org/doc/2.5/reference/generated/numpy.matmul.html
+- https://numpy.org/doc/2.5/reference/generated/numpy.ndarray.shape.html
+Inspected material: 1-D =numpy.dot= semantics; dimension errors; vector-norm API; numerical comparison support; 2.5-series release chronology; =ndarray.shape= dimension tuples; conventional 2-D =matmul= behavior and the =(n,k),(k,m)->(n,m)= compatibility signature; 2-D/1-D multiplication; mismatch errors; and the =@= operator relationship.
+Used by: Project 1's independent vector and matrix numerical oracle. NumPy is deliberately not used to implement the teaching algorithms themselves.
 
 ** Python 3.14.7 =math= documentation
 Authority: official Python documentation.
 URL: https://docs.python.org/3/library/math.html
 Version at retrieval: Python 3.14.7 documentation.
 Inspected material: =math.fsum= accurate floating-point summation, =math.hypot= Euclidean norm, =math.dist= Euclidean distance, and finite-value predicates.
-Used by: Chapter 5 numerical-stability notes and the standard-library implementation choices in Project 1 milestone A.
+Used by: Chapter 5 numerical-stability notes and the standard-library implementation choices inherited by Project 1's vector and matrix layers.
+
+** Python 3.14.7 floating-point tutorial
+Authority: official Python documentation.
+URL: https://docs.python.org/3.14/tutorial/floatingpoint.html
+Version at retrieval: Python 3.14.7 documentation.
+Inspected material: binary representation error, per-operation rounding, =math.fsum= as a more accurate summation tool, and the statement that almost all current platforms map Python =float= to IEEE 754 binary64 values.
+Used by: the Project 1 matrix numerical-failure lab separating exact real-number associativity from finite-precision execution behavior.

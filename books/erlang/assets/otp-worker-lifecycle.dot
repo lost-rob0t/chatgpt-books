@@ -1,0 +1,28 @@
+digraph otp_worker_lifecycle {
+  graph [rankdir=LR, bgcolor="transparent", pad="0.2", nodesep="0.45", ranksep="0.8"];
+  node [shape=box, fontname="sans-serif", fontsize=11];
+  edge [fontname="sans-serif", fontsize=10];
+
+  client [label="client process"];
+  sys [label="sys/debug tools"];
+  supervisor [label="otp_worker_sup\nrestart policy", shape=folder];
+  replacement [label="replacement worker\nfresh init state", style=dashed];
+
+  subgraph cluster_worker {
+    label="one otp_worker gen_server process";
+    fontname="sans-serif";
+    fontsize=10;
+    style=rounded;
+    behaviour [label="gen_server\ngeneric loop", shape=box3d];
+    callback [label="otp_worker callbacks\n+ process-local state"];
+    behaviour -> callback [label="invoke callback"];
+    callback -> behaviour [label="action + NewState", style=dashed];
+  }
+
+  client -> behaviour [label="call / cast"];
+  behaviour -> client [label="reply", style=dashed];
+  sys -> behaviour [label="system messages"];
+  supervisor -> behaviour [label="start_link / child spec"];
+  behaviour -> supervisor [label="linked child exit", style=dashed];
+  supervisor -> replacement [label="restart when policy permits"];
+}
