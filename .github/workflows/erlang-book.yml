@@ -12,13 +12,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1.24.1
+        with:
+          otp-version: '29.0.6'
+          version-type: strict
 
-      - name: Install Erlang and publication tooling
+      - name: Install publication tooling
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y erlang-base erlang-dev erlang-eunit graphviz curl unzip default-jre-headless
+          sudo apt-get install -y graphviz curl unzip default-jre-headless
           curl --fail --location --retry 3 \
             --output pandoc.deb \
             https://github.com/jgm/pandoc/releases/download/3.10.1/pandoc-3.10.1-1-amd64.deb
