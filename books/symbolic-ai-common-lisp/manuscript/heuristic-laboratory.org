@@ -155,7 +155,7 @@ The next fixture restores a delete interaction. There is one token. Either of tw
  (make-action-schema 'left '() '((token))
                      '((left-done)) '((token)))
  (make-action-schema 'right '() '((token))
-                     '((right-done)) '((token)))
+                     '((right-done)) '((token))))
 #+end_src
 
 In the real model, firing either action removes the only precondition of both actions. The second task cannot then be completed. The reachable states are the initial state and the two one-task states; neither one-task state satisfies the whole goal.

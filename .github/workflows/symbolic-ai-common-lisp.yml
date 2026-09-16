@@ -77,6 +77,9 @@ jobs:
       - name: Heuristic laboratory reader examples
         run: sbcl --script books/symbolic-ai-common-lisp/code/planner/run-heuristic-labs.lisp
 
+      - name: Execute Lisp snippets from the canonical heuristic manuscript
+        run: python3 books/symbolic-ai-common-lisp/code/planner/check-lab-manuscript.py
+
       - name: Formal Reasoning Workbench executable tests
         run: sbcl --script books/symbolic-ai-common-lisp/code/formal/run-tests.lisp
 
