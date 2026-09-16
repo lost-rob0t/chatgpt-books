@@ -29,7 +29,7 @@
             (tuple 'ok 'pager)
             (actor-router:route pid event 1000))
 
-    ;; A call waits only for the reply carrying its fresh correlation ref.
+    ;; A request waits only for the reply carrying its fresh correlation ref.
     ;; A stale look-alike reply must remain in the caller mailbox.
     (let ((stale-ref (erlang:make_ref)))
       (! (self) (tuple 'reply stale-ref 'stale))
@@ -51,7 +51,7 @@
 
     (expect 'bad-request-is-protocol-error
             (tuple 'error (tuple 'bad-request 'wat))
-            (actor-router:call pid 'wat 1000))
+            (actor-router:request pid 'wat 1000))
 
     ;; Same sender -> same destination signal order is guaranteed. Queue two
     ;; requests before receiving either reply; the route must observe the rule
@@ -79,9 +79,9 @@
     ;; Timeout is a caller-side observation, not proof that the target died or
     ;; that a request was cancelled. This sink stays alive and ignores calls.
     (let ((sink (spawn 'actor-router-tests 'silent-loop ())))
-      (expect 'call-timeout
+      (expect 'request-timeout
               (tuple 'error 'timeout)
-              (actor-router:call sink 'ignored 20))
+              (actor-router:request sink 'ignored 20))
       (erlang:exit sink 'kill))
 
     (expect 'clean-stop
