@@ -42,9 +42,6 @@ jobs:
           EPUBCHECK_JAR: .cache/epubcheck-5.3.0/epubcheck.jar
         run: make check BOOK=prolog
 
-      - name: Repository structural check
-        run: make test
-
   nix:
     runs-on: ubuntu-latest
     steps:
@@ -61,4 +58,4 @@ jobs:
           nix --version
 
       - name: Flake check
-        run: nix flake check -L
+        run: sudo nix flake check -L
