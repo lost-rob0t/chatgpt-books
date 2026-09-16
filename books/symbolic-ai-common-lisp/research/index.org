@@ -11,6 +11,7 @@
 - [[file:search-project-1-validation.org][Search Library Validation -- Cross-Algorithm Oracles]] -- source-backed metamorphic regression relationships for the Project 1 executable suite.
 - [[file:pattern-unifier-project-2.org][Project 2 Research -- Pattern Matching and First-Order Unification]] -- Robinson/PAIP/ANSI Common Lisp source baseline, finite-term/occurs-check contract, and milestone-A evidence boundaries for issue #45.
 - [[file:pattern-unifier-project-2-validation.org][Project 2 Validation -- Equation Rewriting and Metamorphic Oracles]] -- Martelli--Montanari equation-system source basis, explicit worklist adaptation, bounded metamorphic validation plan, and planner-interface boundary for issue #62.
+- [[file:planner-project-3.org][Project 3 Research -- Explicit State-Space Planning]] -- Fikes/Nilsson STRIPS lineage, Bylander complexity boundary, and the course-local positive-precondition add/delete state-space planner contract for issue #97.
 - [[file:formal-methods-foundations.org][Formal Methods Foundations for Symbolic AI in Common Lisp]] -- primary-source baseline and staged curriculum for formal systems, invariants, model checking, SMT boundaries, ACL2, and verified symbolic-AI components; issue #42.
 * Records
 Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
