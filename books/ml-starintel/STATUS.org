@@ -6,7 +6,7 @@
 Phase 1 -- foundational research.
 * Completed
 - Curriculum and project map initialized.
-- Foundational research passes 01--12 completed as research records; the foundational phase itself remains open.
+- Foundational research passes 01--13 completed as research records; the foundational phase itself remains open.
 - Project 1 executable research harness added with pinned canonical StarIntel schema materialization and Git blob verification.
 - Experiment E StarIntel 0.9 wire-schema Python/Draft-2020-12 smoke matrix TESTED in CI after one recorded FAILED assumption correction; corrected runs pass all 9 smoke checks.
 - D0 narrow synthetic provenance-manifest round trip TESTED in CI.
@@ -25,18 +25,20 @@ Phase 1 -- foundational research.
 - =ml-starintel-research= run 72 completed successfully with 34 passing selected harness tests. The factual GLEIF composite-planner diagnostic placed feeder/master in train and fund manager in test under the default no-blanket-graph policy with zero record, composite-group, entity-ID, future-feature, or straddling contamination. Opt-in feeder/master/manager graph grouping produced one cutoff-straddling component and was rejected as infeasible as expected.
 - Pass 11 froze the scalable near-duplicate contract before measurement: exact normalized-text hashes plus deterministic blocking and MinHash/LSH may propose candidate pairs, but exact normalized token-Jaccard remains the duplicate predicate before component closure.
 - Pass 12 IMPLEMENTED/TESTED that contract in =ml-starintel-research= run 81. The 480-record Tier C fixture has 114,960 possible pairs; the layered candidate union proposed 526 pairs, recovered all 480 exact qualifying pairs, produced 46 false-positive candidates safely rejected by exact verification, matched the all-pairs component oracle exactly, and remained deterministic under tested input permutations. This is a Tier C result, not a production scaling claim.
+- Pass 13 IMPLEMENTED/TESTED the final =composite_group_id= -> scikit-learn grouped-split handoff. =GroupShuffleSplit= and =GroupKFold= receive the already-compiled composite IDs only after point-in-time feature checks; strict temporal evaluation remains a separate =plan_strict_cutoff= path; post-split contamination auditing fails closed when a hard rule was omitted from group compilation. Integration run =35099487725= passed 44 selected harness tests, including all 11 composite-planner tests and the five new grouped-handoff regressions, plus the book build/check and EPUBCheck.
 - Current StarIntel version language rechecked: =starintel-server/schema/starintel-schema.lock.json= reports current =release_version="0.9.1"= with =schema_version="0.9.0"=. The book now distinguishes the 0.9.1 release/profile from the 0.9.0 wire/base schema family instead of calling the current release 0.9.0.
 - Project 1 keeps persistence, routing, actor/runtime, search, and storage semantics behind the StarIntel adapter rather than duplicating them.
 * Active research
 - Freeze a predeclared =num_perm= benchmark grid and a reproducible larger public-corpus/oracle policy, then measure candidate recall, pair reduction, runtime/memory and component agreement without post-hoc tuning.
-- Complete the explicit upstream =GroupShuffleSplit=/=GroupKFold= handoff in the final Project 1 split API after composite/admissibility checks.
 - Verify broader upstream/cross-language StarIntel conformance separately from the Book 1 Python smoke matrix.
 - Finish a deliberate transitive dependency lock/reproducibility policy for Project 1 before implementation chapters harden their environment contract.
+- Convert the tested provenance/leakage/composite-split evidence into reader-facing Chapters 2--5 and Project 1 exercises without promoting synthetic-control metrics into production claims.
 * Unverified claims
-- Larger-public-corpus candidate recall/runtime, adequacy of the current rare-token blocker outside Tier C, the final upstream grouped-split handoff, cross-language conformance equivalence, broader public-dataset scaling behavior, and the final transitive dependency lock remain UNTESTED unless separately recorded as executed.
+- Larger-public-corpus candidate recall/runtime, adequacy of the current rare-token blocker outside Tier C, cross-language conformance equivalence, broader public-dataset scaling behavior, and the final transitive dependency lock remain UNTESTED unless separately recorded as executed.
 - Pass 12's 99.5424495% candidate-pair reduction is specific to the synthetic Tier C fixture and is not a production performance estimate.
+- Grouped random holdout/cross-validation is not evidence of temporal validity; historical evaluation still requires the explicit cutoff/point-in-time path.
 - The refreshed live GLEIF API observations are probes only and are not silently promoted over the committed frozen factual fixture; any fixture refresh requires an explicit provenance/version decision.
 * Technical/editorial/visual review
 Not started.
 * Blockers
-The scalable candidate contract is now tested on the frozen oracle fixture. The next foundational gates are a predeclared larger-corpus candidate benchmark, the final grouped-split API handoff, and a transitive dependency-lock/reproducibility contract. Chapters 2--5 and Project 1 remain RESEARCH/DRAFT until those contracts are reviewed and teaching prose is built from the verified evidence.
+The scalable candidate contract and grouped-split handoff are tested. The remaining foundational gates are the predeclared larger-corpus candidate benchmark and a transitive dependency-lock/reproducibility contract. Chapters 2--5 and Project 1 remain RESEARCH/DRAFT until those contracts are reviewed and teaching prose is built from the verified evidence.
