@@ -44,7 +44,7 @@ books/lfe/code/event-rules/run-tests
 The script:
 1. compiles the exported macro module;
 2. places that beam directory on =lfec='s code path and compiles the kernel, a separate macro consumer, and the regression module;
-3. runs kernel, expansion, generated-versus-hand-written, routing, and deliberate capture regressions on the BEAM;
+3. runs kernel, exported-macro expansion, generated-versus-hand-written, routing, and deliberate capture regressions on the BEAM;
 4. requires =test/bad-rules.lfe= to fail compilation for =bad-event-rule-syntax=;
 5. performs a second smoke test from Erlang itself, calling the LFE-compiled runtime module with ordinary BEAM terms.
 
@@ -56,7 +56,7 @@ That final Erlang call remains the runtime interoperability boundary. The macro 
 3. Remove the empty-rule clause and re-run the suite. The resulting function-clause failure demonstrates why the recursive evaluator needs an explicit base case.
 4. Put =(wat 'nope)= inside =event-rules-dsl:routes=. The deliberately invalid fixture must fail compilation; if it compiles, the DSL accepted syntax it does not understand.
 5. Inspect =unsafe-with-value= in the regression module. It intentionally introduces a common binding name to make LFE's documented non-hygienic capture behavior observable. It is teaching code, not a production helper.
-6. Change the production =routes= macro so it introduces a local binding. Add an adversarial caller using the same name and inspect one-step expansion before running it.
+6. Change the production =routes= macro so it introduces a local binding. Add an adversarial caller using the same name and inspect the exported macro's top-level expansion before running it.
 
 * Scope boundary
 The project now has a tested data kernel and a macro source layer, but still has no process server, mailbox protocol, OTP behaviour, persistence, supervision, distribution, or release. Those arrive only after their chapters establish and test the underlying BEAM semantics.
