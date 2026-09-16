@@ -26,7 +26,7 @@
   status
   trace
   visited
-  complete-p
+  conclusive-p
   reason)
 
 (defun make-transition-system (&key initial-states successors invariant (key #'identity))
@@ -61,6 +61,10 @@ Returns a CHECK-RESULT whose STATUS is one of:
                counterexample in transition count because exploration is BFS.
   :BOUNDED  -- MAX-STATES prevented exhaustive exploration.  This is not proof.
   :UNKNOWN  -- the model reported that some successor relation was unavailable.
+
+CONCLUSIVE-P is true only when the result settles the stated invariant claim:
+PROVED exhausts the supplied finite model, while REFUTED has a concrete
+counterexample.  BOUNDED and UNKNOWN remain explicitly inconclusive.
 
 The function proves a property of the supplied model, not arbitrary host code.
 The proof claim is only as strong as the model, invariant, and state identity
@@ -100,12 +104,12 @@ function supplied by the caller."
                      (when (eq parent root-marker)
                        (return trace))
                      (setf cursor parent)))))
-             (result (status &key trace complete-p reason)
+             (result (status &key trace conclusive-p reason)
                (make-check-result
                 :status status
                 :trace trace
                 :visited visited
-                :complete-p complete-p
+                :conclusive-p conclusive-p
                 :reason reason))
              (admit (state parent-key)
                (let ((key (funcall key-function state)))
@@ -131,10 +135,10 @@ function supplied by the caller."
           (case status
             (:refuted
              (return-from check-invariant
-               (result :refuted :trace trace :complete-p t)))
+               (result :refuted :trace trace :conclusive-p t)))
             (:bounded
              (return-from check-invariant
-               (result :bounded :complete-p nil
+               (result :bounded :conclusive-p nil
                        :reason "MAX-STATES prevented complete initial-state admission."))))))
       (loop until (queue-empty-p)
             for key = (dequeue)
@@ -146,7 +150,7 @@ function supplied by the caller."
                            (return-from check-invariant
                              (result :unknown
                                      :trace (trace-for key)
-                                     :complete-p nil
+                                     :conclusive-p nil
                                      :reason (unknown-reason condition)))))))
                  (unless (listp next-states)
                    (error 'invalid-transition-system
@@ -158,9 +162,9 @@ function supplied by the caller."
                      (case status
                        (:refuted
                         (return-from check-invariant
-                          (result :refuted :trace trace :complete-p t)))
+                          (result :refuted :trace trace :conclusive-p t)))
                        (:bounded
                         (return-from check-invariant
-                          (result :bounded :complete-p nil
+                          (result :bounded :conclusive-p nil
                                   :reason "MAX-STATES prevented exhaustive reachability exploration."))))))))
-      (result :proved :complete-p t))))
+      (result :proved :conclusive-p t))))
