@@ -1,0 +1,51 @@
+name: erlang-book
+
+on:
+  pull_request:
+    paths:
+      - 'books/erlang/**'
+      - '.github/workflows/erlang-book.yml'
+  workflow_dispatch:
+
+jobs:
+  erlang-book:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Erlang and publication tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y erlang-base erlang-dev erlang-eunit graphviz curl unzip default-jre-headless
+          curl --fail --location --retry 3 \
+            --output pandoc.deb \
+            https://github.com/jgm/pandoc/releases/download/3.10.1/pandoc-3.10.1-1-amd64.deb
+          sudo dpkg -i pandoc.deb
+          curl --fail --location --retry 3 \
+            --output epubcheck.zip \
+            https://github.com/w3c/epubcheck/releases/download/v5.3.0/epubcheck-5.3.0.zip
+          unzip -q epubcheck.zip -d .cache
+          erl -noshell -eval 'io:format("OTP ~s~n", [erlang:system_info(otp_release)]), halt().'
+          pandoc --version | head -1
+          java -jar .cache/epubcheck-5.3.0/epubcheck.jar --version
+
+      - name: Run Erlang foundations tests
+        run: ./books/erlang/code/foundations/run-tests.sh
+
+      - name: Build Erlang book
+        run: make book BOOK=erlang
+
+      - name: Validate Erlang book
+        env:
+          EPUBCHECK_JAR: ${{ github.workspace }}/.cache/epubcheck-5.3.0/epubcheck.jar
+        run: make check BOOK=erlang
+
+  nix-evaluation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - name: Evaluate repository flake
+        run: nix flake check -L
