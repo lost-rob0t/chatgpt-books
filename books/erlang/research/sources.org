@@ -72,3 +72,22 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Relevant sections :: behavior purpose, start/start_link, call/cast, callback mapping, tracing/system messages.
 - Used for :: Chapter 3 preview and Chapter 6 explanation of what OTP standardizes.
 - Claim status :: DOCUMENTED. No Project 2 implementation claim yet.
+
+* Inspected 2026-09-16 -- failure-semantics pass 02
+** Processes -- Erlang System Documentation v29.0.6, failure relationships
+- URL :: https://www.erlang.org/doc/system/ref_man_processes.html
+- Authority :: Official Erlang/OTP reference documentation.
+- Retrieved :: 2026-09-16.
+- Relevant sections :: Links; Sending Exit Signals; Receiving Exit Signals; Monitors; signals and signal ordering.
+- Used for :: Chapters 7--9 and Project 1 checkpoint B.
+- Result :: Links are bidirectional and emit exit signals when a participant terminates. Whether an exit terminates a receiver, is dropped, or becomes an =EXIT= message depends on the trap-exit state, reason, sender, link flag, and current link state. Monitors are one-way and independently identified; process termination produces a correlated =DOWN=, and monitoring a nonexistent process produces =noproc=.
+- Claim status :: DOCUMENTED.
+
+** erlang -- OTP 29.0.6 / ERTS 17.0.6 BIF reference
+- URL :: https://www.erlang.org/doc/apps/erts/erlang.html
+- Authority :: Official Erlang/OTP ERTS reference documentation.
+- Retrieved :: 2026-09-16.
+- Relevant sections :: =monitor/2=, =demonitor/2=, =unlink/1=, =process_flag/2= with =trap_exit=, =exit_signal/2=, deprecated =exit/2= note.
+- Used for :: Chapters 7--9, teardown-race explanation, and the Project 1 failure lab.
+- Result :: =unlink/1= gives a post-return no-future-link-effect guarantee while permitting an already-queued trapped exit message. =demonitor(Ref,[flush])= removes the monitor and flushes a matching =DOWN= already in the mailbox. OTP 29.0 introduced =exit_signal/2=; explicit reason =kill= is untrappable and the target terminates with reason =killed=. The reference says application processes normally are not to trap exits.
+- Claim status :: DOCUMENTED. The checkpoint-B runtime examples at implementation head =4472458a666db2fac70f79f9b8dc3dd48fda48c1= were EXECUTION VERIFIED on pinned OTP 29.0.6 by PR #40 focused workflow run =35096523655=; later branch revisions still require their own fresh integration gate.

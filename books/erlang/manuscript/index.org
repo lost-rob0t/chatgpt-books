@@ -18,4 +18,12 @@
 
 #+include: "chapter-06.org"
 
+* Part II -- Building Useful Systems
+
+#+include: "chapter-07.org"
+
+#+include: "chapter-08.org"
+
+#+include: "chapter-09.org"
+
 #+include: "next.org"
