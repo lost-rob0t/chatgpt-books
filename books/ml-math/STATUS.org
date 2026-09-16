@@ -3,7 +3,7 @@
 :ID:       a17cabf5-9a39-5f0c-b427-a240f5719522
 :END:
 * Phase
-Foundational research + Project 1 checkpoint A are merged. Project 1 checkpoint B -- matrices, transformations, and the finite-precision failure lab -- is editorially APPROVED as a bounded milestone and is awaiting fresh exact-head objective gates on the approval-state commit. The complete long-form book remains far from release-ready and is not DONE.
+Foundational research plus Project 1 checkpoints A and B are merged on canonical =main=. Checkpoint B -- matrices, transformations, and the finite-precision failure lab -- is editorially APPROVED as a bounded milestone and merged through PR #60 as =f6ba7459fba79e02dfec6d6129e85b5c60af14b3=. The complete long-form book remains far from release-ready and is not DONE.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
 - First source-grounded research pass recorded for the arithmetic-to-vector sequence and current numerical tooling.
@@ -19,6 +19,7 @@ Foundational research + Project 1 checkpoint A are merged. Project 1 checkpoint 
 - A finite-real rectangular matrix layer extends the accepted vector kernel without importing NumPy; it exposes matrix admission/shape/columns/transpose, matrix-vector multiplication, an independently constructed column-combination path, matrix multiplication, identity, and point transformation.
 - A deterministic accessible SVG generator applies the teaching implementation to the standard basis and unit square so the transformed columns/parallelogram are derived from code rather than hand-drawn coordinates.
 - The Editor-in-Chief reviewed the manuscript, numerical lab, implementation/tests, project/status/research records, and current Python/NumPy/Strang source claims and marked checkpoint B APPROVED in PR #60.
+- PR #60 merged as =f6ba7459fba79e02dfec6d6129e85b5c60af14b3= after exact-head objective gates completed successfully.
 * Active research
 Foundational research remains IN-PROGRESS beyond checkpoint B. Calculus, probability, information theory, optimization, decompositions, and later numerical-stability work remain open.
 * Verification state
@@ -26,17 +27,17 @@ Foundational research remains IN-PROGRESS beyond checkpoint B. Calculus, probabi
 - HISTORICAL TESTED evidence for accepted checkpoint A: generic =books-ci= run =35102323887= passed structural validation, Pandoc Org-reader behavior, deterministic publication assets, EPUB validation, publication regressions, per-book citation rendering, ERT, and real Org-roam synchronization.
 - RECOVERY TESTED: PR #47 restored the accepted checkpoint on current-era main with focused =ml-math-book= run =35108008247= and generic =books-ci= run =35108008220= green at recovery head =1d92a958ae93f2ba301f7a44f8db1c624ad45bd3=.
 - HISTORICAL PR TESTED for checkpoint B before the finite-precision lab: focused =ml-math-book= run =35115611377= and generic =books-ci= run =35115611420= were green at head =5e272e0b052fbf3900313481469902e0109b336d=.
-- TESTED for the completed pre-editor checkpoint-B head =7066844553102a8f6e35f90cb2a3aa9873478fa1=: focused =ml-math-book= run =35117040518= passed CPython 3.14.7 + NumPy 2.5.0, all 32 vector/matrix regressions including the finite-precision underflow case, deterministic figure regeneration, Python compilation, =make book BOOK=ml-math=, =make check BOOK=ml-math=, EPUBCheck 5.3.0 with 0 messages, and the Nix gate; generic =books-ci= run =35117040553= also completed SUCCESS.
-- The worker normally reconciled the branch with canonical =main= =ec934223146cbf1a3293ea31e5041728196113c2= at head =b9ea83b7eb2f7cc4850f46a49a5daa9e842ec3ce= with 0 commits behind. Focused =ml-math-book= run =35120298053= completed SUCCESS on that current-main integration head; generic =books-ci= run =35120298030= was still in progress when this approval-state update was written and is not claimed as green evidence here.
-- This approval-state commit is a new exact head and therefore must itself pass focused =ml-math-book= and generic =books-ci= before merge. Earlier successful runs remain evidence only for their recorded heads.
+- HISTORICAL TESTED for the completed pre-editor checkpoint-B head =7066844553102a8f6e35f90cb2a3aa9873478fa1=: focused =ml-math-book= run =35117040518= passed CPython 3.14.7 + NumPy 2.5.0, all 32 vector/matrix regressions including the finite-precision underflow case, deterministic figure regeneration, Python compilation, =make book BOOK=ml-math=, =make check BOOK=ml-math=, EPUBCheck 5.3.0 with 0 messages, and the Nix gate; generic =books-ci= run =35117040553= also completed SUCCESS.
+- FINAL PR TESTED at exact head =f9e795f5457fd2fba5ca39f3a7d0fc41894fab6e= against canonical =main= =1e3d0bb1cc4ff8dc8ef57cb3d78d56defacb79d1=: focused =ml-math-book= run =35121033295= completed SUCCESS with CPython 3.14.7, NumPy 2.5.0, all 32 vector/matrix regressions, both deterministic figures, Python compilation, structural validation, =make book BOOK=ml-math=, =make check BOOK=ml-math=, EPUBCheck 5.3.0 with 0 fatals / 0 errors / 0 warnings / 0 infos, and =nix flake check -L=; generic =books-ci= run =35121033261= also completed SUCCESS through structural, Pandoc Org-reader, publication/citation, ERT, and real Org-roam gates.
+- Canonical merge commit for checkpoint B: =f6ba7459fba79e02dfec6d6129e85b5c60af14b3=.
 * Unverified claims
 - No performance benchmark is claimed.
 - This checkpoint does not claim NumPy-equivalent broadcasting, dtype, BLAS, sparse, or batched-array behavior.
 - The one-by-one underflow example is a TESTED execution case for stated runtimes, not a claim that every Python implementation or floating-point representation exposes the identical boundary.
 - Solving linear systems, determinants/inverses, decompositions, later regression/optimization/probability work, and neural-network project results do not yet exist.
 * Technical/editorial/visual review
-Chapters 1--5 + Project 1 checkpoint A are accepted/merged. Chapters 6--8 + Project 1 checkpoint B are editorially APPROVED as a bounded matrix/transformations milestone after manuscript, code, numerical-failure, diagram, and provenance review. This approval does not mark the whole ML-Math book DONE.
+Chapters 1--5 + Project 1 checkpoint A and Chapters 6--8 + Project 1 checkpoint B are accepted and merged as bounded milestones. This approval does not mark the whole ML-Math book DONE.
 * Next dependency-ready slice
-After checkpoint B merges, proceed in curriculum order toward scalar/vector calculus and derivatives before Project 2 linear-regression training.
+Proceed in curriculum order toward scalar/vector calculus and derivatives before Project 2 linear-regression training.
 * Blockers
-No known mathematical, code, or editorial blocker remains in checkpoint B. The sole merge gate is fresh exact-head focused/generic CI on this approval-state commit. Any failure must be repaired before merge; no auto-merge is authorized.
+No known blocker remains for the accepted Project 1 checkpoints. The book remains intentionally incomplete; later curriculum, projects, capstone, final technical review, and release gates are still open.
