@@ -79,6 +79,25 @@ jobs:
       - name: Build Symbolic AI in Common Lisp
         run: make book BOOK=symbolic-ai-common-lisp
 
+      - name: Verify formal chapter is in the EPUB
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from zipfile import ZipFile
+
+          epub = "books/symbolic-ai-common-lisp/dist/symbolic-ai-common-lisp.epub"
+          with ZipFile(epub) as archive:
+              rendered = "\n".join(
+                  archive.read(name).decode("utf-8", errors="ignore")
+                  for name in archive.namelist()
+                  if name.endswith((".xhtml", ".html"))
+              )
+          needle = "Why symbolic AI should teach proof"
+          if needle not in rendered:
+              raise SystemExit(f"published EPUB is missing included formal chapter heading: {needle!r}")
+          PY
+
       - name: Validate Symbolic AI in Common Lisp
         env:
           EPUBCHECK_JAR: .cache/epubcheck-5.3.0/epubcheck.jar
