@@ -1,0 +1,178 @@
+** Chapter 7 -- Links: Making Shared Fate Explicit
+:PROPERTIES:
+:ID:       84df10b6-802f-44d1-972e-6b013f5ebdb4
+:END:
+
+Project 1 already has two independent processes: a caller and the messaging server. So far
+we have mostly treated process death as something a caller can /observe/. Erlang also has a
+primitive for saying that the lifetime of two processes is related: a *link*.
+
+That distinction matters. A monitor asks, "tell me if that process dies." A link says,
+"our failure domains are connected." Those are different statements, and confusing them
+is one of the fastest ways to make a concurrent program mysterious.
+
+The current Erlang/OTP process reference defines a link between processes as
+bidirectional. There can be only one link between a given pair, repeated =link/1= calls do
+not create stacked links, and either participant can remove the relationship with
+=unlink/1=. When one linked participant terminates, it sends an exit signal carrying its
+exit reason to the other. [cite:@erlang-processes]
+
+*** Start with the smallest failure graph
+
+Imagine a controller process that starts one worker:
+
+#+begin_src erlang
+Worker = spawn_link(fun worker/0)
+#+end_src
+
+The important part is not the convenience of starting a process. =spawn_link= performs
+the spawn and link operation as one runtime operation, rather than asking application code
+to create a process and then race to link it afterward. [cite:@erlang-processes]
+
+If the worker later terminates abnormally and the controller is not trapping exits, the
+linked exit signal can terminate the controller with the same reason. The controller then
+emits its own exit signals to its links. This is how a local failure can deliberately move
+through a connected failure domain.
+
+#+caption: A link propagates failure while a monitor observes it. Trapping exits changes how eligible exit signals are received; it does not create a restart policy.
+#+attr_html: :alt "Diagram showing a controller linked bidirectionally to a worker, an abnormal worker exit either terminating the controller or becoming an EXIT message when trapping exits, and a separate observer monitor receiving a DOWN notification."
+[[file:assets/failure-propagation.svg]]
+
+The editable source is =../assets/failure-propagation.dot=.
+
+*** Normal termination is intentionally different
+
+Beginners often hear "linked processes die together." That slogan is too coarse to be a
+contract.
+
+For a process that is /not/ trapping exits, an active linked exit whose reason is something
+other than =normal= causes the receiver to terminate. A linked exit with reason =normal=
+is ordinarily dropped for a non-trapping receiver. [cite:@erlang-processes]
+
+That difference lets a process finish normally without automatically tearing down every
+linked peer. It also means that the word "linked" alone is not enough to predict behavior.
+When debugging a failure chain, you need at least:
+
+1. the two process identities;
+2. whether a link is still active;
+3. the exit reason;
+4. whether the receiving process traps exits.
+
+A production incident report that says only "the worker was linked" has left out most of
+the evidence needed to explain why another process did or did not die.
+
+*** A link is a failure relationship, not supervision
+
+Suppose our messaging system grows a parser process and a storage process. We could link
+them all together, but that would not answer any of these questions:
+
+- Which process owns starting the others?
+- Which process is allowed to restart a failed child?
+- How many restarts are acceptable in a time window?
+- Should one child restart or the entire group?
+- What initial state does a replacement receive?
+- What state was lost with the dead process?
+
+A link carries an exit signal. It does not contain a restart strategy. OTP supervisors,
+introduced later, build policy around this lower-level failure relationship. Keeping the
+layers separate now makes supervision much easier to understand later.
+
+*** Unlinking is a state transition with a boundary
+
+Failure relationships sometimes change during teardown. Current OTP documents a useful
+postcondition for =unlink(Pid)=: once the call returns, that removed link has no future
+effect on the caller unless the link is created again. The underlying removal is
+asynchronous, however, and a process that traps exits can already have an ={'EXIT', Pid,
+Reason}= message in its mailbox before =unlink/1= returns. [cite:@erlang-bifs]
+
+Those facts are not contradictory. They describe two different points in time:
+
+#+begin_example
+past signal may already be queued | unlink() returns | old link cannot affect caller later
+------------------------------- time -------------------------------------------->
+#+end_example
+
+This pattern appears throughout concurrent systems: cancelling or removing a relationship
+can stop /future/ effects without erasing evidence that crossed the boundary before the
+operation completed.
+
+The failure lab makes that boundary visible without depending on sleep-based guesses. Its
+controller first =spawn_link=s a worker, then calls =unlink(Worker)=, then installs a
+monitor so it has an observation channel. Only after the unlink has returned does the test
+ask the worker to crash. The expected claim is precise: the controller remains alive
+because the old link can no longer kill it, while the monitor still reports the worker's
+termination.
+
+*** Why not test this by sleeping?
+
+A bad concurrency test looks like this:
+
+#+begin_src erlang
+Worker ! crash,
+timer:sleep(50),
+?assert(is_process_alive(Controller)).
+#+end_src
+
+It has no synchronization proving what the worker had done before the assertion. A faster
+or slower scheduler can change whether the sleep is long enough.
+
+The book's labs instead use explicit messages and monitors as barriers. A controller tells
+the observer when setup has completed; the observer then triggers the crash; a monitor or
+correlated message establishes the outcome. Timeouts remain as /test failure bounds/, not
+as evidence that a concurrent event must have happened.
+
+*** Project 1 failure lab: untrapped propagation
+
+=books/erlang/code/foundations/src/pmsg_failure_lab.erl= creates an isolated controller so
+we can demonstrate linked failure without risking the EUnit runner itself. The structure is
+roughly:
+
+#+begin_src erlang
+Controller = spawn(fun() ->
+    Worker = spawn_link(fun worker/0),
+    Observer ! {ready, Ref, self(), Worker},
+    receive
+        {crash_worker, Ref, Reason} ->
+            Worker ! {crash, Reason},
+            receive stop -> ok end
+    end
+end),
+Mon = erlang:monitor(process, Controller)
+#+end_src
+
+After setup is acknowledged, the observer asks the worker to exit with =boom=. The
+controller is not trapping exits. Its own monitor lets the test observe that the linked
+failure propagated without making the test process part of that same link graph.
+
+This is a recurring testing technique: observe a dangerous topology from outside rather
+than making the test harness itself one of the failure-coupled processes.
+
+*** Debugging a link failure
+
+When several processes disappear together, work outward from the first known termination:
+
+1. Record the first process you can prove terminated and its exit reason.
+2. Enumerate which links existed at that time; do not substitute a startup diagram for
+   runtime evidence.
+3. For each receiver, determine its =trap_exit= state when the signal arrived.
+4. Distinguish an exit caused by a link from an explicit exit signal sent by application
+   code.
+5. Continue only along relationships that can actually propagate that reason.
+
+This avoids the lazy diagnosis "Erlang cascaded the crash." The runtime followed a set of
+relationships and signal rules. Our job is to make those relationships intentional.
+
+*** Failure exercises
+
+1. ★ Predict what happens when two linked, non-trapping processes terminate normally at
+   different times. Then write a minimal experiment that observes both deaths from a third
+   process using monitors.
+2. ★★ Modify the failure lab locally so the controller calls =unlink/1= /after/ it requests
+   the worker crash. Explain why a deterministic test now needs an additional barrier; a
+   sleep is not an acceptable substitute.
+3. ★★ Draw a failure graph containing an HTTP connection process, a request worker, and an
+   in-memory cache. Mark which relationships you would link and which you would only
+   monitor. State what shared-fate assumption justifies every link.
+4. ★★★ A controller owns state that cannot be reconstructed after a worker crash. Explain
+   why adding a link does not solve the recovery problem. Identify what persistence or
+   replay boundary a later design would need.

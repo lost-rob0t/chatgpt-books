@@ -1,0 +1,207 @@
+** Chapter 8 -- Monitors: Observe Failure Without Sharing It
+:PROPERTIES:
+:ID:       c968bb91-e186-4589-aa6a-16d7b9859ae7
+:END:
+
+A link couples failure domains. A monitor does not. It gives one process a one-way
+notification when another process terminates.
+
+That sounds like a small difference. Architecturally, it is huge.
+
+If a web request process wants to know whether a database adapter dies, it may need an
+observation channel without agreeing to die with the adapter. If a caller waits for a
+server reply, it needs to distinguish "the server died" from "my local deadline expired."
+Those are monitor-shaped relationships.
+
+Current Erlang/OTP defines process monitors as unidirectional. Calling
+=erlang:monitor(process, Pid)= returns a reference. If the monitored process terminates,
+the monitoring process receives:
+
+#+begin_src erlang
+{'DOWN', Ref, process, Pid, Reason}
+#+end_src
+
+Repeated monitor calls create independent monitors, each with its own reference and its own
+=DOWN=. Monitoring a process that does not exist produces a =DOWN= whose reason is
+=noproc=. [cite:@erlang-processes]
+
+*** Observation is not propagation
+
+Compare the two primitives directly:
+
+| Property | Link | Monitor |
+|-
+| Direction | bidirectional | one-way |
+| Normal payload | exit signal | correlated =DOWN= message |
+| Can couple receiver death to peer death? | yes, depending on exit handling | no |
+| Multiple independent relationships between same two processes | one link | yes, separate monitor refs |
+| Typical question | "should our failure fates be related?" | "tell me when that process is gone" |
+
+The table is not saying monitors are safer and links are dangerous. It is saying they solve
+different problems. OTP supervisors need linked relationships because supervision is not
+merely observing a child. A request helper often wants a monitor because it should report a
+server death to its caller rather than die alongside the server.
+
+That is exactly why Project 1's =pmsg_server:call/3= monitors the server instead of linking
+to it.
+
+*** Correlation matters for failure too
+
+In Chapter 6, every request got a fresh request reference. Monitors use the same broad idea:
+a unique reference identifies the observation relationship.
+
+#+begin_src erlang
+Mon = erlang:monitor(process, Pid),
+receive
+    {reply, RequestRef, Reply} ->
+        ...;
+    {'DOWN', Mon, process, Pid, Reason} ->
+        ...
+end
+#+end_src
+
+The request reference answers "which reply is this?" The monitor reference answers "which
+liveness observation is this?" Using both means unrelated mailbox traffic can remain in the
+mailbox while the receive selects only the protocol events for this call.
+
+Do not collapse them into one mental token. They belong to different relationships and
+have different lifetimes.
+
+*** The teardown race is part of the protocol
+
+Suppose a reply arrives successfully. We no longer care whether the server dies later, so
+we remove the monitor. A naive helper might write:
+
+#+begin_src erlang
+erlang:demonitor(Mon),
+Reply
+#+end_src
+
+The current BIF documentation explains the race: after plain =demonitor/1= returns, no
+future =DOWN= caused by that monitor will be queued, but a matching =DOWN= might already
+have reached the mailbox. [cite:@erlang-bifs]
+
+Project 1 instead uses:
+
+#+begin_src erlang
+erlang:demonitor(Mon, [flush])
+#+end_src
+
+The =[flush]= option removes the monitor and, when present, removes one already-queued
+matching =DOWN= notification. [cite:@erlang-bifs]
+
+This is not mailbox housekeeping trivia. It is protocol cleanup. A stale =DOWN= left behind
+can later confuse code that makes overly broad receive matches, inflate the mailbox, or
+make a debugging trace look like an unexplained later failure.
+
+The general pattern is worth keeping:
+
+1. create an observation relationship;
+2. correlate events by its identity;
+3. explicitly end the relationship;
+4. account for evidence that may already have crossed the asynchronous boundary.
+
+We will see the same shape again in timers, distributed monitors, and request cancellation.
+
+*** Monitoring a process that is already gone
+
+There is no safe pattern of:
+
+#+begin_src erlang
+case is_process_alive(Pid) of
+    true -> erlang:monitor(process, Pid);
+    false -> already_dead
+end
+#+end_src
+
+for proving that =Pid= will stay alive between the check and monitor creation. Liveness can
+change immediately after =is_process_alive/1= returns.
+
+The monitor primitive avoids requiring that check. If the process no longer exists, the
+monitor resolves through a =DOWN= with =noproc=. [cite:@erlang-processes]
+
+That gives the application one event model for "died after I started observing" and "was
+already gone before the monitor took effect." The exact reason still matters, but there is
+no check-then-act liveness window in application code.
+
+*** Monitors do not prove why work failed
+
+A =DOWN= tells you about a process lifetime, not the semantic status of every request it
+was handling.
+
+Imagine the messaging server performs an external write and then dies before replying.
+The caller can observe:
+
+#+begin_example
+{'DOWN', Mon, process, Server, boom}
+#+end_example
+
+That does not prove the write failed. It also does not prove the write succeeded. The
+process lifetime and the external effect's commit state are different facts.
+
+This is why Chapter 6 refused to promise safe retries merely because the server was
+monitored. A retry policy needs an idempotency or transaction contract at the external
+boundary, not stronger wishful thinking about process death.
+
+*** Distributed monitors add another reason
+
+Later, when Project 4 spans nodes, monitoring can report loss of connectivity as well as
+process termination. Current OTP documentation describes =noconnection= for monitor failure
+caused by a lost node connection. [cite:@erlang-bifs]
+
+That is deliberately only a preview. A =noconnection= observation does not let us infer
+that the remote process is dead; it says the observation path has failed. The distributed
+chapters will treat that uncertainty as a first-class failure mode rather than quietly
+pretending a network partition is a local process crash.
+
+*** Project 1 failure lab: monitor without shared fate
+
+The new failure lab includes a worker with no link to the test process:
+
+#+begin_src erlang
+Worker = spawn(fun worker/0),
+Mon = erlang:monitor(process, Worker),
+Worker ! {crash, boom},
+receive
+    {'DOWN', Mon, process, Worker, boom} ->
+        observed
+end
+#+end_src
+
+The important result is not merely the =DOWN=. The observer remains alive and continues
+executing. The worker's death becomes data at the observer boundary.
+
+That is the contract Project 1's call helper needs: server failure is reportable as
+={error, {server_down, Reason}}= instead of silently becoming caller failure.
+
+*** Debugging monitor problems
+
+When a process appears to receive stale or missing =DOWN= messages, inspect the monitor
+lifecycle instead of blaming the scheduler:
+
+1. Capture the monitor reference when it is created.
+2. Confirm every receive matches that exact reference.
+3. Find every =demonitor= path, including timeout and success paths.
+4. Check whether teardown uses =[flush]= where a queued =DOWN= would be unwanted.
+5. Search for broad patterns such as ={'DOWN', _, process, _, _}= that can consume another
+   subsystem's notification.
+6. If the peer is remote, distinguish process termination from =noconnection= before
+   deciding what recovery action means.
+
+Monitor references are cheap identifiers. Use them. Throwing away correlation because "we
+only monitor one process right now" is how later refactors inherit accidental mailbox
+coupling.
+
+*** Failure exercises
+
+1. ★ Monitor a process that has already terminated. Record the actual =DOWN= shape and
+   explain why this is better than a check-then-monitor sequence.
+2. ★★ Create two independent monitors of the same worker. Verify that each reference has
+   its own =DOWN= notification, then demonitor one before the worker dies and explain the
+   observed difference.
+3. ★★ Replace Project 1's =demonitor(Mon, [flush])= locally with =demonitor(Mon)= and build
+   a deterministic harness that can leave a stale =DOWN= in the caller mailbox. Do not use
+   a timing-only assertion.
+4. ★★★ A service call receives =noconnection= for a remote monitored process after it has
+   submitted a non-idempotent request. List what the caller knows, what it does not know,
+   and what additional application contract is required before retrying.

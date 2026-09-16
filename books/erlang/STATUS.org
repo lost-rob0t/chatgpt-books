@@ -3,25 +3,33 @@
 :ID:       d6e44158-2832-50d8-a190-10ac46216f77
 :END:
 * Phase
-Foundational research + progressive chapter/project drafting.
+Foundational research + progressive chapter/project drafting. Project 1 checkpoint A is merged; failure-semantics checkpoint B is editorially APPROVED as a bounded milestone subject to the exact-head objective merge gates. The whole book remains far from release-ready and is not DONE.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
 - Foundational primary-source pass 01 documents OTP 29 terms, pattern matching, process/signal/mailbox semantics, monitor behavior, selective-receive cost, and the OTP 28+ priority-message caveat.
-- Chapters 1--6 contain a substantial first draft tied to Project 1 checkpoint A.
+- Chapters 1--6 contain a substantial foundation draft tied to Project 1 checkpoint A.
 - Project 1 checkpoint A includes runnable Erlang source, EUnit regressions, deliberate timeout/crash injection, and an editable request/failure-flow diagram.
-- The editorial transition out of the foundation slice explicitly separates runtime ordering from application order, timeout from cancellation, monitoring from restart policy, and supervision from persistence before OTP is introduced.
-- PR #21 was editorially APPROVED for this bounded milestone and merged to canonical main as =1ca38e64492d163ddaa63fa9aa9ac5477f370679=.
+- The checkpoint-A editorial transition explicitly separates runtime ordering from application order, timeout from cancellation, monitoring from restart policy, and supervision from persistence before OTP is introduced.
+- PR #21 was editorially APPROVED for checkpoint A and merged to canonical main as =1ca38e64492d163ddaa63fa9aa9ac5477f370679=.
+- Failure-semantics pass 02 and Chapters 7--9 derive links, monitors, exit signals, =trap_exit=, unlink/demonitor teardown boundaries, explicit =kill= behavior, failure cascades, and the distinction between process restart and state recovery.
+- Project 1 checkpoint B adds a real-process failure lab and five focused regressions for linked abnormal-exit propagation, trapped =EXIT= delivery, monitor-only crash observation, post-=unlink/1= survival, and untrappable =kill=.
+- Editable failure-propagation Graphviz source and deterministic SVG are included for checkpoint B.
+- Editorial review accepts the checkpoint-B progression: links establish failure coupling, monitors establish observation without coupling, =trap_exit= turns eligible linked exits into messages, teardown operations have explicit race boundaries, and restart policy remains distinct from state recovery.
 * Active research
-Foundational research is not complete. Links/exit semantics, OTP behaviours/supervision, releases, distribution, persistence boundaries, testing/tracing/observability, and production debugging remain queued.
+Foundational research is not complete. OTP behavior contracts (=gen_server=, supervisors, applications), releases, distribution, persistence boundaries, testing/tracing/observability, and production debugging remain queued.
 * Verification status
-- DOCUMENTED: foundational pass 01 primary-source claims.
-- Final reviewed PR head =bbb2b1bb9eb2c21735b25b1f561dba78effb84a0= passed =erlang-book= run =35094332998= and generic =books-ci= run =35094332993= before merge.
-- The focused gate re-executed the Erlang foundations tests, production book build/check, and Nix evaluation successfully. The earlier exact-runtime record for the same implementation used Erlang/OTP 29.0.6 and observed all 9 EUnit tests passing with zero skips.
-- EPUBCheck 5.3.0 reported zero findings on the accepted foundation slice.
-- The previous repository-wide fixed-book-set structural failure is RESOLVED by issue #27 / PR #29; it is no longer an Erlang blocker.
-- No performance benchmark claims are made by this milestone.
+- DOCUMENTED: foundation pass 01 and failure-semantics pass 02 primary-source claims.
+- Checkpoint A final reviewed head =bbb2b1bb9eb2c21735b25b1f561dba78effb84a0= passed =erlang-book= run =35094332998= and generic =books-ci= run =35094332993= before merge. The earlier exact-runtime record for the same implementation used Erlang/OTP 29.0.6 and observed all 9 EUnit tests passing with zero skips; EPUBCheck 5.3.0 reported zero findings.
+- TESTED at reviewed checkpoint-B implementation head =d86153a35835d9c327a00a7ea987ec47b8ab34d0=: focused =erlang-book= run =35096820355= executed Erlang/OTP 29.0.6 / ERTS 17.0.6, compiled with =erlc -Werror=, passed all 14 EUnit tests including the five new failure regressions, passed =make book BOOK=erlang= and =make check BOOK=erlang=, produced EPUBCheck 5.3.0 with 0 fatals / 0 errors / 0 warnings / 0 infos, and passed the recorded Nix repository evaluation.
+- TESTED after the prior current-main reconciliation at implementation/status head =1bf98bf9c83bbad1f742139ad03ead3cb4f13b50=: focused =erlang-book= run =35102871602= and generic =books-ci= run =35102871033= both succeeded; the focused run observed Erlang/OTP 29.0.6 / ERTS 17.0.6 and all 14 tests passing.
+- The branch has since been normally reconciled with canonical =main= =29d231e49d09cd2a749dc0cf9432189651341d42= through merge commit =f8d5021e74839dbc7dc70dba22fef4f25a31dc6a= so the merged Prolog+LLMs work is preserved rather than overwritten. The final editorial status commit requires its own fresh exact-head focused and generic CI; earlier green runs remain evidence only for the exact revisions they tested.
+- The previous repository-wide fixed-book-set structural failure is RESOLVED by issue #27 / PR #29.
+- No performance benchmark claims are made by either checkpoint.
 * Technical/editorial/visual review
-- Chapters 1--6 / Project 1 checkpoint A: editorially APPROVED as a bounded slice.
+- Chapters 1--6 / Project 1 checkpoint A: editorially APPROVED and merged as a bounded slice.
+- Chapters 7--9 / Project 1 checkpoint B: APPROVED for merge as a bounded slice, subject to fresh exact-head objective gates. This approval does not mark the whole book DONE.
 - Whole book: not DONE and not in final technical/editorial/visual review.
+* Next dependency-ready slice
+Research OTP design principles, then convert the hand-written Project 1 process protocol into Project 2 =gen_server= behavior work and derive supervision policy from the failure semantics already established. Later applications/releases, distribution, persistence boundaries, tracing/observability, and production debugging remain open.
 * Blockers
-No repository-wide CI blocker for the next Erlang slice. Dependency-aware work continues with links, exit signals, trapping exits, monitor/link races and failure propagation, followed by =gen_server=, supervision, applications/releases, distribution, persistence boundaries, tracing/observability and production debugging.
+No known checkpoint-B content blocker remains. Merge is blocked only until the exact current editorial head is non-draft/mergeable and its applicable focused and generic checks complete successfully with no unresolved blocking discussion.

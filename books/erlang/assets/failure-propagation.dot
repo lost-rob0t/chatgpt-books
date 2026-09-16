@@ -1,0 +1,20 @@
+digraph failure_semantics {
+  graph [rankdir=LR, bgcolor="transparent", pad="0.2", nodesep="0.55", ranksep="0.8"];
+  node [shape=box, style="rounded", fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  observer [label="observer process\nmonitor only"];
+  controller [label="controller process\nlinked to worker"];
+  worker [label="worker process\ncontrolled crash"];
+  trap [label="trap_exit = true\nexit becomes {'EXIT', ...}", shape=note];
+  down [label="monitor notification\n{'DOWN', Ref, process, Pid, Reason}", shape=note];
+  dead [label="controller terminates\nwhen abnormal linked exit is not trapped", shape=diamond];
+
+  controller -> worker [label="link (bidirectional)", dir=both];
+  worker -> controller [label="abnormal exit signal", style=dashed];
+  controller -> dead [label="not trapping exits", style=dashed];
+  controller -> trap [label="trapping exits", style=dashed];
+  observer -> controller [label="monitor (unidirectional)"];
+  controller -> down [label="termination triggers DOWN", style=dotted];
+  down -> observer [label="message", style=dotted];
+}
