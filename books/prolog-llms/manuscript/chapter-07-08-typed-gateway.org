@@ -1,0 +1,389 @@
+* Chapter 7 -- The Model Is Outside the Logic
+:PROPERTIES:
+:ID:       2106a9b2-f2f9-4696-817e-51c01cb03eb7
+:END:
+
+Project 1 ended with a useful but very local fact: a Prolog term does not gain authority merely because it is callable-looking. The four public operations in our task system are named by an explicit =capability/2= relation, and =execute_capability/2= reaches =call/N= only after repository-authored code has selected the handler.
+
+Project 2 puts a language model on the other side of that boundary. That changes the transport problem. It does /not/ change the authority model.
+
+A model can produce plausible prose, malformed text, syntactically valid JSON, a structurally valid request with the wrong meaning, a request for a capability that does not exist, stale correlation data, or content that merely /looks/ like Prolog source. If we collapse all of those cases into "the model returned a tool call," we have hidden the most important part of the system.
+
+This chapter therefore starts with a smaller claim:
+
+#+begin_quote
+Model output is external data. Parsing can give that data structure. Validation can establish a local contract. Only trusted host code can grant an operation authority.
+#+end_quote
+
+That separation is the foundation for every later provider, retry, planning, provenance and neuro-symbolic chapter in this book.
+
+** 7.1 Four questions that must stay separate
+
+Suppose a model returns this text:
+
+#+begin_src json
+{
+  "schema": "task_capability_v1",
+  "request_id": "req-002",
+  "capability": "tasks_by_owner",
+  "arguments": ["ada"]
+}
+#+end_src
+
+There are at least four independent questions.
+
+1. Is the text valid JSON?
+2. Does it have exactly the application envelope we accept?
+3. Does =tasks_by_owner= name an operation this application authorizes, with an admissible argument vector?
+4. Has trusted host code decided to execute the resulting request?
+
+Passing question 1 says nothing about question 3. Passing question 2 says nothing about whether =ada= exists. Even a provider feature that constrains generation to JSON Schema only addresses a structural layer. Current provider documentation explicitly separates schema conformance from mistakes inside values, and client-executed tools still depend on application code to perform the operation [cite:@openai-structured-outputs-2024;@anthropic-tool-use-2026;@anthropic-strict-tools-2026].
+
+This distinction is not provider pessimism. It is ordinary interface design.
+
+** 7.2 JSON is a wire grammar
+
+RFC 8259 defines JSON as a text representation for structured data [cite:@rfc8259]. SWI-Prolog's =library(http/json)= can decode JSON text into dicts; =atom_json_dict/3= is one current interface [cite:@swi-http-json]. Neither source says that a decoded field names a safe operation in our program. That policy belongs to our application.
+
+Project 2A therefore uses JSON for one boring job: carrying a small data envelope across a textual boundary.
+
+The accepted model-controlled object has exactly four keys:
+
+#+begin_src json
+{
+  "schema": "task_capability_v1",
+  "request_id": "req-002",
+  "capability": "tasks_by_owner",
+  "arguments": ["ada"]
+}
+#+end_src
+
+The exact-key rule is intentional. If a candidate adds =provider=, =authority=, =handler=, or =response_id=, the gateway rejects the candidate rather than silently ignoring the attempt to smuggle control metadata through model-owned data.
+
+** 7.3 Provenance has a different owner
+
+The test adapter wraps the model-controlled text in a host-owned response:
+
+#+begin_src prolog
+provider_response{
+    provider:fake,
+    model:"deterministic-fixture-v1",
+    response_id:"resp-fixture-001",
+    content:CandidateJson
+}
+#+end_src
+
+The word /trusted/ here is narrow. It means "constructed by the adapter side of this teaching boundary," not "the model is truthful." The =content= field remains hostile/untrusted input. The adapter supplies =provider=, =model=, and =response_id= because those describe the transport observation made by the host.
+
+This is why the model payload does not contain its own accepted provenance fields. A model may describe where it thinks an answer came from, but it cannot be the authority for the transport fact "this response id came from this adapter invocation."
+
+** 7.4 The boundary as a pipeline
+
+[[file:../assets/typed-gateway-boundary.svg]]
+
+The diagram is deliberately asymmetric. Every rejection edge terminates before =execute_capability/2=. There is no "best effort" fallback that turns malformed content into a Prolog query.
+
+The corresponding public operation is small:
+
+#+begin_src prolog
+  gateway_once(ExpectedRequestId, AdapterResponse, Outcome)
+#+end_src
+
+Its result is data:
+
+- =ok(result{...})= after validation and authorized dispatch;
+- =error(Reason)= when any boundary check fails.
+
+Keeping expected failures in the value domain makes the failure labs easy to test. It also avoids teaching exception parsing as if exceptions were a protocol.
+
+** 7.5 Correlation is a host comparison
+
+A request id is useful only if we compare it against state we already hold.
+
+If the host expects ="req-007"= and the model returns ="different-request"=, the gateway returns =error(request_id_mismatch)=. The model does not get to establish correlation merely by emitting a convincing identifier.
+
+This becomes more important once retries and parallel calls exist. Later chapters will add deadlines and attempt identity. For now, one exact request-id comparison is enough to expose the principle.
+
+** 7.6 Capability names are not predicate names
+
+The JSON field
+
+#+begin_src json
+"capability": "tasks_by_owner"
+#+end_src
+
+is matched against Project 1's finite =capability/2= relation. The implementation enumerates the repository-authored atom first and compares its string spelling with the untrusted JSON string. It does /not/ convert an arbitrary model string into a predicate name and invoke it.
+
+So this candidate fails:
+
+#+begin_src json
+{
+  "schema": "task_capability_v1",
+  "request_id": "req-008",
+  "capability": "halt",
+  "arguments": []
+}
+#+end_src
+
+The result is =error(unknown_capability)=. There is no path from the text =halt= to =halt/0=.
+
+That property is stronger and easier to audit than a blacklist. A blacklist asks us to enumerate every dangerous predicate forever. A closed capability relation asks us to enumerate the few operations we actually intend to expose.
+
+** 7.7 Arguments need a domain too
+
+Knowing the operation is not enough. =tasks_by_owner= has arity one, while =dependency_path= has arity two. Project 2A checks the exact length before dispatch.
+
+It also limits this fixture's external identifiers to 1--64 characters drawn from alphanumeric characters, underscore and hyphen before converting them to the atom representation expected by Project 1. That makes a payload such as ="assertz(pwned)"= fail as =invalid_arguments=.
+
+Do not generalize this lexical rule into a universal security primitive. It is the domain contract for /this/ teaching fixture. A real system may use UUIDs, integers, validated URIs, database identifiers, or opaque strings and should validate each type directly. Long-running services should also consider resource limits before interning attacker-controlled strings as atoms. Project 2A deliberately defers transport size limits and atom-table policy rather than pretending they disappeared.
+
+** Lab 7.A -- Break every boundary
+
+Run both project suites:
+
+#+begin_src sh
+swipl -q -s books/prolog-llms/code/relational-task-solver/run_tests.pl
+swipl -q -s books/prolog-llms/code/typed-gateway/run_tests.pl
+#+end_src
+
+Then add one failing case at a time:
+
+1. truncate the JSON after the =schema= key;
+2. add an extra =authority= key to the model object;
+3. change =task_capability_v1= to =task_capability_v2=;
+4. return the wrong request id;
+5. request =halt=;
+6. pass two owners to =tasks_by_owner=;
+7. put =assertz(pwned)= in an identifier slot.
+
+For each case, predict the first layer that should reject it before running the test. The point is not only that rejection happens. The point is that it happens at the right boundary and no later layer must guess what an earlier layer meant.
+
+* Chapter 8 -- From Parsed Data to an Authorized Query
+:PROPERTIES:
+:ID:       31a0cd4c-66ad-4f75-a226-3b2b3dd52450
+:END:
+
+Now we will walk the successful path and inspect what each stage earns.
+
+** 8.1 Stage one: parse, but earn nothing else
+
+The decoder calls SWI-Prolog's JSON library and returns =error(malformed_json)= if parsing fails. A successful parse produces a dict. That is all.
+
+This stage intentionally does not inspect a Prolog predicate table, execute a term, or decide whether the request is useful. Parsing is a representation change.
+
+This is the first place where "structured output" marketing can confuse architecture. If a provider guarantees that a response matches a supplied JSON Schema, the provider may make stage one and part of stage two more reliable. That is valuable. It still does not tell our application which operations should exist, whether a correlation id is current, whether a resource is authorized for this caller, or whether a fact is true. Those are different predicates over different evidence.
+
+** 8.2 Stage two: exact application shape
+
+After parsing, Project 2A accepts exactly these keys:
+
+| Key | Owner | Meaning |
+|-----+-------+---------|
+| =schema= | model, checked by host | selects the one accepted wire contract |
+| =request_id= | model echo, checked against host state | correlation candidate |
+| =capability= | model proposal | operation selector candidate |
+| =arguments= | model proposal | operation data |
+
+The host-side adapter envelope has a separate exact key set:
+
+| Key | Owner | Meaning |
+|-----+-------+---------|
+| =provider= | adapter | provider identity observed by host |
+| =model= | adapter | model identity/configuration observed by host |
+| =response_id= | adapter | response correlation observed by host |
+| =content= | model through adapter | untrusted candidate text |
+
+The separation prevents a subtle category error: model-generated /claims about provenance/ are not transport provenance.
+
+** 8.3 Stage three: compile external strings into a closed request
+
+The successful decoder result is not a callable goal. It is a typed proposal:
+
+#+begin_src prolog
+proposal{
+    request_id:"req-001",
+    capability:tasks_by_owner,
+    arguments:[ada],
+    provenance:provenance{
+        provider:fake,
+        model:"deterministic-fixture-v1",
+        response_id:"resp-fixture-001"
+    }
+}
+#+end_src
+
+Notice what disappeared: the original arbitrary JSON object. The compiler-like boundary has projected the external representation into a smaller internal vocabulary.
+
+This is the same move we made with the Chapter 6 DCG. Tokens became a closed AST before execution. Here JSON fields become a closed capability request before execution. The representation is different; the reasoning habit is the same.
+
+** 8.4 Stage four: reuse the authority mechanism we already proved
+
+Only =gateway_once/3= executes. After decoding succeeds, it invokes:
+
+#+begin_src prolog
+execute_capability(request(Capability, Arguments), Results)
+#+end_src
+
+That function belongs to Project 1. We do not duplicate its handler table in the gateway and we do not add a second dynamic dispatch mechanism. This matters because security and correctness boundaries become harder to reason about when multiple layers each invent their own partial authority rules.
+
+For =tasks_by_owner(ada)= the deterministic fixture returns the same relational results Project 1 already tested:
+
+#+begin_src prolog
+[result(task(collect_sources),
+        owner(ada), status(ready), tags([research,prolog])),
+ result(task(check_constraints),
+        owner(ada), status(blocked), tags([prolog,validation]))]
+#+end_src
+
+The new thing being tested is not those facts. It is the path from external text to the already-tested capability boundary.
+
+** 8.5 A fake provider is not fake evidence
+
+The module =fake_provider.pl= does one thing: package caller-supplied candidate text in a deterministic adapter envelope. It never makes a network request and never claims to simulate stochastic model quality.
+
+This kind of fake is useful because it lets us test invariants that should hold for /every/ provider response:
+
+- malformed JSON does not dispatch;
+- unknown capabilities do not dispatch;
+- wrong arity does not dispatch;
+- model-owned extra provenance fields do not replace host provenance;
+- successful requests reuse the same Project 1 relation behavior.
+
+The current read-only Prolog-RLM source uses the same broad testing separation: its =test/support/fake_model_provider.pl= says production code must never import the deterministic model double [cite:@prolog-rlm-source]. Its current provider documentation also exposes provider-neutral completion outcomes, while its completion runtime keeps parsing, validation, capability checks and execution as host-owned phases [cite:@prolog-rlm-source]. We are learning from that architecture, not copying its production runtime into the book.
+
+** 8.6 Failure trace: valid JSON, invalid authority
+
+Consider:
+
+#+begin_src json
+{
+  "schema": "task_capability_v1",
+  "request_id": "req-008",
+  "capability": "halt",
+  "arguments": []
+}
+#+end_src
+
+Trace it by hand:
+
+#+begin_example
+JSON parser
+  -> valid dict
+exact shape
+  -> valid four-key envelope
+schema
+  -> task_capability_v1 accepted
+request correlation
+  -> req-008 matches
+capability lookup
+  -> no capability(halt, _)
+  -> error(unknown_capability)
+  -> STOP
+#+end_example
+
+This is the failure we want. Rejecting it at JSON parsing would be misleading because the JSON is fine. Rejecting it inside a generic =call/1= wrapper would be dangerously late because the program would already have treated external data as an execution selector.
+
+** 8.7 Failure trace: code-looking data
+
+Now keep the legal capability but put code-looking text in a data slot:
+
+#+begin_src json
+{
+  "schema": "task_capability_v1",
+  "request_id": "req-010",
+  "capability": "tasks_by_owner",
+  "arguments": ["assertz(pwned)"]
+}
+#+end_src
+
+The gateway returns =error(invalid_arguments)= before dispatch. More importantly, no layer parses that string as Prolog source. We do not need to prove that every dangerous textual program is blocked because we never add a source-code execution path in the first place.
+
+** 8.8 Failure trace: provenance injection
+
+This object tries to add a trusted-looking response id:
+
+#+begin_src json
+{
+  "schema": "task_capability_v1",
+  "request_id": "req-011",
+  "capability": "tasks_by_owner",
+  "arguments": ["ada"],
+  "response_id": "forged"
+}
+#+end_src
+
+The exact-key check returns =error(invalid_candidate_shape)=. The real response id remains a field of the adapter envelope.
+
+Later we will attach source documents, model requests, validation decisions and repair attempts to a richer provenance graph. This tiny rule prevents that future graph from starting with self-authenticated model metadata.
+
+** 8.9 What this milestone does not solve
+
+Project 2A is intentionally incomplete. It does not yet implement:
+
+- live HTTP/provider adapters;
+- deadline propagation or cancellation;
+- duplicate/replay suppression;
+- retries after truncation or schema failure;
+- semantic checks such as whether =ada= is a known principal;
+- authorization scoped by user/tenant/resource;
+- persistence of requests or provenance;
+- prompt-injection resistance for retrieved natural-language content;
+- provider conformance benchmarks;
+- a security proof or general Prolog sandbox.
+
+Those are not footnotes. They are the next mechanisms to derive. The benefit of this small gateway is that later work has named places to attach them.
+
+** Lab 8.A -- Add a typed capability without opening a code channel
+
+Add a fifth Project 1 capability that queries tasks by a new /data/ dimension. Then extend Project 2 tests so the JSON gateway can select it.
+
+Constraints:
+
+1. the model still supplies a capability tag, never a predicate name;
+2. the gateway still accepts exactly four model-owned JSON keys;
+3. the new capability declares its arity in Project 1's explicit table;
+4. the argument validator must have a clear domain;
+5. one test must prove that a callable-looking string cannot turn into a goal.
+
+Write down which file owns each policy before changing code. If you need to add a handler name to the JSON schema, you are probably moving authority into the wrong layer.
+
+** Lab 8.B -- Add semantic validation as a separate predicate
+
+Right now =tasks_by_owner= accepts a lexically valid identifier even if no task has that owner. Design a host-side semantic validation step that distinguishes:
+
+- structurally invalid owner identifiers;
+- structurally valid but unknown owners;
+- known owners with zero matching tasks because of a different filter.
+
+Do not bury this distinction inside JSON parsing. Write PL-Unit tests before connecting the new predicate to dispatch.
+
+** Exercises
+
+1. Explain why "valid JSON" and "valid request" are different propositions.
+2. Explain why "schema-valid request" and "authorized request" are different propositions.
+3. Why does the gateway compare an echoed request id to host state instead of treating the model's id as authoritative?
+4. Replace the identifier grammar with a UUID-only argument type. Where should validation live?
+5. Design a typed integer argument without converting arbitrary text to a Prolog atom.
+6. Add an =attempt_id= owned by the adapter. Should the model payload contain it? Defend your answer.
+7. Suppose a provider offers strict tool schemas. Which Project 2 checks can it reduce, and which checks must remain host-owned?
+8. Design a replay test in which the same response id arrives twice. Do not implement persistence yet; specify the state needed.
+9. Draw the data-flow difference between a provider-native tool call and our provider-neutral internal proposal.
+10. Find every =call/= occurrence reachable from Project 2A. For each, identify the repository-authored mapping that must occur first.
+
+** Checkpoint
+
+At the end of Chapters 7--8 you should be able to state the system as a proof obligation:
+
+#+begin_example
+external model text
+  -> parse
+  -> exact application envelope
+  -> correlate with host request
+  -> select from closed capability vocabulary
+  -> validate typed arguments
+  -> attach host-observed provenance
+  -> trusted dispatcher
+  -> relational program
+#+end_example
+
+No arrow in that chain is decorative. Each earns one additional fact. That is how we will grow from a deterministic fixture into an auditable neuro-symbolic system without turning model text into ambient authority.
