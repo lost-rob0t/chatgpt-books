@@ -1,0 +1,437 @@
+** Chapter 1 -- What Machine Learning Is For
+:PROPERTIES:
+:ID:       fb5b60e2-b8d2-42cc-a881-e616265ae34f
+:END:
+
+StarIntel can store a perfectly valid document without machine learning. It can preserve provenance without machine learning. It can reject malformed input, enforce a schema, route work, and represent explicit relationships without machine learning.
+
+That is a feature, not a missed opportunity.
+
+Machine learning becomes useful when the behavior we want is difficult to specify completely as hand-written rules but we have examples from which a model can estimate a useful relationship. The word /estimate/ matters. A learned model is fitted from finite observations. Its behavior therefore depends on the examples, the target we chose, the information we allowed into the features, the loss or objective used for fitting, and the population represented by the evaluation data.
+
+This book begins by separating those learned decisions from deterministic system contracts. StarIntel remains the evidence-bearing system around the model. The model is one component that consumes an explicitly constructed experimental view of that evidence.
+
+That boundary is the foundation for every later project.
+
+*** A working definition for this book
+
+We will use a deliberately operational definition:
+
+#+begin_quote
+A machine-learning model is a parameterized procedure whose fitted state is estimated from data so that it can make predictions, scores, representations, or decisions on examples beyond the exact observations used to fit it.
+#+end_quote
+
+This definition is broad enough to include a linear regressor, a text classifier, an embedding model, a clustering procedure, and later graph-learning systems. It is narrow enough to exclude several things that are extremely important to StarIntel but are not themselves machine learning:
+
+- JSON Schema validation;
+- a deterministic parser;
+- a provenance hash check;
+- an exact string-normalization rule;
+- a hand-written authorization rule;
+- a database index;
+- a graph traversal with fully specified semantics;
+- a fixed duplicate predicate such as exact normalized-token Jaccard at a declared threshold.
+
+Those deterministic mechanisms can sit beside a learned model. Often they /should/. Replacing a precise invariant with a statistical guess usually makes the system harder to reason about.
+
+The practical question is therefore not "Where can we put AI?" It is:
+
+#+begin_quote
+Which behavior benefits from being estimated from examples, and which behavior must remain an explicit contract?
+#+end_quote
+
+*** The smallest possible fitted model
+
+Before text classifiers or embeddings, consider a model with one learned number.
+
+Suppose our training targets are
+
+#+begin_example
+2, 4, 5, 9
+#+end_example
+
+and we must predict the same constant \(c\) for every future example. If we measure error with squared residuals, the training objective is
+
+\[
+S(c) = \sum_{i=1}^{n}(y_i-c)^2.
+\]
+
+The best constant is the training mean. We can prove that without treating an optimizer as magic.
+
+Let \(\bar y\) be the training mean. Write each residual as
+
+\[
+y_i-c = (y_i-\bar y) + (\bar y-c).
+\]
+
+Expanding and summing gives
+
+\[
+\sum_i(y_i-c)^2
+=
+\sum_i(y_i-\bar y)^2
++
+2(\bar y-c)\sum_i(y_i-\bar y)
++
+n(\bar y-c)^2.
+\]
+
+The middle term is zero because deviations from the mean sum to zero. Therefore
+
+\[
+S(c)
+=
+S(\bar y)
++
+n(\bar y-c)^2.
+\]
+
+The second term cannot be negative, so \(S(c)\) is minimized when \(c=\bar y\).
+
+That tiny model already contains the core pieces of supervised learning:
+
+1. a parameter to fit -- here, one number;
+2. training examples -- the observed targets;
+3. an objective -- squared error;
+4. a fitting rule -- choose the mean;
+5. predictions on examples not used to fit the parameter;
+6. an evaluation rule that tells us how bad those predictions are.
+
+The repository includes a pure-Python implementation in =projects/project-01-investigation-dataset-pipeline/chapter01_constant_baseline.py=. It intentionally uses no machine-learning framework. The point is to make "training" concrete before a library performs it for us.
+
+#+begin_src python
+model = fit_constant_regressor(training_targets)
+predictions = model.predict(len(test_targets))
+test_mse = mean_squared_error(test_targets, predictions)
+#+end_src
+
+Notice what is /not/ allowed in =fit_constant_regressor=: the test targets. If we compute the constant from training and test together, the held-out data has already influenced fitted state. A one-number baseline can leak just as surely as a neural network.
+
+*** Fitting is not the same thing as programming
+
+The constant regressor is programmed to compute a mean, but the resulting number is not written by the programmer. It depends on the training observations.
+
+That distinction scales upward.
+
+A deterministic normalizer may always map the same input text to the same token sequence. A TF-IDF vectorizer, however, learns vocabulary and document-frequency statistics from the sample on which it is fit. A logistic-regression classifier learns coefficients. A neural network learns many parameters. A clustering algorithm may infer centroids or another representation of structure in the sample.
+
+The code defines /how learning happens/. The data helps determine /what fitted state results/.
+
+This is why an experiment record must preserve more than source code. If the source snapshot, training membership, feature policy, dependency versions, or random state changes, the fitted artifact may change even when the program text does not.
+
+Scikit-learn's current guidance makes the training/test boundary explicit: learned preprocessing should be fitted on the training subset rather than on held-out data, and pipelines are one mechanism for preserving that order [cite:@sklearn2026pitfalls]. Chapters 3 and 4 will make the same principle structural rather than merely stylistic.
+
+*** The prediction question comes before the model
+
+Imagine a corpus of investigation documents. "Train a classifier on it" is not yet a well-defined task.
+
+We need to know at least:
+
+- What receives one prediction: a document, entity, relation, investigation, or something else?
+- What is the target?
+- At what moment would the prediction be made?
+- When does the target become observable?
+- What information is available at prediction time?
+- What population should the result generalize to?
+- What error is costly enough to measure separately?
+
+Changing any of those can change the correct dataset and evaluation design.
+
+Suppose the target is a later review outcome. A model evaluated on additional documents from organizations already represented in training answers a different question from a model evaluated on unseen organizations. A model evaluated on a finalized table answers a different question from one evaluated at a historical cutoff if the finalized table contains later analyst enrichment.
+
+The model cannot repair an ambiguous prediction contract. More model capacity usually makes the ambiguity easier to exploit.
+
+*** Three kinds of code in an ML system
+
+A useful ML system often mixes three categories of mechanism.
+
+**** 1. Deterministic evidence and safety code
+
+This code should behave according to an explicit contract. Examples in Project 1 include:
+
+- source-hash reconstruction;
+- canonical StarIntel schema validation;
+- point-in-time availability checks;
+- exact duplicate verification;
+- must-link component construction;
+- contamination audits.
+
+A model does not get to vote on whether a SHA-256 digest matches.
+
+**** 2. Fitted statistical code
+
+This code estimates parameters or representations from the training sample. Later chapters will include:
+
+- regressors and classifiers;
+- fitted text representations;
+- entity-resolution scoring models;
+- embeddings and retrieval models;
+- graph-derived models.
+
+The fitted state belongs to a recorded experiment and must be evaluated on data that did not improperly determine that state.
+
+**** 3. Evaluation and debugging code
+
+This code asks whether the experiment supports the claim we want to make. It records:
+
+- exact train/test membership;
+- group and time boundaries;
+- contamination diagnostics;
+- metrics and their definitions;
+- failure cases;
+- model and feature versions;
+- provenance needed to reconstruct the result.
+
+Evaluation is not an afterthought added once the model "works." It is how we find out what "works" means.
+
+*** Project 1 starts before model training
+
+The first major project is an Investigation Dataset Pipeline. It begins with an apparently strange choice: we spend several chapters making data and evaluation trustworthy before fitting an interesting model.
+
+That is deliberate.
+
+#+caption: Project 1 places evidence and experimental contracts upstream of fitted state. Deterministic checks remain explicit instead of being delegated to a model.
+#+attr_html: :alt Evidence flows through canonical StarIntel documents, an experiment contract, admissibility checks, and stable train/test IDs before training-only fitted state and evaluation.
+[[file:assets/project-01-boundary.svg]]
+
+The reader-facing checkpoint composes already-separated mechanisms into one report:
+
+#+begin_src sh
+python project1.py --offline
+#+end_src
+
+The command lives under =projects/project-01-investigation-dataset-pipeline/README.org=. It summarizes four boundaries:
+
+1. the exact pinned StarIntel document schema was materialized and verified;
+2. a frozen factual GLEIF snapshot can be transformed into canonical documents with reconstructable provenance;
+3. a strict historical split can be audited, including a deliberate infeasible graph-grouping case;
+4. scalable duplicate /candidates/ are still exact-verified before they become duplicate edges.
+
+The report is not a miniature StarIntel server. It does not implement persistence, actors, queues, search, authorization, routing, or storage. It consumes the canonical document contract as an external boundary.
+
+That keeps this volume about machine learning.
+
+*** A dataset is an argument, not a pile of rows
+
+A machine-learning dataset makes an argument about what examples are comparable and what information may be used.
+
+For every row we eventually need to understand questions such as:
+
+#+begin_example
+What source evidence produced this row?
+What real/logical unit does it represent?
+What target does it carry?
+When would the prediction happen?
+When was each feature available?
+Which other rows are dependent on it?
+Which transform versions produced its features?
+#+end_example
+
+A flat table can contain all the values while hiding all the answers.
+
+Dataset documentation work such as /Datasheets for Datasets/ emphasizes creation, composition, intended use, and maintenance rather than treating a dataset as self-explanatory bytes [cite:@gebru2018datasheets]. Project 1 makes several of those concerns executable: hashes, source manifests, point-in-time rules, split constraints, exact record IDs, and environment locks are machine-checkable evidence, not prose promises.
+
+Chapter 2 starts at that evidence chain.
+
+*** Why a random split is not a neutral default
+
+Many introductory examples shuffle rows and reserve a percentage for testing. That is useful only when row-level exchangeability is a reasonable approximation to the intended claim.
+
+StarIntel-style data gives us immediate reasons to doubt it:
+
+- several documents can describe one entity;
+- exact or near copies can exist;
+- several rows can share source lineage;
+- relationships can induce task-specific dependence;
+- observations and enrichments happen at different times.
+
+If a model sees one representation of an entity during training and another during testing, a high score may measure memorization rather than generalization to unseen entities.
+
+The currently frozen Project 1 controls deliberately construct such failures. Chapters 3 and 5 show the measured outputs and the contamination diagnostics. Those numbers are not production StarIntel performance estimates. They are tests that our evaluation machinery can expose a known failure.
+
+That difference between /demonstration/ and /benchmark/ will remain explicit throughout the book.
+
+*** Start with a baseline that can lose
+
+A serious model needs something meaningful to beat.
+
+The constant regressor is one example. For a classification problem we might use a prior or majority-class baseline. For retrieval we can compare against lexical or exact-match behavior before claiming an embedding model helps. For entity resolution we can begin with exact identifiers and normalized exact matching before adding learned similarity. For graphs we can compare against simple structural heuristics before using learned representations.
+
+A baseline serves several purposes:
+
+- it catches pipelines that cannot beat a trivial rule;
+- it gives metrics scale;
+- it makes added complexity earn its place;
+- it helps reveal when a task is dominated by class prevalence or another simple signal;
+- it creates a stable debugging checkpoint.
+
+A baseline does not have to be dumb in the insulting sense. It should be /simple, explicit, and hard to accidentally misinterpret/.
+
+*** Metrics are attached to a question
+
+A number such as =0.91= has almost no meaning by itself.
+
+We need at least:
+
+#+begin_example
+metric name
+target definition
+test population
+split policy
+time policy
+class distribution
+decision threshold (when relevant)
+baseline
+uncertainty or repeated-evaluation policy
+#+end_example
+
+Later chapters will derive accuracy, balanced accuracy, precision/recall, calibration, ranking metrics, and task-specific evaluation. For now, keep one principle:
+
+#+begin_quote
+A metric is evidence about a defined experiment, not a property permanently attached to a model.
+#+end_quote
+
+Move the model to a new source population, change the target, or change the split semantics and the old number may no longer answer the new question.
+
+*** Failure lab -- a model that solves the wrong problem perfectly
+
+Imagine a binary review task with a field called =final_resolution=. The field is written by an analyst after the review and perfectly matches the target.
+
+You train a classifier and get perfect held-out accuracy.
+
+Nothing about the optimizer has failed. The dataset builder has supplied the answer.
+
+Debug the result in this order:
+
+1. Write the prediction time.
+2. Write when =final_resolution= becomes available.
+3. Decide whether it could exist at prediction time.
+4. Remove or time-gate it if it could not.
+5. Rebuild the rows and split.
+6. Only then retrain.
+
+Do /not/ respond first by changing regularization, adding more data, or replacing the model family. Model tuning cannot repair a broken information boundary.
+
+Chapter 4 will turn this into an explicit =available_at <= prediction_at= contract.
+
+*** Failure lab -- deterministic validation disguised as ML
+
+Suppose we need to reject a canonical document whose =schema_version= is unsupported.
+
+We could train a classifier from examples of accepted and rejected documents.
+
+We should not.
+
+The rule is explicit, cheap, inspectable, and already part of the document contract. A statistical model would add uncertainty where none is needed. It could also silently accept a future malformed case because its training sample did not contain that exact failure.
+
+This gives us a practical "not ML" test:
+
+#+begin_quote
+If the desired behavior can be specified completely as a stable invariant and correctness matters more than approximation, implement and test the invariant directly.
+#+end_quote
+
+Machine learning earns its complexity where examples must help determine the behavior.
+
+*** The book's project arc
+
+The five projects deliberately increase the amount of learned behavior without discarding the deterministic boundaries established here.
+
+**** Project 1 -- Investigation Dataset Pipeline
+
+Build trustworthy experimental inputs: provenance, canonical validation, point-in-time construction, split specifications, quality reports, reproducible environments, and failure diagnostics.
+
+**** Project 2 -- Entity Resolution System
+
+Begin with exact identifiers and normalization, then add similarity features and learned/embedding-assisted matching. Evaluate on labeled pairs without letting the matching system manufacture provenance.
+
+**** Project 3 -- Semantic Search
+
+Build embeddings and retrieval, but retain an explicit corpus snapshot, index/model versions, relevance judgments, baselines, and retrieval evaluation.
+
+**** Project 4 -- Graph/Relationship ML
+
+Construct graph features and learned representations while making graph snapshot, edge semantics, negative sampling, and temporal boundaries explicit.
+
+**** Project 5 -- ML-Enriched StarIntel Pipeline
+
+Integrate the earlier ML components behind explicit StarIntel adapters. The capstone consumes and emits documented data contracts; it does not become a shadow StarIntel runtime.
+
+Each project should make the next one possible. None of them gets to erase the provenance or evaluation assumptions of the previous stage.
+
+*** A first debugging checklist
+
+Before fitting any model in this book, answer these questions:
+
+1. What exact prediction/retrieval/grouping question are we asking?
+2. What is one example?
+3. What is the target or success criterion?
+4. What information is allowed at decision time?
+5. Which examples are dependent and therefore must not cross the evaluation boundary?
+6. What simple baseline should the learned method beat?
+7. Which code is deterministic policy and which state is fitted from data?
+8. What source and transformation evidence lets us reconstruct the dataset?
+9. What result would falsify our current approach?
+10. What are we explicitly /not/ claiming from this experiment?
+
+If several answers are "we will decide later," the model is not the next dependency.
+
+*** Exercises
+:PROPERTIES:
+:ID:       64ef0dcb-f18e-4355-a489-04181fb0cc66
+:END:
+
+**** ★ Learned or deterministic?
+
+Classify each mechanism as primarily deterministic policy, fitted statistical state, or evaluation/debugging infrastructure. Explain any case where two categories interact.
+
+1. validating a StarIntel document against the pinned schema;
+2. learning logistic-regression coefficients;
+3. computing a SHA-256 digest;
+4. learning a TF-IDF vocabulary;
+5. checking that train and test share no =composite_group_id=;
+6. selecting the best model by a validation score;
+7. exact-verifying a candidate duplicate pair with a declared Jaccard rule.
+
+**** ★ Derive the constant baseline
+
+For training targets \(1, 4, 7\), compute the fitted constant that minimizes squared error. Then compute the training mean squared error by hand.
+
+Run the repository's =fit_constant_regressor= implementation and compare the result. If your hand result and the program disagree, debug the derivation before changing the code.
+
+**** ★★ Prove that the test target cannot affect fitting
+
+Write a test with fixed training targets and two radically different test-target sets. Show that =fitted_constant= is identical in both evaluations while =test_mse= changes.
+
+Then deliberately write the wrong version that fits the constant on =training + test=. Explain exactly where information crossed the evaluation boundary.
+
+**** ★★ Specify a real StarIntel-shaped task
+
+Choose a hypothetical document- or entity-level prediction task. Write:
+
+- unit of prediction;
+- =prediction_at= rule;
+- target and =label_observed_at= rule;
+- permitted source types;
+- one likely future-information leak;
+- one dependence/grouping rule;
+- a baseline;
+- one metric;
+- one claim the experiment must /not/ make.
+
+Do not choose model architecture yet.
+
+**** ★★★ Reject ML on purpose
+
+Choose a StarIntel-adjacent behavior that could be implemented either as a learned predictor or as an explicit invariant. Argue for the deterministic implementation. Give at least three failure modes introduced by replacing the invariant with a statistical model.
+
+*** Checkpoint -- earn the right to learn
+
+At the end of this chapter, we have not built an impressive model. We have done something more important: we have made "learning" a specific engineering operation rather than a synonym for automation.
+
+Fitted state comes from training data. Evaluation data is evidence about a defined claim. Deterministic contracts stay deterministic. Provenance and time boundaries are upstream of model selection.
+
+Chapter 2 now asks the question that has to come next:
+
+#+begin_quote
+Where did each row come from, and can we prove it?
+#+end_quote

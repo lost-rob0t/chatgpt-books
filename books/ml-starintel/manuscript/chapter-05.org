@@ -1,0 +1,436 @@
+** Chapter 5 -- A Split Is a Specification, Not a Random-Number Call
+:PROPERTIES:
+:ID:       51779a87-194a-4a5b-a0ff-f4ca87bafba1
+:END:
+
+A machine-learning system can be wrong before it trains a model.
+
+Suppose an investigation archive contains six hundred documents. We shuffle the rows, put 80% in training and 20% in testing, fit a classifier, and obtain an impressive score. The code may be perfectly correct. The score may still answer the wrong question.
+
+Why? Because a row is not necessarily an independent observation.
+
+Two rows may describe the same organization. One document may be a lightly edited copy of another. Several records may have come from one source document. A relationship record may connect entities whose information is deliberately shared by the feature builder. A feature may have become available only after the time at which we claim the prediction would have been made. A random row split ignores all of those semantics.
+
+Data leakage is broader than the obvious mistake of placing the target column in the feature matrix. Leakage occurs when information crosses an evaluation boundary that the claimed deployment scenario says should not cross it. Kapoor and Narayanan document how leakage can produce seriously misleading machine-learning results and how split construction is part of the experimental design rather than clerical preprocessing [cite:@kapoor2023leakage].
+
+For StarIntel-style research data, that observation leads to a rule we will use throughout this book:
+
+#+begin_quote
+Before choosing a splitter, state what must remain together, what must remain in the past, and what information was actually available at prediction time.
+#+end_quote
+
+The rest of this chapter derives a split planner from that sentence.
+
+*** 1. Start with the question the test set is supposed to answer
+:PROPERTIES:
+:ID:       1b277e6c-fd4a-4ed8-bc4f-a59468f759f2
+:END:
+
+A test set is not merely data that the optimizer did not see. It is a miniature experiment.
+
+Consider three different questions:
+
+1. /Can this model classify another document from organizations it has already encountered?/
+2. /Can this model generalize to organizations it has never encountered?/
+3. /Could this model have made the prediction using only information available before a historical cutoff?/
+
+Those questions need different boundaries.
+
+For question 1, repeated organizations may be legitimate. For question 2, any organization represented in the test set must be absent from training. For question 3, group separation is not enough: training observations must precede test observations and every feature must be available no later than the prediction timestamp.
+
+This is why calling =train_test_split(..., random_state=1729)= is not yet an evaluation design. A fixed seed makes one procedure reproducible; it does not make the procedure appropriate.
+
+The current scikit-learn cross-validation guide makes the same distinction for dependent grouped samples: if the evaluation goal is generalization to unseen groups, samples from a test group should not also occur in the paired training fold [cite:@sklearn2026crossvalidation]. The library provides tools for that job [cite:@pedregosa2011scikit], but the library cannot infer what a StarIntel entity, duplicate lineage, or historical information boundary means. That policy is ours to define.
+
+*** 2. Pairwise constraints are not enough
+:PROPERTIES:
+:ID:       8788b123-e2ff-426a-815d-2e2b8447759d
+:END:
+
+Assume we know three facts:
+
+#+begin_example
+A and B describe the same entity.
+B and C are verified near-duplicates.
+D and E came from the same indivisible source lineage.
+#+end_example
+
+It is tempting to store those as three independent checks. But the first two facts imply something stronger:
+
+#+begin_example
+A must stay with B
+B must stay with C
+therefore A, B, and C must stay in one partition
+#+end_example
+
+The rule is transitive even though no direct =A--C= edge was asserted.
+
+That turns split construction into a graph problem. Records are vertices. A hard must-link fact is an edge. Every connected component of hard edges is an atomic evaluation unit.
+
+In Project 1 we call the stable identifier of that component a =composite_group_id=.
+
+#+begin_example
+same-entity ─┐
+exact-copy  ─┼─> must-link graph -> transitive closure -> composite_group_id
+near-copy   ─┤
+lineage     ─┘
+#+end_example
+
+The implementation does not ask scikit-learn to discover these groups. It compiles them first with a small deterministic union-find algorithm. Component IDs are canonicalized from their member record IDs so input order does not silently rename groups.
+
+This ordering matters. If we first make a random split and then inspect overlaps, we may discover that the split is invalid after expensive feature construction or model fitting. Worse, code often "fixes" the overlap by dropping a few test rows, quietly changing the test distribution. Compiling constraints first makes the admissible units explicit before a splitter sees them.
+
+**** A worked example
+
+Suppose our records are:
+
+| record | entity | text relation | time |
+|--------+--------+---------------+------|
+| A      | E1     | --            | Jan  |
+| B      | E1     | --            | Jan  |
+| C      | E2     | near-copy B   | Feb  |
+| D      | E3     | --            | Mar  |
+| E      | E4     | --            | Apr  |
+
+The entity rule creates edge =A--B=. Duplicate verification creates edge =B--C=. Transitive closure yields:
+
+#+begin_example
+component 1 = {A, B, C}
+component 2 = {D}
+component 3 = {E}
+#+end_example
+
+A legal grouped split may place ={A,B,C}= in training or testing, but it may not place =A= in training and =C= in testing. The reason is not that =A= and =C= happen to have similar labels. The reason is that our evaluation contract says information connected by those hard constraints is one unit.
+
+*** 3. Grouping and time solve different problems
+:PROPERTIES:
+:ID:       d030bd1a-4a52-49c1-a5ef-23f71cd2084c
+:END:
+
+This is the easiest place to build a sophisticated-looking but wrong evaluator.
+
+=GroupKFold= keeps a group from being split across a train/test fold. In current scikit-learn, each group appears in a test fold exactly once across the folds [cite:@sklearn2026groupkfold]. =GroupShuffleSplit= creates randomized train/test partitions over groups; importantly, its =test_size= and =train_size= refer to groups, not individual samples [cite:@sklearn2026groupshufflesplit].
+
+Neither statement says that training happened before testing.
+
+Imagine four groups:
+
+#+begin_example
+G1 observed January
+G2 observed February
+G3 observed November
+G4 observed December
+#+end_example
+
+A grouped random fold can legally train on =G4= and test on =G1=. That may be exactly what we want for a non-temporal "unseen organization" question. It is invalid for a claim that the system would have worked in February using knowledge available by then.
+
+Project 1 therefore exposes two distinct paths:
+
+#+begin_example
+                     +-> grouped holdout / grouped CV
+composite groups ----|
+                     +-> strict historical cutoff
+#+end_example
+
+The grouped path answers a generalization-across-groups question. The cutoff path answers a historical question. They share hard must-link constraints, but they do not share the same admissibility rule.
+
+That separation is intentional. A helper named =smart_split()= that guesses which semantics the experimenter wanted would be shorter code and worse science.
+
+*** 4. Point-in-time availability is a property of each feature
+:PROPERTIES:
+:ID:       ca8b8497-d547-45b8-942e-98c09ae793e
+:END:
+
+Chronological rows do not automatically produce chronological information.
+
+Suppose a document was observed on January 10. A human analyst resolved an entity on January 20. We later build a feature table with a column named =resolved_entity=. If we use the final table to simulate a January 15 prediction, the row timestamp is in the past but the feature value is from the future.
+
+Project 1 represents this explicitly. A feature can carry an =available_at= timestamp, and the split planner checks:
+
+#+begin_example
+available_at(feature) <= prediction_at(record)
+#+end_example
+
+before it accepts the record for evaluation.
+
+This is a small rule with a large consequence: temporal validation belongs in the data-building contract, not merely in a sorting call immediately before model training.
+
+A useful debugging question is therefore not just:
+
+#+begin_quote
+"Was this row in training?"
+#+end_quote
+
+but also:
+
+#+begin_quote
+"Could every value on this row have existed at the time represented by this prediction?"
+#+end_quote
+
+*** 5. Fail closed when constraints disagree
+:PROPERTIES:
+:ID:       96a4a002-fea0-4afb-81bb-109587592022
+:END:
+
+Some datasets cannot satisfy every requested evaluation rule.
+
+Suppose records =A= and =B= are one atomic entity group, but =A= is observed before a strict cutoff and =B= after it:
+
+#+begin_example
+January: A -------- cutoff -------- March: B
+          \_________________________/
+               same hard group
+#+end_example
+
+There is no partition that both:
+
+- preserves the group intact, and
+- places every pre-cutoff observation in training and every post-cutoff observation in testing.
+
+The correct result is not "do the best we can." The correct result is =infeasible= with a diagnostic explaining which component straddled the cutoff.
+
+That is why the Project 1 planner raises a typed =SplitInfeasible= condition rather than silently moving one side of the group. The caller can then change the research question, change the cutoff, justify a different grouping policy, or exclude the component under an explicit protocol. What it cannot do is accidentally receive a partition that violates the policy it asked for.
+
+The same fail-closed behavior appears after scikit-learn returns grouped indices. The wrapper runs a second contamination audit. This looks redundant, and that is the point. Group compilation is our primary control; the audit is an independent assertion that catches a domain rule we forgot to compile.
+
+For example, a regression test deliberately omits an entity edge while still declaring =entity_id= a hard no-overlap field. =GroupKFold= is free to separate the two records because we failed to tell it they are related. The post-split audit catches the leaked entity and rejects the fold. A green test therefore means more than "the library returned indices": it means our domain contract survived the handoff.
+
+*** 6. The real interface is smaller than the dataset
+:PROPERTIES:
+:ID:       2b373c13-e038-4e76-a45e-ced5ee13fcf4
+:END:
+
+The grouped-split adapter intentionally does *not* receive the feature matrix or labels.
+
+Its upstream interface is conceptually:
+
+#+begin_src python
+record_ids = [row["record_id"] for row in records]
+group_ids = [composite_group[row_id] for row_id in record_ids]
+
+splitter.split(range(len(record_ids)), groups=group_ids)
+#+end_src
+
+That design prevents the split planner from accidentally fitting a vectorizer, normalizer, imputer, encoder, or classifier. Those operations belong downstream, after the training indices exist.
+
+This is an architectural version of the familiar rule "fit preprocessing on training data only." Instead of relying on developer discipline in one function, we make the wrong dependency unavailable to the splitting layer.
+
+The actual Project 1 wrapper returns stable record IDs, not model arrays:
+
+#+begin_example
+fold 0
+  train_ids:       [...]
+  test_ids:        [...]
+  train_group_ids: [...]
+  test_group_ids:  [...]
+  contamination:   {...}
+#+end_example
+
+A later feature builder can materialize matrices from those IDs. A later experiment manifest can record the IDs and group policy. A later auditor can reproduce the split without pretending that an array row number is a durable document identity.
+
+*** 7. What our synthetic controls actually proved
+:PROPERTIES:
+:ID:       3e898c24-61e8-4556-adbe-57da29910f11
+:END:
+
+This book uses synthetic controls to make failure modes measurable. They are tests of the evaluation machinery, not estimates of production StarIntel accuracy.
+
+In the currently tested Tier C controls:
+
+| experiment | naive evaluation | constrained evaluation | contamination signal |
+|------------+------------------+------------------------+----------------------|
+| repeated entities | balanced accuracy 0.975 | entity-group 0.500 | 95% of random test rows shared an entity with training |
+| future information | finalized temporal 1.000 | point-in-time temporal 0.750 | finalized features contained information unavailable at prediction time |
+| duplicate documents | row-random 0.9583 | duplicate-cluster 0.500 | 50% exact-hash and 92.5% near-component test contamination in the random split |
+
+These numbers are TESTED outputs of deterministic fixtures in Project 1. They are intentionally constructed demonstrations. They do not say that a future StarIntel production model will lose 0.475 balanced-accuracy points when entity grouping is enabled. They show that a model can appear excellent on a contaminated evaluation even when the intended out-of-group task is no better than the controlled baseline.
+
+That distinction matters enough to repeat: /a leakage demonstration is evidence about an evaluation design, not a benchmark of the eventual product./
+
+The composite-group handoff has its own executable evidence too. The selected research suite exercises an uneven multi-record component under =GroupShuffleSplit=, fixed-seed reproducibility, one-test-fold-per-group behavior under =GroupKFold=, rejection of future-only features, and fail-closed detection of an uncompiled hard entity rule. These cases run under the pinned Project 1 environment rather than relying on prose examples alone.
+
+*** 8. Debug the split before debugging the model
+:PROPERTIES:
+:ID:       daace8a7-6f46-47b5-baa3-09fd2d5a7151
+:END:
+
+When a model result looks suspiciously good or unexpectedly bad, inspect the partition before changing hyperparameters.
+
+A practical audit sequence is:
+
+1. Count direct record-ID overlap. It must be zero.
+2. Count composite-group overlap. For a grouped evaluation it must be zero.
+3. Audit each hard domain key independently: entity IDs, exact hashes, verified duplicate components, source lineage, or another predeclared grouping field.
+4. If the experiment is temporal, verify that all training observations precede the test interval under the declared cutoff policy.
+5. Check feature availability against prediction time.
+6. Record the split seed, policy version, group compiler version, and exact train/test IDs before training.
+7. Only then inspect model metrics.
+
+This ordering saves time. Hyperparameter tuning cannot repair a contaminated test set. A more powerful model can make the contamination worse by exploiting the leaked signal more effectively.
+
+**** Failure lab: the missing edge
+
+Take two records for entity =E1= and one record for =E2=. Deliberately omit the must-link edge between the two =E1= records. Run grouped cross-validation using only the compiled group vector.
+
+One fold can place the first =E1= record in training and the second in testing. The upstream splitter has behaved correctly according to the information it received. Our planner must still reject the fold because the independent =entity_id= audit detects overlap.
+
+The lesson is subtle: a validation library is not responsible for your domain ontology. The caller owns the meaning of "independent sample."
+
+**** Failure lab: the temporal disguise
+
+Take four perfectly separated entity groups and use =GroupShuffleSplit=. Give the test group a timestamp six months earlier than one of the training groups.
+
+There is no group leakage. There is temporal inversion.
+
+The correct response is not to patch =GroupShuffleSplit=. Use the strict historical path because the research question changed.
+
+*** 9. Candidate generation is not duplicate truth
+:PROPERTIES:
+:ID:       6f57c33a-c5d4-4b44-9623-2a2158c0690a
+:END:
+
+Exact duplicate verification becomes expensive when the rule requires comparing every pair. For =n= records there are:
+
+#+begin_example
+n(n - 1) / 2
+#+end_example
+
+unordered pairs. At 1,400 records, that is 979,300 comparisons. At one million records, the count is about five hundred billion. A quadratic oracle is useful for a controlled benchmark and useless as a default production plan.
+
+The fix is not to weaken duplicate truth. The fix is to separate /candidate generation/ from /verification/.
+
+Project 1 uses three candidate sources:
+
+#+begin_example
+exact normalized-text hash -----+
+                                |
+rare-token deterministic block -+--> candidate union
+                                |        |
+MinHash / LSH ------------------+        v
+                                  exact token-Jaccard >= 0.80
+                                           |
+                                           v
+                                  verified duplicate edges
+                                           |
+                                           v
+                                    component closure
+#+end_example
+
+Exact hashes cheaply catch byte-different inputs that normalize to identical text. Rare-token blocking proposes records sharing selected uncommon tokens. MinHash/LSH uses approximate set-similarity machinery descended from min-wise resemblance and locality-sensitive hashing [cite:@broder1997resemblance;@indyk1998approximate]. Deterministic blocking follows the same broad engineering motivation as classic multi-pass record-linkage candidate reduction: avoid comparing obviously unrelated records while retaining multiple routes for plausible matches [cite:@hernandez1995mergepurge].
+
+But none of those sources is allowed to declare a duplicate edge by itself.
+
+Every proposed pair is checked with the already-frozen exact normalized token-set Jaccard predicate. Only verified pairs can enter the union-find closure that forms duplicate components.
+
+That gives approximate methods exactly one authority: they may save comparisons.
+
+**** Why false positives and false negatives are asymmetric
+
+A candidate false positive is a pair proposed by the approximate layer that does not satisfy the exact duplicate predicate. Exact verification rejects it. The cost is extra work.
+
+A candidate false negative is worse: a true qualifying pair was never proposed, so exact verification never gets a chance to see it. That can split one real duplicate component across train and test and invalidate the evaluation contract.
+
+Therefore the primary benchmark question is /candidate recall relative to an exact oracle/, not "how few pairs did the approximate method produce?"
+
+Reducing the comparison set to ten pairs would be spectacularly fast and scientifically useless if the oracle says we missed half the qualifying duplicates.
+
+**** The frozen public benchmark
+
+Project 1 froze a larger benchmark before measurement. It uses scikit-learn 1.9.0's checksum-pinned 20 Newsgroups =by date= archive, selects 1,200 eligible unique public texts by content hash, and creates 200 deterministic one-token controlled near-duplicate variants. Raw public message bodies are not committed to this repository or emitted in the benchmark result [cite:@sklearn190twentynewsgroups].
+
+The exact all-pairs oracle found 202 pairs satisfying the frozen Jaccard =>= 0.80= predicate among 979,300 possible pairs. The 200 source/variant pairs are guaranteed by construction. The remaining two qualifying pairs are simply oracle-qualified public-corpus pairs; the book does not invent a "natural duplicate" label for them.
+
+Before seeing the larger-corpus measurements, the benchmark fixed a MinHash seed of 1729, the =affine32= scheme, two rare-token block keys, and a =num_perm= grid of 64, 128, and 256.
+
+On the recorded GitHub-hosted environment, every grid point produced the same semantic result:
+
+| =num_perm= | candidates | qualifying proposed | union recall | block recall | LSH recall | false-positive candidates | pair-space reduction | exact component equality |
+|------------+------------+---------------------+--------------+--------------+------------+---------------------------+----------------------+--------------------------|
+| 64 | 206 | 202/202 | 1.0 | 200/202 | 1.0 | 4 | 99.9789645665% | true |
+| 128 | 206 | 202/202 | 1.0 | 200/202 | 1.0 | 4 | 99.9789645665% | true |
+| 256 | 206 | 202/202 | 1.0 | 200/202 | 1.0 | 4 | 99.9789645665% | true |
+
+Those are TESTED observations for one frozen 1,400-record benchmark. They are not production throughput, not a cross-corpus recall guarantee, and not evidence that one =num_perm= value is universally best. The three settings tied on this experiment.
+
+The benchmark also recorded candidate-generation wall time and Python =tracemalloc= peaks. Those measurements are useful for reproducing the named run, but they are environment-scoped diagnostics. =tracemalloc= is not total process RSS, and a GitHub-hosted runner is not a StarIntel deployment capacity test.
+
+This is measurement discipline in practice: record what happened, and resist promoting it into a larger claim.
+
+**** Failure lab: accepting the approximate answer
+:PROPERTIES:
+:ID:       de57a40c-b597-4ca7-a151-74e3f90a89f9
+:END:
+
+Take a small corpus where MinHash/LSH proposes at least one pair whose exact Jaccard score is below the threshold. If you construct duplicate components directly from candidate output, the false-positive pair can join otherwise independent records into one component.
+
+Then add the exact verification stage. The same approximate proposal is now harmless: it costs one exact comparison and is rejected before closure.
+
+The lesson generalizes beyond deduplication. Approximate retrieval is often useful for finding things worth checking. It should not silently inherit the authority of the exact rule it is trying to accelerate.
+
+*** 10. Exercises
+:PROPERTIES:
+:ID:       740059c1-a943-4609-98ee-ac65441998cf
+:END:
+
+**** ★ Explain the boundary
+
+For each scenario below, state whether a row-random split, grouped split, strict temporal split, or a composition of rules is required. Explain what information would leak if you chose incorrectly.
+
+1. Several articles quote the same press release nearly verbatim.
+2. You want performance on unseen organizations, but each organization has many documents.
+3. You want to reconstruct what an analyst could have predicted on June 1 using a knowledge base later enriched in July.
+4. Two documents are different, but both are derived from one indivisible source record whose parsed fields are distributed across rows.
+
+**** ★★ Build a constraint compiler
+
+Write a function that accepts record IDs plus must-link pairs and emits connected components. Test at least:
+
+- a singleton;
+- a two-record component;
+- a transitive chain =A--B--C=;
+- duplicate edges;
+- permuted input order.
+
+Choose and document how component IDs remain stable.
+
+**** ★★ Prove a split clean by construction and by audit
+
+Create a small grouped dataset. Compile groups, pass them to a grouped splitter, then independently verify that no group appears in both partitions. Add one separate hard field that was *not* used to build the groups and show that your audit catches a leak when that field crosses the boundary.
+
+**** ★★★ Make time and grouping conflict
+
+Construct a group containing one record before and one record after a cutoff. Your planner should return an explicit infeasible result or raise a typed condition. Do not silently move either record. Record enough diagnostics to explain the conflict to another researcher.
+
+**** ★★★ Measure candidate recall against an oracle
+:PROPERTIES:
+:ID:       a8d8266a-4473-4c48-9e01-8b4fe0023580
+:END:
+
+Create a small text corpus where all-pairs exact Jaccard is cheap enough to compute. Freeze the duplicate predicate and candidate configuration before looking at the result. Measure:
+
+- all possible pairs;
+- exact qualifying pairs;
+- candidate pairs;
+- qualifying pairs proposed;
+- candidate recall;
+- candidate false positives;
+- final component equality versus the oracle.
+
+If recall is below 1.0, do not hide the failure by tuning until the test passes. Record the failed configuration first, then state why a new experiment is justified.
+
+**** ★★★ Design question
+
+A graph model learns from one-hop neighbors. Should every connected component in the source graph become one composite group? Give at least two reasons why blanket connectivity may be too strong, and specify a narrower graph constraint that matches a concrete evaluation question.
+
+*** 11. Project checkpoint
+:PROPERTIES:
+:ID:       c6fdca47-407b-454e-aa51-cef191509b33
+:END:
+
+Project 1 now has enough tested machinery to make a stronger promise than the earlier draft could make: split semantics, near-duplicate discovery, exact verification, and the execution environment are all explicit and inspectable.
+
+The research implementation can compile transitive hard groups, reject cutoff-straddling components under a strict historical policy, reject future-only features, hand composite groups to scikit-learn's grouped splitters, map returned indices back to stable document IDs, and audit the result for contamination. It also has a transitively locked Python research environment and a predeclared larger public-corpus candidate benchmark whose exact oracle verifies candidate recall and final duplicate-component equality.
+
+The foundational evidence gate for these Project 1 mechanisms is therefore closed. That does *not* make Project 1 or this book DONE. The current code is still a research/teaching harness, Chapters 2--5 still require technical and editorial review, Chapter 1 remains to be integrated with this progression, and the final reader-facing dataset-pipeline deliverable still needs a cohesive build/report interface rather than a collection of research passes.
+
+But we have crossed the important threshold: model training is now downstream of source provenance, point-in-time admissibility, dependence compilation, duplicate verification, and an explicit experiment manifest. The model no longer gets to decide what counted as an independent observation after the fact.

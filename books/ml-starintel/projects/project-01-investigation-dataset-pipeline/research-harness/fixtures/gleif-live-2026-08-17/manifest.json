@@ -1,0 +1,65 @@
+{
+  "fixture_id": "gleif-live-feeder-relationships-2026-08-17T18-30Z",
+  "fixture_tier": "B-factual-as-of-snapshot",
+  "publisher": "Global Legal Entity Identifier Foundation (GLEIF)",
+  "api_root": "https://api.gleif.org/api/v1",
+  "golden_copy_publish_date": "2026-08-17T08:00:00Z",
+  "source_lei": "6354009BJOFO62XYIX17",
+  "files": {
+    "feeder-lei-record.json": {
+      "requested_url": "https://api.gleif.org/api/v1/lei-records/6354009BJOFO62XYIX17",
+      "retrieved_at": "2026-08-17T18:30:58.727908+00:00",
+      "raw_sha256": "62c28fab384aec17416abbcc2d8a4923118ccfed1cbaa24951e5449b23ba2973",
+      "canonical_json_sha256": "a95068fb21a3329299c80cdc5c8977cc3979663eac972c1bb64cafe7cb1fdd38",
+      "resource_type": "lei-records",
+      "resource_id": "6354009BJOFO62XYIX17"
+    },
+    "fund-manager-lei-record.json": {
+      "requested_url": "https://api.gleif.org/api/v1/lei-records/6354009BJOFO62XYIX17/fund-manager",
+      "retrieved_at": "2026-08-17T18:30:59.763849+00:00",
+      "raw_sha256": "285a8d4da1e8158c6ab89dd970d465be2057452f575520f1bbbf9674e8e57872",
+      "canonical_json_sha256": "f781559f899aa7ac7c221036251768ceb45fefa55fadd3e85b12a2ce467e1cb2",
+      "resource_type": "lei-records",
+      "resource_id": "635400Z5LRZZSML7CV16"
+    },
+    "fund-manager-relationship-record.json": {
+      "requested_url": "https://api.gleif.org/api/v1/lei-records/6354009BJOFO62XYIX17/fund-manager-relationship",
+      "retrieved_at": "2026-08-17T18:31:00.342252+00:00",
+      "raw_sha256": "be83cf7f5307c2c967778442a991095208cf66b9a02625602298799feec998b7",
+      "canonical_json_sha256": "f841cf722ac5c6b90b0a32c858554d828ea8ebeb257a35cc3c45e9f68d80cb50",
+      "resource_type": "relationship-records",
+      "resource_id": "6354009BJOFO62XYIX17|LEI|IS_FUND-MANAGED_BY|5|8c40506c0314e8627f11076409591f4206f7f60275318f56ddcd3f50d53a0016|"
+    },
+    "master-fund-lei-record.json": {
+      "requested_url": "https://api.gleif.org/api/v1/lei-records/6354009BJOFO62XYIX17/master-fund",
+      "retrieved_at": "2026-08-17T18:31:00.841798+00:00",
+      "raw_sha256": "543da27c676e5a409c686abcec09aaa6fa6cccbaa0290afa16676aa872811f2e",
+      "canonical_json_sha256": "35a2a0f636b84376727143d4251d111450d4c8ca9364945e7251948e0214c37c",
+      "resource_type": "lei-records",
+      "resource_id": "635400VZ8GQJUZ3L3H12"
+    },
+    "master-fund-relationship-record.json": {
+      "requested_url": "https://api.gleif.org/api/v1/lei-records/6354009BJOFO62XYIX17/master-fund-relationship",
+      "retrieved_at": "2026-08-17T18:31:01.421942+00:00",
+      "raw_sha256": "0eac2960016a003e027f2538a1e706bcb5d9c854127f722dcb5aa74654658b72",
+      "canonical_json_sha256": "43574dbb1c307910ed17e611d3afbaada9274532b8aad1e227e5c8a94d7b3445",
+      "resource_type": "relationship-records",
+      "resource_id": "6354009BJOFO62XYIX17|LEI|IS_FEEDER_TO|4|316eb74dec478e0f32722575395b8eec317bcceb05c32ab3ba7e9e7093c05819|"
+    }
+  },
+  "relationship_expectations": {
+    "IS_FUND-MANAGED_BY": {
+      "source_lei": "6354009BJOFO62XYIX17",
+      "target_lei": "635400Z5LRZZSML7CV16"
+    },
+    "IS_FEEDER_TO": {
+      "source_lei": "6354009BJOFO62XYIX17",
+      "target_lei": "635400VZ8GQJUZ3L3H12"
+    }
+  },
+  "limitations": [
+    "This fixture freezes what the primary GLEIF API returned during the recorded retrieval window; it is an as-of observation, not timeless truth.",
+    "The committed JSON files are canonical parsed JSON snapshots. Raw response hashes are retained from the acquisition run; exact raw response bytes remain in the corresponding CI artifact.",
+    "StarIntel schema_version remains 0.9.0; GLEIF API and CDF version domains are independent."
+  ]
+}

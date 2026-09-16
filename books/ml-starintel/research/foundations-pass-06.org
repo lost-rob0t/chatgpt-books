@@ -1,0 +1,136 @@
+#+title: Machine Learning for StarIntel -- Foundational Research Pass 06
+#+date: 2026-08-17
+
+* Status
+RESEARCH. Foundational research remains open.
+
+This pass resolves a source-trust ambiguity before Project 1 freezes its final Level 1 + Level 2 fixture. GLEIF publishes both current-format sample files and an API example, but they do not have identical evidentiary roles.
+
+* Scope
+- Re-read the live Book 1 research state, issue #7, and draft PR #18 before changing anything.
+- Verify the current GLEIF supporting-document matrix and official API example.
+- Verify RR-CDF 2.1 relationship semantics from GLEIF's current primary documentation.
+- Define which GLEIF artifacts may support format tests versus provenance/evaluation claims.
+- Keep all normalization behind the Book 1 StarIntel adapter; do not duplicate starintel-server or the canonical StarIntel schema.
+
+* Research questions
+1. Is the GLEIF API example suitable as a factual public-data fixture, or only as an API-shape/coverage fixture?
+2. Which relationship semantics must a Level 2 -> StarIntel mapping preserve before Experiment D can be considered complete?
+3. Can the official JSON sample archive be acquired and hashed in this execution environment?
+4. What is the smallest defensible fixture hierarchy for Project 1?
+
+* Retrieval date
+2026-08-17.
+
+* Primary sources inspected
+** GLEIF Supporting Documents
+URL: https://www.gleif.org/en/lei-data/access-and-use-lei-data/supporting-documents
+
+DOCUMENTED findings:
+- GLEIF publishes sample XML, JSON, CSV and a sample API response for verification/testing of current formats.
+- Current listed format versions are LEI-CDF 3.1, RR-CDF 2.1 and Reporting Exceptions 2.1.
+- The official JSON sample archive remains =2021-11-23_lei-cdf-3.1-and-rr-cdf-2.1-and-repex-cdf-2.1-json-samples_v1.1-final.zip=.
+- GLEIF explicitly warns that the API example primarily showcases available attributes/relationships and that its content validity may not correspond to a real-world case.
+
+** GLEIF API example
+URL: https://www.gleif.org/lei-data/access-and-use-lei-data/supporting-documents/GLEIF-API-example.json
+
+DOCUMENTED findings from the inspected response:
+- The example contains three =lei-records= resources.
+- A resource may expose relationship links for =direct-parent=, =ultimate-parent=, =direct-children= and =ultimate-children=, plus other relationship families.
+- The example exposes separate relationship-record and related-LEI links where appropriate.
+- Because GLEIF labels this example as illustrative and potentially non-real-world, Book 1 must not treat its entity/relationship contents as factual observations about those organizations.
+
+** GLEIF RR-CDF 2.1
+URL: https://www.gleif.org/en/lei-data/access-and-use-lei-data/level-2-data-relationship-record-rr-cdf-2-1-format
+
+DOCUMENTED findings:
+- Level 2 answers 'who owns whom' for direct and ultimate accounting-consolidating parent relationships.
+- RR-CDF identifies the legal entities involved.
+- RR-CDF specifies relationship type and characteristics such as dates.
+- RR-CDF carries relationship validation and reporting information collected by the responsible LEI issuer.
+
+* Binary acquisition attempt
+The official ZIP URL was resolved again from GLEIF's own page. The web fetcher rejected the =application/zip= response, the dedicated container downloader failed, and the container itself had no external DNS path for a direct Python download.
+
+Claim status: FAILED as an acquisition attempt in this environment. This is not evidence that the upstream file is unavailable. No archive/member hash or member filename was invented.
+
+* Fixture trust hierarchy
+Project 1 should use three deliberately different fixture classes.
+
+** Tier A -- canonical format/adapter fixtures
+Purpose: deterministic parser/adapter/schema coverage.
+
+Sources may include GLEIF's official API example and current-format sample artifacts.
+
+Rules:
+- label them =illustrative_fixture= when GLEIF says the content may not represent reality;
+- never use illustrative contents to teach factual ownership or organizational claims;
+- preserve the upstream file identity and retrieval provenance;
+- validate emitted StarIntel documents against canonical StarIntel 0.9.
+
+** Tier B -- frozen real public observations
+Purpose: provenance, reproducibility and realistic data-quality exercises.
+
+Examples include the already-frozen GLEIF self-record from pass 04 and future explicit real API/Golden-Copy snapshots.
+
+Rules:
+- freeze exact bytes;
+- record retrieval timestamp, URI, licence, content hash and source version/context;
+- distinguish observed source facts from transformations and derived labels;
+- never silently refresh the fixture.
+
+** Tier C -- deterministic synthetic controls
+Purpose: leakage and failure-mode experiments where the expected causal structure is known.
+
+Use synthetic records for controlled duplicate/entity/time leakage demonstrations rather than trying to infer experimental ground truth from mutable real-world data.
+
+* Level 2 -> StarIntel mapping requirements
+Before implementation, the adapter mapping must predeclare where each RR-CDF concept lands.
+
+Required semantic preservation:
+- child identity;
+- parent identity;
+- direct versus ultimate accounting-consolidation semantics;
+- relationship type;
+- relationship periods/dates when supplied;
+- registration/reporting status;
+- validation information;
+- source/provenance identity;
+- raw-source lineage sufficient to reconstruct which source relationship produced which StarIntel relation.
+
+The canonical StarIntel =relation= document should carry graph semantics. GLEIF-specific fields that have no stable canonical StarIntel equivalent should remain in a namespaced extension/provenance structure rather than expanding the StarIntel schema inside this book.
+
+* Experiment consequences
+** Experiment D
+Full D remains UNTESTED. It requires a frozen real or official current-format Level 1 + Level 2 source artifact whose bytes and mapping can actually be executed offline.
+
+The illustrative API example may be used for an intermediate adapter-shape test, but passing that test must not be reported as full public-source provenance Experiment D.
+
+** Experiments A--C
+Still UNTESTED. Their controlled leakage ground truth should primarily come from deterministic synthetic fixtures, with real GLEIF records used only as realistic structure/examples after grouping policy is frozen.
+
+* Claim-status table
+| Claim | Status |
+| GLEIF current sample matrix includes LEI-CDF 3.1, RR-CDF 2.1, Reporting Exceptions 2.1 | DOCUMENTED |
+| GLEIF sample API response is intended mainly to showcase fields/relationships and may not reflect reality | DOCUMENTED |
+| API example exposes parent/child relationship-link families | DOCUMENTED |
+| RR-CDF preserves entity identity, relationship type/dates, validation/reporting information | DOCUMENTED |
+| official JSON ZIP exact bytes/member hashes | UNTESTED |
+| ZIP acquisition in this execution environment | FAILED |
+| illustrative API example -> StarIntel relation adapter execution | UNTESTED |
+| real Level 1 + Level 2 full provenance Experiment D | UNTESTED |
+| leakage Experiments A--C | UNTESTED |
+
+* Remaining uncertainty
+- exact archive member names and hashes;
+- smallest self-contained relationship-connected record set inside the official sample archive;
+- exact canonical StarIntel relation-field mapping for every RR-CDF qualifier/period;
+- whether Reporting Exceptions belongs in the first full D fixture or a dedicated failure/absence fixture;
+- grouped + temporal split precedence when one entity spans the cutoff;
+- deterministic near-duplicate clustering specification.
+
+* Next highest-priority research question
+What exact RR-CDF relationship record and corresponding LEI-CDF entity records form the smallest self-contained official GLEIF sample subset, and can those exact bytes be frozen, mapped through the narrow StarIntel adapter, validated as =org= + =relation= documents, and round-tripped through a complete offline provenance manifest?
+
+Until those bytes are acquired and executed, full Experiment D stays UNTESTED.
