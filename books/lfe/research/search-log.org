@@ -56,3 +56,9 @@ Question: What can the first LFE supervision checkpoint claim about restart beha
 Sources inspected: Erlang/OTP 29.0.6 =supervisor= STDLIB documentation and Supervisor Behaviour design-principles chapter.
 Result: =one_for_one= restarts only the affected child; child specs define a start MFA and restart policy; more than =intensity= restarts in =period= seconds causes supervisor shutdown. A replacement is started from the child spec; supervisor semantics do not restore arbitrary volatile callback state.
 Remaining uncertainty: persistence/replay semantics, multi-child strategy choice, application trees, release handling, distribution, and production observability need separate slices and tests.
+
+** 2026-09-16 -- supervisor stop API across the documentation and runner versions
+Question: Does Project 3's public supervisor helper accidentally rely on an OTP API newer than the executable runner?
+Sources inspected: Erlang/OTP 29.0.6 =supervisor= STDLIB documentation; Project 3 source; focused workflow environment record.
+Result: current =supervisor:stop/1,3= are documented as introduced in OTP 29.0, while the focused book gate executes on OTP 25. The teaching helper therefore uses =gen_server:stop/1= and the Erlang interoperability regression now invokes that helper and requires both registered supervisor and worker names to disappear after the synchronous stop. The helper's OTP-25 compatibility remains TESTED evidence, not a claim that =supervisor:stop/1= exists there.
+Remaining uncertainty: later release/application chapters should revisit shutdown ownership from an application-tree perspective instead of treating this local helper as the production lifecycle API.
