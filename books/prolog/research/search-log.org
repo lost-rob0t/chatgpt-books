@@ -74,3 +74,28 @@ Remaining uncertainty:
 - no portability claim has been made for the exact runtime errors on non-SWI implementations;
 - Chapter 7 does not establish general arithmetic reversibility, CLP(FD) propagation/search behavior, shortest-path optimality, graph-search complexity, or performance;
 - cut, negation, modules, DCGs, broader search/planning, full CLP(FD), meta-programming, persistence/integration, advanced debugging/testing, and indexing/performance remain dependency-later research.
+
+** 2026-09-16 -- Project 1 milestone 4: cut, scope, and first-acceptable policy
+Questions:
+- What exactly does current SWI-Prolog document for =!/0=, including which choice points it discards and where the scope boundary lives?
+- How should the book compare a direct cut with the already accepted =once/1= wrapper without teaching an unsafe context-free rewrite rule?
+- Can Project 1 produce a concrete failure where cutting before qualification loses a later valid answer?
+- How can the chapter prove that “first acceptable” is search-order policy rather than shortest-path search?
+
+Sources inspected:
+- current official SWI-Prolog Reference Manual section on Control Predicates, including =!/0= and documented cut transparency/opacity notes;
+- current official SWI-Prolog documentation for =once/1=.
+
+Result:
+- DOCUMENTED: =!/0= is an ISO control predicate and discards choice points created since entering the predicate containing the cut, committing to the current clause and choices made by goals to its left within that invocation;
+- DOCUMENTED: SWI documents meta-calling as opaque to cut and gives separate transparency/opacity rules for compound control constructs. Chapter 8 therefore avoids the vague claim that cut “stops backtracking everywhere”;
+- DOCUMENTED: =once/1= limits a goal to at most its first solution; the chapter compares it with raw cut only in a deliberately simple wrapper and does not claim arbitrary source rewrites are equivalent across control scopes;
+- REPOSITORY-LOCAL DESIGN: =first_connection_within_hops/5= qualifies through the existing multi-answer relation before reaching =!=. A test-local deliberately broken helper cuts after candidate generation but before =Hops =< Limit=;
+- REPOSITORY-LOCAL EXPECTATION, UNTESTED UNTIL CI: current fixture order generates a four-hop =ada -> sam= path before two three-hop alternatives. At limit 3, qualify-before-cut should reach a later valid three-hop path, while cut-before-qualification should fail after pruning those later alternatives;
+- REPOSITORY-LOCAL EXPECTATION, UNTESTED UNTIL CI: at limit 4 the committed wrapper should return the first four-hop proof even though a later three-hop proof exists, making the non-optimal/search-order boundary executable;
+- the bounded source and evidence record is [[file:cut-control.org][cut-control.org]].
+
+Remaining uncertainty:
+- no performance claim is made for cut versus =once/1=;
+- no universal portability claim is made for all nested-control scope details beyond the documented/standardized cut surface;
+- negation-as-failure, conditional/soft-cut depth, modules, meta-programming, broader search/optimization, tabling, CLP(FD), persistence/integration, advanced debugging/testing, and indexing/performance remain dependency-later research.
