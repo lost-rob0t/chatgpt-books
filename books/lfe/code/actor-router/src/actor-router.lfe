@@ -16,7 +16,8 @@
   (let ((ref (erlang:make_ref)))
     (! pid (tuple 'call (self) ref request))
     (receive
-      ((tuple 'reply ref result)
+      ((tuple 'reply reply-ref result)
+       (when (=:= reply-ref ref))
        result)
       (after timeout
         (tuple 'error 'timeout)))))
