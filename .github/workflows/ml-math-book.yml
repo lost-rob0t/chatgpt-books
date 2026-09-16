@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  vector-foundation-and-book:
+  foundations-and-book:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,16 +37,21 @@ jobs:
           pandoc --version | head -1
           java -jar .cache/epubcheck-5.3.0/epubcheck.jar --version
 
-      - name: Run Vector Toolkit regression suite
+      - name: Run Vector and Matrix Toolkit regression suites
         working-directory: books/ml-math/code/vector_toolkit
-        run: python -m unittest -v test_vector_toolkit.py
+        run: python -m unittest -v test_vector_toolkit.py test_matrix_toolkit.py
 
-      - name: Regenerate vector teaching figure
+      - name: Regenerate deterministic teaching figures
         working-directory: books/ml-math/code/vector_toolkit
         run: |
           set -euo pipefail
           python plot_vector_geometry.py
-          git diff --exit-code -- ../../assets/vector_geometry.svg
+          python plot_matrix_transform.py
+          git diff --exit-code -- ../../assets/vector_geometry.svg ../../assets/matrix_transform.svg
+
+      - name: Compile teaching Python
+        working-directory: books/ml-math/code/vector_toolkit
+        run: python -m py_compile vector_toolkit.py matrix_toolkit.py plot_vector_geometry.py plot_matrix_transform.py
 
       - name: Structural validation
         run: ./tools/check-structure
