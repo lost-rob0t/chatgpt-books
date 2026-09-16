@@ -4,7 +4,7 @@
 :END:
 
 * Reader contract
-This book is standalone. It will teach enough Prolog to build, inspect, test, and debug the symbolic side of every later integration rather than asking the reader to treat Prolog as an opaque verifier. The deeper sibling volume, [[file:../../prolog/README.org][Prolog for Beginners]], remains the place for the broadest pure-Prolog treatment.
+This book is standalone. It will teach enough Prolog to build, inspect, test, and debug the symbolic side of every later integration rather than asking the reader to treat Prolog as an opaque verifier. The deeper sibling volume, =Prolog for Beginners: Thinking in Relations=, remains the place for the broadest pure-Prolog treatment.
 
 The second contract is stricter: language-model output is untrusted external input. A model can propose terms, facts, queries, plans, or explanations only through an explicit interface that can reject malformed, unsupported, contradictory, stale, or over-budget work. Fluency is not evidence and code-shaped text is not automatically executable code.
 
@@ -42,4 +42,4 @@ Readers build a harness that can tell apart parser failures, schema failures, ha
 The final system uses Prolog to own task/subtask representation, recursion budgets, verification, experiment state, and acceptance while model providers remain replaceable external capabilities. The capstone compares itself against simpler baselines on a frozen task set and preserves negative results. It is a concrete study system, not proof that one orchestration pattern is universally superior.
 
 * Current state
-This manuscript is a scaffold, not authored course material. No chapter, project, benchmark, or model behavior is marked DONE here. See [[file:../OUTLINE.org][OUTLINE.org]], [[file:../PROJECTS.org][PROJECTS.org]], and [[file:../STATUS.org][STATUS.org]] for the dependency plan and evidence state.
+This manuscript is a scaffold, not authored course material. No chapter, project, benchmark, or model behavior is marked DONE here. The canonical curriculum and evidence state live in the neighboring =OUTLINE.org=, =PROJECTS.org=, and =STATUS.org= files; those repository-authoring links are intentionally not embedded into the EPUB scaffold until a publication-safe cross-book/navigation strategy is selected.
