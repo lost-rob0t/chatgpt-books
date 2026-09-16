@@ -10,8 +10,9 @@ Foundational research + first progressive Vector/Matrix Toolkit slice.
 - Chapters 1--5 drafted with derivations, worked examples, exercises, numerical-failure labs, and ML connections.
 - Project 1 checkpoint A source/tests added for vectors, dot products, norms, distance, normalization, cosine similarity, and projection.
 - Reproducible accessible vector-projection SVG generator and checked-in asset added.
+- Editor-requested citation placement and NumPy version wording corrections have been applied on the focused draft branch; final editorial acceptance remains external to this worker.
 * Active research
-Foundational research remains IN-PROGRESS. Matrices/transformations are the next Project 1 dependency slice; calculus, probability, information theory, optimization, decompositions, and numerical-stability coverage remain later research work.
+Foundational research remains IN-PROGRESS. Matrices/transformations are the next Project 1 dependency slice after checkpoint A clears review; calculus, probability, information theory, optimization, decompositions, and numerical-stability coverage remain later research work.
 * Verification state
 Checkpoint A has executable tests and CI wiring in its focused branch. Exact-head pass/fail evidence belongs in issue/PR records; this status file does not declare unexecuted checks green.
 * Unverified claims
@@ -19,6 +20,6 @@ Checkpoint A has executable tests and CI wiring in its focused branch. Exact-hea
 - No performance benchmark is claimed.
 - Later regression, optimization, probability, or neural-network project results do not yet exist.
 * Technical/editorial/visual review
-Not started beyond the executable foundation checks and first reproducible teaching figure.
+Editorial review is active. The first review returned NEEDS_REWRITE for missing manuscript citations and ambiguous NumPy 2.5.0 wording; those requested corrections are now drafted, but fresh exact-head verification and Editor-in-Chief re-review are still required.
 * Blockers
-No known book-internal design blocker for the vector foundation slice. Review and exact-head verification must complete before the project moves to its matrix checkpoint.
+No known book-internal design blocker for checkpoint A. Matrix checkpoint B remains intentionally gated on exact-head verification and editorial acceptance of the vector foundation slice.
