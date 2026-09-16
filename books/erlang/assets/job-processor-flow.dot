@@ -1,0 +1,31 @@
+digraph JobProcessor {
+  rankdir=LR;
+  graph [fontname="sans-serif", bgcolor="transparent", nodesep=0.45, ranksep=0.65];
+  node [shape=box, fontname="sans-serif", fontsize=11];
+  edge [fontname="sans-serif", fontsize=10];
+
+  client [label="Client\nsubmit(Job)"];
+  admission [label="job_processor\nadmission + volatile ledger"];
+  reject [label="{error, overloaded}", shape=note];
+  fifo [label="Explicit FIFO\npending jobs"];
+  workersup [label="job_worker_sup\ndynamic supervisor"];
+  worker [label="temporary job_worker\n(JobId, Attempt)"];
+  result [label="job_result\ncompletion / bounded failure", shape=note];
+  restart [label="queue process restart\nempty ledger", shape=box, style="dashed"];
+  lost [label="old in-flight result\nnot recovered", shape=note, style="dashed"];
+
+  client -> admission [label="call submit"];
+  admission -> reject [label="capacity full"];
+  admission -> fifo [label="accepted but no slot"];
+  fifo -> admission [label="dequeue when slot opens"];
+  admission -> workersup [label="start_child temporary"];
+  workersup -> worker [label="start_link"];
+  admission -> worker [label="monitor + run"];
+  worker -> admission [label="job_finished or DOWN"];
+  admission -> fifo [label="retry at rear\nAttempt < MaxAttempts"];
+  admission -> result [label="deliver final result"];
+  result -> client [label="message"];
+  admission -> restart [label="crash / supervisor restart", style="dashed"];
+  worker -> lost [label="result sent to dead old PID", style="dashed"];
+  restart -> lost [label="no persisted ledger", style="dashed"];
+}
