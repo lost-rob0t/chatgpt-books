@@ -1,0 +1,100 @@
+#+title: Symbolic AI in Prolog Research 03 -- Explicit Choice and Search-Attempt Diagnostics
+:PROPERTIES:
+:ID:       399c35a6-d3e2-421d-b2e4-f39f2cce6e4a
+:END:
+
+* Scope
+This record supports Project 1 milestone B: one additional closed object-language control form and a bounded diagnostic that exposes top-level rule attempts without pretending to reproduce the host debugger.
+
+Retrieval date: 2026-09-16.
+
+Claim status follows repository policy. DOCUMENTED means the behavior is supported by an inspected source. TESTED belongs only to exact repository/runtime evidence after the branch actually executes. UNTESTED means the implementation or publication path has not yet been observed on the new head.
+
+* Question 1 -- What does ordinary Prolog disjunction promise, and why not simply pass =;/2= through?
+DOCUMENTED, SWI/ISO BOUNDARY: the current SWI-Prolog Control Predicates reference describes conjunction =(Goal1,Goal2)= as requiring both goals and disjunction =(Goal1;Goal2)= as succeeding when either side succeeds. The same section also documents interactions among disjunction, cut, if-then-else, soft cut, and meta-calling. In particular, =;/2= is transparent to cut and the semantics of =->/2= changes when combined with disjunction.
+
+Source:
+- https://www.swi-prolog.org/pldoc/man?section=control
+
+Teaching consequence: Project 1 does not expose host =;/2= directly and does not add interpreted cut, if-then-else, negation, or arbitrary =call/1=. Instead it adds a deliberately smaller reserved control term:
+
+#+begin_src prolog
+either(Left, Right)
+#+end_src
+
+Its milestone-B contract is only this: enumerate proofs from =Left= in ordinary Prolog search order, then enumerate proofs from =Right= on backtracking. The proof term records which branch produced the successful proof. No host cut can appear in the closed object language, so the book can derive branch semantics without inheriting host cut scope as accidental language design.
+
+* Question 2 -- Why is =once/1= not a harmless way to make examples deterministic?
+DOCUMENTED: current SWI-Prolog documentation describes =once/1= as making a possibly nondeterministic goal semideterministic and defines it in terms of =call(Goal), !=. It therefore intentionally commits to at most one solution.
+
+Source:
+- https://www.swi-prolog.org/pldoc/man?predicate=once/1
+
+Teaching consequence: the interpreter may use =once/1= in tests that merely need to witness one success, but the interpreter implementation must not insert =once/1= around object-rule selection or =either/2=. Doing so would erase alternatives and change the reasoning API. Milestone B keeps alternative proofs observable by backtracking and adds regressions for branch order/multiplicity.
+
+* Question 3 -- What operational information does the host debugger expose that a successful proof omits?
+DOCUMENTED, SWI-SPECIFIC: the current debugger overview describes the traditional Byrd-box ports =call=, =redo=, =exit=, and =fail=. SWI-Prolog extends the model with =unify= and =exception=. The documentation ties these ports to phases of predicate resolution: entering a goal, trying another alternative, successful head unification, successful completion, failure, and exceptions.
+
+Source:
+- https://www.swi-prolog.org/pldoc/man?section=debugoverview
+
+Historical attribution note: the inspected SWI-Prolog documentation explicitly attributes the four-port box model to Lawrence Byrd (1980). A Cambridge Core bibliography independently gives the record as “Understanding the control flow of Prolog programs,” Logic Programming Workshop, Debrecen, pp. 127--138, also Edinburgh DAI Research Paper 151. The original Byrd paper itself was not directly inspected in this pass, so this book does not derive technical details from an uninspected copy or pretend the bibliography entry is primary execution evidence.
+
+Bibliographic cross-check inspected:
+- https://www.cambridge.org/core/journals/journal-of-functional-programming/article/debugger-for-standard-ml1/BF54A954B1F2E6447C9B404627F87EC4
+
+* Question 4 -- What diagnostic can Project 1 honestly provide now?
+A successful proof tree is justification data. The host debugger trace is runtime operational history. Milestone B adds a third, intentionally narrower artifact: a *top-level object-rule attempt report* for one ground ordinary object goal.
+
+The report only considers stored rules whose freshened heads unify with the requested goal, preserving program order. For each such rule it spends the same object-rule budget unit that =prove_guarded/4= would spend on selecting that rule, then collects the guarded outcomes of the rule body.
+
+The public shapes are:
+
+#+begin_src prolog
+blocked(exhausted(Goal))
+search(Goal, Attempts)
+
+attempt(Id, failed)
+attempt(Id, outcomes(Outcomes))
+#+end_src
+
+where =Outcomes= reuse =proved(Proof)=, =cycle(Goal)=, and =exhausted(Goal)=.
+
+A report of =failed= has precise scope: the selected top-level rule head unified, but its body produced no guarded outcome. Rules whose heads do not unify are not listed. Nested failed candidate rules are not linearized into debugger-style ports. This is enough to make an important invisible fact visible—“the direct rule was attempted and its body failed before a later recursive rule proved the query”—without mislabeling the artifact as a complete execution trace.
+
+* Question 5 -- Why require a ground diagnostic goal?
+The proof relations remain relational and may bind variables. The diagnostic report, however, aggregates alternatives with =findall/3=. If the public API silently accepted a non-ground query, the report would have to specify whether answer substitutions are grouped, copied, projected, or merged into the requested goal. That is a separate interface design problem.
+
+Milestone B therefore makes the small contract explicit: =search_report/4= accepts a *ground ordinary goal*. Non-ground goals are rejected instead of producing an ambiguous aggregate. The later explanation/query API can introduce answer-substitution records deliberately.
+
+This is a project design decision, not a claim about a SWI-Prolog restriction.
+
+* Question 6 -- How should branch budgets behave?
+Milestone A defines one budget unit as one selected object rule. =either/2= itself is a control form and consumes no rule unit. Each alternative begins from the same incoming budget because alternatives describe separate search branches. Consumption inside a failed left branch must not make the right branch start artificially poorer when the caller backtracks to it.
+
+This policy is project-defined and must be TESTED; it is not presented as SWI-Prolog's internal depth, inference, or stack accounting.
+
+* Milestone-B semantic contract
+The closed object language now has four forms:
+1. =true=;
+2. conjunction =(A,B)=;
+3. explicit choice =either(A,B)=;
+4. ordinary goals resolved only through the supplied =rule/3= program.
+
+A successful explicit choice creates =choice(left,Proof)= or =choice(right,Proof)=. =proof_rule_ids/2= traverses the selected child but does not invent a provenance ID for the control node.
+
+=search_report/4= is deterministic, bounded, top-level, ground-goal-only diagnostic data. It does not execute arbitrary host predicates, does not expose cut/negation, does not claim to mirror every SWI debugger port, and does not replace =trace/0= or =library(prolog_trace)=.
+
+* Failure/debugging curriculum
+The manuscript and tests should make these failures visible:
+1. Insert =once/1= around rule selection and observe that a second proof disappears; explain why determinism changed semantics.
+2. Put a failing direct rule before a successful recursive rule. The proof tree should contain only the successful derivation while =search_report/4= records the failed top-level attempt as well.
+3. Give the left branch of =either/2= a direct cycle and the right branch a fact. A cycle outcome on the left must not suppress the right proof on backtracking.
+4. Give =search_report/4= a zero rule budget. It must report that search was blocked before claiming a rule was attempted.
+5. Ask =search_report/4= a non-ground query. The API must reject the ambiguous aggregate rather than silently discard answer substitutions.
+6. Treat the object-level report as if it were the SWI debugger and list the missing information: non-unifying candidates, nested port chronology, host unification ports, redo timing, exceptions, and runtime implementation state.
+
+* Verification state
+DOCUMENTED: the host control/debugger claims above were checked against current official SWI-Prolog documentation on 2026-09-16; the Byrd bibliographic attribution was cross-checked as described above.
+
+UNTESTED ON THE MILESTONE-B HEAD: the new =either/2= semantics, search-report structures, exact PL-Unit outcomes, rendered diagram, and publication checks until CI executes the branch under a recorded SWI-Prolog runtime.
