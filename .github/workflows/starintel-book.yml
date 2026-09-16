@@ -57,8 +57,31 @@ jobs:
       - name: Run Project 1 record-contract tests
         run: bash books/starintel/code/records/run-tests
 
-      - name: Validate editable diagram source
-        run: dot -Tsvg books/starintel/assets/document-flow.dot -o /tmp/starintel-document-flow.svg
+      - name: Run Project 2 ingest-adapter tests
+        run: |
+          bash books/starintel/code/ingest-adapter/run-tests
+          python3 -m py_compile \
+            books/starintel/code/ingest-adapter/adapter.py \
+            books/starintel/code/ingest-adapter/test_adapter.py
+
+      - name: Run ambiguous-bulk failure-analysis lab
+        run: |
+          bash books/starintel/code/ambiguous-bulk/run-tests
+          python3 -m py_compile \
+            books/starintel/code/ambiguous-bulk/reconcile.py \
+            books/starintel/code/ambiguous-bulk/test_reconcile.py
+
+      - name: Run bulk-job lifetime evidence lab
+        run: |
+          bash books/starintel/code/bulk-job-lifetime/run-tests
+          python3 -m py_compile \
+            books/starintel/code/bulk-job-lifetime/audit.py \
+            books/starintel/code/bulk-job-lifetime/test_audit.py
+
+      - name: Validate editable diagram sources
+        run: |
+          dot -Tsvg books/starintel/assets/document-flow.dot -o /tmp/starintel-document-flow.svg
+          dot -Tsvg books/starintel/assets/ingest-settlement.dot -o /tmp/starintel-ingest-settlement.svg
 
       - name: Build StarIntel book
         run: make book BOOK=starintel

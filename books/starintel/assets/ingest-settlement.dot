@@ -1,0 +1,44 @@
+digraph starintel_ingest_settlement {
+  graph [rankdir=LR, labelloc=t, label="StarIntel ingest: observation and settlement boundaries", fontname="sans-serif"];
+  node [shape=box, fontname="sans-serif"];
+  edge [fontname="sans-serif", fontsize=10];
+
+  post [label="HTTP POST\nvalidate + authorize"];
+  publish [label="producer basic.publish\n(pinned producer thread)"];
+  returned [label="HTTP success returned\npublication boundary only", shape=note];
+  queue [label="durable topic exchange/queue\nconsumer owns channel"];
+  decode [label="decode + strict v0.9 validation"];
+  outbox [label="CouchDB revision\n+ pending outbox entry"];
+  event [label="publish documents.new.<dtype>\npersistent message + stable event id"];
+  mark [label="mark outbox entry published"];
+  ack [label="ACK original ingest delivery", shape=doubleoctagon];
+
+  retry [label="transient failure\nbounded backoff + republish", shape=diamond];
+  quarantine [label="permanent/exhausted\npersist + publish quarantine", shape=diamond];
+  crash [label="crash/failure after event publish\nbefore publish marker", shape=diamond];
+  recover [label="startup outbox recovery\nmay republish same logical event"];
+  confirmgap [label="publisher confirm mode\nnot evidenced in inspected publish paths", shape=note];
+
+  post -> publish [label="allowed"];
+  publish -> returned [label="call returns"];
+  publish -> queue [label="routing key documents.ingest.<dtype>"];
+  queue -> decode;
+  decode -> outbox [label="non-transient"];
+  outbox -> event [label="persist first, publish second"];
+  event -> mark;
+  mark -> ack;
+
+  decode -> quarantine [label="schema/permanent"];
+  queue -> retry [label="transient handler failure"];
+  retry -> ack [label="republish then ACK original"];
+  retry -> quarantine [label="budget exhausted"];
+  quarantine -> ack [label="persist/publish then ACK original"];
+
+  event -> crash [style=dashed, label="uncertain window"];
+  crash -> recover [label="pending remains"];
+  recover -> event [label="same stable event id"];
+
+  publish -> confirmgap [style=dotted];
+  retry -> confirmgap [style=dotted];
+  quarantine -> confirmgap [style=dotted];
+}
