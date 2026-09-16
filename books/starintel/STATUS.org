@@ -3,7 +3,7 @@
 :ID:       d04e0764-a154-5602-934a-1a1ce9f935d7
 :END:
 * Phase
-Foundational research plus the second project-backed runtime slice are IN-PROGRESS. The merged Chapters 1--5 / Project 1 foundation is stable enough to build on; the active PR advances Chapters 6, 8, 9, 14, and 20 plus Project 2. The complete 300--700 page book remains far from release-ready.
+Foundational research and the first two project-backed runtime milestones are merged. Project 2's disposable service-backed evidence checkpoint is TESTED in PR #58 and awaits Editor-in-Chief review after final current-main reconciliation/checks. The complete 300--700 page book remains far from release-ready.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
 - The bounded Chapters 1--5 / Project 1 milestone-A foundation was editorially approved and merged previously.
@@ -14,31 +14,43 @@ Foundational research plus the second project-backed runtime slice are IN-PROGRE
 - Project 2's hermetic adapter distinguishes HTTP publish-boundary return from later authorized read-back and contains eight tests.
 - Runtime Failure Pass 03 records the =d48fa939402abf701fa1cc4079dfb8bedfad8d4a= quarantine-ID/worker-isolation delta; the incident and upstream product checks remain UPSTREAM-REPORTED.
 - The ambiguous-bulk failure-analysis lab derives a resume offset only from a proven contiguous =verified_match= prefix followed by verified absence. It deliberately refuses to infer document equivalence, query product services, or replay work.
-- Bulk Lifetime Pass 04 rechecks current StarIntel Server head =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= after issue #189 / PR #190 landed. Current source stores a stable bulk-job total and releases terminal request documents plus request-only service context while retaining pollable job metadata.
-- Chapter 20 now derives the distinction between bounded in-flight work and bounded retained history from that current implementation, including the accepted-but-ambiguous recovery consequence.
+- Bulk Lifetime Pass 04 rechecks StarIntel Server head =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= after issue #189 / PR #190 landed. Current source stores a stable bulk-job total and releases terminal request documents plus request-only service context while retaining pollable job metadata.
+- Chapter 20 derives the distinction between bounded in-flight work and bounded retained history from that implementation, including the accepted-but-ambiguous recovery consequence.
 - The =bulk-job-lifetime= book lab audits sanitized lifecycle observations with explicit =proven= / =incomplete= / =contradicted= outcomes rather than simulating StarIntel. Its synthetic suite covers eleven lifecycle/failure cases.
-- The StarIntel manuscript is split into stable Org include modules without changing the existing foundation/runtime content or its IDs; this uses the repository's current include-aware publication path.
+- PR #44 was editorially APPROVED and merged as =84fab98a4eb3f7ab136c99a138dc1fb1f15c0488= after exact-head focused and generic CI. HTTP publication evidence, Rabbit settlement, CouchDB outbox/at-least-once reasoning, ambiguous replay auditing, and terminal bulk-job lifetime evidence are therefore on canonical =main=.
+- The StarIntel manuscript is split into stable Org include modules without changing the earlier foundation/runtime content or IDs.
 - Editable Graphviz source and rendered SVG assets cover the foundation document flow and current ingest settlement/outbox model.
+* Active slice -- Service Trace Pass 05
+PR #58 reuses exact upstream StarIntel Server revision =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= and its own disposable =scripts/stack-test.sh= rather than copying deployment logic into this book. That revision is still the repository's =master= head as of the 2026-09-16 execution audit.
+
+The book's fail-closed observation hook is TESTED against that real disposable stack. It:
+- submits a fresh synthetic Project 1 document through the current HTTP ingest route and separately requires authorized durable read-back;
+- stops RabbitMQ and verifies the container is actually not running before interpreting the fault;
+- records the client-visible fault outcome without prescribing a status code;
+- starts RabbitMQ, explicitly restarts StarIntel, waits for upstream health, and requires another fresh HTTP/read-back observation;
+- retains only sanitized evidence, never the disposable API key, bearer header, raw response body, container ID, or raw fault stderr.
+
+Two successful service-backed executions reproduce the same qualitative boundary. In both, baseline POST returned HTTP 200 and authorized read-back later observed the fresh document; the first run observed it on read attempt 1 and the current-main rerun on attempt 2. In both broker-fault phases, RabbitMQ was verified stopped, the HTTP service remained alive, the fresh fault submission returned HTTP 200, and persistence was not observed across nine bounded reads with final status 404. In both explicit-recovery phases, =start RabbitMQ -> restart StarIntel -> wait healthy= was followed by another POST 200 and persistence observed on read attempt 1. The differing baseline poll count is an observation, not a latency benchmark or service-level guarantee.
 * Active research
-- Current RabbitMQ/CouchDB service-backed fault injection remains open: publisher confirms are not evidenced in the inspected publish paths, and the book has not yet reproduced retry/quarantine/redelivery/crash recovery against disposable services.
-- The new bulk-lifetime lesson is source-grounded, but the book has not independently measured SBCL heap behavior or instrumented a live StarIntel bulk job to observe request-payload release.
-- Actor registry/discovery, Sento restart/supervision semantics, remote delivery, Quasar integration, external actors, language bindings, search/inference, deployment, security, and broader production-debugging surfaces remain dependency-gated later research.
-- Any later change to the source paths pinned by the current research passes requires another current-head delta audit before corresponding manuscript claims are promoted.
+- Publisher confirms are still not evidenced in the inspected publish paths. The successful service traces do not substitute for a publisher-confirm-specific experiment.
+- Settlement-failure redelivery/listener survival, the CouchDB outbox crash window, concurrent quarantine-ID behavior, terminal bulk payload release under sustained backlog, and transparent broker reconnect remain separate executable questions.
+- Actor registry/discovery, Sento restart/supervision semantics, remote delivery, Quasar integration, external actors, language bindings, search/inference, deployment, security, and broader production-debugging surfaces remain later research.
+- Any later change to source paths pinned by the current research passes requires another current-head delta audit before corresponding manuscript claims are promoted.
 * Verification status
-- The previously merged foundation and earlier Project 2/ambiguous-bulk implementation have successful focused and generic CI evidence recorded in PR #44.
-- The current branch additionally contains eleven hermetic =bulk-job-lifetime= unit tests and Python compilation gates in the focused =starintel-book= workflow.
-- Exact-head focused =starintel-book=, =make book BOOK=starintel=, =make check BOOK=starintel=, EPUBCheck, Nix, and generic =books-ci= results are recorded on PR #44 before editorial handoff. This status file intentionally does not embed a moving branch SHA/run ID so unrelated merges do not make the canonical Org text stale.
-- DOCUMENTED at current upstream StarIntel Server head =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=: the prior ULID/worker-isolation repair plus the current asynchronous bulk-job terminal payload-lifetime repair.
-- UPSTREAM-REPORTED in StarIntel Server issue #187 / PR #188 and issue #189 / PR #190: the live incidents, baseline RED fixtures, operational reconciliation details, and product-repository verification. The book did not execute those product-repository checks.
+- The merged Project 1 and earlier Project 2/runtime work has successful focused and generic CI evidence recorded in PRs #37 and #44.
+- PR #58 execution head =1e0ad4e802ea390823a9a5cc04858eb03d2c8ba4= has focused =starintel-book= run =35115201190= SUCCESS: Project 1 7/7, ingest-adapter 8/8, service-trace hermetic 9/9, ambiguous-bulk 8/8, bulk-job-lifetime 11/11, =make book BOOK=starintel=, =make check BOOK=starintel=, EPUBCheck with 0 fatals / 0 errors / 0 warnings / 0 infos, and a separate successful Nix job. Its service-backed job =104858737649= emitted sanitized artifact =10454487856=.
+- Reconciled head =c09f88fdd2b9dd7df48f48777b32bbf316ba3c65= repeated the experiment in =starintel-book= run =35121092016= SUCCESS: records-and-book =104878765479= SUCCESS, service-backed trace =104878765097= SUCCESS, and Nix =104878765492= SUCCESS. Generic =books-ci= run =35121091999= also succeeded. The service-backed artifact is =10458031216= (uploaded ZIP SHA-256 =a8725dbb3e847c05108f49114a63c551242f2228abeafc9d5e3905ee0011a26d=).
+- DOCUMENTED at current upstream StarIntel Server head =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=: the prior ULID/worker-isolation repair, terminal bulk-job payload-lifetime repair, and current disposable stack-test lifecycle inspected by Pass 05.
+- UPSTREAM-REPORTED in StarIntel Server issue #187 / PR #188 and issue #189 / PR #190: the live incidents, baseline RED fixtures, operational reconciliation details, and product-repository verification not independently reproduced by this book.
 * Unverified claims
-- No live HTTP -> RabbitMQ -> consumer -> CouchDB Project 2 round trip has been executed by this book slice.
-- No book-controlled reproduction of the concurrent ULID collision, settlement-failure redelivery, listener survival, outbox crash window, quarantine path, or issue #189 heap exhaustion has been run.
+- Publisher-confirm acceptance is not measured by the successful end-to-end traces; a local publication return plus later read-back does not identify the broker durability mechanism.
+- No book-controlled settlement-failure redelivery, outbox crash-window, concurrent ULID collision, quarantine path, or issue #189 heap-exhaustion reproduction has been run.
 - The book has not independently instrumented a real terminal bulk job to prove document/service-context release under sustained backlog load.
-- Publisher-confirm behavior remains an evidence gap; a local =basic-publish= return is not promoted to durable broker acceptance.
+- Transparent broker reconnect without an operator restart remains UNTESTED; the successful recovery deliberately included a StarIntel restart.
 - Actor dispatch/restart/registry behavior, Quasar integration, deployment guarantees, and production performance remain UNTESTED by the current book work.
 * Technical/editorial/visual review
-The merged foundation milestone has passed its bounded review. The active ingest/runtime/debugging slice remains in PR review; whole-book technical/editorial/visual review has not started. No current status text self-certifies the whole book or later projects as complete.
+The two merged bounded milestones passed their own reviews. PR #58 now has repeated real service-backed evidence but must remain unmerged until final current-main reconciliation/checks are green and the Editor-in-Chief reviews the resulting manuscript/research changes. Whole-book technical/editorial/visual review has not started.
 * Next dependency-ready slice
-After the active ingest/runtime slice is reconciled and reviewed, the next runtime dependency remains a disposable service-backed Project 2 failure trace. It should separately observe HTTP acceptance and durable read-back, inject at least one Rabbit/Couch/settlement failure, and capture sanitized lifecycle evidence suitable for the book-side auditors before actor-registry/runtime teaching advances.
+After the service-backed Project 2 checkpoint is editorially accepted, research the current actor registry/discovery/restart boundary before beginning Chapter 7 / Project 3. Deeper settlement/outbox fault injection remains part of the later broken-pipeline/debugging work rather than being silently treated as complete.
 * Blockers
-No known book-local implementation blocker remains in the hermetic teaching slice. PR #44 still requires editorial review and must not be merged or auto-merged by this worker. Live multi-service and heap-lifetime claims remain blocked on an authorized disposable StarIntel stack plus actual instrumentation/fault-injection execution, not on prose.
+No known book-local implementation blocker remains in this checkpoint. PR #58 still requires final current-main reconciliation/exact-head verification and editorial review. No merge or auto-merge is authorized for this worker.

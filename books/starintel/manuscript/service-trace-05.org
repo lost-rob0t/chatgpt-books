@@ -1,0 +1,314 @@
+* Project 2 Lab -- Cross the Real Stack, Then Break One Boundary
+:PROPERTIES:
+:ID:       397df0e5-c209-47c6-b750-4875d7513b11
+:END:
+
+A hermetic client test can prove that a URL is formed correctly.  It cannot
+prove that the service behind the URL accepted the request, that the broker
+carried it, that a consumer settled it, or that CouchDB now contains the
+record.  That distinction is the reason Project 2 did not stop with a mock HTTP
+transport.
+
+This lab changes the kind of evidence we collect.  We keep the thin adapter,
+but place it in front of a disposable copy of the actual pinned StarIntel
+stack.  Then we remove RabbitMQ on purpose and watch which observations
+survive.  The point is not to make the system fail theatrically.  The point is
+to learn how to say exactly what failed without turning one symptom into an
+architecture story we did not observe.
+
+** Five statements that sound similar and are not
+Suppose a client submits a document.  These statements form an evidence ladder:
+
+#+begin_example
+A. the client issued an HTTP request
+B. the StarIntel HTTP handler returned success
+C. RabbitMQ accepted a publication durably
+D. an ingest consumer processed the delivery
+E. an authorized GET later observed the document in the durable corpus
+#+end_example
+
+Earlier chapters derived why those claims cannot be collapsed.  In particular,
+the inspected producer path calls RabbitMQ's publication operation without an
+evidenced publisher-confirm wait.  The current server source therefore lets us
+document where the call occurs, but source inspection alone cannot turn B into
+C.
+
+The service-backed lab gives us a different kind of result.  If B and E are
+both observed for a fresh unique document, we have an end-to-end observation
+through the currently configured system.  We still have not separately
+instrumented C and D.  This sounds fussy until something breaks.  Once it does,
+that precision is the difference between debugging and fan fiction.
+
+** Do not fork the system to test the system
+A common tutorial mistake is to copy a production Compose file, replace half
+the services with toy substitutes, and then call the resulting demo an
+integration test.  It may teach Docker.  It no longer tells us much about the
+current product.
+
+StarIntel Server already carries a disposable stack harness.  At the revision
+used by this lab, its =scripts/stack-test.sh= creates temporary credentials,
+loads the repository's Nix-built images, starts the current Compose services,
+bootstraps an administrator, exercises authorization/search behavior, restarts
+the stack, checks persistence, and tears everything down.
+
+We reuse that harness instead of copying it.  The book adds one small sourced
+hook just before the upstream harness would normally print its final success
+message:
+
+#+begin_example
+upstream stack-test owns                    book owns
+-----------------------                    ---------
+secrets and ports
+Nix-built images
+Compose startup
+administrator bootstrap
+upstream auth/search checks
+restart/persistence checks
+                         ---------------->  three observation probes
+Compose teardown
+#+end_example
+
+The injector is intentionally brittle in one useful way: it recognizes one
+exact marker in one exact pinned upstream script.  If that source changes, the
+injection fails closed.  A future author must read the new stack script and
+choose the hook again.  Silent drift would be more convenient and much worse
+research.
+
+** Baseline: demand both acceptance and read-back
+The first probe makes a fresh synthetic copy of Project 1's person document.
+Only the identifier and explanatory synthetic =bio= are changed.  The adapter
+then performs the same two operations introduced earlier:
+
+#+begin_example
+POST /new/document/person
+        |
+        +-- record HTTP publication-boundary return
+
+GET /document/<fresh-id>
+        |
+        +-- poll for a bounded period
+        +-- record an independent persistence observation
+#+end_example
+
+The test requires both observations.  A successful POST with no later read-back
+is not silently upgraded to success.  A successful read-back, conversely, gives
+us a useful bounded result: for that unique document on that exact pinned stack,
+the configured HTTP -> broker -> ingest -> persistence path completed far
+enough for the authorized read route to observe it.
+
+Notice what we still do not write down: broker latency, consumer latency,
+number of delivery attempts, publisher-confirm state, or an exactly-once claim.
+The lab has no instrument for those facts.
+
+** Fault injection begins with a precondition
+"We stopped RabbitMQ" is itself a claim that needs evidence.  The probe asks
+Compose to stop the =rabbitmq= service and then checks Docker's container state.
+The fault phase is invalid unless the RabbitMQ container is observed not
+running.
+
+That detail prevents a surprisingly common fake fault test:
+
+#+begin_example
+request fault
+run workload
+see workload succeed
+conclude system survived fault
+#+end_example
+
+If the requested fault never became true, the conclusion is meaningless.
+Always verify the fault precondition before interpreting the workload.
+
+With RabbitMQ down, the probe asks a smaller question first: does the existing
+HTTP process still answer an authenticated context request?  That answer is
+recorded independently.  It does not imply document ingest still works.
+
+Then a second fresh document is submitted.  We deliberately do *not* encode a
+required status code in the book.  The current implementation may return an
+HTTP failure, the transport may fail, or the publication boundary may return
+before the missing downstream persistence becomes visible to the client.  The
+classifier accepts those as different observations rather than forcing them
+into one expected error.
+
+If the adapter receives a successful POST, it performs the bounded read-back
+poll as usual.  While the broker is verified down, the only acceptable result
+for that fresh document is that persistence is not observed before the
+deadline.  If it becomes durable during the held fault, the experiment marks
+its own model contradicted and fails.  That is a feature.  The right response
+to surprising evidence is investigation, not a more creative assertion.
+
+** Sanitize evidence before keeping it
+The disposable stack creates a real administrator credential.  The book needs
+none of its value.  Raw response bodies are also unnecessary for the durable
+teaching artifact.
+
+The sanitizer therefore reduces the run to facts such as:
+
+#+begin_example
+server revision
+baseline POST state/status
+baseline read-back state/status
+RabbitMQ running during fault?  false
+HTTP context reachable during fault?  true/false
+fault submission class/status if available
+explicit recovery action
+recovery POST/read-back states
+claims this experiment did not prove
+#+end_example
+
+No bearer token, authorization header, container identifier, raw server error
+body, or raw fault stderr enters the retained JSON artifact.  Sanitization is
+not only secrecy hygiene.  It also forces the evidence object to have a small,
+reviewable vocabulary.
+
+** Recovery: state the operator action, not a miracle
+After the fault observation, the lab starts RabbitMQ and explicitly restarts
+StarIntel Server.  It then waits for the upstream stack's own health predicate
+before submitting a third fresh document.
+
+This makes the recovery claim intentionally narrow:
+
+#+begin_example
+RabbitMQ started
+AND StarIntel explicitly restarted
+AND upstream stack became healthy
+AND new POST returned
+AND later authorized read observed the new document
+#+end_example
+
+If that sequence succeeds, it proves recovery under that operator action.  It
+does not prove automatic reconnection, uninterrupted availability, or recovery
+without a restart.  Those would require different experiments.
+
+** What the pinned runs actually observed
+Two service-backed CI executions for this checkpoint ran the experiment against
+StarIntel Server revision =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=.
+Both retained traces classified the run =TESTED= and reproduced the same fault
+boundary:
+
+#+begin_example
+                         first run            reconciled rerun
+baseline POST            200                  200
+baseline persistence     observed             observed
+baseline read status     200                  200
+baseline read attempts   1                    2
+
+RabbitMQ running         false                false
+HTTP service alive       true                 true
+fault POST               200                  200
+fault persistence        not observed         not observed
+fault read attempts      9                    9
+fault final read         404                  404
+
+recovery action          start RabbitMQ + restart StarIntel
+recovery POST            200                  200
+recovery persistence     observed             observed
+recovery read status     200                  200
+recovery read attempts   1                    1
+#+end_example
+
+The middle result is the one worth staring at.  In both runs the HTTP boundary
+returned 200 while RabbitMQ was verified down, yet the unique fresh document
+never became observable through the authorized read route during the bounded
+polling window.  Therefore, for this implementation and experiment, an HTTP 200
+at the publication boundary is not sufficient evidence that the document
+became durable.  This is no longer just an architectural warning inferred from
+source; it is a reproduced failure-boundary observation.
+
+The baseline took one read in the first run and two in the second.  Do not turn
+that tiny sample into a latency number.  The poll count is useful precisely as
+run evidence: it reminds us that "eventually observed within this deadline" is
+the tested statement, while "always visible on the first read" is not.
+
+Do not overread the final 404 either.  The experiment records it as the last
+bounded read status after nine attempts, not as a special StarIntel promise
+that every broker outage must end in 404.  Likewise, the recovery result proves
+the stated operator sequence.  Because StarIntel was explicitly restarted,
+these runs say nothing about whether merely restoring RabbitMQ would have
+reconnected the existing publisher or consumer automatically.
+
+The sanitized workflow artifact also carries a =not_proven= list.  It names
+publisher-confirm acceptance, settlement-failure redelivery, the outbox crash
+window, and transparent reconnect without an operator restart.  Those negative
+claims are part of the result, not footnotes to be forgotten later.
+
+** A debugging trace is stronger when it has negative space
+Good traces record what they *cannot* prove.  The retained service-trace schema
+includes a =not_proven= list.  For this lab it includes at least:
+
+- publisher-confirm acceptance;
+- settlement-failure redelivery;
+- the CouchDB outbox crash window;
+- transparent reconnect without an operator restart.
+
+This looks almost too explicit, but it prevents later prose from laundering an
+end-to-end success into a stronger guarantee.  Six months from now, the JSON
+artifact should still tell an author which sentences it is allowed to support.
+
+** Failure lab: diagnose without inventing the missing layer
+The reproduced outage gives us a concrete case: the baseline succeeded, the
+RabbitMQ fault precondition was verified, the fault POST returned HTTP 200, and
+the fresh document was not observed durable before the deadline.  Which
+component failed?
+
+The only correct first answer is: *the experiment has not isolated that yet*.
+RabbitMQ was unavailable, so it is a strong causal intervention, but the
+client-visible result could come from several boundaries: the producer agent,
+its channel, a timeout wrapper, the HTTP error mapper, or a process-level
+connection failure.  The probe classifies the observation; it does not pretend
+to have traced every internal frame.
+
+A useful follow-up debugging sequence is:
+
+1. preserve the sanitized client observation;
+2. inspect server logs for the matching correlation identifier in the
+   disposable environment;
+3. inspect Rabbit connection/channel state;
+4. decide whether the publication function returned, blocked, or raised;
+5. only then design a narrower test for publisher confirms or reconnect logic.
+
+This is how the hacker's guide should treat failures throughout the book:
+start from an externally reproducible observation, then move inward one
+boundary at a time.
+
+** Exercises
+*** ★ Evidence vocabulary
+For each sentence below, name the weakest observation that would actually
+support it: "the request was accepted," "the broker durably accepted the
+message," "the document exists in CouchDB," and "the reader can retrieve the
+document."  Explain why one observation cannot automatically support all four.
+
+*** ★★ Change the fault without changing the claim discipline
+On a disposable development stack, replace the RabbitMQ stop with a controlled
+StarIntel process stop.  Before running it, write down the fault precondition,
+which client observations you will retain, and which claims will remain
+unproven.  Do not edit the book's production-facing adapter to simulate the
+fault.
+
+*** ★★ Make the sanitizer reject accidental secret-shaped fields
+Extend the hermetic classifier tests with a deliberate input field named
+=authorization= or =token=.  Decide whether the correct design is an allowlist
+(as this lab uses) or a denylist.  Defend the choice.
+
+*** ★★★ Separate reconnect from restart recovery
+Design, but do not claim the result of, a second experiment that starts
+RabbitMQ again *without* restarting StarIntel.  Define a finite deadline and an
+observation that would distinguish transparent reconnect from a permanently
+stalled ingest worker.  Explain why passing the existing recovery test cannot
+answer this question.
+
+*** ★★★ Trace settlement failure rather than broker absence
+The next deeper failure experiment should leave RabbitMQ available but force a
+failure during quarantine persistence or settlement.  Specify the evidence
+needed to support each of these claims separately: the original delivery was
+not ACKed, the worker stream closed, the HTTP listener stayed alive, and the
+broker redelivered the unfinished message.  This is intentionally harder than
+stopping the broker because the fault is inside the settlement state machine.
+
+** Project checkpoint
+The service-backed runs form a Project 2 checkpoint, not the end of the
+StarIntel book.  Their reproduced baseline/outage/recovery evidence is suitable
+for editorial review once the branch is current-main green.  After that
+checkpoint lands, the next runtime work can move toward the actor registry and
+Project 3.  Publisher confirms, settlement redelivery, outbox crash injection,
+search/inference, deployment operations, and the later broken-pipeline project
+remain separate gates.
