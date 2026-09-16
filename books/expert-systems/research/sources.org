@@ -25,7 +25,7 @@ Authority: original TMS author / MIT AI Laboratory primary report plus published
 Primary artifact: https://dspace.mit.edu/entities/publication/5377b306-4ecc-4687-b1f5-78cbb4a0543a
 Published record: /Artificial Intelligence/ 12(3), 231--272, 1979; DOI 10.1016/0004-3702(79)90008-0.
 Inspected material: MIT AIM-521 metadata/abstract, issued June 1 1979. The abstract describes a TMS subsystem that records and maintains reasons for program beliefs, revises beliefs, and uses recorded reasons for explanation and control. For Chapter 18 the same primary abstract was rechecked for its explicit assumption/revision framing.
-Used by: Chapters 17--18 and Project 1 milestones D/E for truth-maintenance lineage and the separation of problem solving from reason/dependency maintenance. The teaching engine implements only bounded course-local support/assumption/consistency layers; it does not claim to reproduce Doyle's richer nonmonotonic system.
+Used by: Chapters 17--18 and Project 1 milestones D/E for truth-maintenance lineage and the separation of problem solving from reason/dependency maintenance. Reused by Chapter 20 because explanation is one reason to keep explicit reasons. The teaching engine implements only bounded course-local support/assumption/consistency layers; it does not claim to reproduce Doyle's richer nonmonotonic system.
 
 ** de Kleer 1986 -- An Assumption-Based TMS
 Authority: original ATMS paper; publisher metadata/abstract inspected via Elsevier/ScienceDirect.
@@ -33,6 +33,28 @@ URL: https://doi.org/10.1016/0004-3702(86)90080-9
 Published record: /Artificial Intelligence/ 28(2), 127--162, March 1986; DOI 10.1016/0004-3702(86)90080-9.
 Inspected material: publisher title/author/date/pages/DOI and abstract. The abstract states that the ATMS manipulates assumption sets in addition to justifications and is designed to work effectively with inconsistent information and multiple problem-solving contexts.
 Used by: Chapter 18 / Project 1 milestone E as lineage and design pressure only. The course does not implement ATMS environments, labels, nogoods, context switching, or simultaneous solution-space exploration.
+
+** Clancey 1983 -- explanation framework
+Authority: original journal article author; author/editor-hosted reproduction inspected in /Rule-Based Expert Systems/ Chapter 29.
+URL: https://doi.org/10.1016/0004-3702(83)90008-5
+Author-hosted chapter: https://www.shortliffe.net/Buchanan-Shortliffe-1984/Chapter-29.pdf
+Published record: /Artificial Intelligence/ 20(3), 215--251, May 1983; DOI 10.1016/0004-3702(83)90008-5.
+Inspected material: Chapter 29 opening and MYCIN explanation section, including WHY/HOW rule-and-goal tracing and the explicit limitation that rule justifications and problem-solving strategy cannot be fully explained when that knowledge is not represented.
+Used by: Chapter 20 / Project 1 milestone F to separate current support explanation from mere execution replay and to motivate explicit explanatory distinctions.
+
+** Aikins 1980 -- Representation of Control Knowledge in Expert Systems
+Authority: original AAAI proceedings paper.
+URL: https://cdn.aaai.org/AAAI/1980/AAAI80-035.pdf
+Published record: /Proceedings of AAAI-80/, pp. 121--123.
+Inspected material: abstract, implicit-control discussion, and explanation discussion. The paper argues that implicit control knowledge complicates maintenance and explanation; CENTAUR makes control knowledge explicit and separately represented.
+Used by: Chapter 20 as historical evidence for the principle that explanation can expose only distinctions the system represents. The course does not implement CENTAUR's prototype/control-slot architecture.
+
+** W3C PROV-DM Recommendation
+Authority: W3C Recommendation / Provenance Working Group.
+URL: https://www.w3.org/TR/prov-dm/
+Date: 30 April 2013; current Recommendation inspected 2026-09-16.
+Inspected material: abstract/introduction and component overview: entities/activities, derivation, agents/responsibility, bundles/provenance of provenance, specialization/alternate concepts, and collections.
+Used by: Chapter 20 as a current domain-neutral provenance comparison vocabulary. The course explanation graph is not represented or tested as a PROV-DM instance and makes no PROV conformance claim.
 
 ** CLIPS 6.4.2 Basic Programming Guide
 Authority: current official CLIPS documentation.
