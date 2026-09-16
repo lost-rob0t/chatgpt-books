@@ -35,3 +35,14 @@ Inspected:
 Result: checkpoint B derives =Ax= first from existing dot products and linear combinations, then derives =AB= as the matrix that represents composition. The implementation admits only non-empty rectangular finite-real matrices, fails explicitly on incompatible dimensions, reuses the checkpoint-A dot product, and tests =Ax= against the equivalent column-combination view, =(AB)x = A(Bx)=, noncommutativity, identity behavior, and selected NumPy 2.5.0 results. A deterministic figure applies the same teaching implementation to the basis vectors and unit square.
 
 Claim boundary: NumPy is an independent oracle for selected ordinary finite inputs, not an implementation dependency. This checkpoint does not claim NumPy-equivalent broadcasting/dtype behavior, BLAS performance, arbitrary floating-point stability, matrix-chain optimization results, or coverage of affine/homogeneous-coordinate systems. No benchmark is claimed.
+
+** 2026-09-16 -- algebraic associativity versus floating-point execution
+Question: The manuscript teaches matrix associativity as an algebraic law. What source and executable failure case keep readers from mistaking that law for bit-for-bit invariance under finite-precision regrouping?
+
+Inspected: the official Python 3.14.7 floating-point tutorial, especially its treatment of binary approximation, per-operation rounding, =math.fsum=, and the near-universal IEEE 754 binary64 mapping of Python =float= on current platforms.
+
+Executable check: with one-by-one matrices =A=[[1e308]]=, =B=[[1e-308]]=, =C=[[1e-308]]=, the teaching implementation's two legal parenthesizations follow different finite-precision paths. In the local CPython 3.13.5 development environment, =(AB)C= produced =((1e-308,),)= while =A(BC)= produced =((0.0,),)= because the =B C= intermediate underflowed to zero. The expanded matrix suite passed 18/18 locally; the combined vector/matrix suites passed 32/32. Repository CI on the final branch head remains the authoritative pinned Python 3.14 evidence.
+
+Result: add a dedicated Project 1 numerical failure lab and regression. The book now explicitly distinguishes the exact algebraic law from the behavior of a particular finite representation and explains why a better summation routine cannot recover a product that already underflowed before summation.
+
+Claim boundary: the observed decimal outputs are TESTED behavior for the stated runtime, not a claim that every Python implementation or floating-point format must expose the identical boundary. The mathematical associativity claim remains about exact arithmetic; later numerical work will use tolerance-based or condition-aware oracles where appropriate rather than silently replacing all exact tests.
