@@ -2,44 +2,261 @@
 :PROPERTIES:
 :ID:       a9ba742b-d4e2-511e-9fef-c28ad5137bcc
 :END:
+#+bibliography: ../references.bib
 
 * Reader contract
-This book is standalone. It will teach enough Prolog to build, inspect, test, and debug the symbolic side of every later integration rather than asking the reader to treat Prolog as an opaque verifier. The deeper sibling volume, =Prolog for Beginners: Thinking in Relations=, remains the place for the broadest pure-Prolog treatment.
+This book is standalone. It teaches enough Prolog to build, inspect, test, and debug the symbolic side of every later integration rather than asking the reader to treat Prolog as an opaque verifier. The sibling [[file:../../prolog/README.org][Prolog for Beginners: Thinking in Relations]] remains the deeper pure-Prolog course; this volume does not require it.
 
-The second contract is stricter: language-model output is untrusted external input. A model can propose terms, facts, queries, plans, or explanations only through an explicit interface that can reject malformed, unsupported, contradictory, stale, or over-budget work. Fluency is not evidence and code-shaped text is not automatically executable code.
+The second contract is stricter: language-model output is untrusted external input. A model may eventually propose terms, facts, queries, plans, or explanations only through an explicit interface that can reject malformed, unsupported, contradictory, stale, or over-budget work. Fluency is not evidence. Text that merely looks like Prolog is still text.
 
-The third contract is empirical. Version-sensitive claims about SWI-Prolog, model providers, structured generation, tool calling, or named neuro-symbolic systems require current primary-source research. Model quality, latency, cost, and benchmark claims require actual recorded runs. Until then they remain DOCUMENTED, UNTESTED, or EXPERIMENTAL as appropriate.
+The third contract is empirical. Version-sensitive claims about SWI-Prolog, model providers, structured generation, tool calling, or named neuro-symbolic systems require current primary-source research. Model quality, latency, cost, and benchmark claims require recorded runs. The opening project therefore begins with no model at all: first we build a deterministic relation we can test.
 
-* Course trajectory
-The course grows one family of systems rather than resetting for every chapter:
+On 2026-09-16 the official SWI stable channel contains the 10.0.2 manual and release artifacts [cite:@swi-stable-download]. CI records the actual interpreter version used for each tested project slice instead of pretending the documentation version and test runner are necessarily identical.
 
-1. a deterministic relational task solver establishes Prolog semantics, testing, and explanation;
-2. a typed gateway introduces an LLM behind a closed acceptance boundary;
-3. a retrieval + verification pipeline turns candidate evidence into provenance-aware symbolic claims;
-4. a bounded repair loop feeds structured verifier failures back to the model;
-5. an evaluation harness compares simpler and more agentic variants honestly;
-6. the capstone studies a concrete Prolog-RLM architecture with recursive model calls under explicit budgets and Prolog-owned verification contracts.
+* Part I -- Learn enough Prolog to distrust magic
 
-* Part I -- Deterministic foundations
-The first authored slice will replace this scaffold with real chapters on relations, terms, unification, recursion, lists, backtracking, modules, testing, debugging, DCGs, constraints, and meta-programming. Every substantial mechanism must have runnable SWI-Prolog examples and deliberate failure exercises before the model-integration chapters depend on it.
+** Chapter 1 -- Relations before prompts
+:PROPERTIES:
+:ID:       2f44a05d-e760-4bf0-94e6-f73a2fd2867e
+:END:
 
-* Part II -- Typed model boundaries
-The second authored stage introduces external model calls only after the symbolic baseline exists. The core question is not “how do we get the LLM to write Prolog?” but “what exact typed information is the model allowed to contribute, and what must be true before the symbolic system accepts it?”
+*** 1.1 Start with a question the system can answer
+Before an LLM can contribute anything safely, the symbolic side needs a crisp job. Project 1 is a small task-dependency system. It knows synthetic tasks, owners, statuses, tags, and dependency edges. Later chapters will add parsing, constraints, explanation, and finally an external model boundary. For now it is deliberately boring: ordinary Prolog clauses and tests.
 
-* Part III -- Retrieval and verification
-Candidate evidence, extracted facts, source provenance, contradictions, missing evidence, and proof results become separate data types/concepts. Retrieval ranking and model confidence are never silently promoted into logical entailment.
+The canonical source is =books/prolog-llms/code/relational-task-solver/task_solver.pl=. A simplified relation looks like this:
 
-* Part IV -- Bounded repair and recursion
-Generate/verify/repair loops introduce budgets, request identity, duplicate detection, cancellation, stale-result rejection, replay, and failure classification. Recursive language-model calls are taught as distributed/agentic control flow with explicit invariants, not as a mystical reasoning upgrade.
+#+begin_src prolog
+task(collect_sources, ada, ready, [research, prolog]).
+task(normalize_terms, ben, ready, [prolog, validation]).
+depends_on(normalize_terms, collect_sources).
+#+end_src
 
-* Part V -- Neuro-symbolic research
-Named architectures and research claims enter only with primary sources and reproductions where practical. The book compares what neural and symbolic components each architecture actually own: generation, retrieval, ranking, parsing, search, constraint checking, proof, execution, memory, and explanation.
+Read =task/4= as a four-place relation. The slash notation is a predicate indicator: predicate name plus arity. It does not mean division. The first fact states one relationship among four terms. Nothing here says that a task is a mutable object with fields, or that =ada= is a variable containing a string. Those interpretations come from other programming styles, not from these clauses.
 
-* Part VI -- Evaluation and production debugging
-Readers build a harness that can tell apart parser failures, schema failures, hallucinated relations, verifier rejection, retrieval mistakes, model mistakes, orchestration bugs, timeouts, stale completions, and benchmark defects. The goal is to make failure diagnosable instead of summarizing every problem as “the AI got confused.”
+Ask a complete question, then ask for bindings:
 
-* Capstone -- Prolog-RLM Study System
-The final system uses Prolog to own task/subtask representation, recursion budgets, verification, experiment state, and acceptance while model providers remain replaceable external capabilities. The capstone compares itself against simpler baselines on a frozen task set and preserves negative results. It is a concrete study system, not proof that one orchestration pattern is universally superior.
+#+begin_src prolog
+?- task(collect_sources, ada, ready, [research, prolog]).
+?- task(collect_sources, Owner, Status, Tags).
+#+end_src
 
-* Current state
-This manuscript is a scaffold, not authored course material. No chapter, project, benchmark, or model behavior is marked DONE here. The canonical curriculum and evidence state live in the neighboring =OUTLINE.org=, =PROJECTS.org=, and =STATUS.org= files; those repository-authoring links are intentionally not embedded into the EPUB scaffold until a publication-safe cross-book/navigation strategy is selected.
+A variable starts with an uppercase letter or underscore under the default syntax used in this book. SWI-Prolog's syntax is close to traditional/ISO Prolog but includes extensions; the manual documents the precise lexical rules and optional modes [cite:@swi-syntax]. The important idea is not capitalization trivia. A variable marks a place where a query can discover a term.
+
+*** 1.2 A query is not a prompt
+A prompt asks a model to produce a continuation according to learned behavior. A Prolog query asks whether a goal succeeds through the program's proof search, possibly producing substitutions for variables. These are different interfaces with different failure modes.
+
+#+begin_src prolog
+?- task(Task, ada, Status, Tags).
+#+end_src
+
+can enumerate tasks owned by Ada. If the knowledge base contains no task owned by =mara=, the corresponding query can simply fail. Failure does not mean a parser crashed, a network timed out, or reality proved the opposite. It means this goal did not succeed under the current program and data.
+
+Keep three outcomes separate from day one:
+- *success*: at least one proof/substitution satisfies the goal;
+- *logical failure*: search finds no proof for the goal under the program;
+- *error/exception*: the program cannot perform the requested operation normally.
+
+Later, the typed LLM gateway will add schema rejection, unknown relation, timeout, stale result, and provider failure. It must not erase the distinctions Prolog already gives us.
+
+*** 1.3 Shared variables are joins
+Suppose we want Ada's tasks that also have the tag =prolog=:
+
+#+begin_src prolog
+?- task(Task, ada, _Status, _Tags),
+   has_tag(Task, prolog).
+#+end_src
+
+The same variable =Task= appears in both goals. That is the join. Prolog cannot choose one task for the first occurrence and an unrelated task for the second while still calling them the same variable.
+
+This becomes a central neuro-symbolic habit: represent agreement as shared structure, not as prose such as “please make sure this is the same task.” A future model can propose a candidate identifier, but the symbolic program can still require the identifier to unify with the relation it is checking.
+
+*** 1.4 Direction and argument roles are part of the model
+Project 1 records:
+
+#+begin_src prolog
+depends_on(normalize_terms, collect_sources).
+#+end_src
+
+The intended reading is =depends_on(Task, Dependency)=. Reversing the arguments asks a different question. The test suite includes a regression requiring the reversed fact to fail.
+
+This gets more important once natural language enters the system. “Normalization follows collection” is linguistically flexible; a predicate is not. The integration layer must normalize candidate text into a fixed relation schema with explicit argument roles before Prolog treats it as candidate data.
+
+*** 1.5 Preserve evidence before generating explanations
+Project 1 stores provenance beside its synthetic fixture records. The public =task/4= relation stays pleasant to query while =explain_task/2= returns structured evidence:
+
+#+begin_src prolog
+explanation(
+  task(normalize_terms),
+  supports([
+    fact(task(normalize_terms, ben, ready, [prolog, validation]),
+         source(book_fixture, task_normalize_terms))
+  ])).
+#+end_src
+
+The explanation is a term, not a generated paragraph. Later a model may summarize it, but the evidence identity must survive independently of the prose.
+
+#+caption: Project 1 keeps deterministic symbolic evidence and explanation ahead of the later model boundary.
+#+attr_html: :alt Synthetic task facts and query terms feed unification, optional dependency traversal, and structured explanation; the later typed model gateway enters only through validation gates.
+[[file:../assets/project1-foundation-flow.svg]]
+
+*** 1.6 Failure lab -- break the relation, not the prompt
+Make a temporary copy of the project source and introduce one defect at a time: write =Ada= where you intended =ada=; reverse one =depends_on/2= edge; change a call from =task/4= to =task/3=; misspell a predicate; remove a clause-ending full stop. Before running each copy, predict syntax error, arity/existence error, clean logical failure, or surprising success. “Prolog is weird” is not a diagnosis.
+
+** Chapter 2 -- Unification is the first verifier
+:PROPERTIES:
+:ID:       88f7183f-8f39-4700-8c43-98f8553bea80
+:END:
+
+*** 2.1 Terms have shape
+Prolog's core data model is small enough to inspect directly:
+
+#+begin_src prolog
+collect_sources
+42
+Task
+task(normalize_terms, ben, ready, [prolog, validation])
+source(book_fixture, task_normalize_terms)
+explanation(task(normalize_terms), supports([]))
+#+end_src
+
+For the opening chapters, classify these as variables, atoms, numbers, lists, and compound terms. A compound term has a functor and arguments. A term that resembles code is still data until some explicitly invoked predicate interprets it.
+
+That last sentence is a boundary we will reuse. The future gateway may accept a closed term such as =candidate_task(normalize_terms)= after parsing and validation. It does not gain the right to send arbitrary source text and have the runtime “figure out” whether to call it.
+
+*** 2.2 Unification makes two terms agree
+SWI-Prolog documents =/2= as unification and uses unification throughout clause matching [cite:@swi-unification]. Consider:
+
+#+begin_example
+Task = normalize_terms
+pair(Task, Owner) = pair(normalize_terms, ben)
+task(Id, Owner, ready, Tags) = task(check_constraints, ada, ready, [prolog])
+#+end_example
+
+Now compare failures:
+
+#+begin_example
+normalize_terms = collect_sources
+pair(X, X) = pair(ada, ben)
+task(a, b) = task(a, b, c)
+source(book_fixture, X) = evidence(api, X)
+#+end_example
+
+A repeated variable is a constraint. =pair(X,X)= cannot become =pair(ada,ben)= because one logical variable cannot simultaneously denote two different atoms in the same branch.
+
+*** 2.3 Structural validation is not truth
+If a future LLM proposes a candidate term, unification can help us test closed structure: expected functor, arity, repeated-variable relationships, and allowed term shapes. Successful unification does not prove the candidate describes reality or is supported by evidence.
+
+The later architecture therefore separates four questions:
+1. Can the external response be parsed as data?
+2. Does the data fit the closed schema?
+3. Is the proposed fact supported by admissible evidence or constraints?
+4. What does the symbolic knowledge base entail under its actual rules?
+
+Collapsing those stages into “the model returned valid Prolog” is exactly what this book refuses to do.
+
+*** 2.4 The occurs-check boundary matters
+The textbook unification story usually assumes finite trees. SWI-Prolog in its default configuration permits rational/cyclic terms through ordinary unification, while =unify_with_occurs_check/2= prevents creating the self-reference [cite:@swi-unification]. Compare:
+
+#+begin_src prolog
+?- X = wrapper(X).
+?- unify_with_occurs_check(X, wrapper(X)).
+#+end_src
+
+The Project 1 suite tests this boundary explicitly. The first behavior is SWI/runtime-specific and is not presented as a universal promise of “Prolog.” The second is the explicit finite-term boundary used by examples that require one.
+
+Why care in an LLM book? An external producer can hand us deeply nested or pathological structures. Later parsers and validators need size/depth/shape limits in addition to syntactic acceptance. “It parsed as a Prolog term” is not a resource-safety proof.
+
+*** 2.5 Failure lab -- a schema that is almost right
+Predict why each succeeds or fails:
+
+#+begin_src prolog
+?- task(Id, Owner, ready, Tags) =
+   task(normalize_terms, ben, ready, [prolog, validation]).
+?- task(Id, Owner, ready, Tags) =
+   task(normalize_terms, ben, [prolog, validation]).
+?- pair(X, X) = pair(prolog, validation).
+#+end_src
+
+Name the exact constraint: functor, arity, concrete value, or repeated-variable consistency. This is the beginning of a validator mindset.
+
+** Chapter 3 -- Recursion, lists, and stopping
+:PROPERTIES:
+:ID:       f2436342-f838-418a-8c18-13e7a37d08cc
+:END:
+
+*** 3.1 Lists are recursive structure
+Project 1 stores task tags as lists and intentionally implements a tiny membership relation instead of hiding the mechanism immediately behind a library call:
+
+#+begin_src prolog
+list_contains(Item, [Item|_]).
+list_contains(Item, [_|Rest]) :-
+    list_contains(Item, Rest).
+#+end_src
+
+The first clause is a base case. The second strips one head and recurses on the tail. Each recursive step is structurally smaller, which gives an obvious termination argument for a finite proper list.
+
+If =llm= is not present, repeated decomposition eventually reaches the empty list and no clause matches. That is ordinary logical failure, not an exception.
+
+*** 3.2 Recursive graph search needs a stopping story
+Task dependencies form a graph. A transitive query is more useful than a direct edge: does =publish_report= depend, directly or indirectly, on =collect_sources=? Project 1's =dependency_path/3= returns an explicit path:
+
+#+begin_example
+publish_report
+  -> write_explanation
+  -> check_constraints
+  -> normalize_terms
+  -> collect_sources
+#+end_example
+
+The implementation carries nodes already seen on the current search branch and refuses to revisit one. Without that state, a dependency cycle can make naive depth-first recursion revisit the same states indefinitely.
+
+*** 3.3 Declarative sense does not guarantee termination
+A tempting relation is:
+
+#+begin_src prolog
+naive_depends_on(A, B) :- depends_on(A, B).
+naive_depends_on(A, B) :-
+    depends_on(A, Mid),
+    naive_depends_on(Mid, B).
+#+end_src
+
+On an acyclic fixture it may appear correct. Add a two-node cycle and ask for a target outside it, and depth-first search can loop. The logical idea “reachability is the transitive closure of edges” can be sensible while the executable search strategy still lacks a termination story.
+
+This prepares us for later agentic systems. A recursion budget is not a production garnish. Any model-driven loop that can revisit states needs stopping rules, duplicate-state handling, or both.
+
+*** 3.4 Explanations preserve the path
+=explain_dependency/3= returns the path and the source identity supporting every edge:
+
+#+begin_src prolog
+explanation(
+  dependency(check_constraints, collect_sources),
+  path([check_constraints, normalize_terms, collect_sources]),
+  supports([
+    fact(depends_on(check_constraints, normalize_terms),
+         source(book_fixture, dep_constraints_normalize)),
+    fact(depends_on(normalize_terms, collect_sources),
+         source(book_fixture, dep_normalize_collect))
+  ])).
+#+end_src
+
+Later an LLM may turn that structure into readable prose. If its prose invents an unsupported edge, the symbolic trace remains available for checking. Explanation is strongest when it is downstream of evidence, not a fluent replacement for evidence.
+
+*** 3.5 Tests are executable claims
+SWI-Prolog's =library(plunit)= provides named test units and =run_tests= entry points [cite:@swi-plunit]. Project 1 uses a dedicated runner that first checks that the named test unit actually loaded, then runs it. A missing suite must not look green merely because the interpreter exited successfully.
+
+The opening suite checks relation direction, shared-variable joins, list-tag queries, direct/transitive paths, missing-path failure, provenance-bearing explanations, sound occurs-check unification, and the current SWI cyclic-term boundary. Tests assert results; merely calling a predicate is not protection.
+
+*** 3.6 Failure lab -- three recursion bugs
+Use temporary experimental copies, not canonical project code. Remove the base case from =list_contains/2=. Then change the recursive call to recurse on the original list instead of =Rest=. Finally replace =dependency_path/3= with the naive relation above, add a two-node cycle, and run the experiment under an explicit time limit. Explain each failure in terms of structural progress and visited state.
+
+*** 3.7 What Project 1 can honestly claim now
+At this milestone the project is a deterministic symbolic baseline. It represents synthetic tasks, answers relational queries, follows finite dependency paths with branch-local cycle avoidance, and returns structured provenance-bearing explanations. Its suite is designed to exercise those claims on SWI-Prolog.
+
+It cannot yet parse the planned DCG mini-language, solve the CLP(FD) scheduling subproblem, expose the typed LLM gateway, retrieve evidence, or perform recursive language-model execution. Those are dependency-ordered future milestones, not features implied by the book title.
+
+* Bridge -- why the LLM still stays outside
+The current =lost-rob0t/prolog-rlm= source is a useful later case study because its public architecture explicitly separates model strategy from Prolog-owned execution semantics and validates a closed plan language before execution. At the inspected source snapshot the repository exposes parsing/normalization, =plan_validate/4=, and =plan_execute/4= around that boundary [cite:@prolog-rlm-source]. This book has inspected that source snapshot; it has not imported or executed the runtime as part of Project 1.
+
+The original Recursive Language Models work frames long context as an external environment that a model can programmatically inspect and recursively query [cite:@zhang-rlm]. We will study that architecture much later. Its reported benchmark and cost findings remain upstream evidence until this book reproduces an experiment.
+
+The next foundation slice adds explicit backtracking/control, modules, testing/debugging discipline, then DCGs and CLP(FD). Only after those mechanisms are executable will the book put a typed wall around a model.
