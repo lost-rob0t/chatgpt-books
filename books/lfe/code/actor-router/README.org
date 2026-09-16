@@ -1,0 +1,46 @@
+#+title: Project 2 Checkpoint A -- Actor Router
+:PROPERTIES:
+:ID:       3b94d900-9c43-4107-828f-f1e815bbfc80
+:END:
+
+* Purpose
+This is the first executable slice of Project 2, the Actor Application. It deliberately stops *before OTP behaviours*. The goal is to make raw BEAM process/message semantics visible before =gen_server= packages the same recurring protocol shapes.
+
+The actor owns one piece of mutable-in-time state: the current Event Routing DSL rule list. State is still an immutable BEAM term; the loop models mutation by tail-recursing with a replacement term after a successful =replace-rules= request.
+
+* Protocol
+Requests are ordinary tuples:
+
+#+begin_example
+#(call CallerPid Ref #(route Event))
+#(call CallerPid Ref #(replace-rules Rules))
+#(call CallerPid Ref get-rules)
+#(call CallerPid Ref stop)
+#+end_example
+
+Replies echo the correlation reference:
+
+#+begin_example
+#(reply Ref Result)
+#+end_example
+
+=actor-router:call/3= creates a fresh reference, sends one request, and selectively receives only the matching reply. A timeout returns =#(error timeout)= to the caller. It does *not* imply cancellation, target death, or mailbox cleanup.
+
+* Run
+The book workflow builds pinned LFE v2.2.2 first. With =lfec= and =erl= on =PATH=:
+
+#+begin_src sh
+bash books/lfe/code/actor-router/run-tests
+#+end_src
+
+The gate compiles the Project 1 semantic kernel plus this actor, runs the LFE regressions, and then runs a direct Erlang interoperability smoke. The Erlang smoke starts an LFE process, calls it using ordinary BEAM terms, stops it cleanly, starts another process, monitors it, injects an intentional crash, and requires the real =DOWN= message.
+
+* Failure labs
+1. Change =call/3= to receive any =reply= instead of matching the fresh reference. The stale-reply regression should expose the protocol bug.
+2. Remove the recursive =loop= after =replace-rules=. The actor acknowledges one state transition and then disappears; subsequent calls should time out.
+3. Reverse the two sends in the same-sender ordering regression. The route should then observe the old rule state.
+4. Treat timeout as if it meant cancellation, then inspect the silent-process test. The target is still alive after the caller gives up.
+5. Remove the intentional crash clause and run the Erlang monitor smoke. The test should fail because no =DOWN= arrives.
+
+* Boundary
+This checkpoint owns raw process construction, request/reply protocol design, correlation, selective receive, caller-side timeout semantics, process isolation, and direct Erlang/LFE interoperability. It does not claim OTP behaviour callbacks, supervision policy, application packaging, distribution, persistence, or release semantics; those remain later dependency-ordered slices.
