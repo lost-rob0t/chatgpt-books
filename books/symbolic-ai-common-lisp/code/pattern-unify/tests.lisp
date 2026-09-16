@@ -45,6 +45,17 @@
     (is (eq :failed (match-result-status bad)))
     (is (eq :repeated-variable-clash (match-result-reason bad)))))
 
+(deftest matcher-treats-variable-shaped-datum-as-literal
+  (let* ((x (make-variable 'x))
+         (y (make-variable 'y))
+         (literal-variable-shaped-datum (make-variable 'y))
+         (result (match-pattern `(pair ,x ,y)
+                                `(pair ,literal-variable-shaped-datum a)))
+         (bindings (match-result-bindings result)))
+    (is (eq :matched (match-result-status result)))
+    (is-equal literal-variable-shaped-datum (binding-value 'x bindings))
+    (is-equal 'a (binding-value 'y bindings))))
+
 (deftest matcher-handles-dotted-conses
   (let* ((tail (make-variable 'tail))
          (result (match-pattern `(a . ,tail) '(a b c))))
@@ -73,6 +84,17 @@
     (is-equal '(f b a)
               (apply-substitution right
                                   (unification-result-substitution reverse)))))
+
+(deftest successful-unifier-equalizes-both-original-terms
+  (let* ((x (make-variable 'x))
+         (y (make-variable 'y))
+         (left `(p ,x (g ,y)))
+         (right '(p (f a) (g b)))
+         (result (unify left right))
+         (substitution (unification-result-substitution result)))
+    (is (eq :unified (unification-result-status result)))
+    (is-equal (apply-substitution left substitution)
+              (apply-substitution right substitution))))
 
 (deftest variable-chains-normalize-through-later-bindings
   (let* ((x (make-variable 'x))
