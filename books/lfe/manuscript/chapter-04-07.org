@@ -184,11 +184,13 @@ The repository carries a deliberately invalid fixture:
 The test harness requires that compiling this module *fails* and that the diagnostic contains the DSL's syntax-error tag. A compile failure here is a passing acceptance test because the requirement is rejection.
 
 *** Expansion is testable data
-LFE v2.2.2 distinguishes one-step top-level expansion, repeated top-level expansion, and recursive expansion. [cite:@lfe-macro-v2-2-2] Project 1 tests one step with =lfe_macro:expand_expr_1=. Why one step? Because the contract under test is what =routes= emits, not every built-in macro or compiler transformation that may happen afterward.
+LFE v2.2.2 distinguishes one top-level expansion attempt, repeated top-level expansion, and recursive expansion. [cite:@lfe-macro-v2-2-2] For a module-qualified exported macro, Project 1 follows LFE's own tagged regression suite and uses =lfe_macro:expand_expr=. That function repeatedly expands the top expression while it remains a macro call. We deliberately do *not* use =expand_expr_all=, because recursively expanding every nested form would widen the regression surface beyond the DSL translation we want to freeze.
+
+Why not =expand_expr_1=? An early project regression tried it and failed for an instructive reason: the first expansion step normalized =event-rules-dsl:routes= into LFE's module-call form, but had not yet expanded the exported macro. The failure was useful evidence. The correct acceptance boundary is the documented =expand_expr= path used upstream for exported macros.
 
 This gives us two independent assertions:
 
-- structural: the one-step expansion equals the explicit rule list form;
+- structural: the exported macro's resulting top-level expansion equals the explicit rule list form;
 - behavioral: a separately compiled consumer using the macro produces rule data equal to =event-rules:sample-rules/0= and routes through the original kernel.
 
 A DSL is easier to trust when you can inspect both the translation and the resulting behavior.
@@ -208,7 +210,7 @@ That failure is useful. “Be liberal in what you accept” is terrible advice f
 *** Exercises
 1. ★ Write the exact hand-expanded data form for a two-clause =routes= source form.
 2. ★★ Add a proposed =when-level-and-service= source clause and write its expansion before touching the macro.
-3. ★★ Explain why one-step expansion is a narrower regression oracle than recursive expansion.
+3. ★★ Explain why top-level exported-macro expansion is a narrower regression oracle than recursive =expand_expr_all= expansion.
 4. ★★★ Add the new clause to both the explicit kernel tests and macro tests. Require the macro-generated form to remain equal to a hand-written form.
 
 ** Chapter 7 -- Macro Hygiene, Capture, and the Cost of Cleverness
@@ -246,7 +248,7 @@ This suggests a review hierarchy for macros:
 1. Can this be an ordinary function instead?
 2. If syntax transformation is justified, can the expansion avoid introducing bindings?
 3. If bindings are unavoidable, what naming/capture strategy does current LFE support, and where is it tested?
-4. Can a reader inspect a one-step expansion and understand the runtime program?
+4. Can a reader inspect the exported macro's top-level expansion and understand the runtime program?
 
 LFE's own guide suggests unusually named generated variables as a workaround for collisions. [cite:@lfe-guide-v2-2-2] That is a practical technique, not automatic hygiene. A later project that needs generated bindings must test that policy directly instead of treating the workaround as a theorem.
 
@@ -254,7 +256,7 @@ LFE's own guide suggests unusually named generated variables as a workaround for
 When macro-using code fails, inspect the expansion before debugging the runtime behavior. Project 1's layers now give us a repeatable sequence:
 
 1. Is the source clause valid?
-2. What does one-step expansion produce?
+2. What does the exported macro's top-level expansion produce?
 3. Is that explicit data equal to the hand-written kernel representation?
 4. Does =route/2= behave correctly on that data?
 5. Only then inspect later runtime/process behavior.
@@ -262,7 +264,7 @@ When macro-using code fails, inspect the expansion before debugging the runtime 
 This is Lisp thinking applied with systems discipline: code is data, but data transformations still need contracts.
 
 *** Failure lab: introduce a binding into =routes=
-Modify =routes= so the expansion creates a local variable named =rules= before returning it. Then call the macro inside a function that already has a meaningful =rules= binding. Inspect the one-step expansion before running anything.
+Modify =routes= so the expansion creates a local variable named =rules= before returning it. Then call the macro inside a function that already has a meaningful =rules= binding. Inspect the exported macro's top-level expansion before running anything.
 
 Do not stop at “it seems fine.” Ask which occurrences refer to which binding after expansion. If the answer requires guessing, the macro has made the program harder to review.
 
@@ -277,7 +279,7 @@ At the end of Chapter 7, Project 1 now has two intentionally distinct layers:
 - *runtime semantic kernel* -- explicit event/rule terms plus =route/2=;
 - *compile-time source layer* -- =event-rules-dsl:routes= translating accepted clauses into that kernel data.
 
-The executable project checks kernel behavior, equality between generated and hand-written rules, one-step expansion shape, a real cross-module macro compile, deliberate non-hygienic capture, invalid-source compile failure, and the existing Erlang-to-LFE runtime interoperability boundary.
+The executable project checks kernel behavior, equality between generated and hand-written rules, exported-macro expansion shape, a real cross-module macro compile, deliberate non-hygienic capture, invalid-source compile failure, and the existing Erlang-to-LFE runtime interoperability boundary.
 
 What is still absent is equally deliberate: no process owns the router, no mailbox protocol exists, no OTP behaviour is involved, and no supervisor restarts anything. Chapters 8--10 add interoperability and actor semantics without pretending the macro itself provides concurrency.
 
