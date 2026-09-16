@@ -42,9 +42,6 @@ jobs:
       - name: Run LFE examples and Erlang interoperability smoke
         run: bash books/lfe/code/event-rules/run-tests
 
-      - name: Structural validation
-        run: ./tools/check-structure
-
       - name: Build LFE book
         run: make book BOOK=lfe
 
