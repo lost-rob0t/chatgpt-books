@@ -2,7 +2,7 @@
 #+date: 2026-09-16
 
 * Status
-DOCUMENTED / IMPLEMENTED / VERIFICATION PENDING.
+DOCUMENTED / IMPLEMENTED / TESTED.
 
 This pass introduces a reader-facing Chapter 1 and a cohesive Project 1 report interface over mechanisms already implemented and evidenced by passes 03--16. It introduces no new production benchmark, no new factual GLEIF relationship claim, and no StarIntel runtime implementation.
 
@@ -26,7 +26,7 @@ Chapter 1 now derives the smallest fitted model used by the book: a constant reg
 - baselines from production claims;
 - evidence-bearing StarIntel contracts from ML-side experiment views.
 
-The executable =chapter01_constant_baseline.py= mirrors that derivation without a framework dependency. Its tests are part of the focused book workflow in this pass; until those checks execute, the implementation remains VERIFICATION PENDING rather than TESTED.
+The executable =chapter01_constant_baseline.py= mirrors that derivation without a framework dependency. Its focused regression tests execute in the dedicated book workflow before the reader-facing Project 1 checkpoint.
 
 * Reader-facing Project 1 interface
 The new =project1.py= composes the established mechanisms into a single bounded report:
@@ -77,14 +77,13 @@ The feedback edge goes back to the experiment contract: a failed evaluation can 
 - The version lock remains a version-equality contract for the named environment, not an artifact-hash/cross-platform guarantee.
 - Editor-in-Chief approval remains a later gate; worker verification cannot self-certify APPROVED or DONE.
 
-* Verification plan
-The focused workflow must execute:
-- the existing dependency-lock and research-harness suites;
-- =test_chapter01_constant_baseline.py=;
-- =test_project1.py=;
-- =project1.py --offline= after schema materialization;
-- all previously frozen Project 1 experiment runners and the public/control benchmark;
-- =make book BOOK=ml-starintel=;
-- =make check BOOK=ml-starintel=.
+* Verification evidence
+The first current-main implementation head =e07220de9a42d8a3c896493b69a6b205761e97ed= preserved an important failure record. In focused run =35127035142= the locked environment, research harness, reader checkpoint, larger public/control benchmark, and factual GLEIF acquisition all passed, but the final book-validation step FAILED. Inspection of the generated EPUB showed that Chapter 1 had emitted repository-relative source/asset links instead of a packaged EPUB asset. The source was corrected rather than weakening EPUB validation.
 
-Generic repository publication CI remains independently required. Shared publishing infrastructure is not changed by this pass, so no new repository-wide Nix claim is introduced merely by these book-local edits.
+Corrected head =8b2bcc6ec28aa1920c93adbeb2b999c4d14c6e23= passed the complete focused workflow in run =35127614029= / job =104900423249=. The run successfully recreated the locked environment, ran the research-harness suite, acquired the official GLEIF samples, executed the foundational experiments, ran =test_chapter01_constant_baseline.py= and =test_project1.py= plus =project1.py --offline=, reran the predeclared larger public/control benchmark, refreshed the factual GLEIF probe, and completed =make book BOOK=ml-starintel= plus =make check BOOK=ml-starintel=.
+
+The generated reader report identified itself as =project-01-reader-checkpoint-v1= and reported =TESTED= with all eight bounded invariants true. It summarized five validated canonical Tier B documents (three =org= and two =relation=). On the deterministic Tier C control it proposed 526 candidate pairs, exact-verified 480 qualifying pairs, reported recall 1.0, rejected 46 candidate false positives, matched the exact component oracle, and remained stable under the tested permutation. Those figures retain their fixture-scoped meaning.
+
+Generic repository publication CI was independently green at the same corrected head in =books-ci= run =35127614163= / job =104900423780=, including structural validation, Pandoc Org-reader behavior, deterministic assets/fixture, EPUBCheck 5.3.0, publication and citation regressions, ERT, and real Org-roam synchronization.
+
+The focused evidence artifact is =10460006507= with ZIP digest =sha256:25537aef5c98370594cd1a395eb496969e0d72af1c0d438318e4d3832c2fd272=. Inspection of its corrected EPUB confirmed that the Project 1 SVG is packaged inside the EPUB and the two repository source references are no longer emitted as broken EPUB hyperlinks.
