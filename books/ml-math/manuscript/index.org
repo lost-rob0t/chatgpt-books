@@ -15,7 +15,7 @@ This book is for learning the mathematics that makes machine learning understand
 6. deliberately break an assumption and debug the result;
 7. connect the mechanism to the ML systems that use it.
 
-The main projects accumulate instead of resetting every chapter. Project 1 begins here as a small vector toolkit. It grows into matrices and transformations later. Project 2 will use that foundation to derive linear regression. Project 3 will turn optimization into something visible. Probability and Bayesian inference follow. The final neural-network project will have nowhere to hide: by then, matrix multiplication, derivatives, the chain rule, optimization, probability, and numerical stability will all be mechanisms you have already built and tested.
+The main projects accumulate instead of resetting every chapter. Project 1 begins here as a small vector toolkit. It grows into matrices and transformations later. Project 2 will use that foundation to derive linear regression. Project 3 will turn optimization into something visible. Probability and Bayesian inference follow. The final neural-network project will have nowhere to hide: by then, matrix multiplication, derivatives, the chain rule, optimization, probability, and numerical stability will all be mechanisms you have already built and tested. The opening linear-algebra sequence—from vectors and linear combinations through dot products and then matrices—was checked against Strang's sixth-edition treatment; the examples and derivations here remain original. [cite:@strang2023ila]
 
 The code is teaching code. NumPy is used as an independent oracle in selected tests, not as the implementation of the ideas being taught. When a standard-library numerical primitive provides a materially better floating-point building block, the text says so instead of pretending that the most naive formula is always the best implementation.
 
@@ -105,7 +105,7 @@ Later, when we derive least squares, you should remember this table. “Use mean
 ** 1.4 Arithmetic on a computer is not arithmetic over the real numbers
 A mathematical derivation may use real numbers with unlimited precision. Our project uses ordinary binary floating-point values. Those are finite representations.
 
-For example, adding many floating-point values in a naive left-to-right loop can lose information through rounding. Project 1 therefore uses Python's =math.fsum= when accumulating a dot product. The official Python documentation describes =fsum= as an accurate floating-point sum that tracks multiple intermediate partial sums. This is an implementation choice with a documented purpose, not a claim that all floating-point error disappears.
+For example, adding many floating-point values in a naive left-to-right loop can lose information through rounding. Project 1 therefore uses Python's =math.fsum= when accumulating a dot product. The official Python documentation describes =fsum= as an accurate floating-point sum that tracks multiple intermediate partial sums. This is an implementation choice with a documented purpose, not a claim that all floating-point error disappears. [cite:@python314math]
 
 Similarly, computing a Euclidean norm as
 
@@ -113,7 +113,7 @@ Similarly, computing a Euclidean norm as
 sqrt(x1*x1 + x2*x2 + ...)
 #+end_example
 
-can overflow in an intermediate square even when a scaled algorithm could represent the final magnitude. Project 1 uses =math.hypot=, whose contract is directly about Euclidean norm.
+can overflow in an intermediate square even when a scaled algorithm could represent the final magnitude. Project 1 uses =math.hypot=, whose contract is directly about Euclidean norm. [cite:@python314math]
 
 We will return to numerical stability in depth. For now, learn the first rule: *an algebraically equivalent expression need not behave equivalently in finite-precision computation.*
 
@@ -300,7 +300,7 @@ we can scale and add them:
 = (3.5, 3.5)
 #+end_example
 
-A linear combination is built from scalar multiplication and vector addition. This idea becomes one of the central verbs of linear algebra. Matrix-vector multiplication will later be understood as producing linear combinations rather than as a mysterious grid-of-numbers ritual.
+A linear combination is built from scalar multiplication and vector addition. This idea becomes one of the central verbs of linear algebra. Matrix-vector multiplication will later be understood as producing linear combinations rather than as a mysterious grid-of-numbers ritual. [cite:@strang2023ila]
 
 ** Exercises
 - ★ Find the displacement from \((-2,1)\) to \((3,5)\).
@@ -464,7 +464,7 @@ v · v = 9 + 16 = 25
 
 The formula is Pythagoras generalized to more coordinates.
 
-Our code does not implement the norm literally as =sqrt(dot(v, v))=. It uses =math.hypot= because the standard library supplies a Euclidean-norm primitive with more careful scaling behavior. The mathematical identity still explains the norm; the implementation chooses a numerically better route.
+Our code does not implement the norm literally as =sqrt(dot(v, v))=. It uses =math.hypot= because the standard library supplies a Euclidean-norm primitive with more careful scaling behavior. The mathematical identity still explains the norm; the implementation chooses a numerically better route. [cite:@python314math]
 
 ** 5.3 Normalization separates direction from magnitude
 For nonzero \(v\), the normalized vector is
@@ -550,7 +550,7 @@ The exact real-number dot product is
 1e16 + 1 - 1e16 = 1
 #+end_example
 
-A naive floating-point accumulation can lose the middle \(1\) when it is added to a much larger partial sum. The toolkit feeds the products to =math.fsum=, and the regression suite includes this case. This does not make the dot product magically exact for all possible inputs; it gives us a concrete, documented improvement over naive summation for a known failure pattern.
+A naive floating-point accumulation can lose the middle \(1\) when it is added to a much larger partial sum. The toolkit feeds the products to =math.fsum=, and the regression suite includes this case. This does not make the dot product magically exact for all possible inputs; it gives us a concrete, documented improvement over naive summation for a known failure pattern. [cite:@python314math]
 
 ** 5.7 Numerical check: large norms
 For
@@ -565,10 +565,10 @@ squaring either component directly overflows ordinary binary64 range. Yet the le
 sqrt(2) * 1e308
 #+end_example
 
-which is still finite. =math.hypot= is designed to compute a Euclidean norm without requiring us to form those naive squares directly. The regression test checks that this particular case remains finite and has the expected scaled magnitude.
+which is still finite. =math.hypot= is designed to compute a Euclidean norm without requiring us to form those naive squares directly. The regression test checks that this particular case remains finite and has the expected scaled magnitude. [cite:@python314math]
 
 ** 5.8 NumPy is the oracle, not the answer sheet
-The project tests selected deterministic cases against NumPy 2.5.0. Official NumPy documentation defines =numpy.dot= on two one-dimensional arrays as their vector inner product and provides =numpy.linalg.vector_norm= for vector norms.
+The project pins NumPy 2.5.0 as its tested numerical oracle. The 2.5 series has newer bugfix releases; pinning 2.5.0 here records the exact dependency exercised by this checkpoint rather than claiming it is the newest patch. Official NumPy 2.5 documentation defines =numpy.dot= on two one-dimensional arrays as their vector inner product and provides =numpy.linalg.vector_norm= for vector norms. [cite:@numpy250]
 
 This comparison serves a specific purpose: if our independently written operation disagrees with a mature numerical library on straightforward admitted inputs, we should investigate before trusting our code.
 
