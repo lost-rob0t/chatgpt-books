@@ -1,0 +1,64 @@
+#+title: Prolog + LLMs -- Foundation and RLM Baseline Research Pass
+:PROPERTIES:
+:ID:       b232f1d6-11de-4aae-b1db-6068eafdaf23
+:END:
+
+* Scope
+Retrieval date: 2026-09-16.
+
+Questions:
+1. Which current SWI-Prolog behaviors can support the standalone Chapters 1--3 without confusing implementation-specific details with portable logic-programming ideas?
+2. What does the current =lost-rob0t/prolog-rlm= source actually claim and expose at its model-to-symbolic execution boundary?
+3. Which claims belong to the original Recursive Language Models paper rather than to this book's own experiments?
+
+No model benchmark was run in this pass. No result reported by the RLM paper or =prolog-rlm= repository is promoted to TESTED by this book merely because the source was inspected.
+
+* SWI-Prolog baseline
+** Stable channel and test-version policy
+DOCUMENTED: the official SWI-Prolog stable download tree contains release/manual artifacts through 10.0.2 as retrieved on 2026-09-16. The general download documentation distinguishes stable and development channels.
+
+Implication: prose may cite current stable documentation, while every executable book result records the actual CI/runtime version separately. A runner using an older distribution package is not silently relabeled 10.0.2.
+
+** Terms, syntax, queries
+DOCUMENTED: the current SWI reference manual documents its Prolog syntax as close to traditional/ISO Prolog with SWI extensions. The default variable convention used by this book treats an uppercase or underscore-prefixed token as a variable; SWI also provides optional syntax modes that this opening course does not enable.
+
+** Unification and occurs check
+DOCUMENTED: SWI documents ordinary =/2= unification, cyclic/rational-tree behavior, the =occurs_check= flag, and =unify_with_occurs_check/2=. The latter prevents creating the self-reference used in the book's finite-term boundary example. SWI also documents =acyclic_term/1= for applications that need to reject terms that may already be cyclic.
+
+Implication: the manuscript does not equate ordinary SWI =/2= with finite-tree unification. Project tests keep the distinction executable.
+
+** PL-Unit
+DOCUMENTED: =library(plunit)= exposes named test units through =begin_tests/[1,2]= and =end_tests/1=, and =run_tests/[0,1,2]= executes loaded tests and reports results.
+
+Implication: the Project 1 runner explicitly verifies that its named test unit exists before running it, so a missing test file cannot be represented as a successful zero-test book check.
+
+* Recursive Language Models primary paper
+DOCUMENTED / UPSTREAM-REPORTED: Zhang, Kraska, and Khattab's =Recursive Language Models= paper (arXiv:2512.24601; first submitted 2025-12-31) proposes treating large prompts as an external environment that a language model can inspect programmatically, decompose, and recursively query through sub-model calls. Performance/cost results in the paper remain UPSTREAM-REPORTED here because this book did not reproduce them in this pass.
+
+Implication: the eventual capstone should make its own experiment contract explicit rather than borrowing the paper's reported gains as evidence for a different Prolog-hosted implementation.
+
+* Current prolog-rlm source snapshot
+Snapshot inspected: =lost-rob0t/prolog-rlm= main at commit =51d2530f0e18c84cff860b7c0bf3afcc3c488057= (repository main observed 2026-09-16).
+
+DOCUMENTED from the repository README/source at that snapshot:
+- the project describes itself as a Prolog-native RLM/agent runtime and says the model chooses semantic strategy while Prolog owns execution semantics;
+- its documented baseline is SWI-Prolog 9.0 or newer;
+- it explicitly rejects unrestricted model access to =call/1=, arbitrary shell execution, or an unbounded source-execution primitive;
+- the documented plan lifecycle exposes parsing/normalization, capability/budget validation, and execution as separate predicates;
+- actual =prolog/rlm_plan.pl= contains =plan_validate/4=; =prolog/rlm_completion.pl= invokes plan validation at the planner boundary; the plan tests include rejection of a shell operation when the required capability is absent;
+- deterministic provider doubles are documented as test fixtures rather than evidence of live-provider behavior.
+
+UNTESTED IN THIS BOOK: none of =prolog-rlm='s test suites, provider integrations, benchmarks, recursion experiments, or performance claims were executed by the =chatgpt-books= Project 1 slice. The source is read-only architectural evidence for later chapters.
+
+* Boundary decision for the curriculum
+REPOSITORY-LOCAL DESIGN, not an external factual claim:
+- Project 1 remains model-free.
+- The later typed gateway will accept a closed data/operation vocabulary, not arbitrary model-generated callable Prolog goals.
+- Parsing, schema validation, evidence/provenance checks, symbolic entailment, and execution permission remain distinct teaching stages.
+- RLM recursion is deferred until request identity, budgets, duplicate/stale work, cancellation, replay, and deterministic symbolic validation are all taught and tested.
+
+* Remaining questions
+- Verify current official SWI module/debugger/DCG/CLP(FD) behavior for Chapters 4--6.
+- Research provider-neutral structured-output examples without binding timeless concepts to one vendor's current API.
+- Inspect the RLM paper's latest revision and reference implementation in more depth before the capstone chapter claims architecture equivalence.
+- Define a reproducible local fake-provider interface before any model-dependent chapter becomes TESTED.

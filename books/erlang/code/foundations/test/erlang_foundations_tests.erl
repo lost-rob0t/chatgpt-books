@@ -93,3 +93,30 @@ unknown_request_is_data_test() ->
         pmsg_server:call(Pid, {wat, 42}, 1000)
     ),
     ?assertEqual(ok, pmsg_server:stop(Pid, 1000)).
+
+linked_abnormal_exit_propagates_test() ->
+    ?assertMatch(
+        {ok, {controller_down, boom, _Worker}},
+        pmsg_failure_lab:linked_crash(boom, 1000)
+    ).
+
+trapping_exit_turns_link_failure_into_message_test() ->
+    ?assertEqual(
+        {ok, {exit_message, boom}},
+        pmsg_failure_lab:trapped_link_crash(boom, 1000)
+    ).
+
+monitor_observes_without_propagating_test() ->
+    ?assertEqual(
+        {ok, {down, boom}},
+        pmsg_failure_lab:monitored_crash(boom, 1000)
+    ).
+
+unlink_removes_future_link_effect_test() ->
+    ?assertEqual(
+        {ok, {controller_survived, boom}},
+        pmsg_failure_lab:unlinked_crash(boom, 1000)
+    ).
+
+explicit_kill_is_untrappable_test() ->
+    ?assertEqual({ok, killed}, pmsg_failure_lab:kill_trapper(1000)).

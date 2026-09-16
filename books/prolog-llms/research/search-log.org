@@ -19,11 +19,28 @@ Question: what curriculum/evidence boundaries must exist before this volume can 
 
 Sources inspected: repository-local =AGENTS.md=, root =README.org=, sibling Prolog-family book curricula, and the requested Editor-in-Chief brief. No external technical source was used for version-sensitive claims.
 
-Result: established a standalone Prolog -> typed model boundary -> retrieval/verification -> repair -> evaluation -> Prolog-RLM capstone progression. External behavior remains UNTESTED/UNRESEARCHED until focused passes populate this log.
+Result: established a standalone Prolog -> typed model boundary -> retrieval/verification -> repair -> evaluation -> Prolog-RLM capstone progression. External behavior remained UNTESTED/UNRESEARCHED pending a focused pass.
+
+* 2026-09-16 -- foundation and RLM baseline
+Questions: what current SWI behavior is required for Chapters 1--3; what is the current stable release boundary; and what does the actual current =prolog-rlm= source expose at the model/execution boundary?
+
+Sources inspected:
+- official SWI-Prolog download/stable artifact indexes, including the 10.0.2 manual/artifacts;
+- official SWI syntax, quick-start, unification/term-comparison, singleton-variable, and =library(plunit)= documentation;
+- Zhang, Kraska, and Khattab, =Recursive Language Models=, arXiv:2512.24601;
+- =alexzhang13/rlm= project repository for implementation context;
+- =lost-rob0t/prolog-rlm= README, typed-plan documentation, =prolog/rlm_plan.pl=, =prolog/rlm_completion.pl=, and plan tests at exact main =51d2530f0e18c84cff860b7c0bf3afcc3c488057=.
+
+Result:
+- DOCUMENTED: current stable SWI artifact set reaches 10.0.2; ordinary SWI unification and sound occurs-check unification are distinct; named PL-Unit suites support an explicit executable test boundary.
+- DOCUMENTED: current =prolog-rlm= source separates parsing/normalization/validation/execution and capability-gates its closed plan language rather than granting models unrestricted =call/1=.
+- UPSTREAM-REPORTED: RLM paper performance/cost findings; not reproduced here.
+- UNTESTED pending branch CI: this book's new Project 1 code and manuscript examples.
+
+Downstream: Chapters 1--3 and Project 1 milestone A; later typed gateway/capstone architecture constraints.
 
 * Next research sessions
-- Current SWI-Prolog stable/development versions and official semantics needed for the standalone foundation.
-- Safe term parsing and module/meta-call boundaries relevant to untrusted model output.
+- Current SWI module/control/debugger semantics for Chapters 4--5.
+- DCG, CLP(FD), and safe meta-programming semantics for Chapter 6.
 - Current structured-output and tool-call documentation for any provider used in runnable examples.
-- Primary neuro-symbolic/RLM literature and implementation source for architecture claims.
-- Evaluation methodology for verifier-assisted and recursive model systems.
+- Primary neuro-symbolic systems beyond RLM and evaluation methodology for verifier-assisted/recursive systems.

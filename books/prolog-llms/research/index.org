@@ -6,7 +6,7 @@
 * Research policy
 Research for this book must support falsifiable teaching claims rather than decorative citations. Prefer official SWI-Prolog documentation and source, standards/specifications, original papers, original implementation repositories, and vendor documentation for current API behavior. Secondary material may provide context but must not silently become the authority for version-sensitive claims.
 
-Every research pass should record:
+Every research pass records:
 - precise question or claim under test;
 - retrieval date and source revision/version where available;
 - what was DOCUMENTED by the source;
@@ -15,9 +15,12 @@ Every research pass should record:
 - conflicts or negative evidence;
 - downstream chapters/projects affected.
 
+* Completed research passes
+- [[file:foundation-and-rlm-baseline.org][Foundation and RLM baseline research pass]] -- current SWI stable/source semantics required by Chapters 1--3, primary RLM paper boundary, and read-only =prolog-rlm= source snapshot =51d2530f0e18c84cff860b7c0bf3afcc3c488057=.
+
 * Priority queues
 ** Prolog foundation
-Current SWI-Prolog syntax/term model, unification and occurs-check behavior, module semantics, PL-Unit, DCGs, CLP(FD), meta-call/reflection boundaries, tracing/debugging, resource limits, and safe term parsing/serialization.
+Current SWI-Prolog module semantics, backtracking/control, debugger/tracer behavior, DCGs, CLP(FD), meta-call/reflection boundaries, resource limits, and safe term parsing/serialization. The Chapters 1--3 syntax/unification/PL-Unit baseline is now researched; later mechanisms are not thereby approved as TESTED.
 
 ** LLM integration boundary
 Current structured-output/schema mechanisms, tool/function calling, streaming/partial result behavior, cancellation/timeouts, deterministic fixture strategies, provider/version identification, and safe treatment of model output as untrusted data.
@@ -34,4 +37,4 @@ Methods for comparing direct generation, retrieval augmentation, symbolic verifi
 - =../references.bib= -- bibliographic metadata promoted only after verification.
 
 * Current state
-No external factual research pass has been completed in this scaffold. Curriculum decisions in README/OUTLINE/PROJECTS are repository-local design decisions, not evidence that any named external system or provider behaves a certain way. The first worker research slice must populate this index with inspected sources before version-sensitive manuscript prose is promoted.
+DOCUMENTED research now supports the standalone Chapters 1--3 semantics and records the exact =prolog-rlm= source snapshot used as future capstone context. Project-specific TESTED status is recorded only after the SWI-Prolog suite runs on the authored branch. Provider behavior, neuro-symbolic benchmark claims, and live RLM results remain untested in this book.
