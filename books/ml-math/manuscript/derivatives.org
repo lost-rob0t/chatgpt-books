@@ -1,0 +1,192 @@
+* Chapter 9 -- Derivatives: Measuring Local Sensitivity
+:PROPERTIES:
+:ID:       a492ec93-f3e9-4aee-8c4e-e2da6226b641
+:END:
+
+A machine-learning model is full of questions of the form “if I move this number a little, what happens to that number?” A weight changes; a prediction changes. A prediction changes; a loss changes. A derivative is the mathematical object that makes “a little” and “what happens” precise.
+
+The point of this chapter is not to memorize a page of differentiation rules. We will build the derivative from average change, see why a limit is needed, implement two numerical approximations, and then use those approximations as debugging tools. MIT's introductory calculus material follows the same conceptual bridge from secant slopes to the slope of a tangent line and the derivative definition. [cite:@mit1801sc2010]
+
+** 9.1 Start with change over an interval
+Suppose a scalar function \(f\) maps an input \(x\) to an output. Between \(x\) and \(x+h\), the average rate of change is
+
+#+begin_example
+change in output      f(x + h) - f(x)
+---------------- =    -----------------
+change in input                h
+#+end_example
+
+This is the slope of the secant line through the two points on the graph. It answers a finite question: how much output change did we observe per unit input change across this particular interval?
+
+Take
+
+\[
+f(x)=x^2.
+\]
+
+At \(x=1\), the secant quotient is
+
+\[
+\frac{(1+h)^2-1}{h}
+= \frac{1+2h+h^2-1}{h}
+= 2+h,
+\]
+
+provided \(h\ne0\). For \(h=1\), the slope is \(3\). For \(h=0.5\), it is \(2.5\). For \(h=0.25\), it is \(2.25\). Nothing magical happened: the interval became smaller, and the average slope moved toward \(2\).
+
+** 9.2 A derivative is a limiting local rate
+We want the rate at the point itself, not across one arbitrary interval. That motivates the limit
+
+\[
+f'(x)=\lim_{h\to0}\frac{f(x+h)-f(x)}{h},
+\]
+
+when that limit exists. [cite:@mit1801sc2010]
+
+For \(f(x)=x^2\), the algebra above works at a general \(x\):
+
+\[
+\frac{(x+h)^2-x^2}{h}
+=\frac{2xh+h^2}{h}
+=2x+h.
+\]
+
+Taking \(h\to0\) gives
+
+\[
+f'(x)=2x.
+\]
+
+This derivation matters more than the final rule. The derivative did not appear from a lookup table. It came from a finite change quotient whose interval was driven toward zero.
+
+** 9.3 The tangent line is a local linear model
+At a differentiable point, the derivative gives the slope of the tangent line. More usefully for ML, it gives a first local approximation:
+
+\[
+f(x+\Delta x) \approx f(x)+f'(x)\Delta x
+\]
+
+for sufficiently small \(\Delta x\).
+
+For \(f(x)=x^2\) at \(x=3\), \(f(3)=9\) and \(f'(3)=6\). If \(\Delta x=0.01\), the linear prediction is
+
+\[
+9+6(0.01)=9.06.
+\]
+
+The exact value is \(3.01^2=9.0601\). The missing \(0.0001\) is the curvature term \((\Delta x)^2\). A derivative is therefore not merely “a slope.” It is the coefficient of the best first-order local linear story about how the function changes.
+
+That interpretation will scale: a gradient is the multivariable version of this local linear story.
+
+** 9.4 Rules should be consequences, not incantations
+Once the limit definition is established, common rules save work. For example, if \(c\) is constant and both derivatives exist,
+
+\[
+(cf)'=cf'
+\]
+
+because the constant can be factored out of the difference quotient. Likewise,
+
+\[
+(f+g)'=f'+g'
+\]
+
+because subtraction and division distribute across the two changes.
+
+For positive integer powers \(n\ge1\), the finite binomial expansion of \((x+h)^n\) shows that after subtracting \(x^n\) and dividing by \(h\), the term that survives as \(h\to0\) is \(nx^{n-1}\). We will use
+
+\[
+\frac{d}{dx}x^n=nx^{n-1}
+\]
+
+for these powers without re-expanding the binomial every time, but the rule now has a reason to exist. Later extensions to other exponents should be justified from their own domain assumptions rather than silently smuggled into this finite expansion argument.
+
+Do not confuse “a derivative rule applies” with “the derivative exists everywhere.” The absolute-value function is the classic warning. At zero,
+
+\[
+\frac{|h|-0}{h}
+\]
+
+approaches \(1\) from positive \(h\) and \(-1\) from negative \(h\). The two-sided limit does not exist, so \(|x|\) is not differentiable at zero.
+
+** 9.5 Executable secants: forward differences
+Project code turns the change quotient into a deliberately tiny numerical tool:
+
+#+begin_src python
+forward_difference(lambda x: x * x, 3.0, step=1e-6)
+#+end_src
+
+Mathematically this computes
+
+\[
+\frac{f(x+h)-f(x)}{h}.
+\]
+
+It is not symbolic differentiation and it is not automatic differentiation. It samples a function twice and forms a quotient.
+
+For a smooth function, a smaller step often reduces the truncation error at first. But “smaller is always better” is false on a finite machine. If \(x+h\) rounds to exactly the same floating-point number as \(x\), the quotient has no meaningful displaced sample at all. The lab rejects that condition rather than quietly returning a plausible-looking zero. Python's floating-point tutorial documents the representation and per-operation rounding that make this failure possible. [cite:@python314float]
+
+** 9.6 Central differences cancel the first error term
+A symmetric alternative samples on both sides:
+
+\[
+\frac{f(x+h)-f(x-h)}{2h}.
+\]
+
+Why is this often better? Expand a sufficiently smooth function around \(x\):
+
+\[
+f(x+h)=f(x)+hf'(x)+\frac{h^2}{2}f''(x)+\frac{h^3}{6}f'''(x)+\cdots
+\]
+
+and
+
+\[
+f(x-h)=f(x)-hf'(x)+\frac{h^2}{2}f''(x)-\frac{h^3}{6}f'''(x)+\cdots.
+\]
+
+Subtracting cancels the even-order terms. After division by \(2h\), the leading truncation term is proportional to \(h^2\). The current NumPy 2.5 documentation describes its interior numerical gradient in exactly this central-difference family and records the standard evenly spaced approximation as second-order accurate. [cite:@numpy250]
+
+Our implementation is intentionally simpler than =numpy.gradient=: it accepts a scalar callable and an explicit step rather than sampled N-dimensional arrays. NumPy remains an independent oracle for a bounded sampled quadratic test, not an implementation dependency.
+
+** 9.7 Numerical derivatives are evidence, not proof
+There is a nasty trap worth seeing early:
+
+#+begin_src python
+central_difference(abs, 0.0, step=1e-4)
+#+end_src
+
+returns \(0\). The two symmetric samples have equal absolute value, so their difference is zero. Yet we already proved that \(|x|\) has no derivative at zero.
+
+That is not a bug in the formula. It is a limitation of the experiment. One numerical estimate cannot prove that the mathematical limit exists. A gradient checker can catch many wrong formulas; it cannot turn finite samples into a proof of differentiability.
+
+** 9.8 A scalar ML bridge: sensitivity of a loss
+Imagine a deliberately small loss
+
+\[
+L(w)=(w-4)^2.
+\]
+
+The derivative is
+
+\[
+L'(w)=2(w-4).
+\]
+
+At \(w=1\), the derivative is \(-6\). The sign says that a small positive move in \(w\) should reduce the loss; the magnitude says the local first-order change is about six loss units per unit of \(w\). At \(w=4\), the derivative is zero.
+
+Zero derivative does not automatically mean “global optimum.” It means the first-order local slope is zero. Later optimization chapters will distinguish minima, maxima, saddles, step-size choice, and convergence behavior.
+
+** 9.9 Failure lab: the step is part of the experiment
+Run the same derivative estimate across a geometric sequence of steps. For a while the approximation usually improves. Eventually representation error and subtractive cancellation stop the improvement, and an extremely small step may cease to move the represented input at all.
+
+The correct lesson is not a universal magic step size. Scale matters. Function behavior matters. Floating-point format matters. The lab therefore makes the step explicit and reports impossible represented movement as an error.
+
+** Exercises
+- ★ Derive the derivative of \(f(x)=x^3\) from the difference quotient instead of quoting the power rule.
+- ★ For \(f(x)=5x^2-3x+2\), compute \(f'(2)\) and interpret its units as “output units per input unit.”
+- ★★ Compare forward and central differences for \(\sin(x)\) at \(x=1\) using several step sizes. Record observed error; do not generalize beyond the tested environment.
+- ★★ Explain why =central_difference(abs, 0)= can return zero even though the derivative does not exist.
+- ★★ Modify the lab to return the actual represented displacement =x+h-x= alongside the derivative estimate. What changes at very large \(x\)?
+- ★★★ Construct a differentiable function for which a fixed step of \(10^{-5}\) is a poor numerical choice because of scale. Explain the failure rather than merely tuning the number.
+- ★★★ Prove from the dot-product chapters why a one-dimensional derivative can be viewed as the coefficient of a local linear map.

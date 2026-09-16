@@ -1,0 +1,253 @@
+* Chapter 10 -- Partial Derivatives: Change One Coordinate at a Time
+:PROPERTIES:
+:ID:       f9b2d63c-cdef-49b0-9003-4af484ffbbfa
+:END:
+
+Real ML losses depend on many parameters. Before we can talk about “the” direction a loss changes, we need to ask a simpler question: what happens if one coordinate moves while the others are held fixed?
+
+That is a partial derivative.
+
+** 10.1 A two-parameter surface
+Consider
+
+\[
+f(x,y)=(x-2)^2+3(y+1)^2.
+\]
+
+If \(y\) is frozen, it behaves like a constant. Differentiating only with respect to \(x\) gives
+
+\[
+\frac{\partial f}{\partial x}=2(x-2).
+\]
+
+If \(x\) is frozen instead,
+
+\[
+\frac{\partial f}{\partial y}=6(y+1).
+\]
+
+At \((5,2)\), those rates are \(6\) and \(18\). They answer two different local questions. Moving one unit in the \(y\) coordinate changes the surface three times as aggressively, locally, as moving one unit in \(x\) at this point.
+
+** 10.2 Numerical partials reuse the scalar idea
+A partial finite difference moves just one coordinate:
+
+\[
+\frac{f(x_1,\ldots,x_i+h,\ldots,x_n)-f(x_1,\ldots,x_i-h,\ldots,x_n)}{2h}.
+\]
+
+The implementation constructs two copies of the point, changes only the selected axis, evaluates the scalar-valued function, and forms the symmetric quotient. This makes axis mistakes visible rather than hiding them behind a large array library.
+
+The contract is strict:
+- the point is non-empty and finite;
+- the axis must exist;
+- the step must be positive and finite;
+- the represented samples must actually move;
+- function outputs and the resulting quotient must stay finite.
+
+Those checks are engineering policy around the mathematics. They do not redefine a partial derivative; they make the numerical experiment fail loudly when its assumptions are violated.
+
+** 10.3 Coordinate scales still matter
+Suppose one parameter is measured near \(10^{-6}\) and another near \(10^6\). Applying the same absolute finite-difference step to both may give very different numerical quality. Likewise, a raw gradient component can be numerically large because of units, not because that parameter is intrinsically “more important.”
+
+This echoes the earlier distance chapter: coordinates carry scales. Later optimization work will make parameter scaling and conditioning concrete.
+
+** 10.4 First encounter with linear-regression loss
+Now take a one-feature affine model
+
+\[
+\hat y_i = wx_i+b.
+\]
+
+For \(n\) examples, define mean squared error
+
+\[
+L(w,b)=\frac{1}{n}\sum_{i=1}^{n}(wx_i+b-y_i)^2.
+\]
+
+Call each residual
+
+\[
+r_i=wx_i+b-y_i.
+\]
+
+Holding \(b\) fixed and differentiating with respect to \(w\), each residual changes at rate \(x_i\). Expanding the square or applying the chain rule we will formalize in Chapter 12 gives
+
+\[
+\frac{\partial L}{\partial w}
+=\frac{2}{n}\sum_i r_i x_i.
+\]
+
+Holding \(w\) fixed, each residual changes at rate \(1\), so
+
+\[
+\frac{\partial L}{\partial b}
+=\frac{2}{n}\sum_i r_i.
+\]
+
+The calculus lab implements both formulas and checks them independently against numerical partial differences for a fixed finite fixture. This is TESTED formula-versus-finite-difference evidence, not a proof that every future model derivative is correct.
+
+** 10.5 Work one fixture by hand
+Take three examples:
+
+#+begin_example
+x = (0, 1, 2)
+y = (1, 3, 5)
+#+end_example
+
+and parameters \((w,b)=(1,0)\). Predictions are \((0,1,2)\), so residuals are \((-1,-2,-3)\). Then
+
+\[
+L=\frac{1+4+9}{3}=\frac{14}{3}.
+\]
+
+For the weight,
+
+\[
+\frac{\partial L}{\partial w}
+=\frac{2}{3}[(-1)(0)+(-2)(1)+(-3)(2)]
+=-\frac{16}{3}.
+\]
+
+For the bias,
+
+\[
+\frac{\partial L}{\partial b}
+=\frac{2}{3}(-1-2-3)=-4.
+\]
+
+The implementation test contains these exact expected values. We are not training the model yet. The point is to connect an executable loss to derivatives we can still audit with pencil and paper.
+
+** 10.6 Partials are not independent worlds
+“Hold the other coordinates fixed” is a definition for measuring local coordinate rates. It does not mean the parameters are unrelated in the model. A single prediction \(wx+b\) depends on both \(w\) and \(b\), and one residual contributes to both partial derivatives.
+
+Nor do zero partials automatically certify a global optimum. They identify a stationary first-order condition when all relevant partials vanish. Geometry and later optimization analysis decide what that point means.
+
+** Exercises
+- ★ Compute both partial derivatives of \(f(x,y)=x^2+xy+2y^2\).
+- ★ Evaluate those partials at \((2,-1)\).
+- ★★ Implement a three-dimensional central partial difference using only the scalar finite-difference idea; compare its structure with the project function.
+- ★★ Recompute the affine-MSE fixture after changing only the bias to \(1\). Which residuals change and how do both partials respond?
+- ★★ Explain why a dimensionless “importance ranking” cannot be read directly from raw partial magnitudes when parameters use different units.
+- ★★★ Find a parameter point for the three-example fixture where both MSE partials are zero, then verify the equations by hand. Do not use an optimizer.
+
+* Chapter 11 -- Gradients: Put the Coordinate Rates Back Together
+:PROPERTIES:
+:ID:       d3d6f078-73a7-4887-b486-c86aad1cbb43
+:END:
+
+The partial derivatives are useful separately, but ML usually needs a direction in parameter space. The gradient collects them into one vector:
+
+\[
+\nabla f(x_1,\ldots,x_n)
+=\left(
+\frac{\partial f}{\partial x_1},\ldots,
+\frac{\partial f}{\partial x_n}
+\right).
+\]
+
+MIT's multivariable calculus material emphasizes the same bridge: the gradient is a vector field that packages rate information and supports directional rates. [cite:@mit1802sc2010]
+
+** 11.1 Return to the quadratic bowl
+For
+
+\[
+f(x,y)=(x-2)^2+3(y+1)^2,
+\]
+
+we found
+
+\[
+\nabla f(x,y)=(2(x-2),6(y+1)).
+\]
+
+At \((5,2)\),
+
+\[
+\nabla f=(6,18).
+\]
+
+The numerical project code perturbs each coordinate symmetrically and reproduces these two components within the explicit test tolerance.
+
+** 11.2 A directional derivative is a dot product
+Let \(u\) be a unit vector describing a direction. A small move of length \(t\) along that direction is \(tu\). The first-order local model says
+
+\[
+f(x+tu)\approx f(x)+t\nabla f(x)\cdot u.
+\]
+
+So the local rate per unit distance along \(u\) is
+
+\[
+D_u f=\nabla f\cdot u.
+\]
+
+This is where the early dot-product chapters cash out. A dot product measures how much of the gradient lies along the direction we actually travel.
+
+The lab accepts an arbitrary nonzero direction, normalizes it, and only then forms the dot product. Without normalization the result would scale with the length of the direction vector and would no longer mean rate per unit distance.
+
+** 11.3 Why the gradient is steepest ascent
+For every unit direction \(u\), Cauchy--Schwarz gives
+
+\[
+\nabla f\cdot u
+\le \|\nabla f\|\|u\|
+=\|\nabla f\|.
+\]
+
+Equality is achieved when \(u\) points in the same direction as the nonzero gradient. Therefore the gradient gives the direction of greatest first-order increase, and \(-\nabla f\) gives the direction of greatest first-order decrease. MIT's multivariable calculus material states this geometric role as the direction of most rapid change and relates the gradient to level curves/surfaces. [cite:@mit1802sc2010]
+
+There is an important word in that statement: /first-order/. Taking an arbitrarily huge step opposite the gradient is not guaranteed to reduce a curved function. Step size is an optimization decision, not something the gradient chooses for us.
+
+** 11.4 The regression gradient is now one object
+The two affine-MSE partials become
+
+\[
+\nabla L(w,b)
+=\left(
+\frac{2}{n}\sum_i r_i x_i,
+\frac{2}{n}\sum_i r_i
+\right).
+\]
+
+For the hand-worked fixture at \((1,0)\),
+
+\[
+\nabla L=\left(-\frac{16}{3},-4\right).
+\]
+
+Both components are negative, so a sufficiently small first-order move in the positive \(w\) and positive \(b\) directions should reduce the loss. “Sufficiently small” remains essential.
+
+** 11.5 Gradient checking: two implementations should disagree loudly
+An analytic derivative and a numerical finite difference fail in different ways. The analytic formula can contain an algebra mistake. The finite difference can suffer from step-size or floating-point error. Comparing them on bounded fixtures is therefore a useful debugging technique.
+
+The project test computes the analytic affine-MSE gradient and separately asks =numerical_gradient= to perturb the loss function. It then checks agreement component by component.
+
+This is not circular: the analytic function does not call the numerical one, and the numerical one knows nothing about the MSE formula. It is still not formal proof, because both execute in finite precision and the fixture covers only selected points.
+
+** 11.6 A sampled-array oracle has a different contract
+NumPy's =gradient= operates on sampled arrays, not Python callables. Its v2.5 documentation says interior points use second-order central differences, with one-sided formulas at boundaries, and supports spacing by scalars or coordinate arrays. [cite:@numpy250]
+
+The project uses one small quadratic grid to verify that our callable-based central differences agree with NumPy on an ordinary case. We do not claim API equivalence, boundary equivalence, irregular-grid support, or arbitrary N-dimensional array semantics.
+
+** 11.7 Read a level-curve diagram
+For
+
+\[
+g(x,y)=(x-1)^2+2(y+0.5)^2,
+\]
+
+the level sets are ellipses. At \((2,0.5)\),
+
+\[
+\nabla g=(2,4).
+\]
+
+The deterministic teaching figure plots several level curves and an arrow generated from the numerical gradient. The arrow crosses the nearby level curve normally. That is not decoration: moving tangent to a level curve produces approximately zero first-order change, so the gradient must be orthogonal to that tangent direction when the gradient is nonzero.
+
+** Exercises
+- ★ Compute the gradient of \(f(x,y)=x^2+3y^2\) at \((1,2)\).
+- ★ Normalize direction \((3,4)\) and compute the directional derivative when \(\nabla f=(6,18)\).
+- ★★ Use Cauchy--Schwarz to explain why no unit direction can have a larger directional derivative than \(\|\nabla f\|\).
+- ★★ Give a curved one-dimensional function and a point where moving a huge distance opposite the derivative increases the function instead of decreasing it.
+- ★★ Add a randomized-but-seeded set of finite parameter fixtures to the MSE gradient checker. Keep it reproducible and report failures rather than hiding them behind loose tolerances.
+- ★★★ Derive the gradient of MSE for two input features and a bias. Write the parameter and feature shapes before doing algebra.

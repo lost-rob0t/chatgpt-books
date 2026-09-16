@@ -46,3 +46,19 @@ Executable check: with one-by-one matrices =A=[[1e308]]=, =B=[[1e-308]]=, =C=[[1
 Result: add a dedicated Project 1 numerical failure lab and regression. The book now explicitly distinguishes the exact algebraic law from the behavior of a particular finite representation and explains why a better summation routine cannot recover a product that already underflowed before summation.
 
 Claim boundary: the observed decimal outputs are TESTED behavior for the stated runtime, not a claim that every Python implementation or floating-point format must expose the identical boundary. The mathematical associativity claim remains about exact arithmetic; later numerical work will use tolerance-based or condition-aware oracles where appropriate rather than silently replacing all exact tests.
+
+** 2026-09-16 -- derivatives, gradients, and finite-difference checks
+Questions: What conceptual sequence should connect the derivative definition to ML gradients? Which current numerical API provides an independent finite-difference oracle? Which failure cases keep a numerical gradient check from being mistaken for a mathematical proof?
+
+Inspected:
+- MIT OpenCourseWare 18.01SC Session 1, which introduces the derivative through tangent slope, limit of secants, and the defining formula;
+- MIT OpenCourseWare 18.01SC Session 11, which introduces the chain rule for a composition of functions;
+- MIT OpenCourseWare 18.02SC Part 2B, which sequences multivariable chain rule, gradient, level-curve geometry, and directional derivatives and describes the gradient as carrying directional rate information;
+- official NumPy 2.5 =numpy.gradient= documentation, which defines its sampled N-dimensional API, central interior differences, one-sided boundary behavior, spacing inputs, and the standard evenly spaced second-order central approximation;
+- the already-recorded official Python 3.14.7 floating-point tutorial for represented-step and cancellation limits.
+
+Executable check: the new standard-library calculus lab currently passes 16/16 local =unittest= cases in the development runtime. The suite covers forward/central scalar differences, partials/gradients of an analytic quadratic, unit-direction semantics, explicit invalid-step/non-finite/unrepresentable-input failures, a nondifferentiable =abs(0)= warning case, affine-MSE analytic formulas, independent formula-vs-finite-difference gradient agreement, and a bounded NumPy sampled quadratic oracle. These are LOCAL TESTED results only until repository CI runs the exact branch head under the pinned environment.
+
+Result: Chapters 9--12 derive secants -> derivative/local linear model -> partial derivatives -> gradient/directional derivative -> chain rule/computation graph. The regression-loss example is introduced only far enough to derive and check the MSE gradient; model fitting and optimizer behavior remain a later Project 2 slice.
+
+Claim boundary: finite differences are debugging/evidence tools, not proofs of differentiability and not a claimed practical training algorithm. No benchmark or convergence claim is made. A symmetric finite difference returning zero for =abs= at zero is kept as a deliberate counterexample to “numerical estimate implies derivative exists.”
