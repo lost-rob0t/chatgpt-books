@@ -1,0 +1,407 @@
+* Chapter 8 -- Forward Chaining Means State Transitions
+:PROPERTIES:
+:ID:       df328b6e-b7dd-4d34-b906-1f09764e06bc
+:END:
+
+** 8.1 The matcher has reached its limit
+At the end of Chapter 7 we can answer a static question: given this fixed set of facts, which bindings satisfy these conditions? An expert system has to answer a dynamic question: *after one rule changes the facts, what becomes true next?*
+
+That is the first real reason to build working memory.
+
+Do not jump to RETE yet. The immediate mechanism is smaller:
+
+#+begin_example
+working memory
+   -> match every production
+   -> construct complete activations
+   -> choose one
+   -> execute its structured actions
+   -> working memory changes
+   -> repeat
+#+end_example
+
+This is forward chaining: data in working memory drives rule applicability, and rule consequences add data that may enable other rules. The current CLIPS documentation describes the same broad recognize/act family of cycle, with fact or instance changes updating activations before another rule is selected [cite:@clips642bpg]. Our exact data structures and ordering policy are course-local and tested independently.
+
+** 8.2 Mutation needs a contract, not just SETF
+Milestone A called an ordered fact list “working memory” for convenience. That was enough while the list never changed. Milestone B introduces a =working-memory= object with three pieces of history:
+
+- currently active facts;
+- each active fact's assertion sequence;
+- every stable ID ever consumed by this working-memory lifetime.
+
+Why remember an ID after retraction? Because identity is not merely a lookup key. If =obs.api.state.failed= disappears and later the same string is silently recycled for a different observation, explanation and refraction can no longer tell whether they are seeing the old evidence again or genuinely new evidence.
+
+The book therefore adopts a simple rule: *IDs do not come back from the dead.* A re-observation gets a new ID.
+
+#+begin_src lisp
+(let ((wm (make-working-memory)))
+  (assert-fact wm
+               (make-fact :id "obs.api.failed.001"
+                          :relation 'service-state
+                          :arguments '(api failed)))
+  (retract-fact wm "obs.api.failed.001")
+  ;; Equal content is allowed, but it must describe a new identity.
+  (assert-fact wm
+               (make-fact :id "obs.api.failed.002"
+                          :relation 'service-state
+                          :arguments '(api failed))))
+#+end_src
+
+This is deliberately not CLIPS's duplicate policy. CLIPS assigns fact identifiers and, by default, rejects duplicate facts by content unless fact duplication is enabled [cite:@clips642ug]. Our technical diagnosis project needs equal-content observations from different evidence events, so the primitive working memory preserves them when their IDs differ.
+
+The important lesson is not which choice is universally “right.” There is no universal answer without a domain model. The lesson is to make the choice explicit before optimization makes it hard to change.
+
+** 8.3 Assertion sequence is not wall-clock time
+Each successful assertion receives =1, 2, 3, ...= inside one working-memory lifetime. The number tells us only *in what order this engine accepted facts*. It is not an event timestamp, observed-at time, valid-time interval, database revision, or causal clock.
+
+That distinction is easy to lose. If an old log record arrives late, its assertion sequence is recent even though the event it describes is old. Later temporal reasoning must use explicit observation/valid-time fields. Milestone B uses assertion sequence only as a deterministic conflict-resolution input.
+
+For an activation supported by several facts we define:
+
+#+begin_example
+activation-recency = max(assertion-sequence(support-fact))
+#+end_example
+
+This says “how recently did any evidence needed for this activation enter this working memory?” It does *not* say “how recent is the real-world condition?”
+
+** 8.4 Productions become inspectable data
+Chapter 4 refused to invent a production representation before we had a working-memory model. Now we can add one without magic:
+
+#+begin_src lisp
+(defstruct production
+  id
+  conditions
+  actions
+  (salience 0)
+  provenance)
+#+end_src
+
+The ID is a stable non-empty string and must be unique in one inference session. Conditions are exactly the patterns we already know how to match. Salience is an integer that Chapter 9 will use. Provenance is retained for later explanation and rule-version work.
+
+Actions deserve more caution. A tempting implementation is:
+
+#+begin_src lisp
+;; Do not use this as the rule language.
+:action (lambda (bindings) ...anything Common Lisp can do...)
+#+end_src
+
+That turns a production into arbitrary host-language authority. It also makes “dry run,” replay, validation, persistence, and explanation much harder. Milestone B instead has one tiny action form:
+
+#+begin_example
+(:assert relation field ...)
+#+end_example
+
+Fields may contain variables bound by the LHS. The engine substitutes them and creates a derived fact. There is no =eval= and no arbitrary callback.
+
+This is intentionally austere. We are deriving an inference engine, not hiding a general scripting runtime behind a rule-shaped API.
+
+** 8.5 From a match to an activation
+A =match-result= becomes an =activation= only after it is attached to a concrete production and control metadata:
+
+#+begin_example
+production ID       derive.dependency-impact
+bindings             ?dependency -> api
+                     ?service    -> frontend
+support fact IDs     obs.api.state.failed
+                     dep.frontend.api
+salience             20
+recency               4
+specificity           2
+refraction signature  (derive.dependency-impact,
+                       [obs.api.state.failed, dep.frontend.api])
+#+end_example
+
+Notice what is *not* in the identity: object addresses, hash-table iteration order, or a current wall clock. Those would make replay and tests depend on accidental runtime state.
+
+An activation is therefore a statement with evidence: “production P is applicable under these bindings because these exact fact identities satisfy its conditions.”
+
+** 8.6 Firing derives a new fact, not a side effect
+The synthetic Project 1 rule is represented as data:
+
+#+begin_src lisp
+(make-production
+ :id "derive.dependency-impact"
+ :conditions '((service-state ?dependency failed)
+               (depends-on ?service ?dependency))
+ :actions '((:assert dependency-impact ?service ?dependency))
+ :salience 20
+ :provenance '(:kind :book-rule :scenario "api-start-failure"))
+#+end_src
+
+When it fires under =?dependency -> api= and =?service -> frontend=, the action becomes:
+
+#+begin_example
+(dependency-impact frontend api)
+#+end_example
+
+The engine creates a deterministic derived fact ID from the production ID, action number, and ordered support IDs. Its provenance records:
+
+- =:kind :derived=;
+- producing production ID and production provenance;
+- exact support fact IDs.
+
+We still do not have truth maintenance. If a support later disappears, the already-derived fact remains until a later milestone teaches the engine how justifications control derived-state lifetime. That is not a bug hidden under a TODO; it is the next architectural pressure we are deliberately preserving.
+
+** 8.7 Worked forward-chaining trace
+Load the five synthetic service facts. Their assertion sequences are =1= through =5=. Two book rules match:
+
+#+begin_example
+A: derive.dependency-impact
+   supports [obs.api.state.failed (#1), dep.frontend.api (#4)]
+   salience 20, recency 4, condition-count 2
+
+B: derive.restart-candidate
+   supports [obs.api.state.failed (#1), cfg.api.restart.on-failure (#2)]
+   salience 10, recency 2, condition-count 2
+#+end_example
+
+Rule A wins because =20 > 10=. Firing it asserts a derived dependency-impact fact. Then the engine recomputes *all* production matches against the new working-memory snapshot. A is still logically matched by the same supports, but refraction will make its old activation ineligible. B remains eligible and fires. Another full rematch leaves no eligible activation.
+
+This is intentionally inefficient and intentionally legible.
+
+#+caption: Project 1 milestone B recognize/act loop. Matching is still naive: every cycle recomputes production matches from the current working-memory snapshot. Refraction and deterministic agenda ordering are semantic mechanisms, not RETE optimizations.
+#+attr_html: :alt Assertions and retractions update working memory. Naive matching creates activations, refraction removes already-fired rule-and-support identities, deterministic agenda ordering selects one activation, structured assert actions derive provenance-bearing facts, and the cycle repeats until quiescent or a firing bound is reached.
+[[file:assets/forward-chain.svg]]
+
+The editable source is =books/expert-systems/assets/forward-chain.dot=.
+
+** 8.8 Retraction teaches a crucial asymmetry
+Suppose a rule is activated by =old.failed=. Before it fires, retract that fact. The next recomputed agenda no longer contains the activation because one of its supports is not in active working memory.
+
+Now assert equal content under =new.failed=. The rule may activate again because this is a different evidence identity.
+
+That behavior gives us a clean semantic baseline for later incremental retraction propagation. A RETE-like network will eventually remove tokens instead of recomputing the whole agenda, but it must produce the same observable eligibility result.
+
+What it does *not* yet do is retract previously derived consequences. That requires justification graphs and truth maintenance, which arrive later.
+
+** 8.9 Failure lab -- confuse identity with content
+Change =assert-fact= temporarily so it rejects facts whenever relation and arguments equal an existing fact, regardless of ID. Then imagine two independent health-check collectors report =(service-state api failed)= with different provenance.
+
+What did your “optimization” erase? Which later explanation question becomes impossible to answer? If one collector retracts its observation, can you still represent the other's evidence?
+
+Restore the identity contract after the experiment.
+
+** 8.10 Exercises
+1. ★ Explain why assertion sequence cannot safely replace an =observed-at= timestamp.
+2. ★ Predict whether reasserting a retracted *ID* succeeds. Then predict whether asserting equal content under a new ID succeeds.
+3. ★★ Add a regression that proves =facts-in-working-memory= returns a fresh list spine rather than the internal list itself. Explain why this still does not make fact records deeply immutable.
+4. ★★ Extend the action validator with a new *data-only* =:retract= action, but do not merge it into the canonical engine until you specify whether an action set is atomic.
+5. ★★★ Design a justification record sufficient to retract a derived fact only when its last valid support disappears. Do not implement it yet; identify the ambiguity created when two different activations derive equal content.
+
+* Chapter 9 -- The Agenda Is a Policy, Not a Queue Accident
+:PROPERTIES:
+:ID:       eecbc366-ccb8-4a38-9460-b4bba3e48dc9
+:END:
+
+** 9.1 Matching can produce several correct next moves
+Once several productions and several matches exist, the engine can have multiple valid activations at once. That is the *conflict set*. “Take the first list element” is not a conflict-resolution policy unless the language specification deliberately says list construction order is semantic.
+
+Current CLIPS documentation makes this control layer explicit: activated rules are placed on an agenda; salience and a configured conflict-resolution strategy affect placement; the system provides multiple strategies rather than pretending there is one universal order [cite:@clips642bpg].
+
+Our engine needs the same separation even though it does not copy CLIPS's strategies.
+
+** 9.2 A total order buys reproducibility
+For milestone B we pick a course-local policy whose main virtue is that a reader can calculate it by hand:
+
+1. higher =salience=;
+2. newer activation =recency=;
+3. more LHS conditions, our deliberately crude =specificity= proxy;
+4. lexically smaller stable production ID;
+5. lexicographically smaller ordered support-ID list.
+
+The first three are meaningful policy choices. The last two are deterministic fallbacks. They prevent two exactly tied activations from inheriting the accident of hash-table traversal, allocation address, or source list order.
+
+CLIPS 6.4.2 explicitly warns that after the relevant strategy rules, tied activations may be arbitrarily ordered and software should not depend on that arbitrary order [cite:@clips642bpg]. Our final tie-break is therefore *not* presented as CLIPS compatibility. It is a testing/replay guarantee of this teaching engine.
+
+** 9.3 Salience should be visible, because it is power
+Salience is tempting. A failing rule fires too late? Give it =100=. Another rule now fires too late? Give it =200=. Soon the knowledge base contains a shadow control program made of unexplained integers.
+
+Use salience sparingly and give it provenance/rationale when it becomes domain policy. The synthetic fixture uses =20= for dependency impact and =10= for restart candidacy only to make the agenda trace obvious; those numbers are not operational recommendations.
+
+The engine validates salience as an integer because an ordering input should fail loudly when malformed.
+
+** 9.4 Recency focuses on changed reasoning state
+Our recency metric is the maximum assertion sequence among an activation's supports. Imagine two activations from the same production:
+
+#+begin_example
+support [obs.api.failed.001]   recency 14
+support [obs.worker.failed]    recency 19
+#+end_example
+
+With equal salience, the worker activation is preferred. This is useful as a data-driven “something newer changed here” heuristic.
+
+It is not a claim about chronological severity. If a ten-minute-old log line was asserted at sequence 20 after a fresh health check asserted at sequence 18, the old log line is *more recent to the engine* but *older in the world*. Keep those timelines separate.
+
+** 9.5 Specificity needs an operational definition
+“Prefer the more specific rule” sounds obvious until two engineers disagree about what specific means.
+
+Milestone B defines one transparent proxy:
+
+#+begin_example
+specificity = number of LHS conditions
+#+end_example
+
+A two-condition production beats a one-condition production only after salience and recency tie. This metric is deliberately crude. Two conditions are not automatically more semantically precise than one. CLIPS exposes distinct =simplicity= and =complexity= strategies; the book does not claim our condition count reproduces either strategy's complete semantics [cite:@clips642bpg].
+
+Why use the proxy at all? Because it gives us an executable hook for discussing control policy without dragging the implementation into a historical strategy clone. Later exercises can replace this comparator and run the same scenario suite.
+
+** 9.6 Stable IDs are the boring tie-break you want
+Assume two activations tie on salience, recency, and condition count. If =a.rule= sorts before =b.rule=, the result is boring. Boring is good. The trace is reproducible. A failing test can name exactly which policy layer selected the activation.
+
+A production system whose final tie-break is “whatever the runtime happened to hand us” may still be correct if its specification permits nondeterminism. It is simply harder to test, replay, explain, and persist. This book's workbench and production capstone will need those properties, so the semantic baseline chooses total ordering early.
+
+** 9.7 Derive the agenda, do not mutate it by hand
+=session-agenda= does not keep a long-lived mutable priority queue in milestone B. It recomputes candidate activations from current working memory, removes refracted signatures, and sorts the remainder.
+
+That is wasteful. It is also a valuable oracle.
+
+Later, alpha/beta memories and production nodes will incrementally create/remove activations. Their agenda implementation must agree with this recomputation on the same sequence of assertions, retractions, and firings. If it does not, the optimization changed semantics.
+
+** 9.8 Debugging an agenda decision
+For every selected activation, you should be able to print a comparison tuple:
+
+#+begin_example
+(20, 4, 2, "derive.dependency-impact",
+ ["obs.api.state.failed", "dep.frontend.api"])
+#+end_example
+
+Suppose someone asks, “why did dependency impact run before restart candidacy?” You do not need mystical engine intuition. Compare the first unequal component: salience =20= versus =10=.
+
+Suppose salience ties. Compare recency. If that ties, compare condition count. Continue until a difference appears.
+
+This is already the beginning of an explanation/debugging interface even though the polished workbench is many chapters away.
+
+** 9.9 Failure lab -- let collection order decide
+Temporarily delete the stable-ID tie-breaks and use a non-stable sort. Create two rules with equal salience, equal recency, and equal condition count. Run with the production list in one order, then reverse it.
+
+If your conclusion order changes, ask whether the rule language intended source-list order to carry meaning. If not, you have discovered hidden control state.
+
+Restore the total comparator.
+
+** 9.10 Exercises
+1. ★ Given four activation tuples, sort them by the milestone-B policy by hand.
+2. ★ Explain why “higher recency” and “newer real-world observation” are different statements.
+3. ★★ Write a comparator implementing salience + FIFO assertion order instead of recency-first. Which existing tests should change?
+4. ★★ Add an activation-report function that returns the tuple components as data for the future workbench. Do not print inside the matcher.
+5. ★★★ Construct a scenario where condition-count specificity chooses a rule you consider semantically worse. Propose a better explicit metric and the metadata it would require.
+
+* Chapter 10 -- Refraction Stops One Loop, Not All Loops
+:PROPERTIES:
+:ID:       dcbece37-246b-4a88-8a17-0233ec721233
+:END:
+
+** 10.1 The obvious infinite loop
+Start with one fact:
+
+#+begin_example
+(service-state api failed)
+#+end_example
+
+and one rule whose conditions match it and whose action asserts some unrelated fact. If the original service-state fact remains present, then after firing the LHS still matches. A naive recognize/act loop can select the same activation forever.
+
+Production systems therefore need an explicit answer to “has this rule already fired on this evidence?” Current CLIPS documentation calls this behavior *refraction* and demonstrates that a rule does not simply fire again on the same fact after it has fired once [cite:@clips642ug].
+
+** 10.2 Define the identity before storing a boolean
+A boolean =production-fired-p= is too coarse. One production may legitimately fire for =api= and =worker=. A boolean per production would suppress the second case.
+
+A boolean per fact is also wrong for multi-condition joins. The meaningful unit in our baseline is a *production instantiation*.
+
+Milestone B defines the refraction signature as:
+
+#+begin_example
+(production-id, ordered-support-fact-ids)
+#+end_example
+
+So these are different signatures:
+
+#+begin_example
+("observe.failure", ["obs.api.failed"])
+("observe.failure", ["obs.worker.failed"])
+#+end_example
+
+and both may fire once.
+
+Bindings are not included separately because, under our current positive-pattern matcher, an ordered support tuple plus the production's conditions determines the binding result. If later language features break that assumption, the signature contract must be revisited rather than silently retained.
+
+** 10.3 New identity can legitimately reactivate equal content
+CLIPS's User's Guide notes that retracting a fact and asserting it as a new fact can permit the rule to fire again [cite:@clips642ug]. Our working-memory contract makes the same distinction explicit with IDs.
+
+If =old.failed= fires =observe.failure= and is retracted, equal content asserted as =new.failed= has a new support identity. The new activation has a different signature and is eligible.
+
+That is why Chapter 8 prohibited ID recycling. “Same ID” means same evidence identity for the lifetime of this session.
+
+** 10.4 Refraction is not a termination proof
+Now create a rule:
+
+#+begin_example
+(copy.pulse)
+  (pulse ?service)
+  => (:assert pulse ?service)
+#+end_example
+
+Start with =pulse.seed=. The first firing produces a new derived pulse fact with a new ID. The old activation is refracted, but the new fact creates a new activation with a new support tuple. Firing that creates another identity. Nothing in refraction forbids the chain.
+
+This is why =run-forward-chain= accepts =:max-firings=. After the bound, it recomputes the agenda one more time:
+
+- no eligible activation -> =:quiescent=;
+- eligible activation remains -> =:limit-reached=.
+
+=:limit-reached= does not mean “the system is definitely infinite.” It means bounded execution did not reach quiescence within the supplied firing budget. This distinction matters whenever a production system becomes part of a larger service: a timeout/budget is evidence about an execution, not a theorem about a rule base.
+
+** 10.5 Structured actions reduce the blast radius
+Refraction interacts with failure. Imagine marking an activation “fired” and then calling an arbitrary host-language function that errors halfway through changing external state. Did the activation fire? Should retrying be allowed? Which effects committed?
+
+Milestone B refuses that problem for now. It instantiates every structured =:assert= action before changing refraction state. Unbound action variables therefore fail before the session records the firing. Only then are derived facts asserted and the signature recorded.
+
+This is still not a general transaction system. Multiple assertions could eventually require rollback semantics, and external effects certainly will. Those are later production-engine concerns. The point is to avoid claiming atomicity we have not implemented.
+
+** 10.6 Why the engine still rematches everything
+After each firing we call the naive matcher again. This can perform the same literal tests and joins over and over.
+
+Now we finally have the workload that motivates Part II:
+
+- active working memory with identity and mutation;
+- complete productions;
+- concrete activations;
+- retractions that invalidate matches;
+- an agenda whose correct contents are observable;
+- refraction state;
+- a bounded forward-chaining trace.
+
+Incremental matching is no longer an abstract speed trick. We can ask a precise question: *given one working-memory delta, which old partial results can we retain while producing exactly the same eligible agenda as full recomputation?*
+
+That is the question alpha memories, beta memories, tokens, join nodes, and production nodes will answer.
+
+** 10.7 Failure lab -- delete refraction
+Temporarily make =session-agenda= ignore =fired-signatures=. Use a production whose action derives a relation that does not affect its own LHS. The original support remains active.
+
+Run with =:max-firings 3=. Predict what happens before running it. Then inspect the attempted derived fact IDs. Because those IDs are deterministic from the same production/support/action tuple, the second firing should collide with an already-used derived ID rather than silently create a second “same firing” record.
+
+Which mechanism detected the bug: refraction or stable derived identity? Why is having both useful?
+
+Restore refraction when the lab ends.
+
+** 10.8 Project checkpoint B
+The semantic baseline now has:
+
+- mutable working-memory assertion/retraction;
+- lifetime-stable fact identity;
+- explicit duplicate-content policy;
+- monotonic assertion sequence metadata;
+- stable production identity and provenance;
+- structured, permissioned assertion actions rather than arbitrary callbacks;
+- production activations with bindings and exact support identities;
+- deterministic agenda ordering;
+- persistent per-session refraction;
+- derived-fact provenance;
+- bounded forward chaining with distinct quiescent/limit outcomes;
+- regressions that exercise the failure cases rather than only the happy path.
+
+It still does *not* have incremental matching, RETE, truth maintenance, uncertainty, external side effects, persistence, or a production-ready technical diagnosis KB. Those omissions are the dependency map for the next parts of the book.
+
+** 10.9 Exercises
+1. ★ Explain why refraction keyed only by production ID is wrong.
+2. ★ Explain why =:limit-reached= is not proof of nontermination.
+3. ★★ Modify the pulse example so it reaches quiescence after exactly three firings without changing the runner's bound. Write the expected firing trace first.
+4. ★★ Add a dry-run function that returns the first selected activation without firing it. Which data is already sufficient to explain the choice?
+5. ★★★ Design a session-persistence record that could restore working memory, assertion sequences, and refraction after a crash. List the consistency hazards before writing any database code.
