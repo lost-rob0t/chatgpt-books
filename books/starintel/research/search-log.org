@@ -20,3 +20,41 @@ Question: Which general standards/docs are necessary to explain schema validatio
 Sources inspected: JSON Schema Draft 2020-12 official specification; RabbitMQ 4.3 acknowledgement/publisher-confirm guide; Apache CouchDB 3.5 documentation.
 Result: use these sources for their generic semantics only. RabbitMQ publisher confirms and consumer acknowledgements are separate mechanisms; CouchDB revision identifiers are database revision/MVCC data, not StarIntel's application-level document version; the Python adapter explicitly uses JSON Schema Draft 2020-12 validation.
 Remaining uncertainty: exact StarIntel RabbitMQ confirm/durability settings and CouchDB integration behavior belong to later executable passes.
+
+** 2026-09-16 -- What is the currently loaded Rabbit settlement path?
+Question: Which queue/channel ownership, settlement, retry, and quarantine behavior is actually loaded, and which nearby source is stale or inactive?
+Sources inspected: current server ASDF load graph, =consumers/consumers.lisp=, =consumers/retry-policy.lisp=, =rabbit.lisp=, =t/consumers-test.lisp=, canonical unit/integration ASDF systems, official RabbitMQ 4.3 confirms/reliability docs.
+Result: the loaded consumer owns its Rabbit channel, workers clone distinct streams, explicit settlements drive ACK/NACK behavior, and the retrying path performs bounded republish/quarantine before ACKing the original. =consumers/rabbit-settlement.lisp= exists but is not loaded and is not treated as current runtime evidence. The inspected producer/republish paths call =basic-publish= without an evidenced publisher-confirm select/wait path, so a publish call return is not promoted to durable broker acceptance.
+Remaining uncertainty: no live RabbitMQ fault-injection run was executed for this book slice.
+
+** 2026-09-16 -- How does current CouchDB mutation/outbox recovery change the ingest story?
+Question: When is the document mutation durable relative to post-persistence event publication, and what happens after a crash?
+Sources inspected: =source/databases/outbox.lisp=, =source/rabbit.lisp=, current package exports/API docs, Apache CouchDB 3.5 docs.
+Result: the current canonical mutation path persists the document mutation and a pending per-document outbox entry before publishing the logical post-mutation event; after publication it marks the entry published. Stable mutation/event identities and a mutation ledger handle duplicates/conflicts. Startup recovery replays pending entries. A crash after publish but before the marker can cause a duplicate logical event on recovery, so the book teaches at-least-once/idempotent reasoning rather than exactly-once.
+Remaining uncertainty: crash-window behavior is source-grounded but was not reproduced against a live CouchDB/RabbitMQ pair in this pass.
+
+** 2026-09-16 -- Which messaging prose has drifted?
+Question: Does current =doc/messaging.org= exactly match the current loaded implementation?
+Sources inspected: =doc/messaging.org= compared with current =rabbit.lisp= and later-loaded authorized target route.
+Result: no. The doc's update-ingest queue/binding names differ from active constants, and its statement that legacy =POST /new/target/:actor= skips strict schema validation is superseded by the currently loaded authorized route, which normalizes then validates the target document. These are retained as historical/source-drift examples.
+Remaining uncertainty: other messaging paragraphs require claim-by-claim verification before later chapters reuse them.
+
+** 2026-09-16 -- Did the server head change the quarantine failure model while this PR was open?
+Question: After the ingest pass at =d4e8447...=, did current StarIntel Server source change any failure semantics the book is teaching?
+Sources inspected: server commit delta =d4e8447c6049eaed65a93e81668ae1ec4b65c25c= -> =d48fa939402abf701fa1cc4079dfb8bedfad8d4a=; current =source/ids.lisp=, =source/runtime-lifecycle.lisp=, =source/consumers/retry-policy.lisp=, ASDF load graph; upstream issue #187 and merged PR #188.
+Result: yes. Upstream issue #187 reports concurrent raw =cms-ulid= calls producing the same quarantine ID for different deliveries, causing a CouchDB conflict during settlement and a listener-killing failure. Current PR #188 adds a process-wide locked =star.ids:ulid= wrapper and routes production ID generation through it; the current consumer lifecycle catches settlement errors, stops/closes the affected worker stream, and leaves the delivery unsettled for redelivery instead of allowing that worker error to kill the listener. Quarantine persistence still precedes publish and ACK.
+Evidence status: current source behavior is DOCUMENTED. The incident, baseline RED fixture, green unit/integration/Nix/image checks are UPSTREAM-REPORTED because this book did not run those product-repository checks.
+Remaining uncertainty: this book still needs a disposable RabbitMQ/CouchDB failure-injection run before the redelivery/listener-survival repair is book-TESTED.
+
+** 2026-09-16 -- What can safely be replayed after an accepted but ambiguous bulk request?
+Question: If request acceptance is known but the final durable subset is not, when can an operator derive a mechanical resume offset without guessing?
+Sources inspected: upstream issue #187 incident evidence plus the book's existing acceptance-versus-persistence model.
+Result: only independently verified state can justify replay. The new book lab requires a contiguous =verified_match= prefix followed exclusively by independently verified =absent= rows before returning a resume offset. Any =unknown=, =mismatch=, or verified row after an absent row fails closed to manual reconciliation. The lab deliberately consumes preclassified evidence and does not reimplement StarIntel document-equivalence or persistence logic.
+Remaining uncertainty: incident-specific content comparison and live read-back remain outside the hermetic lab and require a service-backed experiment.
+
+** 2026-09-16 -- What changed when current server head moved to #190?
+Question: Did the newest StarIntel Server change the ingest/runtime claims in this open book slice, and what new operational lesson does it add?
+Sources inspected: current server master =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=; merge delta from =d48fa939...=; =source/frontends/http-bulk-jobs.lisp=; upstream issue #189 and merged PR #190.
+Result: the existing Rabbit settlement/outbox/quarantine conclusions are not contradicted. A new bulk-job lifetime repair is now current: asynchronous jobs store their original total separately and release the document list plus request-only service context on terminal paths while retaining pollable status/count/correlation/principal metadata. The upstream issue reports that retaining completed request payloads in the process-wide job registry contributed to an SBCL heap-exhaustion failure under backlog ingest. This is a reachability/lifetime defect distinct from pending-job admission limits.
+Evidence status: the current merged source is DOCUMENTED. The production heap failure, RED baseline, backlog observations, and PR #190 unit/integration/doc-coverage/Nix/stack-test results are UPSTREAM-REPORTED. The book does not claim to have reproduced server heap behavior.
+Remaining uncertainty: a book-controlled disposable stack still needs to exercise live bulk lifetime and the HTTP -> RabbitMQ -> CouchDB failure path. The new book-side lifecycle auditor validates only sanitized evidence traces and cannot substitute for that experiment.

@@ -1,0 +1,152 @@
+* Part III -- Failure, Debugging, and Operations
+:PROPERTIES:
+:ID:       0ac77ca1-c183-4f2e-bd9c-c6c240887ab0
+:END:
+
+** Chapter 20 -- When Finished Work Is Still Reachable
+:PROPERTIES:
+:ID:       68d283d7-c261-4e6c-9e87-d6b93e122532
+:END:
+A queue can be bounded and a process can still run out of memory.
+
+That sounds contradictory only if we confuse *how much work may be active at once* with *how much old state remains reachable afterward*. The current StarIntel Server gives us a concrete failure to study. While this book PR was open, upstream issue #189 reported an SBCL heap exhaustion during backlog-shaped bulk ingest. The repair merged as server revision =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=. The production incident and upstream verification are UPSTREAM-REPORTED here; the current source change is DOCUMENTED. [cite:@starintel-server-issue189;@starintel-server-pr190;@starintel-server-20260916]
+
+*** Pending work and retained history are different dimensions
+The current asynchronous bulk subsystem already has finite pending-job limits and a fixed worker count. Those controls answer a useful question:
+
+#+begin_example
+how much bulk work may be waiting/running concurrently?
+#+end_example
+
+They do not answer this one:
+
+#+begin_example
+after a job finishes, what object graph still has a live reference?
+#+end_example
+
+Before the #190 repair, the process-wide job registry intentionally kept terminal jobs queryable for status. The job object also retained the original =documents= list and request-only service context. A terminal job was therefore logically complete but still a root of a potentially large request object graph. Issue #189 reports that this accumulated during a real backlog import until the SBCL process exhausted its heap. [cite:@starintel-server-issue189]
+
+The general lesson is sharper than "watch memory":
+
+#+begin_example
+bounded concurrency
+     does not imply
+bounded retained history
+
+finished object + strong registry reference
+     still means
+reachable object
+#+end_example
+
+A tracing garbage collector cannot reclaim objects that the program still references. Garbage collection is doing exactly what it was asked to do.
+
+*** Status needs a summary, not the whole request
+The repaired current =bulk-ingest-job= stores =total= independently from the =documents= list. Status serialization reads that stable total together with job status, success/failure counts, and correlation identity. Terminal cleanup can then release the request documents without destroying the polling contract. [cite:@starintel-server-pr190;@starintel-server-20260916]
+
+That is a reusable systems pattern:
+
+1. identify the information a later observer genuinely needs;
+2. materialize a compact summary with a stable meaning;
+3. identify request-only execution state;
+4. release that request-only state on every terminal path.
+
+The key word is *every*. Happy-path cleanup is not enough.
+
+*** Why =unwind-protect= belongs in the lesson
+Current =execute-bulk-job= performs its release in =unwind-protect=. Ordinary completion, completion with per-document errors, and an outer job failure all reach cleanup. If execution unexpectedly remains =:running= during unwinding, the cleanup path first marks the job failed, then clears the documents and request-only service context. [cite:@starintel-server-pr190;@starintel-server-20260916]
+
+This is not merely Common Lisp syntax trivia. It is a lifecycle invariant:
+
+#+begin_example
+request enters running state
+        |
+        +--> completed
+        +--> completed-with-errors
+        `--> failed
+                 |
+                 v
+terminal summary remains pollable
+request-only payload/context are released
+#+end_example
+
+Whenever a service keeps process-local registries, caches, promises, leases, or jobs, ask the same question: *what must remain reachable after terminalization, and what must not?*
+
+*** Availability failures become evidence failures
+The heap incident also connects directly to the earlier ingest chapters. If the HTTP boundary accepted asynchronous work and the process later dies, a client can lose the ability to poll the status object while some documents may already be durable.
+
+Neither shortcut is safe:
+
+#+begin_example
+"the bulk request was accepted, so every document exists"
+"the server crashed, so replay the whole request"
+#+end_example
+
+The upstream repair record reports a CouchDB reconciliation before resume rather than a blind replay. The exact offsets from that incident are not benchmark data and are not reproduced by this book. The reasoning is what matters: recover durable evidence first, then derive the smallest replay set justified by that evidence. [cite:@starintel-server-issue189;@starintel-server-pr190]
+
+That is exactly why the earlier =ambiguous-bulk= book lab refuses to guess. A contiguous verified durable prefix followed by verified absence yields a mechanical resume point. Unknowns, mismatches, or a hole in the durable prefix do not.
+
+*** Failure lab -- turn a memory claim into observable predicates
+"Memory leak fixed" is too vague for a serious regression. Split it into observations.
+
+For one asynchronous job, a useful trace can record:
+
+#+begin_example
+seq=0  status=queued   total=250 documents_retained=true
+seq=1  status=running  total=250 documents_retained=true
+seq=2  status=completed total=250 succeeded=250 failed=0
+       documents_retained=false service_context_retained=false
+#+end_example
+
+The final row is strong evidence for a *lifetime invariant*. It is not a heap benchmark. It says the trusted observation boundary saw the request-only references released while stable status information survived.
+
+Now delete the terminal row. Nothing contradicts the repair, but nothing proves it either. The correct state is *incomplete*, not green.
+
+Now change =documents_retained=false= to =true=. That is a contradiction of the intended terminal invariant even if process RSS happened to be low during the sample.
+
+This distinction matters because memory measurements answer a different question from object-lifetime observations. RSS, GC frequency, heap size, and backlog throughput can all be useful later, but they should not replace a direct invariant when the invariant is observable.
+
+*** Exercises
+- ★ Explain why a limit of 32 pending jobs cannot bound memory if every completed job retains its original payload forever.
+- ★ Distinguish "unreachable and waiting for GC" from "still reachable from a process-wide registry."
+- ★★ Design the smallest terminal status record that remains useful to a polling client after the original request body is released.
+- ★★ Why should an outer job failure release request-only service context even when only part of the document list was processed?
+- ★★★ Add a second observation stream for process heap size. Explain which conclusions come from the lifecycle trace, which come from heap measurements, and why neither should be silently substituted for the other.
+
+* Project 2 Continuation -- Audit Bulk-Job Lifetime Evidence
+:PROPERTIES:
+:ID:       664c2d63-30c3-4c61-8e53-a643556e216e
+:END:
+The runnable lab lives in =books/starintel/code/bulk-job-lifetime/=. It is deliberately an *auditor*, not a fake StarIntel server.
+
+*** Input contract
+A trusted test or instrumentation boundary emits sanitized JSONL snapshots with:
+
+- monotonic observation sequence;
+- job identity;
+- one of =queued=, =running=, =completed=, =completed-with-errors=, or =failed=;
+- stable =total= and nondecreasing =succeeded=/=failed= counts;
+- booleans recording whether the document payload and request-only service context were observed retained.
+
+The lab does not accept credentials, document bodies, Rabbit deliveries, CouchDB records, or internal service context. It has no code for publishing, persistence, retries, or authorization.
+
+*** Three result classes
+The auditor returns:
+
+- =proven= when every observed job reaches a coherent terminal snapshot with both request-only retention flags false;
+- =incomplete= when no contradiction exists but at least one job has no terminal release observation;
+- =contradicted= when a terminal snapshot still retains request-only state or its terminal accounting contradicts the stated status.
+
+That vocabulary is intentional. An absent terminal observation is not a passing test.
+
+Run the hermetic suite with:
+
+#+begin_src sh
+bash books/starintel/code/bulk-job-lifetime/run-tests
+#+end_src
+
+The suite covers completed, completed-with-errors, and failed terminal paths; retained documents; retained service context; incomplete traces; incoherent completed counts; changing totals; decreasing counters; post-terminal state; and invalid sequence order.
+
+*** What this project does not prove
+Passing the book-side suite proves only the evidence checker behaves as specified on its synthetic fixtures. It does not prove StarIntel emitted such a trace, that SBCL heap use is bounded, or that a backlog deployment survived. Those claims remain UNTESTED by this book until a disposable service-backed experiment captures real observations.
+
+The next live milestone therefore remains unchanged: exercise an authenticated disposable stack, distinguish HTTP publication from durable read-back, inject a downstream or settlement failure, and capture enough sanitized evidence to test the runtime claims instead of narrating them.
