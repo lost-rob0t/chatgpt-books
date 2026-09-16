@@ -3,14 +3,19 @@
 :ID:       e0a9c8b4-bf74-5afe-aba0-f8570f7927a6
 :END:
 * Phase
-Bootstrap curriculum and architecture.
+Foundational research plus progressive Project 1 implementation.  The book remains far from release-ready and retains its 300--700 page target.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
+- Issue #22 records the first bounded Search Library slice: symbolic state keys plus deterministic DFS/BFS/UCS/A*.
+* Active implementation
+- Project 1 Search Library: first executable core, regression suite, diagram, and manuscript derivation are under review on a focused branch/PR.
 * Active research
-Foundational primary-source research has not yet been declared complete.
+- Search/graph-search foundations have a verified source record under =research/search-project-1.org=.
+- Foundational research for the rest of the book is not declared complete.
 * Unverified claims
-All version-sensitive implementation details remain RESEARCH/UNTESTED until the relevant issue verifies them.
+- No performance benchmark is claimed for Project 1 yet.
+- Later pattern matching, unification, planning, rule, knowledge-representation, truth-maintenance, explanation, constraint, meta-level, and hybrid-interface claims remain RESEARCH/UNTESTED until their issues verify them.
 * Technical/editorial/visual review
-Not started.
+Not started for the book as a whole.
 * Blockers
-Dependency-aware backlog must be executed before chapter prose is promoted to DONE.
+Dependency-aware backlog after Project 1 must still be executed; a passing search slice does not promote the book or Project 1 to DONE.
