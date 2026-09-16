@@ -8,5 +8,7 @@
 - screenshots only when real UI teaches something
 - generated illustration provenance records when used
 - unique cover background/motif + deterministic typography
+* Active teaching assets
+- =rule-match-agenda-cycle.dot= / =rule-match-agenda-cycle.svg=: editable Project 4 milestone-A flow from working memory through matching, joins, agenda selection, validated assertion, justification, and the distinct =:QUIESCENT= / =:BOUNDED= exits.
 * Rule
 Do not add decorative assets merely to inflate the book. Every informative figure gets caption + alt text.
