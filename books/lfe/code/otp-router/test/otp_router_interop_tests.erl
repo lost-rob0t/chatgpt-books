@@ -43,7 +43,9 @@ supervised_restart() ->
     New = wait_for_replacement(Old, 100),
     true = is_process_alive(New),
     {ok, pager} = 'otp-router':route(Event, 1000),
-    ok = gen_server:stop(Sup),
+    ok = 'otp-router-sup':stop(),
+    undefined = whereis('otp-router-sup'),
+    undefined = whereis('otp-router'),
     ok.
 
 restart_intensity() ->
