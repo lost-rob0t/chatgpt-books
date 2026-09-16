@@ -22,6 +22,8 @@ That question is enough to teach several ideas that later scale into program log
 - =:bounded= -- =max-states= stopped exploration before exhaustion; this is explicitly not a proof;
 - =:unknown= -- the model itself could not enumerate a successor relation for some reached state.
 
+The result accessor =check-result-conclusive-p= is true for =:proved= and =:refuted= because either full finite-model exhaustion or one concrete counterexample settles the stated invariant claim.  It is false for =:bounded= and =:unknown=.  “Conclusive” deliberately does not mean that every state was explored: a refutation can be decisive as soon as one reachable violating state is found.
+
 The distinction is intentional.  "No counterexample found" is weaker than "the model was exhausted and the invariant held everywhere."  A model checker proves a property of its model; it does not automatically prove arbitrary Common Lisp code implements that model.
 
 * Run
