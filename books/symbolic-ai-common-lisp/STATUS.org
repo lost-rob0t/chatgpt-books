@@ -3,7 +3,7 @@
 :ID:       e0a9c8b4-bf74-5afe-aba0-f8570f7927a6
 :END:
 * Phase
-Foundational research plus progressive implementation of the Search Library and Formal Reasoning Workbench. The book remains far from release-ready and retains its 300--700 page target.
+Foundational research plus progressive implementation of the Search Library, Formal Reasoning Workbench, and Pattern Matcher/Unifier. The book remains far from release-ready and retains its 300--700 page target.
 * Completed milestones
 - Purpose, audience, prerequisites, project map, roadmap, and long-form outline initialized.
 - Issue #22 / PR #26 landed the first bounded Search Library slice on =main=: symbolic state keys plus deterministic DFS/BFS/UCS/A*, executable regression/oracle tests, an editable diagram, primary-source research, and the first substantial manuscript chapter.
@@ -15,15 +15,23 @@ Foundational research plus progressive implementation of the Search Library and 
 - The formal-methods chapter is part of the publication-order manuscript and the detailed outline carries the full formal-systems -> invariants -> finite checking -> program logic -> temporal -> SMT -> ACL2 -> verified-components progression.
 - Publication preparation expands the repository's supported Org =#+include= subset before Pandoc so canonical split manuscripts cannot silently disappear from rendered books; the shared regression suite covers slicing/minlevel, recursive includes, stable IDs, cycles, and fail-closed option handling.
 - Because PR #43 modifies shared publication tooling, its focused workflow now gates the repository =make test= target and =nix flake check -L= in addition to the book/example checks.
+* Active implementation -- Pattern Matcher/Unifier milestone A
+- Issue #45 / PR #48 derives directional structural matching before symmetric first-order unification instead of dropping in an opaque framework.
+- Variables use the explicit reserved term =(:var NAME)=; ordinary atoms/conses remain the finite acyclic term language for this milestone.
+- Matching carries explicit alist bindings and distinguishes literal/shape/repeated-variable failures.
+- Unification dereferences variable chains, applies/normalizes substitutions, handles variables on either side, and performs a mandatory occurs check rather than silently adopting rational-tree semantics.
+- The project keeps caller terms immutable and exposes typed success/failure records. Production RETE/TREAT/workbench depth remains owned by =books/expert-systems=; Prolog-native variables/backtracking/meta-interpretation remain owned by =books/symbolic-ai-prolog=.
+- Research records Robinson 1965, Norvig/PAIP implementation context, and ANSI Common Lisp structural-data semantics. The manuscript includes worked traces, failure labs, exercises, and an editable flow diagram.
+- This slice is presently UNTESTED until exact-head direct/ASDF tests, book build/check, repository tests, and Nix checks complete successfully in CI.
 * Claim status
-- DOCUMENTED: primary-source foundations recorded for Hoare logic, temporal logic/model checking, TLA+ specification context, ACL2, and SMT-LIB 2.7.
-- TESTED: only executable behavior demonstrated by successful exact-head CI runs. Reconciled substantive head =ca98ccf13e9940f47f3ab1e4aa1856ddbd481f42= passed focused =symbolic-ai-common-lisp= run =35106628364=, including direct and ASDF Formal Reasoning Workbench tests, publication checks, repository =make test=, and the dedicated Nix gate. Final merge still requires fresh success on the exact current PR head after this status update plus generic =books-ci=.
-- UNTESTED/RESEARCH: later proof-obligation generation, temporal checker depth, solver integration, ACL2 CI pin, and implementation-refinement claims.
-- No performance benchmark is claimed for Search or Formal Reasoning Workbench.
-- Later pattern matching, unification, planning, rule, knowledge-representation, truth-maintenance, explanation, constraint, meta-level, and hybrid-interface slices remain RESEARCH/UNTESTED until their own bounded issues verify them.
+- DOCUMENTED: primary-source foundations recorded for Hoare logic, temporal logic/model checking, TLA+ specification context, ACL2, SMT-LIB 2.7, and Robinson's first-order unification work; PAIP and ANSI Common Lisp sources provide inspected implementation/representation context.
+- TESTED: only executable behavior demonstrated by successful exact-head CI runs. Reconciled Formal milestone substantive head =ca98ccf13e9940f47f3ab1e4aa1856ddbd481f42= passed focused =symbolic-ai-common-lisp= run =35106628364=, including direct and ASDF Formal Reasoning Workbench tests, publication checks, repository =make test=, and the dedicated Nix gate. Final PR #43 merge still requires its own exact-current-head gates.
+- UNTESTED/RESEARCH: Pattern Matcher/Unifier milestone A until its current PR head is green; later proof-obligation generation, temporal checker depth, solver integration, ACL2 CI pin, implementation-refinement claims, planning, rule/KR/explanation, constraint, meta-level, and hybrid-interface work.
+- No performance benchmark is claimed for Search, Formal Reasoning Workbench, or Pattern Matcher/Unifier.
 * Technical/editorial/visual review
-The Search foundation has landed. Formal Reasoning Workbench milestone A is editorially APPROVED for merge once the exact current head clears all objective checks. Book-wide technical/editorial/visual review has not started and the book is not DONE.
+The Search foundation has landed. Formal Reasoning Workbench milestone A is editorially APPROVED subject to its objective merge gates. Pattern Matcher/Unifier milestone A is a DRAFT stacked on #43 and is not self-certified. Book-wide technical/editorial/visual review has not started and the book is not DONE.
 * Blockers / next dependencies
-- Merge gate only: exact current PR head must complete the focused workflow and generic =books-ci= successfully; pending, stale, or skipped checks are not green.
+- PR #48 remains stacked on PR #43 to avoid concurrently editing the active formal branch in place; retarget/reconcile after the parent lands.
 - Do not promote a bounded/model-checking result to a general host-program proof.
-- After the formal milestone lands, the highest-value dependency-ready implementation track remains Pattern Matcher/Unifier -> Planner -> Rule/KR/Explanation, while later formal stages reuse those components as verification targets.
+- Pattern Matcher/Unifier exact-head verification must be green before its implementation claims move from UNTESTED to TESTED.
+- After Project 2 milestone A is reviewed, the next dependency-ready implementation track is substitution/metamorphic strengthening -> Planner -> Rule/KR/Explanation, while later formal stages reuse these components as verification targets.
