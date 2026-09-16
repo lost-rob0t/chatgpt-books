@@ -12,6 +12,7 @@ It currently exercises:
 - Experiments A--C: deterministic synthetic leakage controls for repeated entities, point-in-time availability, and exact/near-duplicate contamination.
 - Composite split planning: deterministic hard must-link closure plus temporal/feature admissibility and task-specific graph grouping.
 - Pass-12 scalable duplicate candidates: exact hashes + deterministic blocking + MinHash/LSH candidates, followed by exact normalized token-Jaccard verification before component closure.
+- Pass-14 environment reproduction: exact CPython selection, an isolated virtual environment, complete transitive version pins, resolver bypass, metadata consistency checks, and an independent installed-environment equality check.
 
 * Canonical boundary
 The historical conformance harness materializes an immutable schema snapshot from:
@@ -62,6 +63,19 @@ Candidate provenance is retained. Every candidate is then exact-Jaccard verified
 
 Pass 12 TESTED this path on Tier C: 526 candidate pairs versus 114,960 all pairs, all 480 exact qualifying pairs proposed, 46 candidate false positives safely rejected by exact verification, final components identical to the all-pairs oracle, and deterministic output under the tested permutations. Larger-public-corpus recall/runtime remains UNTESTED.
 
+* Dependency boundary
+=requirements.txt= is the deliberately small human-maintained list of direct dependencies. It is not the reproducible environment contract.
+
+=requirements.lock= is the complete transitive *version* lock for the tested Project 1 environment. CI creates a fresh CPython 3.12.3 virtual environment, installs every locked distribution with =--no-deps=, runs =pip check=, then runs =verify_dependency_lock.py=. The verifier fails if a direct pin is missing or changed, if the environment has an extra or missing distribution, or if any installed version differs from the lock.
+
+The tested environment contract is intentionally narrower than a cryptographic artifact lock:
+- TESTED platform/interpreter: Linux x86_64 + CPython 3.12.3;
+- lock scope: Project 1 Python research dependencies, excluding pip itself;
+- NOT CLAIMED: cross-platform wheel identity or byte-identical package artifacts;
+- NOT IMPLEMENTED: pip =--require-hashes= artifact locking.
+
+See =research/foundations-pass-14.org= for the resolver capture, complete observed package set, primary documentation, and claim boundaries.
+
 * Earlier frozen GLEIF self fixture
 D1 retains the earlier narrow source extract:
 - =fixtures/gleif-public-self-record-v1.raw.json= SHA-256 =3785689e0d5e768d0adfa4838540646b815b5df4e32c2619abc51b1419584c4f=
@@ -71,9 +85,15 @@ D1 retains the earlier narrow source extract:
 D1 is retained as a simpler provenance teaching slice even though full D now exists.
 
 * Run
+Recreate the tested Python dependency environment from the lock rather than asking the resolver for a new transitive graph:
+
 #+begin_src sh
-python3 -m pip install -r requirements.txt
-python3 -m unittest -v \
+python3.12 -m venv .venv
+.venv/bin/python -m pip install --disable-pip-version-check --no-deps -r requirements.lock
+.venv/bin/python -m pip check
+.venv/bin/python verify_dependency_lock.py
+.venv/bin/python -m unittest -v \
+  test_dependency_lock.py \
   test_gleif_sample_acquisition.py \
   test_gleif_relation_adapter.py \
   test_gleif_live_snapshot.py \
@@ -81,21 +101,21 @@ python3 -m unittest -v \
   test_leakage_experiments.py \
   test_composite_split_planner.py \
   test_near_duplicate_candidates.py
-python3 run_experiments.py
-python3 run_fixture_experiment.py
-python3 run_gleif_relation_experiment.py
-python3 run_full_provenance_experiment.py
-python3 run_leakage_experiments.py
-python3 run_composite_planner_diagnostic.py
-python3 run_candidate_experiment.py
+.venv/bin/python run_experiments.py
+.venv/bin/python run_fixture_experiment.py
+.venv/bin/python run_gleif_relation_experiment.py
+.venv/bin/python run_full_provenance_experiment.py
+.venv/bin/python run_leakage_experiments.py
+.venv/bin/python run_composite_planner_diagnostic.py
+.venv/bin/python run_candidate_experiment.py
 #+end_src
 
 The full provenance experiment is offline with respect to GLEIF. It expects the canonical StarIntel schema cache to have been materialized first by =run_experiments.py=.
 
 Live/source-refresh probes are separate:
 #+begin_src sh
-python3 acquire_gleif_samples.py
-python3 acquire_gleif_live_snapshot.py
+.venv/bin/python acquire_gleif_samples.py
+.venv/bin/python acquire_gleif_live_snapshot.py
 #+end_src
 
 Machine-readable results are written under =artifacts/= and uploaded by the =ml-starintel-research= GitHub Actions workflow.
@@ -109,10 +129,11 @@ Machine-readable results are written under =artifacts/= and uploaded by the =ml-
 - Full D proves reproducibility and canonical validation for the frozen Tier B as-of observation; it does not claim those relationships persist forever.
 - A--C prove only the specified deterministic synthetic leakage controls.
 - The pass-12 candidate result proves contract behavior only on the frozen Tier C oracle fixture. It does not prove production recall/runtime.
+- The pass-14 dependency result proves a complete version-pinned environment only for its tested Python/platform contract; it does not prove package-artifact identity or cross-platform equivalence.
 - Cross-language Python/Nim/Common Lisp conformance remains UNTESTED here.
 
 * First observed failure
 The first CI execution on 2026-08-14 rejected the supposed-valid fixture because top-level StarIntel =version= is an integer with minimum 1, not the schema-version string. The harness was corrected to =version: 1= and retains the original mistake as a negative regression case. This is exactly why implementation claims stay UNTESTED until exercised against the canonical schema.
 
-* Latest verified run
-=ml-starintel-research= run 81 / workflow run =35093942622= / job =104786567764= completed successfully on 2026-09-16. It ran 39 selected unit tests with zero failures, re-executed E/D0/D1/D2A/full D/A--C/composite-planner diagnostics, executed the Tier C candidate experiment, refreshed the separate live GLEIF probe, and uploaded 25 research artifacts. The candidate artifact reports 526 candidates from 114,960 possible pairs, 1.0 qualifying-pair recall on the frozen oracle, exact final component equality, and recorded =datasketch= 2.0.0 parameters.
+* Latest verified dependency resolver capture
+=ml-starintel-research= workflow run =35106255999= / job =104828118561= completed successfully on 2026-09-16. It created an isolated CPython 3.12.3 =venv=, resolved the four direct pins to the 24-distribution set frozen in =requirements.lock=, reported no broken requirements, passed 44 selected harness tests, re-executed the Project 1 experiments, passed =make book BOOK=ml-starintel= and =make check BOOK=ml-starintel=, and passed EPUBCheck 5.3.0 with zero messages. The subsequent lock-enforcement run is recorded in the PR/research status once complete.
