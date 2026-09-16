@@ -56,6 +56,7 @@ jobs:
           dot -Tsvg books/lfe/assets/macro-expansion.dot >/dev/null
           dot -Tsvg books/lfe/assets/actor-protocol.dot >/dev/null
           dot -Tsvg books/lfe/assets/otp-supervision.dot >/dev/null
+          dot -Tsvg books/lfe/assets/testing-layers.dot >/dev/null
 
       - name: Build LFE book
         run: make book BOOK=lfe
