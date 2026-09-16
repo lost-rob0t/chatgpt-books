@@ -113,17 +113,17 @@ function supplied by the caller."
                    (declare (ignore old))
                    (when present-p
                      (return-from admit (values :duplicate key nil)))
-                 (when (and max-states (>= visited max-states))
-                   (return-from admit (values :bounded key nil)))
-                 (setf (gethash key seen) t
-                       (gethash key states) state
-                       (gethash key parents) parent-key)
-                 (incf visited)
-                 (unless (funcall invariant state)
-                   (return-from admit
-                     (values :refuted key (trace-for key))))
-                 (enqueue key)
-                 (values :admitted key nil))))
+                   (when (and max-states (>= visited max-states))
+                     (return-from admit (values :bounded key nil)))
+                   (setf (gethash key seen) t
+                         (gethash key states) state
+                         (gethash key parents) parent-key)
+                   (incf visited)
+                   (unless (funcall invariant state)
+                     (return-from admit
+                       (values :refuted key (trace-for key))))
+                   (enqueue key)
+                   (values :admitted key nil)))))
       (dolist (initial (transition-system-initial-states system))
         (multiple-value-bind (status key trace)
             (admit initial root-marker)
@@ -135,7 +135,7 @@ function supplied by the caller."
             (:bounded
              (return-from check-invariant
                (result :bounded :complete-p nil
-                        :reason "MAX-STATES prevented complete initial-state admission."))))))
+                       :reason "MAX-STATES prevented complete initial-state admission."))))))
       (loop until (queue-empty-p)
             for key = (dequeue)
             for state = (gethash key states)
@@ -163,4 +163,4 @@ function supplied by the caller."
                         (return-from check-invariant
                           (result :bounded :complete-p nil
                                   :reason "MAX-STATES prevented exhaustive reachability exploration."))))))))
-      (result :proved :complete-p t)))))
+      (result :proved :complete-p t))))
