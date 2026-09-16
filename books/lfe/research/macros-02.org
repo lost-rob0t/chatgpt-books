@@ -8,7 +8,7 @@ Retrieval date: 2026-09-16.
 
 This pass supports Chapters 4--7 and Project 1's first macro surface. Status vocabulary follows repository policy:
 - DOCUMENTED :: inspected in tagged/current primary documentation or implementation source.
-- TESTED :: executed by this repository's LFE-book gate at the exact branch head recorded after verification.
+- TESTED :: executed by this repository's LFE-book gate at the exact branch head recorded below.
 - UNTESTED :: planned or plausible behavior not promoted to an executed claim.
 
 * DOCUMENTED -- current LFE release boundary
@@ -67,8 +67,18 @@ LFE v2.2.2 documentation says macros are non-hygienic and identifies same-named 
 
 This experiment is pedagogical evidence, not a recommendation. The production =routes= macro introduces no bindings at all, avoiding that capture class by construction.
 
-* Verification record
-TESTED evidence is intentionally blank until the exact-head LFE workflow runs. Do not infer success from source inspection alone.
+* TESTED -- authored macro slice
+Authored head =9aaf283a6092c9b86c53372fba6ef7528b84c3b3= was executed by focused =lfe-book= run =35098575157= and generic =books-ci= run =35098575156= on 2026-09-16.
+
+The focused gate:
+- built the pinned LFE v2.2.2 tag (upstream tag commit =dae7489ebf9588e5f746a34cd4f8ff83d1469eef=) on the observed OTP 25 runner;
+- executed the Project 1 harness, whose success line was =event-rules: kernel, macro expansion, capture lab, invalid-syntax gate, and Erlang interop passed=;
+- built the production LFE EPUB with =make book BOOK=lfe=;
+- passed =make check BOOK=lfe=;
+- reported EPUBCheck 5.3.0 =0 fatals / 0 errors / 0 warnings / 0 infos=;
+- passed the workflow's Nix flake check.
+
+The branch was later reconciled normally with newer =main=. That integration does not convert the evidence above into an exact-head claim for later commits; fresh CI remains the authority for the current PR head.
 
 * Deferred questions
 - Macros that deliberately introduce bindings need a stronger naming/generation policy and dedicated tests before Project 1 uses any.
