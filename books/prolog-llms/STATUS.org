@@ -14,22 +14,25 @@ Standalone Prolog foundation and Project 1 milestone A under editorial review.
 - DOCUMENTED foundation research covers current SWI-Prolog syntax/unification/occurs-check/PL-Unit claims, the primary Recursive Language Models paper boundary, and the exact read-only =lost-rob0t/prolog-rlm= snapshot used for future capstone context.
 - Chapters 1--3 now teach relations/queries, shared-variable joins, terms/unification, finite-term versus cyclic-term boundaries, recursion/lists, graph termination, provenance-bearing explanations, tests, and deliberate failure labs.
 - Project 1 milestone A now has runnable SWI-Prolog source plus a named PL-Unit suite and fail-closed test runner. It remains model-free by design.
+- The editor-requested graph-cycle claim is now executable: a test-local two-node dependency cycle verifies under an explicit wall-time bound that an unreachable target terminates with no paths rather than revisiting the cycle forever. The production book fixture remains unchanged.
+- The focused branch was reconciled normally onto canonical =main= at =ad1de7c648bf63741b810f797a4ad45cb888b425=, so its own =tools/build-book= now contains the canonical =--citeproc= plus explicit bibliography publication path rather than relying on a synthetic merge tree to supply it.
 
 * Verification
-Observed branch run at commit =a4a44d01d7d2b163b5a379f7e86846c45138072e= on Ubuntu 24.04 / SWI-Prolog 9.0.4:
-- TESTED: all 12 Project 1 PL-Unit cases completed successfully. Four initially left harmless choicepoints; later draft tests were strengthened to assert unique result sets and require a fresh exact-head run.
+Observed implementation-and-integration head =0439ee89c8ed431bf9b8d7e726c4394141183cdd=:
+- TESTED on Ubuntu 24.04.5 / SWI-Prolog 9.0.4: all 13 Project 1 PL-Unit cases completed cleanly (=.............=), including the bounded two-node-cycle regression.
 - TESTED: repository structural validation passed: 10 active principal books plus one paused scaffold.
-- TESTED: =make book BOOK=prolog-llms= completed.
-- FAILED: the first =make check BOOK=prolog-llms= run reached EPUBCheck and found two package-local link errors: a sibling-book source link and the diagram path. Both paths are corrected in the current draft; exact-head rerun is required before publication validation may be promoted to TESTED.
-- TESTED: =nix flake check -L= passed in the same workflow run.
+- TESTED: =make book BOOK=prolog-llms= completed through the reconciled citeproc-aware builder.
+- TESTED: =make check BOOK=prolog-llms= completed; EPUBCheck 5.3.0 reported 0 fatals / 0 errors / 0 warnings / 0 infos.
+- TESTED: focused =prolog-llms-book= run =35101876615= succeeded, including =nix flake check -L=.
+- TESTED: generic =books-ci= run =35101876630= succeeded through structural validation, the Pandoc Org-reader contract, deterministic publication assets, EPUBCheck, publication assertions, per-book citation rendering, ERT, and real Org-roam DB synchronization.
 - No benchmark, live-model quality, latency, cost, or accuracy claim is made by this milestone.
 
 * Editorial state
-REVIEW. This is a substantial foundation milestone, not a completed book. Editor-in-Chief retains final editorial and merge authority. Stable IDs must be preserved as sections evolve.
+REVIEW. The prior NEEDS_TECHNICAL_FIX findings have an implemented and verified repair, but this is still a bounded foundation milestone rather than a completed book. The Books Editor-in-Chief retains final editorial and merge authority. Stable IDs must be preserved as sections evolve.
 
 * Next dependency-ready slice
-After the exact-head foundation gate is green, research and draft backtracking/control, modules, tracing/debugging, and stronger testing discipline; then advance Project 1 toward its DCG and CLP(FD) milestones. Keep live model/provider work behind the later typed gateway boundary.
+After editor acceptance of this foundation, research and draft backtracking/control, modules, tracing/debugging, and stronger testing discipline; then advance Project 1 toward its DCG and CLP(FD) milestones. Keep live model/provider work behind the later typed gateway boundary.
 
 * Blockers
-- Current branch needs a fresh exact-head Project 1/build/check/Nix run after the EPUB-path and determinism-test repairs.
+- No known book-internal technical blocker remains in this foundation repair. The current status-only head must preserve the green focused and generic gates before final editorial handoff.
 - Version-sensitive LLM/provider examples remain blocked until a focused research slice chooses current, primary-source-backed interfaces and records exact tested versions.
