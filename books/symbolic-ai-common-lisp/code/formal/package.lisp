@@ -11,7 +11,7 @@
    #:check-result-status
    #:check-result-trace
    #:check-result-visited
-   #:check-result-complete-p
+   #:check-result-conclusive-p
    #:check-result-reason
    #:check-invariant
    #:run-formal-tests))
