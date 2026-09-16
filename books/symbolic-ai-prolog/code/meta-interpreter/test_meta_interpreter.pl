@@ -117,6 +117,25 @@ test(guarded_either_cycle_does_not_hide_other_branch) :-
                                          fact(f_power_gateway,
                                               powered(gateway))))]).
 
+test(guarded_either_resets_budget_for_right_branch) :-
+    Program = [rule(l_start, left_start, left_mid),
+               rule(l_mid, left_mid, left_deeper),
+               rule(l_finish, left_deeper, true),
+               rule(r_start, right_start, right_done),
+               rule(r_finish, right_done, true)],
+    findall(Outcome,
+            prove_guarded(Program,
+                          either(left_start, right_start),
+                          2,
+                          Outcome),
+            Outcomes),
+    assertion(Outcomes == [exhausted(left_deeper),
+                           proved(choice(right,
+                                         step(r_start,
+                                              right_start,
+                                              fact(r_finish,
+                                                   right_done))))]).
+
 test(choice_proof_does_not_invent_provenance_id) :-
     incident_program(Program),
     once(prove(Program,
