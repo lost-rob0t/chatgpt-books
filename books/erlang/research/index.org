@@ -71,7 +71,7 @@ This pass supports Chapter 13 and Project 2 checkpoint B. It records these bound
 The executable checkpoint adds =otp_worker_app=, =otp_worker_app.app.src=, application-controller lifecycle regressions, and an editable application-ownership diagram. The accepted PR head =7ac3c69e54d30d2a412e1ea7933e6ef440c713d5= passed focused =erlang-book= run =35141056340= on strict OTP 29.1 / BEAM 17.1 with foundations 14/14 and the combined worker/application suite 10/10; diagram validation, book build/check, EPUBCheck with zero findings, and Nix evaluation also succeeded. Generic =books-ci= run =35141056353= succeeded before PR #78 merged as =2f62837bc371d2e76d2e5df9818a12125990d572=.
 
 ** Release pass 05 -- =.rel= composition, boot scripts, and target-system boundary
-Status: DOCUMENTED; EXECUTION UNTESTED until the Chapter 14 focused CI runs.
+Status: DOCUMENTED + EXECUTION VERIFIED; Chapter 14 was editorially APPROVED and merged through PR #94.
 
 Primary-source scope: official Erlang/OTP source at immutable tag =OTP-29.1=: Releases design-principles chapter, SASL =rel= reference, SASL =systools= source documentation, and target-system system-principles chapter. See [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
 
@@ -83,11 +83,28 @@ This pass supports Chapter 14 and issue #91. It derives the next system boundary
 - =systools:make_tar/2= packages validated application/release artifacts into target-system layout;
 - SASL is needed for upgrade-capable releases, while upgrade/relup behavior is deliberately deferred.
 
-The repository lab is designed to compile the already-accepted =otp_worker_app=, derive a release from the runtime's real ERTS/Kernel/STDLIB versions, boot a fresh VM from a generated local boot file, reject deliberate version/dependency defects, and inspect the release package. None of those runtime observations become TESTED until the workflow actually passes.
+The accepted release lab compiles =otp_worker_app=, derives a release from the runtime's real ERTS/Kernel/STDLIB versions, boots a fresh VM from a generated local boot file, rejects deliberate version/dependency defects, and inspects the release package. Final worker head =bb0b9bcf094e54e62740e02b4dd732f124e4154a= passed focused =erlang-book= run =35147489891= and generic =books-ci= run =35147489687= before PR #94 merged as =b850d6ec981e7dbc5be09b235188ed93f067cead=. These are bounded construction/boot/package observations, not cross-host deployment, availability, persistence, or upgrade evidence.
+
+** Project 3 pass 06 -- bounded work, dynamic children, and retry ownership
+Status: DOCUMENTED + EXECUTION VERIFIED at implementation head; current-main final handoff gate pending.
+
+Primary-source scope: official Erlang/OTP source at immutable tag =OTP-29.1= for =supervisor= and =queue= plus the immutable processes reference manual. Detailed notes and exact execution evidence live in [[file:job-processor-pass-06.org][job-processor-pass-06.org]].
+
+This pass supports Chapter 15 and issue #106 / PR #108. It establishes these boundaries:
+- application backlog is explicit state, not an accidental use of the =gen_server= mailbox;
+- =max_active + max_queued= defines a course-local admission policy, not an OTP guarantee;
+- dynamic =temporary= supervisor children own one worker process lifetime, while =job_processor= owns logical job identity and retry budget;
+- monitors correlate a worker termination with one active attempt but do not decide whether replay is safe;
+- retries are re-enqueued at the FIFO rear as an explicit fairness policy;
+- restarting =job_processor= restores the process role but does not reconstruct its volatile accepted-work ledger.
+
+Implementation head =fd8f9489cfcb53f2adda755654dc2a8f8e7058e9= passed focused =erlang-book= run =35154089887= and generic =books-ci= run =35154089855=. The focused run successfully executed foundations, OTP worker/application, release, and bounded job-processor tests; validated Chapters 13--15 diagrams; built and checked the Erlang book; verified Chapters 13--15 are physically present in the rendered EPUB; and passed the separate Nix evaluation. Canonical =main= advanced afterward, so the branch was normally reconciled and must receive a fresh exact-head gate before editor handoff.
+
+No throughput, latency, durability, exactly-once, distributed-failover, external-broker, or production security claim is inferred.
 
 * Open research queue
 - Release upgrades, =appup=/=relup=, and release-handler boundaries.
 - Distributed Erlang connectivity, security/TLS, partitions, and failure visibility.
-- Persistence boundaries and restart recovery semantics.
+- Persistence boundaries and restart recovery semantics for accepted Project 3 work.
 - EUnit/Common Test, tracing, logger/telemetry, Observer/runtime tools, production debugging.
 - Performance experiments for mailbox pressure and selective receive; do not substitute anecdotes for measurements.
