@@ -1,0 +1,139 @@
+#+title: Machine Learning for StarIntel -- Foundational Research Pass 15
+#+date: 2026-09-16
+
+* Status
+RESEARCH / DOCUMENTED / IMPLEMENTED / TESTED on the frozen larger public corpus. The corpus-selection policy, exact oracle, candidate parameters, and =num_perm= grid were committed before the first larger-corpus measurements were inspected. The results below are observations from that frozen protocol, not post-hoc tuned targets and not production-capacity claims.
+
+* Exact research questions
+1. Can the Project 1 candidate generator preserve the exact normalized-token Jaccard duplicate predicate on a substantially larger, non-synthetic public-text base?
+2. How much of the all-pairs comparison set does the frozen layered candidate policy remove at =num_perm= values chosen before measurement?
+3. What recall does the approximate MinHash/LSH source contribute independently of deterministic blocking, and does the final verified component graph still agree with the exact oracle?
+4. Can the corpus be reconstructed without committing public message bodies into this repository?
+5. Which runtime/memory measurements are honest enough to record without pretending they are portable benchmarks?
+
+* Primary/current evidence inspected
+** scikit-learn 1.9.0 source
+The exact =scikit-learn==1.9.0= source file =sklearn/datasets/_twenty_newsgroups.py= records the recommended =20news-bydate.tar.gz= archive as:
+- URL: =https://ndownloader.figshare.com/files/5975967=
+- SHA-256: =8f1b2514ca22a5ade8fbb9cfa5727df95fa587f4c87b786e15c759fa66d95610=
+- loader total: 18,846 documents across 20 classes;
+- =subset="all"= combines the by-date train and test collections;
+- =shuffle=False= suppresses loader shuffling;
+- the loader decodes the corpus as Latin-1 and exposes document text through =data.data=.
+
+The research environment locks =scikit-learn==1.9.0=. The benchmark also refuses to execute under another scikit-learn version rather than silently changing the acquisition contract.
+
+** Primary algorithm sources retained from pass 11
+- Broder 1997 remains the primary source for min-wise resemblance sampling.
+- Indyk and Motwani 1998 remains the primary LSH framework source.
+- Hernández and Stolfo 1995 remains the primary source used for the deterministic blocking/sorted-neighborhood design lineage.
+
+The benchmark does not alter the pass-11 semantic boundary: approximate structures propose comparisons; exact normalized-token Jaccard remains the truth predicate for this Project 1 leakage-grouping slice.
+
+* Frozen public-corpus policy
+The following constants were committed before the benchmark result was inspected:
+
+| Field | Frozen value |
+| Source | scikit-learn 1.9.0 20 Newsgroups =by date= archive |
+| Upstream archive SHA-256 | =8f1b2514ca22a5ade8fbb9cfa5727df95fa587f4c87b786e15c759fa66d95610= |
+| Loader call | =fetch_20newsgroups(subset="all", shuffle=False, remove=())= |
+| Minimum normalized token count | 20 |
+| Public originals selected | 1,200 |
+| Controlled one-token variants | 200 |
+| Total benchmark records | 1,400 |
+| Exact duplicate predicate | normalized token-set Jaccard >= 0.80 |
+| MinHash seed | 1729 |
+| MinHash scheme | =affine32= |
+| Deterministic rare-token block keys | 2 per record |
+| Predeclared =num_perm= grid | 64, 128, 256 |
+
+* Why content-defined selection
+Using “the first 1,200 rows” would accidentally make the benchmark depend on loader ordering. The committed selector instead:
+1. rejects texts with fewer than 20 normalized tokens;
+2. computes SHA-256 over the decoded text;
+3. removes byte-identical decoded texts by hash;
+4. sorts eligible texts by full SHA-256;
+5. takes the first 1,200 hashes.
+
+The resulting manifest is recorded only as record IDs, source hashes, kinds, and a manifest SHA-256. Raw message bodies are not emitted to the benchmark artifact and are not committed to this repository.
+
+* Controlled near-duplicate stress cases
+A public corpus does not provide an authoritative label saying that every pair above Project 1's custom 0.80 token-Jaccard predicate is an intended duplicate. To avoid inventing such labels, this pass separates two roles:
+- 20 Newsgroups supplies real public text and any qualifying pairs discovered by the exact oracle;
+- the first 200 content-hash-selected originals receive one deterministic new alphanumeric token, producing 200 controlled near-duplicate stress cases.
+
+Those derivatives are benchmark controls. They are explicitly *not* claims that the corresponding upstream messages are naturally duplicated or that the 20 Newsgroups class labels encode duplication.
+
+* Exact oracle
+The benchmark precomputes the normalized token set once for every selected/derived record and enumerates every unordered pair. For each pair it calculates the same exact Jaccard predicate used by Experiment C. This quadratic path is intentionally the oracle, not the production-scale candidate mechanism.
+
+The oracle is executed once. Each =num_perm= configuration is then evaluated against the same frozen qualifying-pair set and exact component graph.
+
+* Measurements frozen before execution
+For each =num_perm= value, the artifact records:
+- total candidate pairs;
+- pair-reduction fraction relative to all unordered pairs;
+- exact qualifying pairs proposed by the union;
+- union qualifying-pair recall;
+- qualifying-pair recall attributable to =minhash-lsh=;
+- qualifying-pair recall attributable to =block=;
+- qualifying-pair recall attributable to =exact-hash=;
+- false-positive candidate count before exact verification;
+- verified qualifying-pair count;
+- exact component equality versus the all-pairs oracle;
+- candidate-generation wall-clock seconds from =time.perf_counter()=;
+- Python allocation peak observed by =tracemalloc=;
+- full candidate parameters including datasketch version, normalization version, threshold, seed, scheme, band count, and rows per band.
+
+The artifact also records Python/platform/scikit-learn/datasketch versions and the selected-manifest hash.
+
+* First successful frozen-protocol execution
+The first complete execution after the protocol was committed is =ml-starintel-research= run =35113375745=, job =104852516265=. GitHub Actions checked out pull-request merge ref =0489e7a49f3d91bd834aea39f756bb191e80d031=, merging benchmark branch head =4cd8171198f77f4e0edc733e21b82745bb5a6881= into then-current base =09d329e93cd2b7472d7e5ae77a0f24e41b114512=.
+
+The environment was Ubuntu 24.04.5 / Linux =6.17.0-1022-azure-x86_64=, CPython 3.12.3, =scikit-learn==1.9.0=, and =datasketch==2.0.0=. The locked environment verifier reported 4 direct pins, 24 locked distributions, and 24 installed distributions; =pip check= passed. The selected harness suite passed 55/55 tests before the public-corpus benchmark ran.
+
+The benchmark selected 1,200 public originals plus 200 controlled variants, for 1,400 records. Its selected-manifest SHA-256 was =e5e0df1b8c33f18445be5a94140ecb8fe0a802f8d97fe661d053d525701c3a37=. The exact oracle enumerated 979,300 unordered pairs and found 202 pairs satisfying the frozen >= 0.80 normalized-token Jaccard predicate. Two qualifying pairs therefore existed beyond the 200 guaranteed controlled source/variant pairs; this record does not relabel those two as a particular natural-duplicate category without a separate inspection.
+
+The exact oracle took 11.216638025 seconds on that runner. The frozen candidate grid produced:
+
+| =num_perm= | bands x rows | candidate pairs | overall recall | LSH recall | block recall | exact-hash recall | false-positive candidates | pair reduction | component equality | candidate seconds | Python traced peak bytes |
+| 64  | 5 x 11  | 206 | 1.0 | 1.0 | 0.9900990099009901 | 0.0 | 4 | 0.9997896456652711 | true | 10.071520771 | 25,531,262 |
+| 128 | 9 x 13  | 206 | 1.0 | 1.0 | 0.9900990099009901 | 0.0 | 4 | 0.9997896456652711 | true | 10.026515129 | 25,539,609 |
+| 256 | 17 x 15 | 206 | 1.0 | 1.0 | 0.9900990099009901 | 0.0 | 4 | 0.9997896456652711 | true | 10.399493801 | 25,523,329 |
+
+Thus all three predeclared grid points proposed all 202 exact qualifying pairs, reduced the 979,300-pair comparison space to 206 candidates (99.9789645665% reduction), rejected four candidate false positives during exact verification, and reproduced the exact oracle component graph. The deterministic blocker alone proposed 200 of 202 qualifying pairs; MinHash/LSH proposed all 202 on this benchmark. Exact-hash recall was 0 because content-identical public originals were removed before selection and controlled variants deliberately change their source text.
+
+The uploaded =ml-starintel-project1-research-results= artifact contains 27 files and has artifact ID =10452834821= with artifact ZIP digest =sha256:8746ba36e495b73a5b5a076688dd082142eff528d4e40382e25d53b60ff03052=. The benchmark JSON is =artifacts/candidate-generation-20newsgroups.json= inside that artifact.
+
+The same focused run completed =make book BOOK=ml-starintel= and =make check BOOK=ml-starintel= successfully; EPUBCheck 5.3.0 reported 0 fatals, 0 errors, 0 warnings, and 0 infos.
+
+* Measurement boundaries
+Runtime and memory are environment-sensitive observations, not universal performance claims. =tracemalloc= observes Python-managed allocations and is *not* total process RSS. The approximately ten-second candidate-generation observations above are valid only for the named runner/environment and frozen 1,400-record protocol. They are not deployment throughput, capacity, or production StarIntel scaling claims.
+
+The 99.9789645665% pair reduction and perfect qualifying-pair recall are likewise properties of this frozen benchmark, not guarantees for another corpus. No minimum recall, runtime, pair-reduction, or memory threshold was introduced after observing the run. The fact that all three =num_perm= settings tied is itself the observed result; the book must not pretend the grid identified a universally optimal setting.
+
+* Implementation
+Added to Project 1's existing research harness:
+- =public_candidate_benchmark.py= -- frozen source/selection/grid/oracle/evaluation contract;
+- =test_public_candidate_benchmark.py= -- network-free regressions for content-defined selection, controlled-pair construction, exact-oracle behavior, grid immutability, and small-fixture component equality;
+- =run_public_candidate_benchmark.py= -- CI runner that writes =artifacts/candidate-generation-20newsgroups.json=;
+- focused workflow coverage that runs the unit tests before downloading the public corpus and uploads the resulting JSON artifact.
+
+No StarIntel persistence, queue, actor, search, or API behavior is implemented here. This remains dataset-preparation/evaluation research behind the book's StarIntel adapter boundary.
+
+* Claim status after execution
+| Claim | Status |
+| scikit-learn 1.9.0 pins the 20 Newsgroups by-date archive URL and SHA-256 listed above | DOCUMENTED from exact tagged source |
+| the loader reports 18,846 total documents and supports =subset="all"= / =shuffle=False= | DOCUMENTED from exact tagged source |
+| the public selection is content-defined and target-label independent | IMPLEMENTED / TESTED |
+| the =num_perm= grid 64/128/256 was fixed before larger-corpus results were inspected | FROZEN DESIGN DECISION |
+| raw public message bodies are committed or emitted in the benchmark result | REJECTED / NOT CLAIMED |
+| controlled variants are natural duplicate labels supplied by 20 Newsgroups | REJECTED / NOT CLAIMED |
+| frozen 1,400-record benchmark has 979,300 possible pairs and 202 exact qualifying pairs | TESTED in run =35113375745= |
+| each predeclared grid point proposed 206 candidates with 1.0 qualifying-pair recall and 0.9997896456652711 pair reduction | TESTED in run =35113375745= |
+| final verified components equal the all-pairs oracle at all three predeclared grid points | TESTED in run =35113375745= |
+| observed candidate-generation time is about ten seconds and Python-traced peak is about 25.5 MB on the named runner | TESTED / ENVIRONMENT-SCOPED OBSERVATION |
+| these measurements imply production StarIntel throughput/capacity or cross-corpus recall | UNTESTED / NOT CLAIMED |
+
+* Next evidence step
+The larger-public-corpus foundational gate is closed for this frozen protocol. The next dependency-ready work is reader-facing Chapters 2--5 and Project 1 exercises that derive dataset provenance, leakage-safe splitting, composite groups, candidate generation, exact verification, and measurement discipline from the tested evidence. Broader corpus adequacy, cross-platform reproducibility, and production-scale behavior remain separate research questions rather than being inferred from this run.

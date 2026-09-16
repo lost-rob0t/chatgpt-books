@@ -1,0 +1,145 @@
+name: ml-starintel-research
+
+on:
+  pull_request:
+    paths:
+      - 'books/ml-starintel/**'
+      - '.github/workflows/ml-starintel-research.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  project1-foundations:
+    runs-on: ubuntu-latest
+    env:
+      PROJECT1: books/ml-starintel/projects/project-01-investigation-dataset-pipeline
+      RESEARCH_HARNESS: books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness
+      RESEARCH_PYTHON: ${{ github.workspace }}/.venv/bin/python
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Set up pinned Python
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version: '3.12.3'
+          architecture: x64
+
+      - name: Recreate the locked research environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv .venv
+          "$RESEARCH_PYTHON" -m pip install --disable-pip-version-check --no-deps \
+            -r "$RESEARCH_HARNESS/requirements.lock"
+          "$RESEARCH_PYTHON" -m pip check
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/verify_dependency_lock.py"
+          echo '--- Project 1 locked environment ---'
+          "$RESEARCH_PYTHON" --version
+          "$RESEARCH_PYTHON" -m pip --version
+          "$RESEARCH_PYTHON" -m pip freeze
+
+      - name: Run research-harness unit tests
+        shell: bash
+        working-directory: books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness
+        run: |
+          set -euo pipefail
+          "$RESEARCH_PYTHON" -m unittest -v \
+            test_dependency_lock.py \
+            test_gleif_sample_acquisition.py \
+            test_gleif_relation_adapter.py \
+            test_gleif_live_snapshot.py \
+            test_full_provenance_experiment.py \
+            test_leakage_experiments.py \
+            test_composite_split_planner.py \
+            test_near_duplicate_candidates.py \
+            test_public_candidate_benchmark.py
+
+      - name: Acquire and inventory official GLEIF JSON samples
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/acquire_gleif_samples.py"
+
+      - name: Run Project 1 foundational experiments
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_experiments.py"
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_fixture_experiment.py"
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_gleif_relation_experiment.py"
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_full_provenance_experiment.py"
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_leakage_experiments.py"
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_composite_planner_diagnostic.py"
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_candidate_experiment.py"
+
+      - name: Run reader-facing Project 1 checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PROJECT1"
+          "$RESEARCH_PYTHON" -m unittest -v \
+            test_chapter01_constant_baseline.py \
+            test_project1.py
+          "$RESEARCH_PYTHON" project1.py --offline
+
+      - name: Run predeclared larger public-corpus candidate benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_public_candidate_benchmark.py"
+
+      - name: Acquire factual GLEIF API snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/acquire_gleif_live_snapshot.py"
+
+      - name: Install publication tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y curl unzip default-jre-headless graphviz
+          curl --fail --location --retry 3 \
+            --output pandoc.deb \
+            https://github.com/jgm/pandoc/releases/download/3.10.1/pandoc-3.10.1-1-amd64.deb
+          sudo dpkg -i pandoc.deb
+          curl --fail --location --retry 3 \
+            --output epubcheck.zip \
+            https://github.com/w3c/epubcheck/releases/download/v5.3.0/epubcheck-5.3.0.zip
+          unzip -q epubcheck.zip -d .cache
+          pandoc --version | head -1
+          java -jar .cache/epubcheck-5.3.0/epubcheck.jar --version
+          dot -Tsvg books/ml-starintel/assets/project-01-boundary.dot >/dev/null
+
+      - name: Build and validate ML-StarIntel book
+        shell: bash
+        env:
+          EPUBCHECK_JAR: ${{ github.workspace }}/.cache/epubcheck-5.3.0/epubcheck.jar
+        run: |
+          set -euo pipefail
+          make book BOOK=ml-starintel
+          make check BOOK=ml-starintel
+
+      - uses: actions/upload-artifact@v7.0.1
+        if: always()
+        with:
+          name: ml-starintel-project1-research-results
+          path: |
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/artifacts/project-01-reader-report.json
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/experiments.json
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/fixture-experiment.json
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-sample-acquisition.json
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-relation-adapter-experiment.json
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/full-provenance-experiment.json
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-selected-members/**
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-live-snapshot/**
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/leakage/results.json
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/leakage/*.svg
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/composite-planner-gleif.json
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/candidate-generation-tier-c.json
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/candidate-generation-20newsgroups.json
+            books/ml-starintel/dist/ml-starintel.epub
+          if-no-files-found: warn
