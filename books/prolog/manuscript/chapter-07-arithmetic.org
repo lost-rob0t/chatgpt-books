@@ -18,7 +18,7 @@ X = 1 + 2.
 X is 1 + 2.
 #+end_src
 
-They are not two spellings of assignment. The first uses unification. It can bind =X= to the compound term =1 + 2= without performing addition. The second asks Prolog to evaluate the arithmetic expression on the right and then unify =X= with the resulting number. Current SWI-Prolog documents =is/2= exactly as arithmetic evaluation followed by unification [cite:@swi-arithmetic].
+They are not two spellings of assignment. The first uses unification. It can bind =X= to the compound term =1 + 2= without performing addition. The second asks Prolog to evaluate the arithmetic expression on the right and then unify =X= with the resulting number. Current SWI-Prolog documents =is/2= as arithmetic evaluation followed by unification [cite:@swi-arithmetic].
 
 That difference is the point of this chapter. Arithmetic introduces an operational precondition that our earlier relations often avoided: the expression being evaluated must already contain enough numeric information to compute a value.
 
@@ -29,7 +29,7 @@ One Project 1 proof is represented by a list such as:
 [ada, lina, ben]
 #+end_src
 
-A path with three nodes contains two edges. We could reach immediately for a library length predicate and subtract one. Instead we will derive the count recursively because the mechanism gives us a clean place to see arithmetic evaluation happen.
+A path with three nodes contains two edges. We could reach immediately for a library length predicate and subtract one. Instead we derive the count recursively because the mechanism gives us a clean place to see arithmetic evaluation happen.
 
 The base case is a one-node path:
 
@@ -102,11 +102,11 @@ That is a bad mental model for:
 Hops is TailHops + 1
 #+end_src
 
-There is no update to an old value of =Hops=. The right side is evaluated, then normal Prolog unification applies to the left side.
+There is no update to an old value of =Hops=. The right side is evaluated, then ordinary Prolog unification applies to the left side.
 
 This matters when the left side is already bound. Suppose a calculation produces integer =3=. Then =3 is 1 + 2= can succeed because the evaluated result unifies with =3=. A left side that cannot unify with the evaluated numeric term makes the goal fail.
 
-The current SWI manual uses a sharper example: =1 is sin(pi/2)= fails because the expression evaluates to floating-point =1.0=, which does not unify with the integer term =1=; arithmetic equality =1 =:= sin(pi/2)= succeeds because it compares numeric values instead [cite:@swi-arithmetic].
+The current SWI manual uses a sharper example: =1 is sin(pi/2)= fails because the expression evaluates to floating-point =1.0=, which does not unify with integer =1=; arithmetic equality =1 =:= sin(pi/2)= succeeds because it compares numeric values instead [cite:@swi-arithmetic].
 
 The lesson is not about sine. It is that *evaluation plus unification* and *numeric comparison* are different contracts.
 
@@ -114,19 +114,19 @@ The lesson is not about sine. It is that *evaluation plus unification* and *nume
 By Chapter 7 you need to distinguish at least these operations:
 
 | Question | Predicate/operator | What it asks |
-|-
+|----------+--------------------+--------------|
 | Can these two terms be made the same? | =/2= | term unification; no implicit arithmetic evaluation |
 | What number does this expression evaluate to? | =is/2= | evaluate the right expression, then unify the result with the left |
-| Do these arithmetic expressions have equal numeric values? | ==:=/2= | evaluate both arithmetic expressions and compare numerically |
+| Do these arithmetic expressions have equal numeric values? | ~=:=/2~ | evaluate both arithmetic expressions and compare numerically |
 
 For example, =1 + 2= and =3= do not have the same term structure. They can nevertheless have equal arithmetic values when both are placed in an arithmetic comparison.
 
-Current SWI-Prolog documents ==:=/2= and the ordering predicates =</2=, =</2=, =< /2=, =>/2=, and =>=/2= as arithmetic predicates over evaluated expressions [cite:@swi-arithmetic]. In ordinary code, choose an operator because its contract matches the question; do not pick whichever symbol looks most familiar from another language.
+Current SWI-Prolog documents ~=:=/2~, ~=\=/2~, ~</2~, ~=</2~, ~>/2~, and ~>=/2~ as arithmetic comparisons over evaluated expressions [cite:@swi-arithmetic]. In ordinary code, choose an operator because its contract matches the question; do not pick whichever symbol looks most familiar from another language.
 
 *** Numeric equality is not term identity
-Numbers have types and representations. Integer =1= and float =1.0= need not be the same Prolog term even though arithmetic comparison considers them numerically equal. That is why an arithmetic test should use arithmetic comparison rather than accidentally relying on term unification.
+Numbers have types and representations. Integer =1= and float =1.0= need not be the same Prolog term even though arithmetic comparison considers them numerically equal. That is why a numeric test should use arithmetic comparison rather than accidentally relying on term unification.
 
-The project stays on integer hop counts, so we do not need a floating-point policy yet. The distinction still matters because it prevents a very common beginner error from hardening into an API design habit.
+The project stays on integer hop counts, so we do not need a floating-point policy yet. The distinction still matters because it prevents a common beginner error from hardening into an API design habit.
 
 ** 7.5 Calling modes become part of the arithmetic contract
 Our earlier =project_peer/3= relation can usefully answer several different directions of question. Low-level arithmetic is less forgiving.
@@ -162,7 +162,7 @@ In the intended forward mode, the first goal asks for arithmetic evaluation befo
 
 The repair is not “catch the error and keep going.” The repair is to restore the data dependency: obtain the tail count first, then evaluate the expression that consumes it.
 
-This is a tiny example of a general debugging technique:
+This is a small example of a general debugging technique:
 1. identify every variable needed by an operational primitive;
 2. identify which earlier goal is supposed to instantiate it;
 3. check whether goal order makes that guarantee true in the supported mode.
@@ -188,7 +188,7 @@ Declaratively, the new relation states that =Path= is a connection path from =St
 Most importantly, it keeps backtracking alive. If =connection_path/3= has three proofs, the wrapper can produce three path/count pairs. Arithmetic did not justify slipping =once/1= into the relation.
 
 *** This is not shortest-path search
-A common accidental overclaim would be:
+A tempting overclaim would be:
 
 #+begin_quote
 Now that every path has a hop count, the system finds the shortest route.
@@ -217,10 +217,10 @@ connection_within_hops(+Start, +Goal, +Limit, -Path, -Hops)
 
 =Limit= is expected to be numeric already. The comparison does not create candidate hop counts or constrain an unknown limit. It filters answers that already have numbers.
 
-For the current synthetic fixture, the regression suite asserts the complete expected Ada-to-Ben answer set at a two-hop limit. The test is important because a single successful path would not prove that filtering preserved every qualifying alternative.
+For the current synthetic fixture, the regression suite checks the complete expected Ada-to-Ben answer set at a two-hop limit. A single successful path would not prove that filtering preserved every qualifying alternative.
 
 ** 7.9 Work the project case by hand before trusting the test
-The accepted Chapter 6 relation has these Ada-to-Ben simple paths:
+The accepted Project 1 path relation has these Ada-to-Ben simple paths:
 
 #+begin_src prolog
 [ada, lina, ben]
@@ -231,14 +231,14 @@ The accepted Chapter 6 relation has these Ada-to-Ben simple paths:
 Count edges, not nodes:
 
 | Path | Nodes | Hops |
-|-
+|------+-------+------|
 | =[ada,lina,ben]= | 3 | 2 |
 | =[ada,lina,noor,ben]= | 4 | 3 |
 | =[ada,noor,ben]= | 3 | 2 |
 
 A hop limit of =2= should therefore preserve the first and third paths and reject the middle one. This is a hand-derived fixture expectation. The repository test must still execute before we label the implementation TESTED.
 
-That last sentence is part of the book's engineering discipline: a derivation tells us what the expected result is; the regression tells us whether the implementation on the recorded runtime actually satisfies it.
+That distinction is part of the book's engineering discipline: a derivation tells us what the expected result is; the regression tells us whether the implementation on the recorded runtime actually satisfies it.
 
 ** 7.10 Arithmetic expressions have failure modes too
 Arithmetic code can fail, throw, or succeed with a number depending on the expression and inputs. Chapter 7 keeps the surface deliberately small, but you should already distinguish several categories:
@@ -271,7 +271,7 @@ X is 2 + 3.
 Explain the first answer as a term binding and the second as evaluation followed by unification.
 
 *** Confusion B: numeric equality versus unification
-Compare a pair of numeric terms that differ in representation, such as integer =1= and floating =1.0=. Ask separately whether they unify and whether they are arithmetically equal. Tie your explanation to the official =is/2= versus ==:=/2= distinction rather than memorizing one output.
+Compare a pair of numeric terms that differ in representation, such as integer =1= and floating =1.0=. Ask separately whether they unify and whether they are arithmetically equal. Tie your explanation to the official =is/2= versus ~=:=/2~ distinction rather than memorizing one output.
 
 *** Confusion C: trying to run arithmetic backwards
 Start with an unknown right-side operand:
@@ -289,7 +289,7 @@ After Chapter 7, Project 1 adds a narrow numeric layer without changing the mean
 - =path_hops/2= counts edges for finite proper non-empty path lists in the documented forward mode;
 - =connection_with_hops/4= attaches the derived count to every path proof;
 - =connection_within_hops/5= applies a ground numeric filter after proof and counting;
-- the new PL-Unit suite checks exact counts, the complete path/count answer set, the complete within-limit answer set, an over-tight limit, and the low-level arithmetic instantiation boundary;
+- the new PL-Unit suite checks exact counts, the complete path/count answer set, the complete within-limit answer set, an over-tight limit, arithmetic numeric equality versus term unification, and the low-level arithmetic instantiation boundary;
 - no cut, negation, module restructuring, DCG, CLP(FD), shortest-path search, benchmark, or performance claim enters through this milestone.
 
 Run the full Project 1 suite from the repository root:
@@ -308,7 +308,7 @@ The runner now requires all three named test units before executing them. If the
 2. ★ Trace =path_hops([ada,lina,noor,ben], Hops)= by hand. Write the value of =TailHops= immediately before each =is/2= call.
 3. ★ Explain why a one-node path has zero hops and why the empty list is outside the Project 1 path contract.
 4. ★★ Write a PL-Unit assertion for the complete set of =Hops-Path= pairs returned by =connection_with_hops(ada, ben, Path, Hops)=. Why is a single success test too weak?
-5. ★★ Add a scratch query using =connection_within_hops/5= with limits =1=, =2=, and =3=. Predict which existing path proofs survive each filter before running it.
+5. ★★ Use =connection_within_hops/5= with limits =1=, =2=, and =3=. Predict which existing path proofs survive each filter before running it.
 6. ★★ Move =Hops is TailHops + 1= before the recursive call in a temporary copy of =path_hops/2=. Classify the observed failure and explain which variable violated the arithmetic mode contract.
 7. ★★★ Design a relation named =exact_hops/4= that succeeds only for paths having exactly a caller-supplied ground hop count. Decide whether its final check should use unification or arithmetic equality and defend the choice.
 8. ★★★ Suppose you need to ask “what hop counts are possible?” and “what limit would make this path valid?” without pre-instantiating the numbers. Explain why merely rearranging =is/2= is not a principled solution. Sketch which later constraint-programming capability you expect to need, without implementing it yet.
