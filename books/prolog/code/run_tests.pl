@@ -1,4 +1,5 @@
 :- use_module(library(plunit)).
+:- ensure_loaded('relational-query/community.pl').
 :- ensure_loaded('relational-query/test_community.pl').
 :- ensure_loaded('relational-query/test_search.pl').
 
