@@ -150,6 +150,23 @@ crashes it, and then requires the replacement worker to contain the original
 rules supplied through the child specification. The test is not a persistence
 test; it is evidence that restart and state recovery are separate mechanisms.
 
+* DOCUMENTED + TESTED boundary -- stopping the supervisor across OTP versions
+Current Erlang/OTP 29.0.6 documents =supervisor:stop/1= and
+=supervisor:stop/3= as APIs introduced in OTP 29.0. The focused book runner for
+this checkpoint is still OTP 25, so Project 3 must not silently depend on that
+new convenience surface.
+
+Source:
+https://www.erlang.org/doc/apps/stdlib/supervisor.html
+
+Project consequence: =otp-router-sup:stop/0= delegates to the older
+=gen_server:stop/1= operation instead of calling =supervisor:stop/1=. The
+cross-version compatibility of that teaching helper is treated as TESTED
+behavior, not inferred from the OTP 29 manual: the exact-head gate must invoke
+the helper on the observed OTP 25 runner and require both supervisor and worker
+registered names to be gone after the synchronous stop returns. This does *not*
+claim that =supervisor:stop/1= exists before OTP 29.
+
 * Design used by Project 3 checkpoint A
 The accepted pure semantic kernel remains =event-rules:route/2=. Project 3 adds
 two ordinary OTP callback modules:
