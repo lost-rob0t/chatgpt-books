@@ -4,5 +4,14 @@
 :END:
 #+bibliography: ../references.bib
 
-* Manuscript bootstrap
-This is the canonical manuscript entry point. Long-form drafting begins only after the publishing/research bootstrap and the relevant research issue are ready. See [[file:../OUTLINE.org][OUTLINE.org]].
+* Part I -- Foundations
+
+#+include: "chapter-01.org"
+
+#+include: "chapter-02.org"
+
+#+include: "chapter-03.org"
+
+#+include: "chapter-04.org"
+
+#+include: "chapter-05.org"
