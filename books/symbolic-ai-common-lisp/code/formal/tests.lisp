@@ -21,7 +21,8 @@
          (result (check-invariant system)))
     (%assert-equal :proved (check-result-status result) "safe cycle status")
     (%assert-equal 2 (check-result-visited result) "safe cycle visited")
-    (%assert-true (check-result-complete-p result) "safe cycle completeness")))
+    (%assert-true (check-result-conclusive-p result)
+                  "exhaustive proof is conclusive")))
 
 (defun test-violation-has-shortest-counterexample ()
   (let* ((system
@@ -39,7 +40,8 @@
     (%assert-equal :refuted (check-result-status result) "refuted status")
     (%assert-equal '(0 10) (check-result-trace result)
                    "BFS counterexample chooses shortest violating trace")
-    (%assert-true (check-result-complete-p result) "refutation is decisive")))
+    (%assert-true (check-result-conclusive-p result)
+                  "concrete refutation is conclusive without graph exhaustion")))
 
 (defun test-unreachable-bad-state-does-not-refute ()
   (let* ((system
@@ -81,8 +83,8 @@
          (result (check-invariant system :max-states 2)))
     (%assert-equal :bounded (check-result-status result) "bounded status")
     (%assert-equal 2 (check-result-visited result) "bounded visited")
-    (%assert-equal nil (check-result-complete-p result)
-                   "bounded exploration is explicitly incomplete")))
+    (%assert-equal nil (check-result-conclusive-p result)
+                   "bounded exploration is explicitly inconclusive")))
 
 (defun test-unknown-successor-relation-is-not-proof ()
   (let* ((system
@@ -99,8 +101,8 @@
          (result (check-invariant system)))
     (%assert-equal :unknown (check-result-status result) "unknown status")
     (%assert-equal '(0 1) (check-result-trace result) "unknown trace")
-    (%assert-equal nil (check-result-complete-p result)
-                   "unknown exploration is incomplete")
+    (%assert-equal nil (check-result-conclusive-p result)
+                   "unknown exploration is inconclusive")
     (%assert-equal "external transition source unavailable"
                    (check-result-reason result)
                    "unknown reason preserved")))
