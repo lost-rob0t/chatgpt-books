@@ -143,7 +143,7 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Relevant sections :: Application Concept; Application Callback Module; Application Resource File; Application Controller; Loading and Unloading Applications; Starting and Stopping Applications; Application Master.
 - Used for :: Chapter 13 and Project 2 checkpoint B.
 - Result :: Applications are reusable components started/stopped as units. A process-owning application supplies a callback module and specification. The application controller coordinates lifecycle operations. The application master invokes =start/2=, uses the returned top-supervisor PID, tracks application process ownership, stops the tree, and then invokes =stop/1=. Loading application metadata is distinct from object-code loading.
-- Claim status :: DOCUMENTED. Runtime claims remain UNTESTED until exact branch execution.
+- Claim status :: DOCUMENTED + EXECUTION VERIFIED at implementation head =03a441a5717a7cfab430bd334f655daba05bd4de= for the bounded Project 2 application-lifecycle observations; editorial approval remains pending.
 
 ** =app= application-resource reference at tag =OTP-29.1=
 - URL :: https://github.com/erlang/otp/blob/OTP-29.1/lib/kernel/doc/references/app.md
@@ -152,7 +152,7 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Relevant sections :: Description; File Syntax; =modules=; =registered=; =applications=; =env=; =mod=.
 - Used for :: Chapter 13 resource contract and Project 2 =otp_worker_app.app.src=.
 - Result :: =Application.app= belongs in =ebin= and contains one application-specification term. The application controller permits defaults for omitted keys; =systools= requires =description=, =vsn=, =modules=, =registered=, and =applications=. =mod= names the callback/start argument and is necessary for a supervision-tree application.
-- Claim status :: DOCUMENTED.
+- Claim status :: DOCUMENTED + EXECUTION VERIFIED for the teaching resource metadata regression at implementation head =03a441a5717a7cfab430bd334f655daba05bd4de=.
 
 ** =application= Kernel source documentation at tag =OTP-29.1=
 - URL :: https://github.com/erlang/otp/blob/OTP-29.1/lib/kernel/src/application.erl
@@ -161,4 +161,4 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Relevant sections :: module documentation; behaviour callbacks; =load/1,2=; =start/1,2=; =ensure_all_started/1,2,3=; inspection APIs.
 - Used for :: Chapter 13 callback contracts, dependency-start distinction, and debugging/inspection material.
 - Result :: =start/2= callback returns the top-supervisor PID (and optional state); =stop/1= performs post-tree cleanup. =load= stores application specification without loading object code. =ensure_all_started= can traverse/start dependencies, while ordinary =start= requires declared prerequisites to be running.
-- Claim status :: DOCUMENTED. Runtime claims remain UNTESTED until exact branch execution.
+- Claim status :: DOCUMENTED + EXECUTION VERIFIED for Project 2 load/start/ownership/stop/restart behavior at implementation head =03a441a5717a7cfab430bd334f655daba05bd4de=; focused run =35129230500= used strict OTP 29.1 / BEAM 17.1 and passed all bounded tests.
