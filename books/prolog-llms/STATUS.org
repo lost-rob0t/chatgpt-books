@@ -4,27 +4,32 @@
 :END:
 
 * Phase
-Scope/curriculum scaffold and foundational research queue.
+Standalone Prolog foundation and Project 1 milestone A under editorial review.
 
-* Completed
+* Completed in the current draft
 - Standalone audience and teaching contract defined.
 - Cross-book boundaries recorded for =prolog=, =symbolic-ai-prolog=, and =expert-systems=.
 - Six-stage project progression defined from deterministic Prolog foundations through a Prolog-RLM capstone.
 - Research/evidence policy established: model output and benchmarks are never treated as factual evidence without recorded execution.
-
-* Active research
-None has yet been promoted to DOCUMENTED claims beyond repository-local curriculum decisions. The first research pass must verify current SWI-Prolog behavior and primary literature/implementations for structured generation, tool use, neuro-symbolic systems, and recursive language-model architectures.
+- DOCUMENTED foundation research covers current SWI-Prolog syntax/unification/occurs-check/PL-Unit claims, the primary Recursive Language Models paper boundary, and the exact read-only =lost-rob0t/prolog-rlm= snapshot used for future capstone context.
+- Chapters 1--3 now teach relations/queries, shared-variable joins, terms/unification, finite-term versus cyclic-term boundaries, recursion/lists, graph termination, provenance-bearing explanations, tests, and deliberate failure labs.
+- Project 1 milestone A now has runnable SWI-Prolog source plus a named PL-Unit suite and fail-closed test runner. It remains model-free by design.
 
 * Verification
-- UNTESTED as a book: no Prolog/LLM project code exists yet.
-- UNTESTED publication: this scaffold must pass the repository structural gate plus =make book BOOK=prolog-llms= and =make check BOOK=prolog-llms= before the initial infrastructure slice can be accepted.
-- No benchmark, model-quality, latency, cost, or accuracy claim is currently made.
+Observed branch run at commit =a4a44d01d7d2b163b5a379f7e86846c45138072e= on Ubuntu 24.04 / SWI-Prolog 9.0.4:
+- TESTED: all 12 Project 1 PL-Unit cases completed successfully. Four initially left harmless choicepoints; later draft tests were strengthened to assert unique result sets and require a fresh exact-head run.
+- TESTED: repository structural validation passed: 10 active principal books plus one paused scaffold.
+- TESTED: =make book BOOK=prolog-llms= completed.
+- FAILED: the first =make check BOOK=prolog-llms= run reached EPUBCheck and found two package-local link errors: a sibling-book source link and the diagram path. Both paths are corrected in the current draft; exact-head rerun is required before publication validation may be promoted to TESTED.
+- TESTED: =nix flake check -L= passed in the same workflow run.
+- No benchmark, live-model quality, latency, cost, or accuracy claim is made by this milestone.
 
 * Editorial state
-REVIEW. The scaffold is substantial enough to guide workers but is not chapter-complete, project-complete, or release-ready. Stable IDs must be preserved as sections evolve.
+REVIEW. This is a substantial foundation milestone, not a completed book. Editor-in-Chief retains final editorial and merge authority. Stable IDs must be preserved as sections evolve.
 
 * Next dependency-ready slice
-Research and draft the compact standalone Prolog foundation through unification, recursion, lists, and explicit testing; seed Project 1 with runnable SWI-Prolog code and failure labs. Cross-link the deeper pure-Prolog volume without replacing the local explanations needed by a standalone reader.
+After the exact-head foundation gate is green, research and draft backtracking/control, modules, tracing/debugging, and stronger testing discipline; then advance Project 1 toward its DCG and CLP(FD) milestones. Keep live model/provider work behind the later typed gateway boundary.
 
 * Blockers
-None conceptual. Version-sensitive LLM/provider examples remain blocked until a focused research slice chooses current, primary-source-backed interfaces for each example and records exact tested versions.
+- Current branch needs a fresh exact-head Project 1/build/check/Nix run after the EPUB-path and determinism-test repairs.
+- Version-sensitive LLM/provider examples remain blocked until a focused research slice chooses current, primary-source-backed interfaces and records exact tested versions.
