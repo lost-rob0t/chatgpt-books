@@ -1,0 +1,167 @@
+#+title: Runtime Failure Pass 03 -- Quarantine Identity, Unsettled Delivery, and Ambiguous Replay
+:PROPERTIES:
+:ID:       6ce857ef-2daa-4275-9bf2-07f3516fe693
+:END:
+
+* Scope
+Research date: 2026-09-16.
+
+This pass rechecks the StarIntel Server after Ingest Boundary Pass 02 because the
+server changed while the book slice was still open.  It is intentionally a
+delta audit rather than a rewrite of the earlier snapshot.
+
+- Earlier full ingest snapshot :: =d4e8447c6049eaed65a93e81668ae1ec4b65c25c=
+- Current server head rechecked :: =d48fa939402abf701fa1cc4079dfb8bedfad8d4a=
+- Upstream incident :: issue #187, "Concurrent ULID collision crashes quarantine during backlog ingest"
+- Upstream repair :: PR #188, merged as the current head above
+
+The pass asks what changed in the failure path and what an operator can safely
+infer after an accepted-but-unconfirmed batch.  It does not claim that the book
+reproduced the live incident.
+
+* Claim status
+- *DOCUMENTED:* current source at =d48fa939...= adds =star.ids:ulid=, routes
+  server-generated ULIDs through a process-wide lock, and changes the consumer
+  lifecycle so an error during settlement stops/closes that worker stream while
+  leaving the delivery unsettled for broker redelivery.
+- *UPSTREAM-REPORTED:* issue #187's live failure narrative and PR #188's RED/GREEN,
+  integration, Nix, and image-build verification.  Those runs belong to the
+  product repository; this book did not execute them.
+- *TESTED BY THIS BOOK:* only the new sanitized ambiguous-batch reconciliation
+  utility and its hermetic tests once this book branch CI passes.
+- *UNTESTED BY THIS BOOK:* reproducing the concurrent ULID collision, the live
+  listener failure, Rabbit redelivery after settlement failure, and the repaired
+  behavior in a disposable multi-service StarIntel deployment.
+
+* Finding 1 -- quarantine is itself a state transition that needs identity
+Issue #187 records a failure in which two different deliveries received the same
+server-generated quarantine document ID.  CouchDB accepted one record and
+returned a conflict for the other.  Because that conflict happened during
+settlement, the failure escaped far enough to terminate the listener in the
+reported runtime.
+
+The upstream diagnosis points at the pinned =cms-ulid= generator: it retains
+mutable previous-value state inside a shared closure, while the server had been
+calling that generator from concurrent HTTP/Rabbit workers.  The current repair
+introduces =source/ids.lisp= and exports =star.ids:ulid=.  That wrapper holds one
+Bordeaux Threads lock around the underlying generator.  Production call sites
+shown in the merged diff now use the wrapper for quarantine IDs, trace/message
+IDs, authorization IDs, HTTP correlation IDs, actor/event IDs, leases, and
+other server-generated identities.
+
+The book-level lesson is not "put a lock around every ID generator."  It is:
+
+#+begin_example
+an error-handling record is still durable state
+therefore its identity rules are part of correctness
+#+end_example
+
+A quarantine path that can collapse two different failed deliveries onto one
+identity can lose the very evidence needed to debug the original fault.
+
+* Finding 2 -- a failed settlement must fail closed without becoming an ACK
+The repair keeps the important ordering established in Pass 02: quarantine
+persistence remains before quarantine publication and before ACK of the original
+delivery.  A persistence conflict is not converted into success merely because
+"quarantine was attempted."
+
+Current =source/runtime-lifecycle.lisp= additionally catches an error escaping
+=consumer-process-delivery=, logs that the consumer stopped after an unsettled
+delivery, exits that consumer loop, and closes its Rabbit stream during cleanup.
+The source comment states the intended recovery property: the failed delivery
+remains unsettled so closing the stream can return it for redelivery, while the
+worker failure no longer tears down the HTTP listener.
+
+That creates a useful failure invariant for the hacker's guide:
+
+#+begin_example
+settlement failed
+  -> do not claim the delivery was settled
+  -> close/isolate the failed worker boundary
+  -> preserve broker-visible unfinished work for redelivery
+#+end_example
+
+The book still needs a live broker-backed experiment before calling that
+redelivery behavior TESTED here.
+
+* Finding 3 -- accepted bulk work can be partially durable
+The incident report records a bulk request whose later status polling failed
+after the listener died.  Read-only reconciliation found a durable subset and an
+absent subset.  The exact upstream incident counts are evidence from issue #187,
+not a benchmark and not a result reproduced by this book.
+
+The important reasoning problem is generic.  If the request boundary accepted a
+batch but the final result is ambiguous, neither of these is safe:
+
+#+begin_example
+"the POST succeeded, so replay nothing"
+"polling failed, so replay everything"
+#+end_example
+
+The correct next action is evidence collection.  Determine which logical items
+are independently verified durable, which are verified absent, and which remain
+unknown or mismatched.  Only a proven contiguous durable prefix followed by a
+proven absent suffix gives a simple mechanical resume offset.  Gaps, mismatches,
+or unknown rows require manual reconciliation or a stronger idempotent replay
+mechanism.
+
+* Book implementation -- sanitized reconciliation lab
+=books/starintel/code/ambiguous-bulk/= encodes that reasoning without copying
+StarIntel runtime logic.  It consumes a JSONL ledger whose rows are already
+classified as one of:
+
+- =verified_match=
+- =absent=
+- =mismatch=
+- =unknown=
+
+The utility refuses to decide document equivalence, contact CouchDB, normalize
+server-owned fields, or replay anything.  It returns a =safe_resume_offset= only
+for a verified prefix followed exclusively by verified absence.  Otherwise it
+fails closed to =requires_manual_reconciliation=.
+
+This is intentionally narrower than the upstream incident-specific
+reconciliation.  It teaches what evidence is necessary without embedding a
+second StarIntel persistence/client implementation in the book.
+
+* Source paths and records inspected
+At current head =d48fa939402abf701fa1cc4079dfb8bedfad8d4a=:
+
+- =source/ids.lisp=
+- =source/runtime-lifecycle.lisp=
+- =source/consumers/retry-policy.lisp=
+- =source/starintel-gserver.asd=
+- =t/consumers-test.lisp= through the merged PR diff/test description
+- GitHub issue #187
+- GitHub PR #188
+- commit delta from =d4e8447...= to =d48fa939...=
+
+* Historical/current boundary
+Pass 02 remains a valid snapshot of the ingest/outbox design at =d4e8447...=.
+The current server head supersedes two details relevant to failure handling:
+
+1. raw concurrent server ULID generation has been replaced by the serialized
+   =star.ids:ulid= wrapper at production call sites touched by PR #188;
+2. an error escaping delivery settlement is now isolated to the consumer worker
+   loop rather than being allowed to unwind as the reported listener-killing
+   failure.
+
+The durable outbox, bounded retry/quarantine ordering, publisher-confirm evidence
+gap, and at-least-once reasoning from Pass 02 are not contradicted by this delta.
+They remain subject to future current-head rechecks whenever those source paths
+change.
+
+* Next executable gate
+A later service-backed failure lab should deliberately force quarantine
+persistence or settlement failure against disposable RabbitMQ/CouchDB services,
+then observe all of the following without exposing credentials:
+
+1. the original delivery is not ACKed after failed settlement;
+2. the failed worker stream closes/is isolated;
+3. the HTTP service remains alive;
+4. the broker can redeliver the unfinished delivery;
+5. the repaired ID path produces distinct quarantine identities under
+   concurrency.
+
+Until that experiment exists in this book, those runtime outcomes remain
+DOCUMENTED or UPSTREAM-REPORTED rather than book-TESTED.

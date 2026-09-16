@@ -1,0 +1,78 @@
+name: ml-math-book
+
+on:
+  pull_request:
+    paths:
+      - 'books/ml-math/**'
+      - '.github/workflows/ml-math-book.yml'
+  workflow_dispatch:
+
+jobs:
+  vector-foundation-and-book:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install numerical oracle and publication tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check 'numpy==2.5.0'
+          sudo apt-get update
+          sudo apt-get install -y curl unzip default-jre-headless
+          curl --fail --location --retry 3 \
+            --output pandoc.deb \
+            https://github.com/jgm/pandoc/releases/download/3.10.1/pandoc-3.10.1-1-amd64.deb
+          sudo dpkg -i pandoc.deb
+          curl --fail --location --retry 3 \
+            --output epubcheck.zip \
+            https://github.com/w3c/epubcheck/releases/download/v5.3.0/epubcheck-5.3.0.zip
+          unzip -q epubcheck.zip -d .cache
+          python --version
+          python -c 'import numpy as np; print("NumPy", np.__version__)'
+          pandoc --version | head -1
+          java -jar .cache/epubcheck-5.3.0/epubcheck.jar --version
+
+      - name: Run Vector Toolkit regression suite
+        working-directory: books/ml-math/code/vector_toolkit
+        run: python -m unittest -v test_vector_toolkit.py
+
+      - name: Regenerate vector teaching figure
+        working-directory: books/ml-math/code/vector_toolkit
+        run: |
+          set -euo pipefail
+          python plot_vector_geometry.py
+          git diff --exit-code -- ../../assets/vector_geometry.svg
+
+      - name: Structural validation
+        run: ./tools/check-structure
+
+      - name: Build ML Math book
+        run: make book BOOK=ml-math
+
+      - name: Validate ML Math book
+        env:
+          EPUBCHECK_JAR: .cache/epubcheck-5.3.0/epubcheck.jar
+        run: make check BOOK=ml-math
+
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y nix-bin
+          sudo mkdir -p /etc/nix
+          echo 'experimental-features = nix-command flakes' | sudo tee -a /etc/nix/nix.conf
+          nix --version
+
+      - name: Flake check
+        run: sudo nix flake check -L
