@@ -4,16 +4,17 @@
 This is an executable research harness for Project 1, not chapter prose and not a replacement StarIntel runtime.
 
 It currently exercises:
-- Experiment E: a pinned StarIntel 0.9 conformance smoke matrix.
+- Experiment E: a pinned StarIntel 0.9 wire-schema conformance smoke matrix.
 - Experiment D0: a narrow synthetic provenance-manifest round trip used to verify the harness shape.
 - Experiment D1: a frozen official GLEIF public-source extract mapped into a canonical StarIntel =org= record with byte hashes and provenance reconstruction checks.
 - D2A: official GLEIF current-format sample =org= + =relation= adapter-shape coverage, including honest unresolved endpoints where the sample bundle lacks matching Level 1 records.
 - Experiment D: a frozen factual as-of primary GLEIF API snapshot mapped offline into three entity-closed =org= documents and two =relation= documents with source/hash provenance reconstruction.
-
-Experiments A--C remain UNTESTED.
+- Experiments A--C: deterministic synthetic leakage controls for repeated entities, point-in-time availability, and exact/near-duplicate contamination.
+- Composite split planning: deterministic hard must-link closure plus temporal/feature admissibility and task-specific graph grouping.
+- Pass-12 scalable duplicate candidates: exact hashes + deterministic blocking + MinHash/LSH candidates, followed by exact normalized token-Jaccard verification before component closure.
 
 * Canonical boundary
-The harness materializes the canonical schema from:
+The historical conformance harness materializes an immutable schema snapshot from:
 
 - repository: =lost-rob0t/starintel-gpt-auto-dig=
 - commit: =ff814ff63868286d68e21502122832802cd5e361=
@@ -22,7 +23,7 @@ The harness materializes the canonical schema from:
 
 The fetched bytes are rejected unless their Git blob identity matches exactly. This avoids silently following a moving branch while also avoiding a second hand-maintained StarIntel schema in this book.
 
-StarIntel remains =schema_version: "0.9.0"=. The separate top-level document =version= is integer =1= in the research fixtures. Nothing in this harness promotes the StarIntel specification to 1.0.
+Current version language is intentionally split: =starintel-server/schema/starintel-schema.lock.json= reports =release_version="0.9.1"= while the wire/base family remains =schema_version="0.9.0"=. These fixtures therefore correctly retain =schema_version: "0.9.0"=; that must not be described as the current release/profile being 0.9.0. The separate top-level document =version= is integer =1= in the research fixtures.
 
 * Fixture tiers
 ** Tier A -- illustrative/format fixtures
@@ -47,7 +48,19 @@ It freezes canonical parsed responses acquired from the primary GLEIF API for:
 The fixture manifest records each source URL, retrieval time, raw-response SHA-256, deterministic canonical-JSON SHA-256, resource ID/type and the Golden Copy publication time. Exact raw bytes remain in the acquisition CI artifact; ordinary Experiment D runs use only committed canonical snapshots and the cached pinned StarIntel schema.
 
 ** Tier C -- synthetic controls
-Reserved for deterministic ML ground truth and leakage Experiments A--C. Synthetic truth must not be confused with Tier B factual source observations.
+Tier C provides deterministic ML ground truth for leakage and candidate-generation experiments. Synthetic truth must not be confused with Tier B factual source observations.
+
+The duplicate fixture contains 480 records. The all-pairs near-duplicate oracle applies the frozen Experiment C normalization/tokenization and exact token-set Jaccard threshold =>= 0.80=.
+
+* Scalable candidate boundary
+=near_duplicate_candidates.py= is a dataset-preparation component, not a search service. It proposes canonical record-ID pairs from:
+- exact normalized-text hashes;
+- a deterministic rare-token blocker;
+- =datasketch==2.0.0= MinHash/LSH with explicit =affine32= scheme, seed, permutation count and threshold.
+
+Candidate provenance is retained. Every candidate is then exact-Jaccard verified before an edge can enter duplicate-component closure. Approximate retrieval never defines duplicate truth.
+
+Pass 12 TESTED this path on Tier C: 526 candidate pairs versus 114,960 all pairs, all 480 exact qualifying pairs proposed, 46 candidate false positives safely rejected by exact verification, final components identical to the all-pairs oracle, and deterministic output under the tested permutations. Larger-public-corpus recall/runtime remains UNTESTED.
 
 * Earlier frozen GLEIF self fixture
 D1 retains the earlier narrow source extract:
@@ -64,11 +77,17 @@ python3 -m unittest -v \
   test_gleif_sample_acquisition.py \
   test_gleif_relation_adapter.py \
   test_gleif_live_snapshot.py \
-  test_full_provenance_experiment.py
+  test_full_provenance_experiment.py \
+  test_leakage_experiments.py \
+  test_composite_split_planner.py \
+  test_near_duplicate_candidates.py
 python3 run_experiments.py
 python3 run_fixture_experiment.py
 python3 run_gleif_relation_experiment.py
 python3 run_full_provenance_experiment.py
+python3 run_leakage_experiments.py
+python3 run_composite_planner_diagnostic.py
+python3 run_candidate_experiment.py
 #+end_src
 
 The full provenance experiment is offline with respect to GLEIF. It expects the canonical StarIntel schema cache to have been materialized first by =run_experiments.py=.
@@ -88,11 +107,12 @@ Machine-readable results are written under =artifacts/= and uploaded by the =ml-
 - D1 proves only the earlier frozen contact-page extract path.
 - D2A proves the Tier A adapter shape and unresolved-endpoint semantics, not current factual relationships.
 - Full D proves reproducibility and canonical validation for the frozen Tier B as-of observation; it does not claim those relationships persist forever.
+- A--C prove only the specified deterministic synthetic leakage controls.
+- The pass-12 candidate result proves contract behavior only on the frozen Tier C oracle fixture. It does not prove production recall/runtime.
 - Cross-language Python/Nim/Common Lisp conformance remains UNTESTED here.
-- Experiments A--C remain UNTESTED until their split rules are predeclared and actual measurements run.
 
 * First observed failure
 The first CI execution on 2026-08-14 rejected the supposed-valid fixture because top-level StarIntel =version= is an integer with minimum 1, not the schema-version string. The harness was corrected to =version: 1= and retains the original mistake as a negative regression case. This is exactly why implementation claims stay UNTESTED until exercised against the canonical schema.
 
 * Latest verified run
-=ml-starintel-research= run 50 on 2026-08-17 executed 16 unit tests plus E, D0, D1, D2A and full D. Full D generated 3 =org= + 2 =relation= documents; entity closure, source/provenance hashes, JSON round trip and all five StarIntel 0.9 validations passed. The same workflow then successfully refreshed the primary GLEIF API probe without changing the selected raw/canonical response hashes during that observation window.
+=ml-starintel-research= run 81 / workflow run =35093942622= / job =104786567764= completed successfully on 2026-09-16. It ran 39 selected unit tests with zero failures, re-executed E/D0/D1/D2A/full D/A--C/composite-planner diagnostics, executed the Tier C candidate experiment, refreshed the separate live GLEIF probe, and uploaded 25 research artifacts. The candidate artifact reports 526 candidates from 114,960 possible pairs, 1.0 qualifying-pair recall on the frozen oracle, exact final component equality, and recorded =datasketch= 2.0.0 parameters.
