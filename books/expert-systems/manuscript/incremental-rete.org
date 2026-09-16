@@ -1,0 +1,514 @@
+* Chapter 11 -- Incremental Matching: Stop Re-solving the Same Problem
+:PROPERTIES:
+:ID:       3b9c6be1-c43e-46ae-8c31-fcd76faf7598
+:END:
+
+At the end of Chapter 10 the engine is intentionally wasteful. After one fact is asserted, =build-agenda= forgets everything it learned on the previous cycle and asks every production to match against every current fact again. That implementation is valuable because its semantics are obvious and executable. It is also the reference we now optimize *against* rather than replace by vibes.
+
+The central question of this part is not “how do we draw a RETE graph?” It is:
+
+#+begin_quote
+When working memory changes by one occurrence, which previous matching work is still valid, and which consequences of the delta must be recomputed?
+#+end_quote
+
+Forgy's RETE paper names the target problem directly: many patterns must be matched against many objects in a production-system matcher [cite:@forgy1982rete]. Current CLIPS 6.4.2 documentation remains useful as a maintained implementation reference: before rule execution it constructs a network for left-hand-side patterns; reactive facts/instances are filtered through that network; sequential partial matches carry variable-binding constraints; and a rule is activated once all of its patterns are satisfied [cite:@clips642bpg]. Those facts justify the broad architecture. They do *not* make this course implementation “CLIPS internals.”
+
+Milestone C keeps Chapter 10's observable contract and changes only where matching work lives.
+
+** 11.1 The oracle/delta experiment
+Consider the first synthetic teaching production:
+
+#+begin_example
+(service-state ?dependency failed)
+(depends-on ?service ?dependency)
+  -> dependency-impact
+#+end_example
+
+Working memory initially contains five fact occurrences. The complete matcher checks conditions against the complete fact sequence, carries bindings across conditions, constructs the activation, and returns it. After the activation fires, only one new fact—=dependency-impact frontend api=—has been appended.
+
+The naive engine nevertheless repeats all matching for the original five occurrences.
+
+An incremental matcher can instead retain enough state to answer two narrower questions:
+
+1. Which individual conditions does the *new occurrence* satisfy?
+2. Which retained partial matches can be extended with those new local matches?
+
+Retraction asks the inverse question:
+
+#+begin_quote
+Which cached local and partial matches depended on the exact occurrence that disappeared?
+#+end_quote
+
+That is why milestone B spent so much effort on support occurrence stamps. The pair =("obs.api.state.failed" . 1)= is not merely explanation metadata now; it is a precise cache-dependency key.
+
+** 11.2 Optimization is constrained by semantics
+The new network is accepted only if its observable activations agree with =build-agenda= under the positive-condition subset already implemented.
+
+For every controlled state transition in the regression suite we compare:
+
+#+begin_src lisp
+(mapcar #'activation-key (build-agenda engine))
+(mapcar #'activation-key (incremental-agenda network))
+#+end_src
+
+The keys include production identity, ordered support occurrences, and bindings. Both agenda builders also use the same refraction filter and conflict-order comparator. That means equivalence tests cover more than “both found a rule.” They check the semantic identity and deterministic order the previous milestone already promised.
+
+This is a recurring engineering pattern for the rest of the book:
+
+#+begin_example
+simple executable oracle
+        |
+        v
+optimized implementation
+        |
+        +--> equivalence regressions
+        +--> optimization-specific tests
+        +--> only then: measured performance work
+#+end_example
+
+No benchmark appears in this milestone. An incremental architecture can still be slower on a tiny workload, a poor implementation, or a workload with bad selectivity. We first prove that we did not optimize ourselves into different answers.
+
+** 11.3 The cache is part of the debugging surface
+Caching creates a new class of bug: stale internal state.
+
+A complete rematcher can be wrong because its matching logic is wrong. An incremental engine can also be wrong because a valid old token was deleted, an invalid token survived retraction, a new occurrence failed to propagate, or duplicate propagation created duplicate terminal matches.
+
+So the implementation exposes =incremental-network-snapshot=. It reports, per production:
+
+- alpha-memory item counts;
+- beta-memory token counts by depth;
+- terminal activation keys.
+
+That snapshot is not a public telemetry standard and not a benchmark. It is a deterministic microscope for the mechanism we are learning.
+
+** 11.4 Failure lab: mutate around the network
+A tempting mistake is to call the old =assert-fact= directly on the engine's working memory after an incremental network has been compiled. Working memory changes, but no delta reaches the caches. The next =build-agenda= can then disagree with =incremental-agenda=.
+
+That is not a mysterious RETE failure. It is an ownership failure.
+
+Milestone C therefore introduces =incremental-assert-fact=, =incremental-assert-facts=, and =incremental-retract-fact=. They delegate the actual working-memory semantics to the existing milestone-B functions and then update cached matching state. =incremental-fire-activation= likewise delegates firing/refraction/trace ownership to =fire-activation= and propagates only newly committed working-memory occurrences.
+
+The engine is still the authority for state. The network is an index over that state.
+
+** 11.5 Exercises
+*** ★ Explain the preserved work
+After adding one unrelated =(service-exit-code worker 2)= occurrence, list which parts of a two-condition dependency rule can remain cached. Why does a complete rematcher throw those results away?
+
+*** ★★ Build an equivalence assertion
+Write a helper that compares ordered activation keys from the oracle and incremental agenda after every mutation in a scenario. Make the failure print both network snapshot and current working-memory occurrence stamps.
+
+*** ★★★ Bypass the delta API on purpose
+Compile a network, mutate the engine's working memory directly, and demonstrate disagreement. Then repair the scenario by rebuilding the network. What API boundary should the later production application enforce so this cannot happen accidentally?
+
+* Chapter 12 -- Alpha Memories: Cache Local Evidence
+:PROPERTIES:
+:ID:       b6622680-7e3e-4d07-9131-d0df71937706
+:END:
+
+The first safe thing to cache is a result that depends on exactly one working-memory occurrence and one condition.
+
+For the condition:
+
+#+begin_example
+(service-state ?dependency failed)
+#+end_example
+
+we already know how to decide whether a fact matches. =match-condition= checks the relation, arity, literal =failed=, and repeated-variable constraints, returning the bindings produced by that one condition.
+
+An *alpha memory* in this milestone stores the working-memory occurrences that passed one such local condition plus those local bindings.
+
+** 12.1 Derive alpha memory from the old matcher
+Before caching, one condition match looks like:
+
+#+begin_src lisp
+(match-condition condition (wm-entry-fact entry))
+#+end_src
+
+Milestone C performs that operation once when the occurrence arrives. If it succeeds, the resulting =alpha-item= stores:
+
+#+begin_example
+entry    -> stable fact + assertion sequence
+bindings -> variables bound inside this condition
+#+end_example
+
+For our service fixture, the first production has two alpha memories:
+
+#+begin_example
+alpha 0: (service-state ?dependency failed)
+  obs.api.state.failed @ 1
+  local bindings: ((?dependency . api))
+
+alpha 1: (depends-on ?service ?dependency)
+  dep.frontend.api @ 4
+  local bindings: ((?service . frontend)
+                   (?dependency . api))
+#+end_example
+
+The degraded frontend observation does not enter alpha 0 because =degraded= is not the literal =failed=. The restart-policy and exit-code facts do not enter either memory because their relations differ.
+
+This is useful work even before a join exists: irrelevant facts stop participating in later cross-condition comparisons for this production.
+
+** 12.2 Alpha memory is not truth
+An alpha item says only:
+
+#+begin_quote
+This occurrence satisfies this one local condition.
+#+end_quote
+
+It does not say a production can fire. It does not say another condition has compatible bindings. It does not imply that the fact is credible, current in some external temporal sense, or sufficient for a diagnosis.
+
+That distinction matters once the real troubleshooting KB arrives. “systemd reports unit state =failed=” can be a sourced observation. “therefore restart it” is a separate rule, policy, authorization, and evidence question.
+
+** 12.3 Assertion path
+When a new occurrence is asserted through the incremental API, each alpha memory for each compiled production considers it locally. A successful item is appended in working-memory arrival order and immediately offered to the join at that condition position.
+
+The implementation deliberately does *not* share identical alpha tests across productions yet. A production-grade RETE implementation often seeks network sharing; this course milestone chooses explicit per-production ownership because it makes state and equivalence easier to inspect. Calling it RETE-like rather than “the RETE algorithm, complete” is part of the correctness contract.
+
+** 12.4 Retraction path
+Retraction is where occurrence identity pays rent.
+
+Suppose =obs.api.state.failed= at sequence 1 disappears. The network removes the exact =alpha-item= whose entry carries that occurrence. It does not remove another equal-content fact with a different stable ID, and it does not create a permanent tombstone that would suppress a later reassertion.
+
+After reassertion, the same stable ID might be sequence 8. That is a new alpha item and a new support stamp downstream.
+
+** 12.5 Debugging lab: local selectivity without a benchmark
+Use =incremental-network-snapshot= on the five-fact teaching fixture. For =rule.dependency-impact=, the expected alpha counts are =(1 1)=. If the first count becomes 2 after accidentally changing the literal condition to =(service-state ?dependency ?state)=, the snapshot tells you *where the semantic broadening occurred* before you stare at a terminal agenda.
+
+That is a correctness/debugging observation, not a performance result. We have not measured time, allocation, or scaling.
+
+** 12.6 Exercises
+*** ★ Read an alpha item
+Given =(pair api api)= and condition =(pair ?x ?x)=, state the local binding. Why must repeated-variable consistency be checked before the item enters memory?
+
+*** ★★ Add a local mismatch test
+Add an occurrence that has the correct relation and arity but the wrong literal. Assert it incrementally and prove both the alpha count and terminal agenda remain unchanged.
+
+*** ★★★ Design node sharing
+Two productions begin with identical condition =(service-state ?service failed)=. Sketch a shared alpha node/memory that fans out to two join chains. What ownership and retraction bookkeeping becomes harder than the milestone-C per-production design?
+
+* Chapter 13 -- Beta Memories: Remember Partial Explanations
+:PROPERTIES:
+:ID:       0df27964-0219-4601-a378-23ac9dab8024
+:END:
+
+Alpha memory answers local questions. A rule with two or ten conditions still needs to know which combinations are mutually consistent.
+
+The naive matcher solved that by recursive nested loops. It carried one binding environment and an ordered list of support fact IDs from condition to condition. A beta token simply makes that *partial recursive state* explicit and durable.
+
+** 13.1 The empty token is an identity element
+Every production network begins with =beta[0]= containing one token:
+
+#+begin_example
+bindings:       ()
+fact-ids:       ()
+support-stamps: ()
+#+end_example
+
+Joining this token with an item from alpha 0 gives exactly the first-condition partial match. This avoids a special “first condition” algorithm.
+
+The same choice also preserves an existing edge case. =match-conditions= with zero conditions yields one empty complete match. For an unconditional production, =beta[0]= is already the terminal memory, so the incremental network produces the same single activation candidate. The regression suite checks that odd-looking but declared behavior instead of silently changing it during optimization.
+
+** 13.2 A beta token is a partial explanation
+After joining the first condition of =rule.dependency-impact=:
+
+#+begin_example
+bindings:
+  ((?dependency . api))
+
+fact-ids:
+  ("obs.api.state.failed")
+
+support-stamps:
+  (("obs.api.state.failed" . 1))
+#+end_example
+
+This object is not merely an optimization cache. It already answers three explanation questions:
+
+- which evidence occurrences supported the partial match?
+- which variables are bound so far?
+- in which condition order were supports accumulated?
+
+Later truth-maintenance and explanation chapters will add durable justifications and derived-fact dependency edges. Beta tokens are not a substitute for that work, but the support identity they preserve is the bridge to it.
+
+** 13.3 Cross-condition bindings are joins, not magic
+The second alpha item locally knows:
+
+#+begin_example
+((?service . frontend)
+ (?dependency . api))
+#+end_example
+
+The left beta token already binds =?dependency= to =api=. The join merges the two environments using the *same consistency rule* derived in Chapter 6:
+
+- existing variable + equal value -> keep binding;
+- existing variable + unequal value -> reject pair;
+- new variable -> append binding.
+
+The result is:
+
+#+begin_example
+((?dependency . api)
+ (?service . frontend))
+#+end_example
+
+The important design choice is reuse. Milestone C does not invent “fast RETE equality” with subtly different semantics. =merge-binding-environments= delegates each pair to the same =extend-binding= rule that the naive matcher already trusts.
+
+** 13.4 Tokens are ordered because explanations are ordered
+The current condition language intentionally permits one fact occurrence to satisfy more than one condition if the shapes allow it. A production with:
+
+#+begin_example
+(pair ?x ?x)
+(pair ?x ?x)
+#+end_example
+
+can therefore produce a token whose support IDs are =(pair pair)= for one fact occurrence. This is not deduplicated as a set. Condition position is part of the explanation.
+
+If a later rule language needs an explicit distinctness constraint, we will add and test one. Optimization is not permission to smuggle such a constraint into the cache.
+
+** 13.5 Exercises
+*** ★ Trace the second beta memory
+Use the service fixture to write =beta[0]=, =beta[1]=, and =beta[2]= for =rule.dependency-impact=. Mark where =?service= first appears.
+
+*** ★★ Create a conflicting join
+Add =(depends-on frontend worker)= while the first token binds =?dependency= to =api=. Show why that alpha item remains valid locally but produces no beta[2] token with the API failure token.
+
+*** ★★★ Token-key audit
+The teaching implementation deduplicates tokens by ordered support stamps plus bindings. Construct two scenarios that have equal bindings but different support identities. Explain why collapsing them would destroy provenance and later truth-maintenance correctness.
+
+* Chapter 14 -- Join Nodes, Production Nodes, and Delta Propagation
+:PROPERTIES:
+:ID:       2e82a7a1-bb86-44cc-ab3d-0359fd80a8b0
+:END:
+
+We now have both sides of the incremental operation:
+
+#+begin_example
+left:  retained beta tokens
+right: newly or previously accepted alpha items
+#+end_example
+
+A join node connects one beta depth to one alpha condition and writes compatible extensions into the next beta memory.
+
+#+caption: Milestone-C positive-pattern network. Solid edges show assertion propagation; dashed edges emphasize occurrence-based retraction invalidation. The exact topology is course-local and deliberately simpler than a full production RETE implementation.
+#+attr_html: :alt Working-memory assertion and retraction deltas feed two local alpha memories, then ordered beta joins extend an empty token into a complete production token before existing agenda and refraction policy; retraction removes dependent tokens by support occurrence.
+[[file:assets/rete-positive.svg]]
+
+** 14.1 Assertion can arrive from either side
+There are two ways a previously impossible combination can become possible:
+
+1. a new alpha item arrives for condition =i= and joins every existing token in =beta[i]=;
+2. a new beta token reaches depth =i= and joins every existing item in alpha memory =i=.
+
+The implementation handles both paths.
+
+When an asserted fact satisfies an early condition, its new token recursively propagates rightward across alpha items that were already cached. When an asserted fact satisfies a later condition, the new alpha item joins left-side partial tokens that were waiting for it.
+
+This symmetry is the heart of incremental join maintenance. The engine no longer needs to rediscover old local matches merely because the other side changed.
+
+** 14.2 Production nodes do not get a second agenda policy
+A complete token reaches the terminal beta memory. =production-node= associates that memory with one production. Turning the token into an =activation= reuses the milestone-B fields:
+
+- production;
+- bindings;
+- ordered support fact IDs;
+- support occurrence stamps;
+- recency computed from those stamps;
+- the same structural-specificity function;
+- the same activation/refraction key.
+
+Then =incremental-agenda= filters through the engine's existing refraction set and sorts with =activation-precedes-p=.
+
+That reuse is deliberate. “Incremental matching” and “new conflict-resolution semantics” would be two changes at once, making disagreement harder to diagnose.
+
+** 14.3 Retraction is dependency deletion, not reverse matching
+When occurrence =("obs.api.state.failed" . 1)= is retracted, we already know which cached objects cite it. Milestone C removes:
+
+- alpha items whose =wm-entry= is that exact occurrence;
+- every beta token at depth greater than zero whose ordered support stamps contain that exact pair.
+
+Because downstream tokens contain the complete support prefix, this deletion cascades through the cached join results without recomputing unrelated matches.
+
+What it does *not* remove is already-derived working-memory content created by a fired activation. That remains the known Chapter-10 failure which truth maintenance will fix later. Match-cache invalidation and truth maintenance are related dependency problems, but they are not the same layer.
+
+** 14.4 Assertion trace
+Start with the five synthetic facts. The first production network reaches:
+
+#+begin_example
+alpha counts: (1 1)
+beta counts:  (1 1 1)
+terminal token supports:
+  obs.api.state.failed @ 1
+  dep.frontend.api     @ 4
+#+end_example
+
+Fire the activation. The existing engine commits =derived.dependency-impact.frontend.api= as occurrence 6, appends the firing record, and marks the original activation key refracted.
+
+The incremental wrapper observes only entries newer than the pre-fire sequence and propagates occurrence 6. It matches the first condition of the second production, extends its join chain with the already-cached degraded frontend occurrence, and creates the downstream activation.
+
+At this point the regression performs an important check:
+
+#+begin_example
+complete-rematch agenda keys == incremental agenda keys
+#+end_example
+
+The old matcher remains live as an oracle during the optimization milestone.
+
+** 14.5 Retraction/reassertion trace
+Now take a simpler two-condition rule and occurrences:
+
+#+begin_example
+state   @ 1
+restart @ 2
+#+end_example
+
+The terminal token supports =(state@1 restart@2)=.
+
+Retract =state=. Alpha 0 loses its item; beta tokens containing =state@1= disappear; the terminal activation disappears.
+
+Reassert the same stable fact ID. Working memory assigns =state@3=. A new alpha item joins the retained restart evidence and produces support:
+
+#+begin_example
+state   @ 3
+restart @ 2
+#+end_example
+
+The stable evidence identity is familiar, but the activation key is new. This is exactly the occurrence-aware refraction behavior Chapter 10 specified.
+
+** 14.6 Failure lab: delete only the terminal token
+Implement retraction incorrectly by removing a terminal token but leaving its dependent intermediate token in =beta[1]=. Then add a compatible later-condition fact. The stale prefix can resurrect an activation whose support occurrence is no longer in working memory.
+
+The correct invariant is stronger:
+
+#+begin_quote
+No cached beta token may cite a working-memory occurrence that is absent.
+#+end_quote
+
+That invariant becomes a useful assertion for future randomized/property tests.
+
+** 14.7 Exercises
+*** ★ Identify the two propagation directions
+For a three-condition rule, explain what happens when a new fact matches condition 1 versus condition 3.
+
+*** ★★ Add an invariant checker
+Walk every beta token and verify each support stamp resolves to the same current working-memory occurrence. Run it after assert, retract, and reassert transitions.
+
+*** ★★★ Instrument work without claiming speed
+Add counters for alpha tests and join attempts to both engines. Do not time them yet. Construct a fixed scenario and report the *operation counts* only after the test freezes exactly what each counter means. Why is that still different from a performance benchmark?
+
+* Chapter 15 -- A RETE-like Network, Precisely Scoped
+:PROPERTIES:
+:ID:       6010535e-d63d-427c-8a7b-174e52d7d945
+:END:
+
+We have now crossed the conceptual boundary that motivated these chapters: matching state persists across working-memory changes.
+
+The milestone-C network has:
+
+- local alpha memories;
+- partial-match beta memories;
+- explicit join nodes;
+- support-carrying tokens;
+- terminal production nodes;
+- assertion propagation;
+- retraction invalidation;
+- activations connected back to the existing agenda/refraction policy.
+
+That architecture belongs to the RETE lineage [cite:@forgy1982rete]. The current CLIPS documentation independently confirms the maintained high-level model of a preconstructed pattern network, pattern-entity filtering, partial rule instantiation, sequential binding checks, and agenda activation when all patterns are satisfied [cite:@clips642bpg].
+
+But a serious technical book must also say what it has *not* implemented.
+
+** 15.1 Why the name is RETE-like
+This milestone intentionally omits or simplifies features that would make “this is RETE” an overclaim:
+
+- identical alpha tests are not shared across productions;
+- the condition language is still only positive patterns from milestone A;
+- there are no negative, existential, universal, test, or logical conditional elements;
+- there is no separate rule-compilation optimizer;
+- production additions/removals after network construction are unsupported;
+- there is no truth-maintenance deletion of already-derived facts;
+- there is no persistence or concurrent update protocol;
+- there is no measured memory/time comparison;
+- it does not claim CLIPS's internal node layout or implementation choices.
+
+The educational win is that every retained object has a reason the reader already encountered in the naive engine.
+
+** 15.2 Network construction and seeding
+=make-incremental-network= takes an existing =engine=. It creates one production network per current production, creates alpha memories and a beta chain for the ordered positive conditions, places one empty token in =beta[0]=, then replays current working-memory *entries* in assertion order through the empty caches.
+
+Replaying entries during construction is a bootstrap operation. After construction, deltas use the incremental assertion/retraction interface.
+
+This design gives us a clean testing trick: build an engine from arbitrary initial facts, compile the incremental network, and immediately compare both agenda builders before any mutation. A disagreement at time zero points to compilation/seeding. A disagreement only after a delta points to propagation/invalidation.
+
+** 15.3 The semantic-equivalence matrix
+The milestone regression suite covers more than the happy path:
+
+| Scenario | What must agree |
+|----------+-----------------|
+| Initial synthetic service facts | ordered activation keys |
+| Add missing second-condition fact | new complete activation |
+| Retract a support occurrence | activation disappears |
+| Reassert same stable ID | new occurrence stamp/key |
+| One fact satisfies two conditions | duplicate positional support retained |
+| Empty production LHS | one empty activation candidate |
+| Fire first service rule | downstream activation after derived fact |
+| Run two-step scenario to completion | status, firing count/order, final fact IDs |
+
+The table is a contract, not a proof for every possible production program. The rule language is finite but the space of working-memory histories is large. Later hardening can add generated histories and invariant/property tests. For this milestone, the bounded equivalence suite is explicit evidence for the scenarios it actually executes.
+
+** 15.4 Debugging from terminal activation backward
+When the incremental and oracle agendas disagree, debug right-to-left:
+
+1. Compare terminal activation keys.
+2. Inspect final beta-token supports and bindings.
+3. Find the earliest beta depth whose token sets differ.
+4. Inspect the join's left tokens and right alpha items.
+5. Confirm the relevant alpha condition and local bindings.
+6. Confirm the underlying =wm-entry= still exists with the same occurrence sequence.
+7. Only then inspect agenda sorting/refraction if the activation sets are equal but order differs.
+
+This procedure prevents a common failure mode in rule-engine debugging: blaming “RETE” when the actual defect is an upstream malformed fact, a stale occurrence, or a rule condition that was broader than intended.
+
+** 15.5 What optimization did not solve
+Run the service chain to quiescence, then retract =obs.api.state.failed=. The matching network correctly removes activation/token state that depended on that occurrence. But the derived =dependency-impact= and =needs-investigation= facts remain asserted.
+
+We can now state the next requirement sharply:
+
+#+begin_quote
+When a derived fact exists only because of justifications whose supports are no longer valid, the system needs a maintained dependency model for derived knowledge, not merely a maintained pattern-match cache.
+#+end_quote
+
+That is Chapter 17's truth-maintenance problem. Chapter 16 first compares the design pressure behind TREAT and alternatives without changing this milestone's accepted engine. We will not “fix” stale derived knowledge by stuffing ad-hoc deletes into RETE nodes; that would entangle matching and belief/justification semantics before either can be tested independently.
+
+** 15.6 Project 1 checkpoint C
+The runnable milestone now adds, subject to exact CI verification:
+
+- =incremental.lisp= -- alpha items/memories, beta tokens/memories, joins, production nodes, delta propagation, incremental agenda, inspection snapshot, and incremental recognize/act loop;
+- =incremental-tests.lisp= -- explicit semantic-equivalence and cache-behavior regressions against the complete-rematch oracle;
+- =assets/rete-positive.dot= plus rendered SVG -- editable positive-network and retraction-flow diagram;
+- =research/foundations-03.org= -- source-backed boundary for incremental matching and RETE terminology.
+
+The milestone is not editorially complete merely because code exists. The worker state becomes TESTED only after the focused book workflow observes the Common Lisp regressions, diagram validation, book build/check, EPUB validation, and Nix gate on the exact branch head. Final APPROVED/DONE remain Editor-in-Chief states.
+
+** 15.7 Exercises
+*** ★ Name the layers
+For each object—=wm-entry=, alpha item, beta token, activation, firing record—state what it knows and what it deliberately does not know.
+
+*** ★★ Explain an agenda mismatch
+Suppose oracle and incremental activation sets are equal but ordering differs. Which milestone-B fields and comparator should you inspect before touching matching code?
+
+*** ★★★ Add generated histories
+Generate short deterministic histories containing assertions, retractions, and reassertions over a bounded fact vocabulary. After each legal mutation compare oracle and incremental activation keys. Shrink a failing history by deleting operations while preserving the failure.
+
+*** ★★★ Prepare truth maintenance
+Extend the trace format on paper—not the engine yet—with a =justification-id= for each derived assertion. Show how the two service firings would form a dependency chain from source occurrences to =needs-investigation=. Which objects must survive after an activation has left the agenda?
+
+* Project 1 -- Progressive Inference Engine, Milestone C
+:PROPERTIES:
+:ID:       878f41a4-0766-49ae-bf38-3b12a5700694
+:END:
+
+Status: DRAFT/VERIFY until exact-head workflows execute successfully.
+
+Milestone C changes the implementation strategy for the existing positive-pattern semantics. It does not widen the rule language or claim measured performance. Its gate is semantic equivalence with the complete-rematch oracle across the declared regression scenarios, plus direct inspection tests for cached alpha/beta state and retraction behavior.
+
+The next dependency after editorial acceptance is not “more RETE polish.” It is the explicitly deferred reasoning layer: truth maintenance with stable justifications/support dependency identity, followed by contradiction/counterevidence and explanation work. TREAT/alternative matching belongs in comparative architecture material and must not silently replace the accepted engine without its own evidence.

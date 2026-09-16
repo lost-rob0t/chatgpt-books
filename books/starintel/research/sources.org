@@ -15,8 +15,17 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Authority :: Current implementation repository for the Common Lisp StarIntel backend service.
 - Inspected at the full ingest snapshot :: README; ASDF load graph; v0.9 runtime/document docs; architecture; active HTTP authorization runtime; HTTP boundary/authorization/publish source; producer/actor publish path; active Rabbit consumer/retry path; CouchDB outbox; consumer tests; canonical test systems; messaging documentation.
 - Rechecked at =d48fa939...= :: commit delta from =d4e8447...=; =source/ids.lisp=; =source/runtime-lifecycle.lisp=; =source/consumers/retry-policy.lisp=; =source/starintel-gserver.asd=; the merged #187/#188 quarantine failure/repair delta.
-- Rechecked at current head :: merge delta from =d48fa939...=; =source/frontends/http-bulk-jobs.lisp=; issue #189 / PR #190 terminal bulk-job payload-lifetime repair.
-- Used by :: Chapters 1--6, 8--9, 14 and debugging material; Projects 1--2 and the two book-side failure-analysis labs. Later actor/search/deployment chapters must recheck current head.
+- Rechecked at current head :: merge delta from =d48fa939...=; =source/frontends/http-bulk-jobs.lisp=; issue #189 / PR #190 terminal bulk-job payload-lifetime repair; =scripts/stack-test.sh= and current disposable Compose-stack lifecycle used by Service Trace Pass 05.
+- Used by :: Chapters 1--6, 8--9, 14 and debugging material; Projects 1--2 and book-side failure-analysis/service-trace labs. Later actor/search/deployment chapters must recheck current head.
+
+** StarIntel Server disposable stack harness
+- URL :: https://github.com/lost-rob0t/starintel-server/blob/1ac298b797bd4bc0e71cfde083c6a59af55ccc6f/scripts/stack-test.sh
+- Revision :: =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=
+- Retrieved :: 2026-09-16
+- Authority :: Current upstream integration harness for the Nix-built authenticated StarIntel Compose stack.
+- Inspected :: temporary credential/port setup, image loading, Compose validation/start, administrator bootstrap, authorization/search checks, stack restart, persistence checks, diagnostics, final success boundary, and teardown. The script's search fixtures are inserted directly into CouchDB, which is why the book adds a separate valid HTTP-ingest/read-back probe rather than treating the upstream stack test as Project 2's missing end-to-end evidence.
+- Used by :: Service Trace Pass 05 and the Project 2 real-stack debugging lab.
+- Evidence status :: harness behavior is DOCUMENTED from current source. Any baseline/fault/recovery result remains UNTESTED until the book workflow actually executes the pinned harness plus probe.
 
 ** StarIntel Server issue #187 -- concurrent quarantine ID collision
 - URL :: https://github.com/lost-rob0t/starintel-server/issues/187

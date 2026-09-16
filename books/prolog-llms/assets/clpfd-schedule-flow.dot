@@ -1,0 +1,22 @@
+digraph clpfd_schedule_flow {
+  graph [rankdir=LR, bgcolor="transparent", pad="0.2", nodesep="0.45", ranksep="0.65"];
+  node [shape=box, style="rounded", fontname="DejaVu Sans", fontsize=11, margin="0.12,0.08"];
+  edge [fontname="DejaVu Sans", fontsize=10];
+
+  requirements [label="Scheduling requirements\nprecedence + release time\n+ one shared verifier"];
+  variables [label="Finite-domain start variables\nStarts ins 0..12"];
+  constraints [label="Core relation\nschedule_constraints/2\nposts #>=, #=<, #\\/ constraints"];
+  residual [label="Propagation / residual state\nvariables may remain unbound\nwith narrower feasible domains"];
+  labeling [label="Explicit search boundary\nlabeling([ffc,min(Makespan)], Starts)"];
+  solution [label="Ground schedule\nfirst committed minimum\nonly in first_minimum_schedule/2"];
+  reified [label="Reified evidence\n(Makespan #> Deadline) #<==> Late\nLate is 0 or 1"];
+
+  requirements -> variables;
+  variables -> constraints;
+  constraints -> residual [label="propagate"];
+  residual -> labeling [label="choose search policy"];
+  labeling -> solution [label="enumerate / optimize"];
+  solution -> reified [label="derive explicit data"];
+
+  residual -> constraints [label="add another constraint", dir=back];
+}
