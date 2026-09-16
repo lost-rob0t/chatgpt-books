@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
+PROJECT="$ROOT/books/lfe/code/actor-router"
+EVENT_RULES="$ROOT/books/lfe/code/event-rules/src/event-rules.lfe"
+BUILD="$PROJECT/.build"
+
+command -v lfec >/dev/null || { echo "lfec is required" >&2; exit 2; }
+command -v erl >/dev/null || { echo "erl is required" >&2; exit 2; }
+
+rm -rf "$BUILD"
+mkdir -p "$BUILD"
+
+lfec -o "$BUILD" \
+  "$EVENT_RULES" \
+  "$PROJECT/src/actor-router.lfe" \
+  "$PROJECT/test/actor-router-tests.lfe"
+
+erl -pa "$BUILD" -noshell -eval '
+  case '\''actor-router-tests'\'':run() of
+    ok -> halt(0);
+    Other -> io:format("actor-router-tests returned ~p~n", [Other]), halt(1)
+  end.'
+
+# Cross-language process smoke: Erlang starts the LFE actor, performs a normal
+# request/reply call, then monitors a second actor through an intentional crash.
+erl -pa "$BUILD" -noshell -eval '
+  Rules = [{ '\''when-level'\'', critical, pager }],
+  Event = {event, critical, edge, <<"disk full">>},
+  Pid = '\''actor-router'\'':start(Rules),
+  {ok, pager} = '\''actor-router'\'':route(Pid, Event, 1000),
+  ok = '\''actor-router'\'':stop(Pid, 1000),
+  CrashPid = '\''actor-router'\'':start(Rules),
+  Ref = erlang:monitor(process, CrashPid),
+  ok = '\''actor-router'\'':crash(CrashPid, boom),
+  receive
+    {'\''DOWN'\'', Ref, process, CrashPid, boom} -> halt(0)
+  after 1000 ->
+    io:format("monitor did not observe actor crash~n", []),
+    halt(1)
+  end.'
+
+echo "actor-router: routing, correlation, state transition, ordering, timeout, stop, crash monitor, and Erlang interop passed"
