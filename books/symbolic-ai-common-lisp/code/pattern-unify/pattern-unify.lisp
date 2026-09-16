@@ -116,8 +116,11 @@ match. The result status is :MATCHED or :FAILED."
     (multiple-value-bind (result-bindings ok reason left right)
         (match* pattern datum bindings)
       (if ok
+          ;; Matcher right-hand sides are literal datum.  Do not feed them
+          ;; through unifier substitution semantics merely because a datum
+          ;; happens to have the reserved (:VAR NAME) shape.
           (make-match-result :status :matched
-                             :bindings (normalize-substitution result-bindings))
+                             :bindings result-bindings)
           (make-match-result :status :failed
                              :bindings bindings
                              :reason reason
