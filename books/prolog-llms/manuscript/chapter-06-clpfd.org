@@ -1,0 +1,435 @@
+* Project 1 Lab -- Constraint Scheduling Before Models
+:PROPERTIES:
+:ID:       ecd75c0b-f5ec-434f-ba2a-b1fe81d0fac4
+:END:
+
+The parser checkpoint ended with a clean boundary: external-ish tokens become a
+closed data term, and only an explicit dispatcher can turn that term into a
+symbolic query.  We still have one important gap before a model belongs anywhere
+near this system.  Some useful questions are not ordinary fact lookup at all.
+They are *constraint problems*.
+
+Suppose Project 1 must schedule a small verification pipeline.  Five jobs have
+integer durations and precedence requirements.  Two of the jobs need the same
+single-capacity verifier, so they cannot overlap.  One job cannot start before a
+release time.  We want to reason about feasible schedules and then, separately,
+search for one with a small makespan.
+
+A procedural instinct says: generate candidate start times, check them, reject
+bad schedules, and remember the best one seen so far.  That works as an
+algorithmic pattern, but it hides the relation we actually care about.  The
+CLP(FD) approach lets us state integer domains and relationships among unknown
+starts *before* choosing concrete values.
+
+Current SWI-Prolog documents =library(clpfd)= as constraint logic programming
+over finite domains and explicitly names scheduling, planning, and allocation
+as combinatorial use cases [cite:@swi-clpfd].  The library also keeps two ideas
+that beginners often accidentally collapse into one:
+
+1. *post constraints and propagate information*;
+2. *search/enumerate concrete values*.
+
+This lab derives that split from the scheduling problem.  No LLM is involved.
+
+** The worksheet is not a new knowledge-base truth
+
+The accepted =task_solver.pl= fixture describes tasks, owners, statuses, tags,
+and dependencies.  We do not mutate it to smuggle scheduling assumptions into
+those facts.  Instead, =task_schedule.pl= is a separate synthetic worksheet for
+one exercise:
+
+#+begin_example
+job                 duration    extra requirement
+collect_sources        2        --
+normalize_terms        2        after collect_sources
+validate_schema        2        after normalize_terms
+verify_provenance      3        after normalize_terms; start >= 5
+publish_report         1        after both verification jobs
+#+end_example
+
+=validate_schema= and =verify_provenance= share one verifier.  Their execution
+intervals may therefore appear in either order, but they may not overlap.
+
+This separation matters later.  A model may eventually *propose* a scheduling
+request, but it should not silently rewrite the trusted task fixture merely
+because the request mentions a task name.  Domain facts, scheduling assumptions,
+and a candidate solution are three different kinds of information.
+
+** Start with unknown integers, not nested loops
+
+Represent the schedule as inspectable data:
+
+#+begin_src prolog
+[ slot(collect_sources, Collect, 2),
+  slot(normalize_terms, Normalize, 2),
+  slot(validate_schema, Validate, 2),
+  slot(verify_provenance, Verify, 3),
+  slot(publish_report, Publish, 1)
+]
+#+end_src
+
+The five start positions are logical variables.  The first finite-domain
+statement is:
+
+#+begin_src prolog
+Starts = [Collect, Normalize, Validate, Verify, Publish],
+Starts ins 0..12.
+#+end_src
+
+The =ins/2= call does not choose five integers.  It constrains each variable to
+a finite set of possible integers.  Current SWI documentation classifies
+=in/2= and =ins/2= as membership constraints, separately from enumeration
+predicates such as =labeling/2= [cite:@swi-clpfd].
+
+That distinction is the first important mechanism.  We can ask Prolog to carry
+an unknown integer with a domain and accumulate more information about it.  A
+concrete start time is a later decision.
+
+** Derive precedence as inequalities
+
+If collection takes two time units and normalization must happen afterward,
+then the requirement is not “run normalization second.”  It is this relation:
+
+#+begin_src prolog
+Normalize #>= Collect + 2.
+#+end_src
+
+Likewise:
+
+#+begin_src prolog
+Validate #>= Normalize + 2,
+Verify   #>= Normalize + 2,
+Verify   #>= 5,
+Publish  #>= Validate + 2,
+Publish  #>= Verify + 3.
+#+end_src
+
+These are ordinary constraints over integer variables.  Nothing in them says
+which variable should be guessed first.  Search order is deliberately absent
+from the core model.
+
+The final job takes one unit, so the worksheet relates makespan to its start:
+
+#+begin_src prolog
+Makespan #= Publish + 1.
+#+end_src
+
+This is already useful before enumeration.  Adding one constraint can narrow
+other domains through propagation.  The exact residual domains are runtime
+behavior to inspect in a real REPL rather than a transcript we invent in prose.
+The important contract is simpler: after =schedule_constraints/2= succeeds,
+the start variables may still be unbound.  The milestone test checks that
+search has not been hidden inside the modeling predicate.
+
+#+caption: Project 1 keeps constraint posting/propagation separate from the explicit labeling search that grounds a schedule.
+#+attr_html: :alt Scheduling requirements become finite-domain start variables and arithmetic or Boolean constraints. Propagation may narrow domains while variables remain unbound. A separate labeling step chooses a search policy and grounds the schedule. A reified deadline constraint can then expose a zero-or-one data value.
+[[file:assets/clpfd-schedule-flow.svg]]
+
+** A shared resource becomes an either-or relation
+
+The verifier can perform only one verification job at a time.  Let job A have
+start =SA= and duration =DA=; let B have =SB= and =DB=.  Non-overlap means one
+of two interval orders is true:
+
+#+begin_example
+A ends before B starts
+OR
+B ends before A starts
+#+end_example
+
+In CLP(FD) notation:
+
+#+begin_src prolog
+(SA + DA #=< SB) #\/
+(SB + DB #=< SA).
+#+end_src
+
+The canonical worksheet packages exactly that relation:
+
+#+begin_src prolog
+nonoverlap(StartA, DurationA, StartB, DurationB) :-
+    (StartA + DurationA #=< StartB) #\/
+    (StartB + DurationB #=< StartA).
+#+end_src
+
+Notice what we did *not* write.  There is no procedural “if A happens first,
+then...” branch that commits to an order.  The disjunction preserves both
+orders as possibilities.  Later search determines which assignments survive
+all constraints.
+
+Current SWI also provides higher-level/global constraints useful for richer
+scheduling models [cite:@swi-clpfd].  We derive the two-job case explicitly
+because seeing the disjunction makes the resource semantics inspectable.  This
+is not a claim that pairwise non-overlap is the best representation for a large
+production scheduler.
+
+** The core relation stops before search
+
+The heart of the implementation is therefore boring in the good way:
+
+#+begin_src prolog
+schedule_constraints(Schedule, Makespan) :-
+    Schedule = [ slot(collect_sources, Collect, 2),
+                 slot(normalize_terms, Normalize, 2),
+                 slot(validate_schema, Validate, 2),
+                 slot(verify_provenance, Verify, 3),
+                 slot(publish_report, Publish, 1)
+               ],
+    Starts = [Collect, Normalize, Validate, Verify, Publish],
+    Starts ins 0..12,
+    Normalize #>= Collect + 2,
+    Validate  #>= Normalize + 2,
+    Verify    #>= Normalize + 2,
+    Verify    #>= 5,
+    Publish   #>= Validate + 2,
+    Publish   #>= Verify + 3,
+    nonoverlap(Validate, 2, Verify, 3),
+    Makespan #= Publish + 1.
+#+end_src
+
+This is the relation we want to understand independently of any search
+heuristic.  The current SWI manual explicitly recommends separating a core
+constraint relation from =labeling/2= so search options can be changed without
+rewriting the model [cite:@swi-clpfd].
+
+This separation also gives us a better debugging question.  If a schedule is
+impossible, first ask whether the *constraints* contradict each other.  If the
+relation is satisfiable but search is slow, then inspect the *labeling policy*.
+Those are different failures.
+
+** Labeling turns constrained variables into concrete schedules
+
+=labeling/2= systematically enumerates finite-domain variables.  Its options
+choose search behavior; they do not change what counts as a schedule satisfying
+the posted constraints [cite:@swi-clpfd].
+
+For this tiny fixture the teaching wrapper uses:
+
+#+begin_src prolog
+labeling([ffc, min(Makespan)], Starts)
+#+end_src
+
+The =ffc= option is a variable-selection strategy.  =min(Makespan)= orders
+solutions by increasing objective value according to current SWI semantics
+[cite:@swi-clpfd].  We should keep those roles conceptually separate:
+
+- precedence/resource/domain constraints define *feasibility*;
+- =ffc= is a *search policy*;
+- =min(Makespan)= is an *enumeration order by objective*.
+
+A subtle API trap appears here.  Calling a predicate =optimal_schedule/2= and
+then allowing unrestricted backtracking would suggest every answer is optimal.
+But optimization labeling can continue to enumerate later objective values.
+Project 1 therefore makes commitment visible in the name:
+
+#+begin_src prolog
+first_minimum_schedule(Schedule, Makespan) :-
+    schedule_constraints(Schedule, Makespan),
+    schedule_starts(Schedule, Starts),
+    once(labeling([ffc, min(Makespan)], Starts)).
+#+end_src
+
+The current SWI manual explicitly notes =once/1= as a way to keep the first
+optimal solution while also warning that retaining alternative optimal
+solutions can be valuable [cite:@swi-clpfd].  Chapter 4 already taught what
+=once/1= means: this wrapper is a deliberate first-answer boundary, not a
+mathematical theorem that only one optimal schedule exists.
+
+** Work the minimum by hand before trusting the solver
+
+We can derive the expected lower bound without executing anything.
+
+The earliest collection can start is 0, so the earliest normalization can start
+is 2 and end at 4.  Validation can then start at 4 and occupies the verifier
+until 6.  Provenance verification cannot start before 5 *and* cannot overlap
+validation, so in the schema-first order its earliest start is 6; it ends at 9.
+Publication can then start at 9 and end at 10.
+
+That gives one candidate:
+
+#+begin_example
+collect_sources       0..2
+normalize_terms       2..4
+validate_schema       4..6
+verify_provenance     6..9
+publish_report        9..10
+makespan              10
+#+end_example
+
+Now reverse the shared-resource jobs.  Provenance verification cannot begin
+before 5, so an earliest provenance-first layout is =5..8=.  Validation can
+then run =8..10=, publication =10..11=, and makespan is 11.
+
+This hand derivation is not a substitute for an executable regression.  It is
+the oracle we expect the test to confirm.  Until the exact branch suite runs,
+the repository labels the implementation result UNTESTED rather than pretending
+this page executed Prolog by being rendered.
+
+** Reification turns a constraint into explicit data
+
+Soon the book will cross a typed model boundary.  That boundary will need data
+such as “this candidate misses the deadline,” not arbitrary executable goal
+strings.  CLP(FD) gives us a small preview of how logical conditions can become
+values.
+
+Current SWI documentation defines *reification* as reflecting the truth of a
+reifiable constraint into Boolean finite-domain values 0 and 1
+[cite:@swi-clpfd].  Project 1 exposes:
+
+#+begin_src prolog
+deadline_flag(Makespan, Deadline, Late) :-
+    Late in 0..1,
+    (Makespan #> Deadline) #<==> Late.
+#+end_src
+
+If the schedule finishes after the deadline, =Late= must be 1; otherwise it must
+be 0.  The Boolean is still derived by a symbolic relation.  A later serializer
+can carry that value across a process/API boundary without granting the receiver
+permission to invoke =#>/2= itself.
+
+This is one of the recurring patterns of the book:
+
+#+begin_example
+trusted symbolic relation
+        -> typed result data
+        -> external component may observe the data
+#+end_example
+
+not:
+
+#+begin_example
+external component invents a goal string
+        -> runtime executes it
+#+end_example
+
+The 2012 primary solver paper also discusses reification as a central part of
+the implementation it presented [cite:@triska-clpfd-2012].  Its historical
+performance measurements are not evidence about this book's current runtime;
+we use the paper for mechanism/history, not borrowed benchmark numbers.
+
+** Failure lab -- make the model contradict itself
+
+Failure labs should distinguish unsatisfiable constraints from ordinary query
+failure and from slow search.
+
+*** Force an overlap
+
+Take the canonical relation and additionally require:
+
+#+begin_src prolog
+Validate #= 4,
+Verify #= 5.
+#+end_src
+
+Validation would occupy =4..6= and provenance verification =5..8=.  Their
+intervals overlap, violating both sides of the non-overlap disjunction.  The
+milestone test expects the relation to fail.
+
+Do not “fix” this by changing the labeling heuristic.  A different search order
+cannot make contradictory resource constraints feasible.
+
+*** Force the slower order
+
+Instead require the concrete starts:
+
+#+begin_example
+collect_sources       0
+normalize_terms       2
+verify_provenance     5
+validate_schema       8
+publish_report       10
+#+end_example
+
+This is meant to be feasible but slower, with makespan 11.  That distinction is
+important: “not minimum” is not the same result as “invalid.”
+
+*** Hide search inside the relation
+
+A tempting refactor is to put =labeling/2= directly at the end of
+=schedule_constraints/2=.  It makes demos look convenient, but it destroys a
+valuable interface.  Callers can no longer inspect or extend the constraint
+relation before enumeration, and tests cannot separate propagation/modeling
+from search.
+
+If you try this in a scratch copy, name the resulting predicate differently.
+Interface names should tell readers whether they are getting a relation over
+constrained variables or a generator of ground schedules.
+
+*** Confuse is/2 with #=/2
+
+Replace one relational arithmetic constraint with =is/2= while its right-hand
+side still contains an unbound start variable.  Predict whether you expect
+logical failure or an instantiation error, then run the scratch experiment.
+The reason CLP(FD) matters here is not different punctuation; it is that the
+arithmetic relation can constrain unknown integers instead of demanding an
+already evaluable expression.  The current SWI CLP(FD) manual makes this
+relational arithmetic distinction explicit [cite:@swi-clpfd].
+
+** Tests as a contract for the mechanism
+
+The new PL-Unit group is intentionally small and high-signal.  It requires:
+
+- =schedule_constraints/2= to succeed while start variables remain unbound,
+  proving the core relation did not silently perform labeling;
+- the first committed minimum schedule to match the hand-derived fixture and
+  makespan exactly;
+- a concrete overlapping shared-resource assignment to fail;
+- the reverse resource order to remain feasible with its larger expected
+  makespan;
+- deadline reification to produce 0 at the deadline and 1 after it;
+- the top-level runner to refuse a green exit if the named scheduling test unit
+  was not loaded.
+
+Every earlier Project 1 suite remains in the same runner.  A constraint
+milestone does not get to regress the parser, recursion, provenance, module,
+or unification contracts that made the system trustworthy enough to extend.
+
+** Exercises
+
+1. *Separate model and search.*  Remove =first_minimum_schedule/2= from your
+   mental model.  Which clauses still define schedule feasibility?  Which line
+   is purely search policy?
+2. *Alternative optimum.*  Modify a scratch fixture so two distinct schedules
+   have the same minimum makespan.  Enumerate them without =once/1=.  Explain
+   why returning both can be useful.
+3. *Add a release time.*  Give =validate_schema= a release time of 7.  Derive a
+   new lower bound by hand before running the tests.
+4. *Add a second resource.*  Introduce one more job that shares only the
+   collection resource.  Write the non-overlap relation explicitly first;
+   investigate a higher-level scheduling constraint only after the semantics
+   are clear.
+5. *Inspect residual domains.*  At the SWI top level, call the core relation
+   without labeling and inspect the residual constraints/domains it prints.
+   Add one equality such as =Collect #= 3= and observe which domains narrow.
+   Do not copy a made-up transcript into notes; record the runtime you actually
+   used.
+6. *Reify a service-level objective.*  Define =OnTime #<==> (Makespan #=< 10)=
+   and compare it with the existing =Late= flag.  Which representation would
+   make a later JSON/schema boundary easiest to review?
+7. *Counterexample to a heuristic myth.*  Change =ffc= to another documented
+   labeling strategy on this tiny fixture.  Does the set of feasible schedules
+   change?  If it does, you changed more than search policy.  If only order/work
+   changes, explain why that is the expected distinction.
+8. *Permission boundary.*  Suppose a future model returns the atom =ffc=.  Why
+   should that not automatically become a labeling option?  Design a closed
+   data vocabulary for permitted search policies and an explicit translator
+   owned by trusted code.
+
+** What this adds to the standalone foundation
+
+After the exact milestone tests pass, Project 1 will have exercised another
+kind of relational thinking: not merely querying facts and recursive rules, but
+maintaining partially known integer values under constraints and delaying
+search until the model is ready.
+
+The next missing foundation is meta-programming.  We now have two useful
+contrasts ready for that lesson:
+
+- the DCG parser emits a *data term* and an explicit dispatcher chooses among a
+  closed set of operations;
+- the CLP(FD) layer emits/accepts *constraint data and typed values* without
+  accepting a model-produced predicate name or search option as authority.
+
+Only after we can explain =call/N=, predicate indicators, term decomposition,
+and reflection without blurring those boundaries should Project 2 attach an
+actual language model.
