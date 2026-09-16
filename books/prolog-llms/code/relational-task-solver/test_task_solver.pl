@@ -18,24 +18,31 @@ test(shared_variable_joins_relations) :-
             Tasks),
     assertion(Tasks == [collect_sources, check_constraints]).
 
-test(list_relation_finds_tag) :-
-    has_tag(write_explanation, explanation).
+test(list_relation_finds_tag_once) :-
+    findall(true,
+            has_tag(write_explanation, explanation),
+            Matches),
+    assertion(Matches == [true]).
 
 test(active_tasks_are_relational) :-
     setof(Task, owned_active_task(lina, Task),
           [publish_report, write_explanation]).
 
-test(direct_dependency_path) :-
-    dependency_path(normalize_terms, collect_sources, Path),
-    assertion(Path == [normalize_terms, collect_sources]).
+test(direct_dependency_path_is_unique_in_fixture) :-
+    findall(Path,
+            dependency_path(normalize_terms, collect_sources, Path),
+            Paths),
+    assertion(Paths == [[normalize_terms, collect_sources]]).
 
-test(transitive_dependency_path) :-
-    dependency_path(publish_report, collect_sources, Path),
-    assertion(Path == [publish_report,
-                       write_explanation,
-                       check_constraints,
-                       normalize_terms,
-                       collect_sources]).
+test(transitive_dependency_path_is_unique_in_fixture) :-
+    findall(Path,
+            dependency_path(publish_report, collect_sources, Path),
+            Paths),
+    assertion(Paths == [[publish_report,
+                         write_explanation,
+                         check_constraints,
+                         normalize_terms,
+                         collect_sources]]).
 
 test(missing_dependency_path_fails, [fail]) :-
     dependency_path(collect_sources, publish_report, _).
@@ -51,23 +58,27 @@ test(task_explanation_keeps_provenance) :-
                                           task_normalize_terms))
                           ]))).
 
-test(dependency_explanation_keeps_each_support) :-
-    explain_dependency(check_constraints, collect_sources, Explanation),
-    assertion(Explanation ==
-              explanation(dependency(check_constraints, collect_sources),
-                          path([check_constraints,
-                                normalize_terms,
-                                collect_sources]),
-                          supports([
-                              fact(depends_on(check_constraints,
-                                              normalize_terms),
-                                   source(book_fixture,
-                                          dep_constraints_normalize)),
-                              fact(depends_on(normalize_terms,
-                                              collect_sources),
-                                   source(book_fixture,
-                                          dep_normalize_collect))
-                          ]))).
+test(dependency_explanation_is_unique_and_keeps_each_support) :-
+    findall(Explanation,
+            explain_dependency(check_constraints,
+                               collect_sources,
+                               Explanation),
+            Explanations),
+    assertion(Explanations ==
+              [explanation(dependency(check_constraints, collect_sources),
+                           path([check_constraints,
+                                 normalize_terms,
+                                 collect_sources]),
+                           supports([
+                               fact(depends_on(check_constraints,
+                                               normalize_terms),
+                                    source(book_fixture,
+                                           dep_constraints_normalize)),
+                               fact(depends_on(normalize_terms,
+                                               collect_sources),
+                                    source(book_fixture,
+                                           dep_normalize_collect))
+                           ]))]).
 
 test(sound_unification_rejects_self_containment, [fail]) :-
     unify_with_occurs_check(X, wrapper(X)).
