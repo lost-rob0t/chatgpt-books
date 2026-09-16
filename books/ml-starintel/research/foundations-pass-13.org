@@ -1,0 +1,84 @@
+#+title: ML-StarIntel Foundational Research Pass 13 -- Composite Groups to scikit-learn
+:PROPERTIES:
+:ID:       9982b94f-170a-45d0-b9c5-6bf4879d72b1
+:END:
+
+* Status
+RESEARCH / DOCUMENTED / IMPLEMENTED. Executable status remains UNTESTED until the updated branch CI is observed green.
+
+* Question
+How should Project 1 hand its already-validated =composite_group_id= values to scikit-learn without weakening entity/duplicate/lineage constraints or pretending a grouped random split enforces chronological validity?
+
+* Current upstream behavior inspected
+Retrieved 2026-09-16 from the official scikit-learn 1.9.1 documentation. The Project 1 environment remains pinned to scikit-learn 1.9.0 until the dependency-lock slice deliberately changes it.
+
+- =GroupKFold= is documented as a K-fold iterator with non-overlapping groups. Each group appears exactly once in a test fold, and the number of distinct groups must be at least the number of folds.
+- =GroupKFold(shuffle=True, random_state=...)= supports reproducible group shuffling in current scikit-learn; the samples inside a split are not themselves shuffled by that option.
+- =GroupShuffleSplit= produces randomized train/test indices using provided group labels.
+- =GroupShuffleSplit.test_size= and =train_size= refer to *groups*, not samples. Repeated randomized test sets are not guaranteed to be mutually exclusive across splits.
+- The scikit-learn cross-validation guide explicitly treats grouped samples as a violation of the ordinary i.i.d. assumption when samples from the same domain group are dependent, and recommends keeping a group out of the paired training fold when evaluating generalization to unseen groups.
+
+Primary implementation documentation:
+- https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GroupKFold.html
+- https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GroupShuffleSplit.html
+- https://scikit-learn.org/stable/modules/cross_validation.html#cross-validation-iterators-for-grouped-data
+
+Package background is additionally grounded in Pedregosa et al., /Scikit-learn: Machine Learning in Python/, JMLR 12(85):2825--2830 (2011).
+
+* Boundary decision
+The book now treats composite grouping and temporal admissibility as two different mechanisms.
+
+1. Hard must-link facts such as same-entity, verified duplicate component, source/document lineage, and explicitly selected graph constraints are compiled first by transitive closure into =composite_group_id=.
+2. Point-in-time feature availability is validated before either grouped splitter is allowed to emit a partition.
+3. =GroupShuffleSplit= or =GroupKFold= may then operate on the composite IDs for *non-temporal* holdout/cross-validation questions.
+4. A strict historical evaluation still uses =plan_strict_cutoff=. The grouped splitters are not allowed to silently replace the temporal cutoff rule.
+5. Hard-rule overlap is audited again after the upstream splitter returns indices. If an important domain rule was not encoded into the composite graph and leaks across a fold, the wrapper fails closed instead of blessing the split.
+
+This gives a deliberately narrow contract:
+
+#+begin_example
+raw records
+  -> must-link constraint edges
+  -> deterministic composite groups
+  -> point-in-time feature check
+  -> [strict temporal cutoff OR grouped CV/holdout]
+  -> contamination audit
+  -> accepted split IDs
+#+end_example
+
+* Implementation slice
+=research-harness/composite_split_planner.py= now adds:
+
+- =plan_group_shuffle= -- reproducible grouped holdouts using =GroupShuffleSplit=;
+- =plan_group_kfold= -- grouped cross-validation using =GroupKFold=;
+- a common preparation path that rejects duplicate record IDs and future-only features;
+- a common materialization path that converts upstream indices back to stable record IDs, records train/test group IDs, and re-runs contamination checks;
+- explicit docstrings warning that these APIs do not infer temporal validity.
+
+The splitter is intentionally handed only a sample count and the composite group vector. Model features and labels stay outside this layer so the split planner cannot accidentally fit or transform the data it is supposed to partition.
+
+* Acceptance tests added
+The executable tests require:
+
+- an uneven three-record composite component to remain atomic under =GroupShuffleSplit=;
+- integer =test_size=1= to yield exactly one held-out *group*, not one sample;
+- repeated =GroupShuffleSplit= calls with the fixed seed 1729 to be identical;
+- every composite group to appear exactly once in a =GroupKFold= test fold;
+- grouped splitting to reject a future-only feature before partitioning;
+- a deliberately omitted hard entity edge to be caught by the post-split hard-rule contamination audit.
+
+Until CI is observed, these acceptance cases are IMPLEMENTED/UNTESTED rather than TESTED.
+
+* What this slice does not claim
+- It does not claim grouped random splitting is temporally valid.
+- It does not claim fold balance is optimal for a downstream metric.
+- It does not claim stratification and grouping are interchangeable.
+- It does not claim the pinned scikit-learn 1.9.0 dependency is a complete reproducible environment lock.
+- It does not change the StarIntel runtime, storage, actor, routing, or search boundaries.
+
+* Next gate
+After this handoff is green, the remaining foundational blockers before Chapters 2--5 harden are:
+
+1. freeze and execute the predeclared =num_perm= larger-corpus candidate benchmark without post-hoc tuning;
+2. define and verify a transitive Python dependency-lock/reproduction policy;
+3. turn the already-tested provenance/leakage/split evidence into reader-facing manuscript chapters and project exercises without promoting synthetic-control metrics into production claims.
