@@ -1,0 +1,13 @@
+* Where the book goes next
+
+The next chapters add links and monitors as first-class failure relationships, then
+separate manual protocol mechanics from OTP behaviors. Project 2 converts the service into
+an OTP application with =gen_server=. Project 3 introduces real supervision strategy,
+restart intensity, queue/admission decisions, and telemetry. Later projects add releases,
+distributed Erlang, persistence boundaries, testing, tracing, observability, and
+production debugging.
+
+The progression is deliberate: syntax first, then explicit process mechanics, then OTP.
+The goal is to understand why the platform's abstractions work well enough to know when
+you are using them correctly -- and to recognize when a green process is merely hiding a
+bad protocol.
