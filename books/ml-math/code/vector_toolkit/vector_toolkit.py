@@ -31,6 +31,13 @@ def vector(values: Iterable[Real]) -> Vector:
     return tuple(result)
 
 
+def _finite_vector_result(values: Iterable[float], operation: str) -> Vector:
+    result = tuple(values)
+    if not all(isfinite(component) for component in result):
+        raise OverflowError(f"{operation} produced a non-finite component")
+    return result
+
+
 def _pair(left: Iterable[Real], right: Iterable[Real]) -> tuple[Vector, Vector]:
     a = vector(left)
     b = vector(right)
@@ -41,12 +48,16 @@ def _pair(left: Iterable[Real], right: Iterable[Real]) -> tuple[Vector, Vector]:
 
 def add(left: Iterable[Real], right: Iterable[Real]) -> Vector:
     a, b = _pair(left, right)
-    return tuple(x + y for x, y in zip(a, b, strict=True))
+    return _finite_vector_result(
+        (x + y for x, y in zip(a, b, strict=True)), "vector addition"
+    )
 
 
 def subtract(left: Iterable[Real], right: Iterable[Real]) -> Vector:
     a, b = _pair(left, right)
-    return tuple(x - y for x, y in zip(a, b, strict=True))
+    return _finite_vector_result(
+        (x - y for x, y in zip(a, b, strict=True)), "vector subtraction"
+    )
 
 
 def scale(scalar: Real, values: Iterable[Real]) -> Vector:
@@ -56,10 +67,9 @@ def scale(scalar: Real, values: Iterable[Real]) -> Vector:
     if not isfinite(scalar_float):
         raise VectorError("scalar must be finite")
 
-    result = tuple(scalar_float * x for x in vector(values))
-    if not all(isfinite(x) for x in result):
-        raise OverflowError("scaled vector is not finite")
-    return result
+    return _finite_vector_result(
+        (scalar_float * x for x in vector(values)), "scalar multiplication"
+    )
 
 
 def dot(left: Iterable[Real], right: Iterable[Real]) -> float:
@@ -67,7 +77,7 @@ def dot(left: Iterable[Real], right: Iterable[Real]) -> float:
     products = (x * y for x, y in zip(a, b, strict=True))
     try:
         result = fsum(products)
-    except OverflowError as exc:
+    except (OverflowError, ValueError) as exc:
         raise OverflowError("dot product overflowed finite float range") from exc
     if not isfinite(result):
         raise OverflowError("dot product is not finite")
@@ -75,7 +85,10 @@ def dot(left: Iterable[Real], right: Iterable[Real]) -> float:
 
 
 def l2_norm(values: Iterable[Real]) -> float:
-    return hypot(*vector(values))
+    result = hypot(*vector(values))
+    if not isfinite(result):
+        raise OverflowError("Euclidean norm exceeds finite float range")
+    return result
 
 
 def distance(left: Iterable[Real], right: Iterable[Real]) -> float:
@@ -87,7 +100,7 @@ def normalize(values: Iterable[Real]) -> Vector:
     length = l2_norm(v)
     if length == 0.0:
         raise VectorError("zero vector has no direction to normalize")
-    return tuple(x / length for x in v)
+    return _finite_vector_result((x / length for x in v), "normalization")
 
 
 def cosine_similarity(left: Iterable[Real], right: Iterable[Real]) -> float:
@@ -98,7 +111,5 @@ def cosine_similarity(left: Iterable[Real], right: Iterable[Real]) -> float:
 
 def project(values: Iterable[Real], onto: Iterable[Real]) -> Vector:
     v, u = _pair(values, onto)
-    denominator = dot(u, u)
-    if denominator == 0.0:
-        raise VectorError("cannot project onto the zero vector")
-    return scale(dot(v, u) / denominator, u)
+    direction = normalize(u)
+    return scale(dot(v, direction), direction)

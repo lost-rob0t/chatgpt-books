@@ -39,6 +39,19 @@ class VectorToolkitTests(unittest.TestCase):
                 with self.assertRaises(VectorError):
                     fn([1, 2], [1])
 
+    def test_finite_input_overflow_fails_closed(self):
+        cases = (
+            (add, ([1e308], [1e308])),
+            (subtract, ([1e308], [-1e308])),
+            (scale, (2.0, [1e308])),
+            (dot, ([1e308], [2.0])),
+            (l2_norm, ([1e308, 1e308, 1e308, 1e308],)),
+        )
+        for fn, args in cases:
+            with self.subTest(fn=fn.__name__):
+                with self.assertRaises(OverflowError):
+                    fn(*args)
+
     def test_dot_uses_accurate_summation(self):
         self.assertEqual(dot([1e16, 1, 1e16], [1, 1, -1]), 1.0)
 
@@ -69,6 +82,10 @@ class VectorToolkitTests(unittest.TestCase):
         residual = subtract(v, projection)
         self.assertAlmostEqual(dot(residual, u), 0.0, places=15)
         self.assertEqual(projection, (3.0, 0.0))
+
+    def test_projection_handles_large_finite_direction(self):
+        projection = project([3.0, 4.0], [1e308, 1e308])
+        np.testing.assert_allclose(projection, [3.5, 3.5], rtol=1e-15, atol=0.0)
 
     def test_matches_numpy_reference_operations(self):
         cases = [
