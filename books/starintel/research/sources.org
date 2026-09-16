@@ -4,3 +4,49 @@
 :END:
 * Policy
 Add only sources actually inspected. Record URL, authority, publication/version date when known, retrieval date, relevant sections, and affected chapters/projects.
+
+* Inspected sources
+** StarIntel Server current source snapshot
+- URL :: https://github.com/lost-rob0t/starintel-server
+- Revision :: =d4e8447c6049eaed65a93e81668ae1ec4b65c25c=
+- Retrieved :: 2026-09-16
+- Authority :: Current implementation repository for the Common Lisp StarIntel backend service.
+- Inspected :: README; ASDF load graph; v0.9 runtime/document docs; architecture; active HTTP authorization runtime; HTTP boundary/authorization/publish source.
+- Used by :: Chapters 1--5; later actor/messaging/debugging chapters must recheck current head.
+
+** StarIntel Python document binding
+- URL :: https://github.com/lost-rob0t/starintel-doc
+- Revision :: =5857914a1e34ad18a6956b8ff0df5349de0ca099=
+- Package release :: 0.9.1
+- Retrieved :: 2026-09-16
+- Authority :: Current Python parser/validator/serializer/conformance adapter.
+- Inspected :: package metadata, schema lock, =v090.py=, conformance adapter, person and operation tests.
+- Used by :: Chapters 3--5 and Project 1 milestone A.
+
+** StarIntel Common Lisp document binding
+- URL :: https://github.com/lost-rob0t/star-cl
+- Revision :: =9ce8f88f57fb7ac143851f7fd2c75dccd6a40cc3=
+- Retrieved :: 2026-09-16
+- Authority :: Common Lisp document/validation library pinned by current StarIntel Server runtime.
+- Used by :: Chapters 3--6; this pass relies on the server's exact dependency lock and does not claim a full independent API audit of every exported symbol.
+
+** JSON Schema Draft 2020-12
+- URL :: https://json-schema.org/draft/2020-12
+- Published :: 2022-06-16
+- Retrieved :: 2026-09-16
+- Authority :: Official JSON Schema specification publication.
+- Used by :: Validation explanation in Chapter 4. The StarIntel Python adapter explicitly instantiates =Draft202012Validator=.
+
+** RabbitMQ acknowledgements and publisher confirms
+- URL :: https://www.rabbitmq.com/docs/confirms
+- Documentation version observed :: 4.3
+- Retrieved :: 2026-09-16
+- Authority :: Official RabbitMQ documentation.
+- Used by :: Chapter 5 distinction between publish/broker/consumer/persistence observations. No claim is made here about uninspected StarIntel publisher-confirm configuration.
+
+** Apache CouchDB documentation
+- URL :: https://docs.couchdb.org/en/latest/
+- Documentation version observed :: 3.5
+- Retrieved :: 2026-09-16
+- Authority :: Official Apache CouchDB documentation.
+- Used by :: Chapter 3 distinction between CouchDB revision identifiers and StarIntel document/schema versions; later persistence chapters require deeper API-specific research.
