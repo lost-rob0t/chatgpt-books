@@ -44,3 +44,19 @@ Inspected sources:
 Result: sufficient to specify a deliberately smaller =either/2= object control form and a ground-goal top-level =search_report/4= diagnostic without inheriting host cut/if-then-else semantics or misrepresenting the diagnostic as SWI's runtime trace. The original Byrd paper was not directly inspected in this pass, so no new technical claim is derived from it.
 
 Implementation status at research time: UNTESTED on the milestone-B branch until SWI-Prolog CI executes the new regressions. Host documentation claims are DOCUMENTED, not execution evidence.
+
+** 2026-09-16 -- Project 2 milestone A: explicit graph search/frontier semantics
+Questions:
+- What exact equality relation does current SWI-Prolog =library(ordsets)= use for membership?
+- What restrictions keep an ordered closed set sane for this first search kernel?
+- How can DFS and BFS share one transition relation while making frontier policy visible rather than inheriting host proof search?
+- What duplicate policy can be stated and tested without pretending queued duplicates never exist?
+- What is the narrowest honest shortest-path claim for the finite unit-edge teaching fixture?
+
+Inspected official sources:
+- https://www.swi-prolog.org/pldoc/doc/_SWI_/library/ordsets.pl -- ordered-set operations; =ord_memberchk/2= membership via ===/2=.
+- https://www.swi-prolog.org/pldoc/man?section=compare -- current term identity and standard-order semantics.
+
+Result: sufficient to freeze a ground-state search contract using explicit =edge(Action,From,To)= data, an ordered closed set, and an explicit frontier. The implementation records state expansions, not debugger ports; duplicate states may be queued before the first expansion but must not be expanded twice after entering the closed set. BFS claims are limited to the finite unit-edge fixture and the queue invariant implemented in this slice; weighted/heuristic search remains later work.
+
+Implementation status at research time: UNTESTED until exact-head CI executes the Project 1 + Project 2 regressions and publication/Nix gates.
