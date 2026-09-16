@@ -8,18 +8,37 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 * Inspected sources
 ** StarIntel Server current source snapshot
 - URL :: https://github.com/lost-rob0t/starintel-server
-- Revision :: =d4e8447c6049eaed65a93e81668ae1ec4b65c25c=
-- Retrieved :: 2026-09-16
+- Current revision rechecked :: =d48fa939402abf701fa1cc4079dfb8bedfad8d4a=
+- Earlier full ingest audit revision :: =d4e8447c6049eaed65a93e81668ae1ec4b65c25c=
+- Retrieved/rechecked :: 2026-09-16
 - Authority :: Current implementation repository for the Common Lisp StarIntel backend service.
-- Inspected :: README; ASDF load graph; v0.9 runtime/document docs; architecture; active HTTP authorization runtime; HTTP boundary/authorization/publish source; producer/actor publish path; active Rabbit consumer/retry path; CouchDB outbox; consumer tests; canonical test systems; messaging documentation.
-- Used by :: Chapters 1--6, 8--9, 14; Projects 1--2. Later actor/search/deployment chapters must recheck current head.
+- Inspected at the full ingest snapshot :: README; ASDF load graph; v0.9 runtime/document docs; architecture; active HTTP authorization runtime; HTTP boundary/authorization/publish source; producer/actor publish path; active Rabbit consumer/retry path; CouchDB outbox; consumer tests; canonical test systems; messaging documentation.
+- Rechecked at current head :: commit delta from =d4e8447...=; =source/ids.lisp=; =source/runtime-lifecycle.lisp=; =source/consumers/retry-policy.lisp=; =source/starintel-gserver.asd=; the merged #187/#188 quarantine failure/repair delta.
+- Used by :: Chapters 1--6, 8--9, 14; Projects 1--2 and the ambiguous-bulk failure-analysis lab. Later actor/search/deployment chapters must recheck current head.
+
+** StarIntel Server issue #187 -- concurrent quarantine ID collision
+- URL :: https://github.com/lost-rob0t/starintel-server/issues/187
+- State observed :: closed/completed 2026-09-16
+- Retrieved :: 2026-09-16
+- Authority :: Upstream product-repository incident report for the live failure that motivated PR #188.
+- Used by :: Runtime Failure Pass 03 and the ambiguous-bulk reconciliation lab.
+- Evidence status :: UPSTREAM-REPORTED. The book did not reproduce the incident or its operational counts.
+
+** StarIntel Server PR #188 -- quarantine identity/settlement repair
+- URL :: https://github.com/lost-rob0t/starintel-server/pull/188
+- Merge revision :: =d48fa939402abf701fa1cc4079dfb8bedfad8d4a=
+- Retrieved :: 2026-09-16
+- Authority :: Merged upstream repair and verification record for issue #187.
+- Inspected :: merged diff affecting =star.ids=, server ID call sites, consumer lifecycle, retry-policy IDs, ASDF load graph, and consumer tests; PR verification summary.
+- Used by :: Runtime Failure Pass 03 and current failure-semantics notes.
+- Evidence status :: code is DOCUMENTED from the merged source; RED/GREEN unit/integration/Nix/image results in the PR body are UPSTREAM-REPORTED until independently reproduced by this book.
 
 ** StarIntel Python document binding
 - URL :: https://github.com/lost-rob0t/starintel-doc
 - Revision :: =5857914a1e34ad18a6956b8ff0df5349de0ca099=
 - Package release :: 0.9.1
 - Retrieved :: 2026-09-16
-- Authority :: Current Python parser/validator/serializer/conformance adapter.
+- Authority :: Current Python parser/validator/serializer/conformance adapter used by Project 1's pinned teaching boundary.
 - Inspected :: package metadata, schema lock, =v090.py=, conformance adapter, person and operation tests.
 - Used by :: Chapters 3--5 and Project 1 milestone A.
 
@@ -27,7 +46,7 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - URL :: https://github.com/lost-rob0t/star-cl
 - Revision :: =9ce8f88f57fb7ac143851f7fd2c75dccd6a40cc3=
 - Retrieved :: 2026-09-16
-- Authority :: Common Lisp document/validation library pinned by current StarIntel Server runtime.
+- Authority :: Common Lisp document/validation library pinned by the inspected StarIntel Server runtime.
 - Used by :: Chapters 3--6; this pass relies on the server's exact dependency lock and does not claim a full independent API audit of every exported symbol.
 
 ** JSON Schema Draft 2020-12
