@@ -83,11 +83,41 @@ Failure scenarios: invalid input, boundary failure, contradictory/edge cases, an
 Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
 Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
 Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
-** Project 6 -- Hybrid Symbolic AI Application
+** Project 6 -- Formal Reasoning Workbench
+:PROPERTIES:
+:ID:       7d473d08-6e1d-4aef-a823-c9dfa5a54457
+:END:
+Purpose: Learn formal systems and software verification by deriving checkers in Common Lisp before using mature proof/model-checking tools.
+Learning outcomes:
+- distinguish syntax, semantics, judgments, inference rules, derivations, specifications, invariants, model checking, theorem proving, and testing;
+- write and debug explicit state-transition specifications;
+- construct inductive invariants and counterexample-oriented checks;
+- understand what exhaustive finite checking proves, what bounded checking does not prove, and why model correctness is separate from implementation refinement;
+- derive Hoare-style proof obligations for a tiny imperative language;
+- understand safety/liveness motivation, SAT/SMT boundaries, and mechanized theorem proving;
+- use ACL2 as a Lisp-family theorem-proving case study without confusing ACL2's applicative logic with unrestricted Common Lisp.
+Prerequisites: Search Library; symbolic representation; Logic and Knowledge Representation chapters. Planner/rule/KR projects provide later verification targets.
+Relevant chapters: Formal Systems; Specifications and Invariants; Transition Systems and Model Checking; Program Logic and Proof Obligations; Temporal Properties; SAT/SMT Boundaries; ACL2 and Mechanized Proof; Verified Symbolic AI.
+Architecture: one small workbench grown in public: explicit proof-rule checker -> finite transition checker -> proof-obligation generator -> optional external solver/prover adapters. Keep result status typed and honest (=proved=, =refuted= with evidence, =bounded=, =unknown=).
+Implementation language/tooling: ANSI Common Lisp first. Later external boundaries may use SMT-LIB 2.7 and ACL2 under explicit pinned/reproducible configurations.
+External dependencies: none for the first finite-state checker. Later solver/prover integration must be separately researched and pinned.
+Tests:
+- safe finite/cyclic model exhausts and proves the stated invariant;
+- violated invariant returns an exact shortest counterexample trace;
+- unreachable bad states do not refute;
+- duplicate/cycle handling terminates;
+- caller-supplied exploration bounds cannot return =proved=;
+- incomplete/unknown transition relations return =unknown=;
+- later stages add proof-obligation, solver-result, and ACL2 conformance regressions.
+Failure scenarios: wrong/coarse state identity, incomplete model, property too weak, bound mistaken for proof, safety confused with liveness, solver result mistaken for host-language proof, encoding/refinement mismatch.
+Visuals: formal-verification flow, derivation trees, transition graphs, counterexample traces, proof-obligation flow, later temporal/solver architecture diagrams.
+Research requirements: Hoare 1969; Pnueli 1977; Clarke/Emerson/Sistla 1986; Lamport/TLA+; current ACL2 documentation; current SMT-LIB standard; comparative proof-assistant sources where useful.
+Expected deliverable: executable Common Lisp workbench, tests, source-grounded chapters, exercises, diagrams, proof/counterexample traces, and later reproducible prover/solver integrations.
+** Project 7 -- Hybrid Symbolic AI Application
 :PROPERTIES:
 :ID:       1bf5fff5-fcb4-5828-bd3b-2f661dd3bf0b
 :END:
-Purpose: Capstone combining search, knowledge representation, rules, explanation, and an optional controlled LLM interface.
+Purpose: Capstone combining search, knowledge representation, rules, explanation, formalized invariants, and an optional controlled LLM interface.
 Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
 Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
 Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
