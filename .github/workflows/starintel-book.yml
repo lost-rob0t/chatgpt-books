@@ -64,6 +64,13 @@ jobs:
             books/starintel/code/ingest-adapter/adapter.py \
             books/starintel/code/ingest-adapter/test_adapter.py
 
+      - name: Run ambiguous-bulk failure-analysis lab
+        run: |
+          bash books/starintel/code/ambiguous-bulk/run-tests
+          python3 -m py_compile \
+            books/starintel/code/ambiguous-bulk/reconcile.py \
+            books/starintel/code/ambiguous-bulk/test_reconcile.py
+
       - name: Validate editable diagram sources
         run: |
           dot -Tsvg books/starintel/assets/document-flow.dot -o /tmp/starintel-document-flow.svg
