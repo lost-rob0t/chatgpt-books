@@ -98,9 +98,9 @@ jobs:
                   for name in archive.namelist()
                   if name.endswith((".xhtml", ".html"))
               )
-          needle = "Why symbolic AI should teach proof"
+          needle = "A formal system is language plus rules"
           if needle not in rendered:
-              raise SystemExit(f"published EPUB is missing included formal chapter heading: {needle!r}")
+              raise SystemExit(f"published EPUB is missing included formal-methods content: {needle!r}")
           PY
 
       - name: Validate Symbolic AI in Common Lisp
