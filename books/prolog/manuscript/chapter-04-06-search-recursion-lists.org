@@ -50,7 +50,7 @@ The edge =noor -> ada= deliberately closes a cycle. That will matter in Chapter 
 
 #+caption: Depth-first alternatives, branch-local visited state, and an explicit first-answer boundary.
 #+attr_html: :alt Project 1 search diagram showing a query creating a choice point, first and redo branches, cycle rejection using seen nodes, later proofs, and once/1 committing only at the explicit helper boundary.
-[[file:../assets/prolog-search-flow.svg]]
+[[file:assets/prolog-search-flow.svg]]
 
 The dashed edge in the figure is important. =once/1= does not make the underlying relation deterministic. It creates a caller-visible commitment boundary around one invocation.
 
