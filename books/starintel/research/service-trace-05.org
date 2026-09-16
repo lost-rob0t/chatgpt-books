@@ -16,6 +16,11 @@ The experiment reuses the exact current upstream =scripts/stack-test.sh= and
 adds one fail-closed observation hook before that script's normal final success
 message, while its disposable authenticated stack is still live.
 
+A fresh repository check on 2026-09-16 after execution confirmed that
+=1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= remained the current
+=lost-rob0t/starintel-server= =master= head.  The observations below therefore
+refer to the current server snapshot, not a historical approximation.
+
 * Source audit before execution
 At the pinned server revision, =scripts/stack-test.sh= already owns the
 following deployment behavior:
@@ -100,6 +105,57 @@ credential.  The sanitizer emits only:
 Raw fault response bodies and stderr are temporary inputs to the sanitizer and
 are not copied into the book artifact.
 
+* Execution evidence
+The corrected experiment executed in =starintel-book= workflow run
+=35115201190=, service-backed job =104858737649=, against exact book head
+=1e0ad4e802ea390823a9a5cc04858eb03d2c8ba4=.  The first attempt had failed
+closed before stack startup because the audited upstream final marker has no EOF
+newline and the injector had initially assumed one; the corrected byte-faithful
+marker is covered by the nine hermetic service-trace regressions.
+
+The successful service-backed run emitted schema
+=starintel-book-service-trace-v1= with =claim_status=TESTED=.  Its bounded
+observations were:
+
+- *happy path:* submission state =http_publish_boundary_returned=, POST HTTP
+  status 200, authorized persistence =observed= on read attempt 1, read-back
+  HTTP status 200;
+- *verified RabbitMQ outage:* =rabbitmq_running=false= and the HTTP service
+  remained alive; a fresh submission still returned HTTP 200, but persistence
+  was =not_observed_before_deadline= across nine read attempts, with final
+  read-back HTTP status 404.  The sanitizer classified this as
+  =http_returned_without_persistence_observation=;
+- *explicit operator recovery:* action
+  =start_rabbitmq_then_restart_star_server=, then a fresh submission returned
+  HTTP 200 and authorized persistence was =observed= on read attempt 1 with
+  read-back HTTP 200.
+
+The retained workflow artifact is =starintel-service-trace=, artifact ID
+=10454487856=, size 626 bytes, digest
+=sha256:e21dbf5fbc880afd80e29f41530702451a82c3b96c4f4a5fde17280076af9bca=.
+The artifact contains only the sanitized schema above, not credentials, raw
+bodies, container identifiers, or raw stderr.
+
+The exact execution head also passed the focused book job: Project 1 7/7,
+ingest adapter 8/8, service-trace hermetic suite 9/9, ambiguous-bulk 8/8,
+bulk-job-lifetime 11/11, =make book BOOK=starintel=,
+=make check BOOK=starintel=, EPUBCheck with 0 fatals / 0 errors / 0 warnings /
+0 infos, and the separate Nix job.  Generic =books-ci= run =35115201346= also
+succeeded.
+
+* Interpreting the outage without overclaiming
+The outage result matters precisely because HTTP 200 and durable read-back
+diverged under a verified broker fault.  For this exact run, the HTTP boundary
+returned while the fresh document remained unobservable through the authorized
+read route for the entire bounded polling interval.  That is direct evidence
+that an HTTP success at this boundary is not, by itself, evidence of durable
+persistence.
+
+It is *not* a publisher-confirm experiment.  The run did not separately
+instrument broker confirm state, consumer settlement, delivery attempts, or an
+outbox crash window.  It also did not test transparent reconnect: recovery
+explicitly restarted StarIntel after starting RabbitMQ.
+
 * Why the upstream stack script is injected rather than copied
 Copying =docker-compose.yml=, server secrets/bootstrap logic, or the current
 stack-test into =chatgpt-books= would immediately create a second deployment
@@ -111,18 +167,21 @@ the upstream script changes shape, injection fails and forces a new source
 audit rather than silently placing the hook in an arbitrary control-flow
 location.
 
-* Claim status before execution
-- *DOCUMENTED:* the current upstream stack-test lifecycle and the exact hook
-  method described above, from source at =1ac298...=.
-- *TESTED BY THIS BOOK:* only the hermetic injector/evidence-classifier behavior
-  after focused tests run.
-- *UNTESTED BY THIS BOOK UNTIL CI EXECUTES THE STACK:* the baseline full path,
-  broker-outage HTTP behavior, HTTP-service survival during the outage, and
-  explicit operator recovery.
-- *STILL OUT OF SCOPE EVEN AFTER THIS PASS:* publisher-confirm acceptance,
-  deliberately induced settlement failure/redelivery, the CouchDB outbox crash
-  window, transparent broker reconnect, heap behavior, performance, and actor
-  dispatch.
+* Claim status after execution
+- *DOCUMENTED:* the current upstream stack-test lifecycle and exact hook method,
+  from source at =1ac298...=.
+- *TESTED BY THIS BOOK:* hermetic injector/evidence-classifier behavior; one
+  baseline HTTP-to-authorized-read observation; verified RabbitMQ-down behavior
+  in which POST returned HTTP 200 but persistence was not observed before the
+  bounded deadline; and recovery after the explicit RabbitMQ-start plus
+  StarIntel-restart operator sequence.
+- *UNTESTED BY THIS BOOK:* publisher-confirm acceptance, deliberately induced
+  settlement failure/redelivery, the CouchDB outbox crash window, transparent
+  broker reconnect without an operator restart, heap behavior, performance,
+  and actor dispatch.
+- *FAILED DEVELOPMENT GATE:* the first hook attempt assumed a newline after the
+  pinned upstream script's final marker.  Injection failed closed; the marker
+  was corrected byte-for-byte before the successful service-backed execution.
 
 * Primary source inspected
 - =lost-rob0t/starintel-server= revision

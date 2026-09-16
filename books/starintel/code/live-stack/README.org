@@ -66,8 +66,26 @@ adapter failure fails closed.  A unique fault document becoming durably
 observable while RabbitMQ is verified stopped is treated as contradictory
 probe evidence and also fails closed.
 
+* Observed reference run
+Workflow run =35115201190=, service-backed job =104858737649=, executed this
+lab against exact book head =1e0ad4e802ea390823a9a5cc04858eb03d2c8ba4= and
+upstream StarIntel Server revision =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=.
+It observed:
+
+- baseline POST HTTP 200, then authorized read-back HTTP 200 on attempt 1;
+- RabbitMQ verified not running while the HTTP service remained alive;
+- during that outage a fresh POST still returned HTTP 200, but the fresh record
+  was not observed before the bounded deadline after nine read attempts (final
+  read status 404);
+- after =start RabbitMQ -> restart StarIntel -> wait healthy=, another fresh
+  POST returned HTTP 200 and authorized read-back observed it on attempt 1.
+
+The retained artifact is =starintel-service-trace= (ID =10454487856=, SHA-256
+=e21dbf5fbc880afd80e29f41530702451a82c3b96c4f4a5fde17280076af9bca=).
+These values are evidence from one pinned run, not a timeless API guarantee.
+
 * Honest boundary
-Even a successful run proves only the bounded observations made at the pinned
+The successful run proves only the bounded observations made at the pinned
 revision.  It does *not* prove publisher-confirm acceptance, settlement-failure
 redelivery, the CouchDB outbox crash window, transparent reconnect without an
 operator restart, production latency, or production availability.
@@ -75,6 +93,8 @@ operator restart, production latency, or production availability.
 Those distinctions matter because the server's current source still does not
 evidence a publisher-confirm wait in the inspected publish path.  A successful
 HTTP return and a later authorized durable read-back remain separate facts.
+The outage run makes that distinction executable: HTTP returned 200 while
+persistence was not observed during the verified broker outage.
 
 * Hermetic tests
 The evidence classifier and injection guard are independently unit-tested:
@@ -83,7 +103,8 @@ The evidence classifier and injection guard are independently unit-tested:
 bash books/starintel/code/live-stack/run-tests
 #+end_src
 
-These tests do not start external services.
+These tests do not start external services.  The exact execution head passed
+9/9 service-trace hermetic regressions before the service-backed job ran.
 
 * Service-backed run
 The service-backed trace requires Docker/Compose, Nix with flakes, Git, jq,
@@ -101,7 +122,9 @@ workflow artifact; it is not committed as if one run were timeless source.
 * Status
 - DOCUMENTED :: method and exact upstream pin described above; the upstream
   stack harness is current primary source at the recorded revision.
-- TESTED :: hermetic classifier/injector behavior only after the focused tests
-  execute successfully.
-- UNTESTED :: service-backed observations until a workflow run actually
-  executes this lab.  Do not promote them from this README alone.
+- TESTED :: hermetic classifier/injector behavior and the bounded baseline,
+  verified-broker-outage, and explicit-restart-recovery observations recorded
+  above.
+- UNTESTED :: publisher confirms, settlement-failure redelivery, outbox crash
+  windows, transparent reconnect without an operator restart, performance, and
+  actor behavior.  Do not infer them from this lab.
