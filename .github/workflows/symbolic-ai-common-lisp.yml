@@ -78,13 +78,14 @@ jobs:
           set -euo pipefail
           dot -Tsvg books/symbolic-ai-common-lisp/assets/search-frontier.dot >/dev/null
           dot -Tsvg books/symbolic-ai-common-lisp/assets/pattern-unification-flow.dot >/dev/null
+          dot -Tsvg books/symbolic-ai-common-lisp/assets/unification-worklist.dot >/dev/null
           dot -Tsvg books/symbolic-ai-common-lisp/assets/formal-verification-flow.dot >/dev/null
 
       - name: Validate focused draft citations and Org parsing
         shell: bash
         run: |
           set -euo pipefail
-          for draft in formal-methods pattern-unification; do
+          for draft in formal-methods pattern-unification unification-validation; do
             pandoc "books/symbolic-ai-common-lisp/manuscript/${draft}.org" \
               --from=org \
               --to=html5 \
