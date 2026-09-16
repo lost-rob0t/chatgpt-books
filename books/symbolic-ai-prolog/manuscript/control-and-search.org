@@ -31,7 +31,7 @@ The second artifact is still not SWI-Prolog's debugger trace. SWI's current debu
 
 #+CAPTION: The proof retains only the successful recursive derivation, while the bounded search-attempt diagnostic also records that the earlier direct rule's body failed. The dashed edge denotes backtracking to a later alternative, not a proof dependency.
 #+ATTR_HTML: :alt A query for gateway-to-database reachability first attempts the direct rule, whose link body fails, then backtracks to the recursive rule, whose body succeeds and yields the retained proof tree.
-[[file:../assets/search-attempts.svg]]
+[[file:assets/search-attempts.svg]]
 
 ** 6.2 Derive choice before adding a control form
 Ordinary Prolog disjunction is =;/2=. SWI-Prolog documents it as succeeding when either side succeeds, but the same control section also has to explain its interaction with cut and if-then-else [cite:@swi-control]. If Project 1 simply passed =;/2= to the host, the tiny object language would suddenly inherit control behavior we have not specified or tested.
