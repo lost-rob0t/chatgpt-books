@@ -21,16 +21,16 @@ sample_program([
 
 test(fact_yields_provenance_node) :-
     sample_program(Program),
-    prove(Program,
-          powered(gateway),
-          fact(f_power_gateway, powered(gateway))).
+    once(prove(Program,
+               powered(gateway),
+               fact(f_power_gateway, powered(gateway)))).
 
 test(conjunction_preserves_child_order) :-
     sample_program(Program),
-    prove(Program,
-          (powered(gateway), link(gateway, router)),
-          and(fact(f_power_gateway, powered(gateway)),
-              fact(f_link_gateway_router, link(gateway, router)))).
+    once(prove(Program,
+               (powered(gateway), link(gateway, router)),
+               and(fact(f_power_gateway, powered(gateway)),
+                   fact(f_link_gateway_router, link(gateway, router))))).
 
 test(alternative_rules_backtrack_to_distinct_proofs) :-
     sample_program(Program),
@@ -43,7 +43,7 @@ test(alternative_rules_backtrack_to_distinct_proofs) :-
 
 test(recursive_rule_variables_are_fresh_per_use) :-
     sample_program(Program),
-    prove(Program, reachable(gateway, database), _).
+    once(prove(Program, reachable(gateway, database), _)).
 
 test(unsupported_goal_fails, [fail]) :-
     sample_program(Program),
@@ -51,24 +51,24 @@ test(unsupported_goal_fails, [fail]) :-
 
 test(guarded_interpreter_reports_direct_cycle) :-
     sample_program(Program),
-    prove_guarded(Program,
-                  unstable(sensor),
-                  10,
-                  cycle(unstable(sensor))).
+    once(prove_guarded(Program,
+                       unstable(sensor),
+                       10,
+                       cycle(unstable(sensor)))).
 
 test(guarded_interpreter_reports_rule_budget_exhaustion) :-
     sample_program(Program),
-    prove_guarded(Program,
-                  grow(seed),
-                  2,
-                  exhausted(grow(s(s(seed))))).
+    once(prove_guarded(Program,
+                       grow(seed),
+                       2,
+                       exhausted(grow(s(s(seed)))))).
 
 test(guarded_interpreter_can_prove_recursive_goal) :-
     sample_program(Program),
-    prove_guarded(Program,
-                  reachable(gateway, database),
-                  8,
-                  proved(_)).
+    once(prove_guarded(Program,
+                       reachable(gateway, database),
+                       8,
+                       proved(_))).
 
 test(provenance_is_preorder_rule_sequence) :-
     sample_program(Program),
@@ -87,5 +87,10 @@ test(bundled_rule_ids_are_unique) :-
     sort(Ids, Unique),
     length(Ids, Count),
     length(Unique, Count).
+
+test(negative_rule_budget_is_rejected,
+     [error(type_error(nonneg, -1))]) :-
+    sample_program(Program),
+    prove_guarded(Program, powered(gateway), -1, _).
 
 :- end_tests(symbolic_meta_interpreter).
