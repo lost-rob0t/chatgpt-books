@@ -20,7 +20,10 @@
   (erlang:whereis 'otp-router))
 
 (defun stop ()
-  (supervisor:stop 'otp-router-sup))
+  ;; supervisor:stop/1 is an OTP 29 convenience API.  The executable book
+  ;; gate still exercises OTP 25, so keep this teaching helper on the
+  ;; gen_server stop API that the observed runner can execute and verify.
+  (gen_server:stop 'otp-router-sup))
 
 (defun init
   ([(tuple 'config rules intensity period)]
