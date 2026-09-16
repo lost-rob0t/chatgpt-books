@@ -72,7 +72,7 @@ This is a project design decision, not a claim about a SWI-Prolog restriction.
 * Question 6 -- How should branch budgets behave?
 Milestone A defines one budget unit as one selected object rule. =either/2= itself is a control form and consumes no rule unit. Each alternative begins from the same incoming budget because alternatives describe separate search branches. Consumption inside a failed left branch must not make the right branch start artificially poorer when the caller backtracks to it.
 
-This policy is project-defined and must be TESTED; it is not presented as SWI-Prolog's internal depth, inference, or stack accounting.
+This policy is project-defined and must be TESTED; it is not presented as SWI-Prolog's internal depth, inference, or stack accounting. The milestone-B suite therefore contains two complementary checks: one proves a left-branch cycle cannot suppress a right-branch proof, while a stronger oracle deliberately exhausts the left branch's two-rule budget and requires the right branch to spend the full original two-rule budget to succeed. The second test fails if an implementation threads the left branch's remaining budget into its sibling.
 
 * Milestone-B semantic contract
 The closed object language now has four forms:
@@ -86,15 +86,16 @@ A successful explicit choice creates =choice(left,Proof)= or =choice(right,Proof
 =search_report/4= is deterministic, bounded, top-level, ground-goal-only diagnostic data. It does not execute arbitrary host predicates, does not expose cut/negation, does not claim to mirror every SWI debugger port, and does not replace =trace/0= or =library(prolog_trace)=.
 
 * Failure/debugging curriculum
-The manuscript and tests should make these failures visible:
+The manuscript and tests make these failures visible:
 1. Insert =once/1= around rule selection and observe that a second proof disappears; explain why determinism changed semantics.
 2. Put a failing direct rule before a successful recursive rule. The proof tree should contain only the successful derivation while =search_report/4= records the failed top-level attempt as well.
 3. Give the left branch of =either/2= a direct cycle and the right branch a fact. A cycle outcome on the left must not suppress the right proof on backtracking.
-4. Give =search_report/4= a zero rule budget. It must report that search was blocked before claiming a rule was attempted.
-5. Ask =search_report/4= a non-ground query. The API must reject the ambiguous aggregate rather than silently discard answer substitutions.
-6. Treat the object-level report as if it were the SWI debugger and list the missing information: non-unifying candidates, nested port chronology, host unification ports, redo timing, exceptions, and runtime implementation state.
+4. Give the left branch enough rules to consume/exhaust the entire incoming budget and make the right branch require that full original budget. The right proof must still succeed; charging sibling branches for one another's work changes the declared search policy.
+5. Give =search_report/4= a zero rule budget. It must report that search was blocked before claiming a rule was attempted.
+6. Ask =search_report/4= a non-ground query. The API must reject the ambiguous aggregate rather than silently discard answer substitutions.
+7. Treat the object-level report as if it were the SWI debugger and list the missing information: non-unifying candidates, nested port chronology, host unification ports, redo timing, exceptions, and runtime implementation state.
 
 * Verification state
 DOCUMENTED: the host control/debugger claims above were checked against current official SWI-Prolog documentation on 2026-09-16; the Byrd bibliographic attribution was cross-checked as described above.
 
-UNTESTED ON THE MILESTONE-B HEAD: the new =either/2= semantics, search-report structures, exact PL-Unit outcomes, rendered diagram, and publication checks until CI executes the branch under a recorded SWI-Prolog runtime.
+TESTED IMPLEMENTATION/PUBLICATION EVIDENCE: reconciled milestone-B implementation head =592fb24fc6ef4753abec5d3523bf4b8ef456474d= was exercised through PR integration =6ba62f3c7b4a677927e16a949233b01b7818a40f= by focused workflow run =35114298925=. On Ubuntu 24.04.5 with SWI-Prolog 10.0.2, all 25/25 semantic tests passed, including =guarded_either_resets_budget_for_right_branch=. The same run passed =make book BOOK=symbolic-ai-prolog=, =make check BOOK=symbolic-ai-prolog=, EPUBCheck 5.3.0 with 0 fatals / 0 errors / 0 warnings / 0 infos, and the focused =nix flake check -L= job. Generic =books-ci= run =35114299063= also completed successfully. These runs test the stated branch semantics and publication path; they do not prove later planner, abduction, rule-engine, constraint, or hybrid-system behavior.
