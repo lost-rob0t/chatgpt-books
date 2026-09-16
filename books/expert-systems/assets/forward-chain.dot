@@ -1,0 +1,27 @@
+digraph forward_chain {
+  graph [rankdir=LR, bgcolor="transparent", pad=0.2, nodesep=0.45, ranksep=0.65];
+  node [shape=box, style="rounded", fontname="DejaVu Sans", fontsize=11];
+  edge [fontname="DejaVu Sans", fontsize=9];
+
+  observations [label="assert/retract\nobservations"];
+  wm [label="working memory\nID + assertion sequence"];
+  match [label="naive production match\nconditions + bindings + supports"];
+  refract [label="refraction filter\n(rule ID, support IDs)"];
+  agenda [label="agenda\nsalience → recency →\ncondition count → stable IDs"];
+  fire [label="fire one activation\nstructured :assert actions"];
+  derived [label="derived facts\nprovenance + support IDs"];
+  halt [shape=diamond, label="eligible\nactivation?"];
+  quiescent [shape=oval, label="quiescent"];
+  bounded [shape=oval, label="limit reached"];
+
+  observations -> wm [label="mutation"];
+  wm -> match [label="snapshot"];
+  match -> refract [label="instantiations"];
+  refract -> agenda [label="eligible"];
+  agenda -> halt;
+  halt -> fire [label="yes"];
+  halt -> quiescent [label="no"];
+  fire -> derived;
+  derived -> wm [label="assert"];
+  fire -> bounded [style=dashed, label="max firings"];
+}
