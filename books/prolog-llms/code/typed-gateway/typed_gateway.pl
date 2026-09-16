@@ -4,6 +4,7 @@
           ]).
 
 :- use_module(library(http/json), [atom_json_dict/3]).
+:- use_module(library(pairs), [pairs_keys/2]).
 :- use_module('../relational-task-solver/task_capability',
               [ capability/2,
                 execute_capability/2
@@ -14,7 +15,7 @@
 This module deliberately separates four different facts that are easy to
 collapse in an LLM integration:
 
-  1. bytes/text were valid JSON;
+  1. text was valid JSON;
   2. the JSON had the one accepted envelope shape;
   3. the requested operation belongs to the repository-authored capability
      vocabulary and has admissible arguments;
@@ -25,24 +26,12 @@ model and response identifiers come from the adapter envelope and are copied
 into provenance; fields inside model JSON cannot replace them.
 */
 
-%!  decode_model_response(+ExpectedRequestId:string,
-%!                        +AdapterResponse:dict,
-%!                        -Outcome) is det.
-%
-%   Decode one trusted adapter response. Outcome is either
-%   `ok(Proposal)` or `error(Reason)`. The decoder never executes a capability.
 decode_model_response(ExpectedRequestId, AdapterResponse, Outcome) :-
     (   valid_expected_request_id(ExpectedRequestId)
     ->  decode_adapter(ExpectedRequestId, AdapterResponse, Outcome)
     ;   Outcome = error(invalid_expected_request_id)
     ).
 
-%!  gateway_once(+ExpectedRequestId:string,
-%!               +AdapterResponse:dict,
-%!               -Outcome) is det.
-%
-%   Decode and, only after successful validation, execute one request through
-%   Project 1's closed capability dispatcher.
 gateway_once(ExpectedRequestId, AdapterResponse, Outcome) :-
     decode_model_response(ExpectedRequestId, AdapterResponse, Decoded),
     execute_decoded(Decoded, Outcome).
@@ -99,9 +88,7 @@ adapter_fields(Response, Provider, Model, ResponseId, Content) :-
 
 parse_candidate(Content, Outcome) :-
     atom_string(Atom, Content),
-    catch(atom_json_dict(Atom, Dict, [value_string_as(string)]),
-          _,
-          fail),
+    catch(atom_json_dict(Atom, Dict, [value_string_as(string)]), _, fail),
     !,
     Outcome = ok(Dict).
 parse_candidate(_, error(malformed_json)).
@@ -165,9 +152,7 @@ validate_capability(CapabilityText,
     (   string(CapabilityText),
         capability(Capability, Arity),
         atom_string(Capability, CapabilityText)
-    ->  validate_arguments(ArgumentsText,
-                           Arity,
-                           ArgumentsResult),
+    ->  validate_arguments(ArgumentsText, Arity, ArgumentsResult),
         build_proposal(ArgumentsResult,
                        RequestId,
                        Capability,
