@@ -48,12 +48,12 @@ This pass supports Chapters 10--12 and Project 2 checkpoint A. It records these 
 - a =permanent= child is always restarted while the supervisor remains able to restart it, but replacement process state comes from fresh initialization/recovery code rather than from the supervisor;
 - OTP 29.0 introduced =supervisor:stop/1,3= style synchronous supervisor stop APIs; the Project 2 cleanup code is therefore explicitly version-pinned rather than advertised as historical-OTP portable.
 
-Execution evidence: the final merged PR head =275863a4798941683718a649f6ff7fb51842da52= passed focused =erlang-book= run =35122123282= on strict Erlang/OTP 29.0.6 / ERTS 17.0.6 with foundations 14/14 EUnit and Project 2 OTP-worker 6/6 EUnit. =make book BOOK=erlang=, =make check BOOK=erlang=, EPUBCheck 5.3.0 with zero findings, and the separate Nix evaluation succeeded. Generic =books-ci= run =35122123275= also succeeded through structural validation, Pandoc Org-reader validation, deterministic assets/fixture, publication/citation regressions, ERT, real Org-roam DB synchronization, and artifact upload. The six Project 2 regressions cover behavior/state, modern call-timeout mailbox isolation, =sys= state introspection, supervised replacement with fresh process-local state, and restart-budget escalation. This is execution evidence for those bounded mechanisms, not a performance or availability benchmark. PR #54 merged as =c93bc5b2f5077d8fb18b893d37ce5b72581d1c4a=.
+Execution evidence: the final merged PR head =275863a4798941683718a649f6ff7fb51842da52= passed focused =erlang-book= run =35122123282= on strict Erlang/OTP 29.0.6 / ERTS 17.0.6 with foundations 14/14 EUnit and Project 2 OTP-worker 6/6 EUnit. =make book BOOK=erlang=, =make check BOOK=erlang=, EPUBCheck 5.3.0 with zero findings, and the separate Nix evaluation succeeded. Generic =books-ci= run =35122123275= also succeeded through structural validation, Pandoc Org-reader validation, deterministic assets/fixture, publication/citation regressions, ERT, real Org-roam DB synchronization, and artifact upload. The six Project 2 regressions cover behavior/state, modern call-timeout mailbox isolation, =sys= state introspection, supervised crash/restart, and restart-budget escalation. This is execution evidence for those bounded mechanisms, not a performance or availability benchmark. PR #54 merged as =c93bc5b2f5077d8fb18b893d37ce5b72581d1c4a=.
 
 Documentation-version caveat: pass 03 intentionally used immutable =OTP-29.0.6= sources and execution for its merged checkpoint. Later on 2026-09-16 an immutable official =OTP-29.1= tag became available; pass 04 advances new work to that baseline without rewriting earlier evidence.
 
 ** Application pass 04 -- application behaviour, =.app= metadata, and component lifecycle
-Status: DOCUMENTED + EXECUTION VERIFIED for the Project 2 checkpoint-B worker draft; editorial approval remains pending.
+Status: DOCUMENTED + EXECUTION VERIFIED; Chapter 13 / Project 2 checkpoint B was editorially APPROVED and merged through PR #78.
 
 Primary-source scope: official Erlang/OTP source at immutable tag =OTP-29.1=: =OTP_VERSION=, the Applications design-principles chapter, Kernel =app= application-resource reference, and Kernel =application= source documentation. See [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
 
@@ -68,10 +68,25 @@ This pass supports Chapter 13 and Project 2 checkpoint B. It records these bound
 - stopping the application stops the owned process tree but does not unload its specification; neither operation is persistence;
 - Project 2 continues to keep worker state volatile so a full application restart must create a new tree with empty history.
 
-The executable checkpoint adds =otp_worker_app=, =otp_worker_app.app.src=, application-controller lifecycle regressions, and an editable application-ownership diagram. At implementation head =03a441a5717a7cfab430bd334f655daba05bd4de=, focused =erlang-book= run =35129230500= succeeded on strict OTP 29.1 / BEAM 17.1 with foundations 14/14 and the combined worker/application suite 10/10; diagram validation, book build/check, EPUBCheck with zero findings, and Nix evaluation also succeeded. Generic =books-ci= run =35129230561= succeeded through repository publication/Org/Org-roam gates. Final handoff evidence is recorded on PR #78 so evidence bookkeeping does not self-approve the chapter.
+The executable checkpoint adds =otp_worker_app=, =otp_worker_app.app.src=, application-controller lifecycle regressions, and an editable application-ownership diagram. The accepted PR head =7ac3c69e54d30d2a412e1ea7933e6ef440c713d5= passed focused =erlang-book= run =35141056340= on strict OTP 29.1 / BEAM 17.1 with foundations 14/14 and the combined worker/application suite 10/10; diagram validation, book build/check, EPUBCheck with zero findings, and Nix evaluation also succeeded. Generic =books-ci= run =35141056353= succeeded before PR #78 merged as =2f62837bc371d2e76d2e5df9818a12125990d572=.
+
+** Release pass 05 -- =.rel= composition, boot scripts, and target-system boundary
+Status: DOCUMENTED; EXECUTION UNTESTED until the Chapter 14 focused CI runs.
+
+Primary-source scope: official Erlang/OTP source at immutable tag =OTP-29.1=: Releases design-principles chapter, SASL =rel= reference, SASL =systools= source documentation, and target-system system-principles chapter. See [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].
+
+This pass supports Chapter 14 and issue #91. It derives the next system boundary from the accepted application milestone:
+- =.app= describes one application while =.rel= composes exact ERTS/application versions into a release;
+- Kernel and STDLIB are required release members;
+- =systools:make_script/2= validates application-version agreement, dependency closure, circular dependencies, and duplicate modules before deriving =.script= and binary =.boot= artifacts;
+- =local= uses actual discovered application paths and is suitable for local boot testing; default output uses release-relative paths such as =$ROOT/lib/App-Vsn/ebin=;
+- =systools:make_tar/2= packages validated application/release artifacts into target-system layout;
+- SASL is needed for upgrade-capable releases, while upgrade/relup behavior is deliberately deferred.
+
+The repository lab is designed to compile the already-accepted =otp_worker_app=, derive a release from the runtime's real ERTS/Kernel/STDLIB versions, boot a fresh VM from a generated local boot file, reject deliberate version/dependency defects, and inspect the release package. None of those runtime observations become TESTED until the workflow actually passes.
 
 * Open research queue
-- Releases, boot scripts, release structure, and upgrade boundaries.
+- Release upgrades, =appup=/=relup=, and release-handler boundaries.
 - Distributed Erlang connectivity, security/TLS, partitions, and failure visibility.
 - Persistence boundaries and restart recovery semantics.
 - EUnit/Common Test, tracing, logger/telemetry, Observer/runtime tools, production debugging.
