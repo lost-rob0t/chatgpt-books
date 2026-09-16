@@ -1,6 +1,7 @@
 :- begin_tests(relational_task_solver).
 
 :- use_module(task_solver).
+:- use_module(task_report).
 :- use_module(library(time)).
 
 :- multifile relational_task_solver:dependency_record/3.
@@ -38,6 +39,29 @@ test(list_relation_finds_tag_once) :-
 test(active_tasks_are_relational) :-
     setof(Task, owned_active_task(lina, Task),
           [publish_report, write_explanation]).
+
+test(ready_tasks_expose_all_choice_point_answers,
+     all(Task-Owner == [collect_sources-ada,
+                        normalize_terms-ben,
+                        write_explanation-lina])) :-
+    ready_task(Task, Owner).
+
+test(first_ready_task_commits_to_current_program_order) :-
+    first_ready_task(Task, Owner),
+    assertion(Task-Owner == collect_sources-ada).
+
+test(consumer_module_composes_only_exported_project_api) :-
+    findall(Owner-Explanation,
+            ready_report(normalize_terms, Owner, Explanation),
+            Reports),
+    assertion(Reports ==
+              [ben-explanation(task(normalize_terms),
+                               supports([
+                                   fact(task(normalize_terms, ben, ready,
+                                             [prolog, validation]),
+                                        source(book_fixture,
+                                               task_normalize_terms))
+                               ]))]).
 
 test(direct_dependency_path_is_unique_in_fixture) :-
     findall(Path,
