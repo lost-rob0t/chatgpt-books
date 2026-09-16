@@ -242,3 +242,4 @@ The first slice is grounded in the official LFE v2.2.2 release and guide, the up
 The detailed retrieval record, exact source URLs, and claim status live in =books/lfe/research/foundations-01.org=. The executable workflow records the actual OTP runtime used for each test run separately from the current-documentation baseline.
 
 #+include: "chapter-04-07.org"
+#+include: "chapter-08-10.org"
