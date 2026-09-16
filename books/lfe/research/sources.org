@@ -107,8 +107,8 @@ URLs:
 - https://www.erlang.org/doc/apps/eunit/chapter.html
 - https://www.erlang.org/doc/apps/eunit/eunit.html
 Authority: official Erlang/OTP EUnit documentation.
-Version inspected: OTP 29 documentation / EUnit 2.11.
-Relevant material: test functions/generators, assertions, separate test modules, test objects as data, =setup=/=foreach= fixtures, cleanup behavior, and =eunit:test/1,2=.
+Version inspected: OTP 29.1 / EUnit 2.11.
+Relevant material: test functions/generators, assertions, separate =*_tests= modules, test objects as data, =setup=/=foreach= fixtures, cleanup behavior, and =eunit:test/1,2=.
 Affects: Chapter 13 and Project 3 checkpoint B.
 
 ** Erlang/OTP Common Test
@@ -116,7 +116,7 @@ URLs:
 - https://www.erlang.org/doc/apps/common_test/write_test_chapter.html
 - https://www.erlang.org/doc/apps/common_test/api-reference.html
 Authority: official Erlang/OTP Common Test documentation.
-Version inspected: OTP 29.0.6 / Common Test 1.31.1.
+Version inspected: OTP 29.1 / Common Test 1.31.2.
 Relevant material: suite and testcase lifecycle, configuration/logging/system-test boundary, distributed-test support, and current =ct_doctest= module inventory.
 Affects: Chapter 13's framework-selection boundary and future Project 4 planning. No Common Test execution is claimed in this slice.
 
@@ -125,13 +125,52 @@ URLs:
 - https://www.erlang.org/doc/apps/stdlib/sys.html
 - https://www.erlang.org/doc/system/spec_proc.html
 Authority: official Erlang/OTP STDLIB/System Documentation.
-Version inspected: OTP 29 documentation line.
+Version inspected: OTP 29.1 / STDLIB 8.1 for =sys=; system-documentation page inspected on the current 29-series documentation site.
 Relevant material: behaviour-process state inspection, suspend/resume, statistics, system-event tracing, and system-message semantics.
 Affects: Chapters 11--13 and Project 3 deterministic timeout/debugging labs.
 
 ** Erlang/OTP trace interface
 URL: https://www.erlang.org/doc/apps/kernel/trace.html
 Authority: official Erlang/OTP Kernel documentation.
-Version inspected: OTP 29 documentation line.
+Version inspected: OTP 29.1 / Kernel 11.0.4.
 Relevant material: trace sessions and runtime trace points for calls, messages, garbage collection, and scheduling; guidance toward higher-level debugging/profiling tools.
 Affects: Chapter 13 debugging method. No production tracing policy or performance claim is made.
+
+** Erlang/OTP 29.1 release record
+URLs:
+- https://www.erlang.org/patches/OTP-29.1
+- https://www.erlang.org/downloads
+Authority: official Erlang/OTP release/download pages.
+Version/date: OTP 29.1, released 2026-09-16; release record reports ERTS 17.1, Kernel 11.0.4, STDLIB 8.1, Common Test 1.31.2.
+Relevant material: current upstream release identity and application-version tree. Individual documentation pages may still render a 29.0.x page label; this source is the authority for the current release version.
+Affects: Chapters 13--14 and all current-versus-tested version notes.
+
+** Erlang/OTP application behaviour
+URL: https://www.erlang.org/doc/apps/kernel/application.html
+Authority: official Erlang/OTP Kernel documentation.
+Version inspected: current 29-series documentation retrieved 2026-09-16.
+Relevant material: application controller/application master, application callback =start/2= and =stop/1=, supervision-tree ownership, dependency-start semantics.
+Affects: Chapter 14 and Project 3 checkpoint C.
+
+** Erlang/OTP application resource format
+URL: https://www.erlang.org/doc/apps/kernel/app.html
+Authority: official Erlang/OTP Kernel documentation.
+Version inspected: current 29-series documentation retrieved 2026-09-16.
+Relevant material: =.app= syntax; =vsn=, =modules=, =registered=, =applications=, and =mod= fields; location in application =ebin=.
+Affects: Chapter 14 and Project 3 checkpoint C.
+
+** Erlang/OTP release structure and rel format
+URLs:
+- https://www.erlang.org/doc/system/release_structure.html
+- https://www.erlang.org/doc/apps/sasl/rel.html
+Authority: official Erlang/OTP System/SASL documentation.
+Version inspected: current 29-series documentation retrieved 2026-09-16.
+Relevant material: release definition, exact ERTS/application versions, mandatory Kernel/STDLIB members, local boot scripts, release directory/package layout.
+Affects: Chapter 14 and Project 3 checkpoint C.
+
+** Erlang/OTP systools
+URL: https://www.erlang.org/doc/apps/sasl/systools.html
+Authority: official Erlang/OTP SASL documentation.
+Version inspected: current 29-series documentation retrieved 2026-09-16.
+Relevant material: =make_script/2= release/application validation, =.script=/=.boot= construction, =local= path behavior, =make_tar/2= release packaging and options.
+Affects: Chapter 14 and Project 3 checkpoint C. The chapter treats a generated archive only as package-construction evidence, not deployment proof.
