@@ -77,3 +77,23 @@ Inspected primary/official sources:
 Result: sufficient to specify a course-local STRIPS-style forward state-space subset without claiming full historical STRIPS equivalence. Chapter 8 may use variable-bearing =schema(Id,Action,Preconditions,Add,Delete)= data, but each schema is copied before matching; only ground action/effect instances may produce canonical ground successor states. The milestone keeps FIFO breadth-first search fixed so planning-state/action semantics are derived separately from the later Chapter 9 cost/heuristic policies and Chapter 10 constraints.
 
 Implementation status at research time: UNTESTED until the exact branch head runs the combined SWI-Prolog suite and book/publication/Nix gates. No runtime, performance, optimal-cost, PDDL, LLM, or production-planner claim is inferred from documentation alone.
+
+** 2026-09-16 -- Project 2 milestone C: cost-aware and heuristic frontiers
+Questions:
+- What historical minimum-path claim can safely motivate replacing FIFO with accumulated-cost priority?
+- Which A* conditions must stay attached to admissibility/optimal-efficiency prose instead of collapsing into “A* is optimal”?
+- Which current SWI priority-queue and map contracts does the implementation actually rely on?
+- How should a cheaper rediscovery interact with an older heap entry for the same canonical state?
+- Can the heuristic remain inert closed data rather than becoming a caller-controlled =call/3= boundary?
+- What finite fixture makes step count, total cost, strict improvement, equal-cost domination, and stale entries observable without pretending to benchmark a planner?
+
+Inspected primary/official sources:
+- Edsger W. Dijkstra, “A Note on Two Problems in Connexion with Graphs,” =Numerische Mathematik= 1, 269--271 (1959), DOI =10.1007/BF01386390=; inspected the E.W. Dijkstra Archive reproduction and Springer bibliographic record. The paper's shortest-path problem states positive edge lengths.
+- Peter E. Hart, Nils J. Nilsson, and Bertram Raphael, “A Formal Basis for the Heuristic Determination of Minimum Cost Paths,” =IEEE Transactions on Systems Science and Cybernetics= 4(2), 100--107 (1968), DOI =10.1109/TSSC.1968.300136=; inspected the Stanford/Nilsson-hosted primary-paper copy and publication metadata.
+- Hart, Nilsson, and Raphael, “Correction to ‘A Formal Basis for the Heuristic Determination of Minimum Cost Paths’,” =SIGART Bulletin= 37, 28--29 (1972), DOI =10.1145/1056777.1056779=; inspected the original-authors' correction record/summary and DOI metadata to keep admissibility/consistency/optimal-efficiency wording bounded.
+- https://www.swi-prolog.org/pldoc/doc/_SWI_/library/heaps.pl -- current official min-heap, key-order, and =get_from_heap/4= documentation.
+- https://www.swi-prolog.org/pldoc/man?section=assoc -- current official association-list/AVL interface; keys must be ground.
+
+Result: sufficient to implement a course-local non-negative-integer UCS/A* frontier over the already accepted Chapter 8 transition semantics. =priority(F,Sequence)= gives a deterministic ground heap key; a ground-state assoc tracks the strict best discovered =g=; older heap entries become explicit =stale/3= diagnostics; equal/worse rediscoveries become =dominated/4=. The heuristic interface is restricted to =zero= or a validated finite =table([estimate(State,H),...])= and never executes a caller-supplied goal.
+
+Implementation status at research time: UNTESTED until exact-head SWI-Prolog and book/publication/Nix gates run. The synthetic weighted-recovery fixture and its heuristic table are teaching data; no benchmark, production-performance, arbitrary-heuristic admissibility, negative-cost, PDDL, LLM, or RLM claim is inferred from these sources.
