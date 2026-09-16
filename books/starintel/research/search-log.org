@@ -38,3 +38,16 @@ Question: Does current =doc/messaging.org= exactly match the current loaded impl
 Sources inspected: =doc/messaging.org= compared with current =rabbit.lisp= and later-loaded authorized target route.
 Result: no. The doc's update-ingest queue/binding names differ from active constants, and its statement that legacy =POST /new/target/:actor= skips strict schema validation is superseded by the currently loaded authorized route, which normalizes then validates the target document. These are retained as historical/source-drift examples.
 Remaining uncertainty: other messaging paragraphs require claim-by-claim verification before later chapters reuse them.
+
+** 2026-09-16 -- Did the server head change the quarantine failure model while this PR was open?
+Question: After the ingest pass at =d4e8447...=, did current StarIntel Server source change any failure semantics the book is teaching?
+Sources inspected: server commit delta =d4e8447c6049eaed65a93e81668ae1ec4b65c25c= -> =d48fa939402abf701fa1cc4079dfb8bedfad8d4a=; current =source/ids.lisp=, =source/runtime-lifecycle.lisp=, =source/consumers/retry-policy.lisp=, ASDF load graph; upstream issue #187 and merged PR #188.
+Result: yes. Upstream issue #187 reports concurrent raw =cms-ulid= calls producing the same quarantine ID for different deliveries, causing a CouchDB conflict during settlement and a listener-killing failure. Current PR #188 adds a process-wide locked =star.ids:ulid= wrapper and routes production ID generation through it; the current consumer lifecycle catches settlement errors, stops/closes the affected worker stream, and leaves the delivery unsettled for redelivery instead of allowing that worker error to kill the listener. Quarantine persistence still precedes publish and ACK.
+Evidence status: current source behavior is DOCUMENTED. The incident, baseline RED fixture, green unit/integration/Nix/image checks are UPSTREAM-REPORTED because this book did not run those product-repository checks.
+Remaining uncertainty: this book still needs a disposable RabbitMQ/CouchDB failure-injection run before the redelivery/listener-survival repair is book-TESTED.
+
+** 2026-09-16 -- What can safely be replayed after an accepted but ambiguous bulk request?
+Question: If request acceptance is known but the final durable subset is not, when can an operator derive a mechanical resume offset without guessing?
+Sources inspected: upstream issue #187 incident evidence plus the book's existing acceptance-versus-persistence model.
+Result: only independently verified state can justify replay. The new book lab requires a contiguous =verified_match= prefix followed exclusively by independently verified =absent= rows before returning a resume offset. Any =unknown=, =mismatch=, or verified row after an absent row fails closed to manual reconciliation. The lab deliberately consumes preclassified evidence and does not reimplement StarIntel document-equivalence or persistence logic.
+Remaining uncertainty: incident-specific content comparison and live read-back remain outside the hermetic lab and require a service-backed experiment.
