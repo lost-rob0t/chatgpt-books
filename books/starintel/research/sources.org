@@ -8,18 +8,56 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 * Inspected sources
 ** StarIntel Server current source snapshot
 - URL :: https://github.com/lost-rob0t/starintel-server
-- Revision :: =d4e8447c6049eaed65a93e81668ae1ec4b65c25c=
-- Retrieved :: 2026-09-16
+- Current revision rechecked :: =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=
+- Earlier failure-path revision :: =d48fa939402abf701fa1cc4079dfb8bedfad8d4a=
+- Earlier full ingest audit revision :: =d4e8447c6049eaed65a93e81668ae1ec4b65c25c=
+- Retrieved/rechecked :: 2026-09-16
 - Authority :: Current implementation repository for the Common Lisp StarIntel backend service.
-- Inspected :: README; ASDF load graph; v0.9 runtime/document docs; architecture; active HTTP authorization runtime; HTTP boundary/authorization/publish source.
-- Used by :: Chapters 1--5; later actor/messaging/debugging chapters must recheck current head.
+- Inspected at the full ingest snapshot :: README; ASDF load graph; v0.9 runtime/document docs; architecture; active HTTP authorization runtime; HTTP boundary/authorization/publish source; producer/actor publish path; active Rabbit consumer/retry path; CouchDB outbox; consumer tests; canonical test systems; messaging documentation.
+- Rechecked at =d48fa939...= :: commit delta from =d4e8447...=; =source/ids.lisp=; =source/runtime-lifecycle.lisp=; =source/consumers/retry-policy.lisp=; =source/starintel-gserver.asd=; the merged #187/#188 quarantine failure/repair delta.
+- Rechecked at current head :: merge delta from =d48fa939...=; =source/frontends/http-bulk-jobs.lisp=; issue #189 / PR #190 terminal bulk-job payload-lifetime repair.
+- Used by :: Chapters 1--6, 8--9, 14 and debugging material; Projects 1--2 and the two book-side failure-analysis labs. Later actor/search/deployment chapters must recheck current head.
+
+** StarIntel Server issue #187 -- concurrent quarantine ID collision
+- URL :: https://github.com/lost-rob0t/starintel-server/issues/187
+- State observed :: closed/completed 2026-09-16
+- Retrieved :: 2026-09-16
+- Authority :: Upstream product-repository incident report for the live failure that motivated PR #188.
+- Used by :: Runtime Failure Pass 03 and the ambiguous-bulk reconciliation lab.
+- Evidence status :: UPSTREAM-REPORTED. The book did not reproduce the incident or its operational counts.
+
+** StarIntel Server PR #188 -- quarantine identity/settlement repair
+- URL :: https://github.com/lost-rob0t/starintel-server/pull/188
+- Merge revision :: =d48fa939402abf701fa1cc4079dfb8bedfad8d4a=
+- Retrieved :: 2026-09-16
+- Authority :: Merged upstream repair and verification record for issue #187.
+- Inspected :: merged diff affecting =star.ids=, server ID call sites, consumer lifecycle, retry-policy IDs, ASDF load graph, and consumer tests; PR verification summary.
+- Used by :: Runtime Failure Pass 03 and current failure-semantics notes.
+- Evidence status :: code is DOCUMENTED from the merged source; RED/GREEN unit/integration/Nix/image results in the PR body are UPSTREAM-REPORTED until independently reproduced by this book.
+
+** StarIntel Server issue #189 -- terminal bulk payload retention
+- URL :: https://github.com/lost-rob0t/starintel-server/issues/189
+- State observed :: closed/completed 2026-09-16
+- Retrieved :: 2026-09-16
+- Authority :: Upstream product-repository incident report for the SBCL heap-exhaustion failure associated with retained completed bulk-job request payloads.
+- Used by :: Bulk Lifetime Pass 04, Chapter 14/debugging material, and the lifecycle evidence lab.
+- Evidence status :: UPSTREAM-REPORTED. The book did not reproduce the production heap failure, operational offsets, or memory profile.
+
+** StarIntel Server PR #190 -- release terminal bulk-job request payloads
+- URL :: https://github.com/lost-rob0t/starintel-server/pull/190
+- Merge revision :: =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=
+- Retrieved :: 2026-09-16
+- Authority :: Merged current repair and verification record for issue #189.
+- Inspected :: current =source/frontends/http-bulk-jobs.lisp= plus the merged diff/test description: stable stored total, terminal =unwind-protect= cleanup, release of =documents= and request-only =service-context=, retained status/count metadata.
+- Used by :: Bulk Lifetime Pass 04 and Project 2 lifecycle/debugging teaching.
+- Evidence status :: merged code is DOCUMENTED from current source; RED baseline and unit/integration/doc-coverage/Nix/stack-test results are UPSTREAM-REPORTED until independently reproduced by this book.
 
 ** StarIntel Python document binding
 - URL :: https://github.com/lost-rob0t/starintel-doc
 - Revision :: =5857914a1e34ad18a6956b8ff0df5349de0ca099=
 - Package release :: 0.9.1
 - Retrieved :: 2026-09-16
-- Authority :: Current Python parser/validator/serializer/conformance adapter.
+- Authority :: Current Python parser/validator/serializer/conformance adapter used by Project 1's pinned teaching boundary.
 - Inspected :: package metadata, schema lock, =v090.py=, conformance adapter, person and operation tests.
 - Used by :: Chapters 3--5 and Project 1 milestone A.
 
@@ -27,7 +65,7 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - URL :: https://github.com/lost-rob0t/star-cl
 - Revision :: =9ce8f88f57fb7ac143851f7fd2c75dccd6a40cc3=
 - Retrieved :: 2026-09-16
-- Authority :: Common Lisp document/validation library pinned by current StarIntel Server runtime.
+- Authority :: Common Lisp document/validation library pinned by the inspected StarIntel Server runtime.
 - Used by :: Chapters 3--6; this pass relies on the server's exact dependency lock and does not claim a full independent API audit of every exported symbol.
 
 ** JSON Schema Draft 2020-12
@@ -42,11 +80,18 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Documentation version observed :: 4.3
 - Retrieved :: 2026-09-16
 - Authority :: Official RabbitMQ documentation.
-- Used by :: Chapter 5 distinction between publish/broker/consumer/persistence observations. No claim is made here about uninspected StarIntel publisher-confirm configuration.
+- Used by :: Chapters 5, 6, and 8 to distinguish publisher-call return, publisher confirms, consumer settlement, and downstream persistence. Current StarIntel source inspection did not find a publisher-confirm select/wait path in the inspected producer/retry publishers.
+
+** RabbitMQ reliability guide
+- URL :: https://www.rabbitmq.com/docs/reliability
+- Documentation version observed :: 4.3
+- Retrieved :: 2026-09-16
+- Authority :: Official RabbitMQ documentation.
+- Used by :: Chapter 8 failure/duplicate reasoning. Generic RabbitMQ guidance is not substituted for StarIntel runtime evidence.
 
 ** Apache CouchDB documentation
 - URL :: https://docs.couchdb.org/en/latest/
 - Documentation version observed :: 3.5
 - Retrieved :: 2026-09-16
 - Authority :: Official Apache CouchDB documentation.
-- Used by :: Chapter 3 distinction between CouchDB revision identifiers and StarIntel document/schema versions; later persistence chapters require deeper API-specific research.
+- Used by :: Chapters 3 and 9 for revision/MVCC concepts; current StarIntel mutation/outbox behavior is taken from the pinned server source rather than inferred from generic CouchDB documentation.
