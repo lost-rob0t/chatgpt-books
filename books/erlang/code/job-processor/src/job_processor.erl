@@ -140,7 +140,8 @@ start_job(Job, State) ->
         try job_worker_sup:start_job(JobId, Attempt, Payload, self()) of
             Result -> Result
         catch
-            exit:Reason -> {error, {worker_supervisor_exit, Reason}}
+            exit:SupervisorExit ->
+                {error, {worker_supervisor_exit, SupervisorExit}}
         end,
     case StartResult of
         {ok, Pid} ->
@@ -155,9 +156,9 @@ start_job(Job, State) ->
             Active0 = maps:get(active, State),
             job_worker:run(Pid),
             State#{active => Active0#{Pid => Entry}};
-        {error, Reason} ->
+        {error, StartReason} ->
             Client = maps:get(client, Job),
-            Client ! {job_result, JobId, {error, {start_failed, Reason}}},
+            Client ! {job_result, JobId, {error, {start_failed, StartReason}}},
             Failed = maps:get(failed, State),
             State#{failed => Failed + 1}
     end.
