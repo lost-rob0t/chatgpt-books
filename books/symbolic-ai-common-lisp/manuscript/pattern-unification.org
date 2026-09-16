@@ -1,0 +1,295 @@
+#+title: From Pattern Matching to Unification
+:PROPERTIES:
+:ID:       d8d864f0-8653-4c8f-b905-c6280d81c695
+:END:
+
+* A variable is not a wildcard
+:PROPERTIES:
+:ID:       71d57021-34ff-4545-aac5-3e25755b26ac
+:END:
+
+A wildcard means “I do not care what is here.”  A symbolic variable means something stronger: “I do not know what is here yet, but once I learn it, later occurrences must agree.”
+
+That difference is the entire reason pattern matching becomes useful AI machinery instead of fancy destructuring.
+
+Suppose a troubleshooting system stores observations such as:
+
+#+begin_src lisp
+'(service web-17 reports timeout)
+'(service db-02 reports connection-refused)
+#+end_src
+
+A pattern that asks for the service reporting a timeout might be written with an explicit variable:
+
+#+begin_src lisp
+(let ((service (make-variable 'service)))
+  `(service ,service reports timeout))
+#+end_src
+
+The project represents that variable as =(:var service)=.  Matching against the first observation produces a binding equivalent to:
+
+#+begin_src lisp
+((service . web-17))
+#+end_src
+
+Now change the pattern:
+
+#+begin_src lisp
+(let ((x (make-variable 'x)))
+  `(same ,x ,x))
+#+end_src
+
+Against =(same a a)= it succeeds.  Against =(same a b)= it fails.  The second occurrence of =X= is not another wildcard.  It is a constraint created by the first occurrence.
+
+This is our bridge from passive Lisp data to symbolic reasoning: *structure plus named uncertainty plus consistency rules*.
+
+** Why reserve an explicit variable form?
+
+We could decide that every symbol beginning with =?= is a variable.  That is compact, but it hides a policy inside symbol names.  We could use a structure, but ANSI Common Lisp's =EQUAL= does not promise structural comparison for arbitrary structures in the same way it recursively compares conses.  For this teaching project we want variable identity to remain visible and portable, so milestone A reserves the two-element term =(:var NAME)=.
+
+The rest of the term language is deliberately boring: atoms and cons cells.  Proper lists, trees, and dotted pairs are therefore all built from the same recursive mechanism.  That choice mirrors the way Lisp programmers already inspect symbolic expressions instead of requiring a framework-specific AST before the reader understands the algorithm.
+
+* Matching is a one-way walk that carries an environment
+:PROPERTIES:
+:ID:       92cbaf72-96e2-40b5-939a-5fa10f879b97
+:END:
+
+Start with the smallest matcher imaginable:
+
+#+begin_src lisp
+(defun literal-match-p (pattern datum)
+  (equal pattern datum))
+#+end_src
+
+It understands structure but not uncertainty.  To add variables, the recursive walk needs an *environment*: a set of bindings discovered so far.
+
+At each pair =(pattern, datum)= there are four interesting cases:
+
+1. the pattern is a variable that has no binding yet: bind it to the datum;
+2. the pattern is an already-bound variable: require the old value and datum to be =EQUAL=;
+3. both values are conses: match =CAR=, carry the resulting environment into the =CDR= match;
+4. otherwise require literal equality.
+
+Notice what is *not* symmetric.  The datum is data.  A variable-looking object inside the datum does not suddenly become a request to solve for that variable.  Directionality is what makes this operation matching rather than unification.
+
+The executable project returns a typed =MATCH-RESULT= instead of merely =T= or =NIL=.  Successful results carry bindings.  Failed results retain a reason and the fragments that disagreed.  That is not ceremony: later rule systems need to explain why a candidate rule did not match, and students need failures they can debug rather than a black box that says “no.”
+
+#+begin_src lisp
+(let* ((x (make-variable 'x))
+       (result (match-pattern `(same ,x ,x) '(same a b))))
+  (list (match-result-status result)
+        (match-result-reason result)
+        (match-result-pattern result)
+        (match-result-datum result)))
+#+end_src
+
+The expected semantic shape is:
+
+#+begin_example
+(:failed :repeated-variable-clash (:var x) b)
+#+end_example
+
+That output is explanatory evidence, not a benchmark.  The exact executable regression is the authority for the implementation behavior.
+
+* Cons recursion gives us lists, trees, and dotted pairs
+
+A matcher that only iterates over proper lists teaches the wrong abstraction.  Lisp terms are cons trees.  If the algorithm recurses on =CAR= and =CDR=, dotted pairs require no special matching primitive.
+
+For example:
+
+#+begin_src lisp
+(let ((tail (make-variable 'tail)))
+  (match-pattern `(a . ,tail) '(a b c)))
+#+end_src
+
+The pattern's =CAR= matches =A=.  Its =CDR= is =TAIL=, which binds to =(B C)=.  This is useful later when a symbolic representation deliberately separates a fixed prefix from an unknown remainder.
+
+The same recursion also exposes a boundary.  Circular terms are not ordinary finite trees.  Milestone A is explicitly a *finite acyclic term* system.  We do not pretend that the recursive algorithm has rational-tree semantics just because a Common Lisp program can construct cyclic conses.
+
+* Substitution is an operation, not just an alist
+:PROPERTIES:
+:ID:       41d60241-6bf4-459d-818c-106d8a12ee74
+:END:
+
+A binding environment becomes interesting when we can apply it back to a term.
+
+Suppose:
+
+#+begin_src lisp
+X = (:var x)
+Y = (:var y)
+
+substitution = ((x . (:var y))
+                (y . (g a)))
+#+end_src
+
+Looking up =X= once gives =Y=, not the final answer.  We need to *walk* variable chains until we reach either an unbound variable or a non-variable term.  Applying the substitution recursively to =(pair X Y)= should produce:
+
+#+begin_src lisp
+'(pair (g a) (g a))
+#+end_src
+
+That simple example motivates three separate mechanisms in the code:
+
+- top-level dereferencing follows variable-to-variable chains;
+- recursive substitution application rebuilds compound terms;
+- normalization rewrites every right-hand side through the full substitution so an inspector sees final values rather than avoidable chains.
+
+The implementation does not destructively splice results into the caller's trees.  A regression keeps copies of both input terms, unifies them, and requires those originals to remain =EQUAL= to their copies afterward.  Later chapters may investigate destructive unification plus a trail as an optimization technique, but that is a different mechanism with a different restoration/failure story.  We do not smuggle it into the beginner derivation.
+
+* Unification asks both terms to meet in the middle
+:PROPERTIES:
+:ID:       8c716008-6494-4e3f-b115-133ff874640c
+:END:
+
+Pattern matching says “make this pattern fit that datum.”  Unification asks a stronger question:
+
+#+begin_quote
+Can one substitution make *both* terms the same?
+#+end_quote
+
+Robinson's 1965 resolution paper made unification a central operation in machine-oriented first-order deduction [cite:@robinson1965].  We are not building the resolution prover here.  We isolate the smaller mechanism because planners, rule systems, knowledge representations, theorem tools, and logic-programming implementations all benefit from understanding substitutions directly.
+
+Consider:
+
+#+begin_example
+(f X a)
+(f b Y)
+#+end_example
+
+Walking left to right gives two equations:
+
+#+begin_example
+X = b
+Y = a
+#+end_example
+
+so a unifier is ={X -> b, Y -> a}=.  Apply that substitution to both original terms and they become the same term:
+
+#+begin_example
+(f b a)
+#+end_example
+
+That gives us a powerful executable oracle for every successful unification: *apply the returned substitution to both inputs; the results must be equal*.  Later we can turn that relationship into broader generated/property tests.
+
+The recursive algorithm used in milestone A follows a small decision tree:
+
+1. dereference both terms under the current substitution;
+2. if they are already =EQUAL=, continue unchanged;
+3. if the left is an unbound variable, try to bind it to the right;
+4. otherwise, if the right is a variable, try the symmetric binding;
+5. if both are conses, unify their cars, then carry the resulting substitution into their cdrs;
+6. otherwise the terms clash.
+
+#+caption: Matching is directional; unification repeatedly dereferences both sides, extends a shared substitution, and either converges on equal terms or returns an inspectable failure.
+#+attr_html: :alt A flow diagram comparing one-way pattern matching with symmetric unification. Unification walks current bindings, checks equality, handles a variable on either side with an occurs check, recursively decomposes conses, and otherwise reports a clash.
+[[file:assets/pattern-unification-flow.svg]]
+
+The order matters.  We dereference before testing whether a term is an unbound variable.  Otherwise =X -> Y= followed by a later =Y -> A= can behave as though =X= and =Y= were unrelated.
+
+* The occurs check is a semantic boundary, not an optional checkbox
+:PROPERTIES:
+:ID:       83ef671a-f4f9-4e92-a33f-84afc1689284
+:END:
+
+Try to solve:
+
+#+begin_example
+X = f(X)
+#+end_example
+
+For ordinary finite trees there is no finite term that can replace =X= and make both sides structurally identical.  If we naïvely bind =X -> f(X)=, recursive substitution application never reaches a finite normal form.
+
+Milestone A therefore performs the occurs check every time it extends a substitution.  Binding =X= to =T= is rejected if dereferencing and recursively traversing =T= discovers =X= inside it.  The result is typed:
+
+#+begin_example
+status = :failed
+reason = :occurs-check
+#+end_example
+
+Some logic-programming systems deliberately support cyclic or rational-tree terms, and some optimized unification paths omit the occurs check under documented semantics.  Those are legitimate subjects, but mixing them into this finite-term derivation would silently change the language being implemented.  Here the contract is simple: finite acyclic terms, mandatory occurs check, no rational-tree claim.
+
+This is also a useful lesson for symbolic AI in general: an optimization can change semantics if the invariant it removes was part of the model.
+
+* Failure is data for the debugger
+
+A useful unifier must fail for more than one reason.
+
+** Structural clash
+
+#+begin_example
+(f a)  vs  (g a)
+#+end_example
+
+The first atoms differ, so the result is =:failed / :clash=.
+
+Arity differences eventually appear as a cons-versus-atom or NIL clash:
+
+#+begin_example
+(f a b)  vs  (f a)
+#+end_example
+
+The implementation keeps the specific term pair that could not be reconciled.
+
+** Occurs-check failure
+
+#+begin_example
+X  vs  (f X)
+#+end_example
+
+This is not merely another functor clash.  The reason identifies a self-containing binding that violates the finite-term contract.
+
+** Matching failure is different again
+
+For directional matching, =(same X X)= against =(same a b)= is a *repeated-variable clash*.  The terms =a= and =b= are not globally illegal; they are illegal under the binding produced earlier in this one match.
+
+Typed reasons let later systems decide what to expose to users without re-running the algorithm to rediscover why it failed.
+
+* Project 2 milestone A as an evolving tool
+
+The implementation lives in =../code/pattern-unify/=.  It is intentionally small enough to inspect in one sitting:
+
+#+begin_src lisp
+(let* ((x (make-variable 'x))
+       (y (make-variable 'y))
+       (result (unify `(f ,x a) `(f b ,y))))
+  (when (eq :unified (unification-result-status result))
+    (unification-result-substitution result)))
+#+end_src
+
+The direct regression suite covers literal/nested matching, repeated variables, dotted terms, symmetric compound unification, variable chains, normalized substitutions, occurs-check rejection, shape/functor clashes, seeded substitutions, and non-mutation of inputs.
+
+Run it with:
+
+#+begin_src sh
+sbcl --script books/symbolic-ai-common-lisp/code/pattern-unify/run-tests.lisp
+#+end_src
+
+or through ASDF:
+
+#+begin_src lisp
+(asdf:test-system "symbolic-ai-pattern/tests")
+#+end_src
+
+Norvig's author-maintained PAIP distribution historically presents pattern matching and unification as reusable Common Lisp AI tools [cite:@norvig1992].  This project's code is an independent teaching implementation.  Its purpose is not to clone PAIP; it is to make the semantic steps visible before later projects depend on them.
+
+* What this project deliberately does not own
+
+A small matcher is not a production inference engine.  This book will later build enough working-memory/rule machinery to understand composition, but RETE/TREAT-style incremental networks, rule lifecycle, persistence, and operational knowledge engineering belong deeply in the sibling /Expert System Design and Implementation/ volume.
+
+Likewise, this Common Lisp unifier is not an imitation Prolog runtime.  /Symbolic AI in Prolog/ can exploit native logical variables, backtracking, meta-interpreters, and relational execution in their natural environment.  Here we implement substitution explicitly because seeing the mechanism is the lesson.
+
+* Exercises
+
+1. *Trace by hand.* Match =(service X depends-on X)= against =(service api depends-on db)=.  At which exact step does the environment make the match impossible?
+2. *Add evidence.* Extend the match failure record with a path such as =(cdr car)= locating the first disagreement.  Write tests before changing the matcher.
+3. *Unification trace.* Derive the substitution for =(p X (g Y))= and =(p (f a) (g b))=.  Then use =APPLY-SUBSTITUTION= to check both sides.
+4. *Occurs-check bug lab.* Temporarily remove the occurs check locally and attempt =X = f(X)=.  Do not “fix” the resulting cycle by adding an arbitrary recursion limit.  Explain which semantic contract was lost.
+5. *Dotted terms.* Unify =(a . X)= with =(a b c)= and explain why the result follows from ordinary cons recursion rather than a special list rule.
+6. *Representation attack.* Construct an ordinary domain datum that needs to use the literal form =(:var x)=.  Propose two alternative variable representations and compare their portability, readability, and equality semantics.
+7. *Metamorphic oracle.* For every successful controlled unification in a fixture set, require that applying the substitution to both original inputs yields =EQUAL= terms.  Add a failing fixture first to prove the oracle catches a deliberately broken substitution.
+8. *Boundary design.* Sketch the API a later planner should receive.  Should it depend directly on the alist representation, or only on operations such as unify/apply/lookup?  Defend the choice.
+
+* Next step
+
+The next Project 2 slice should strengthen the substitution contract with generated/metamorphic checks and then connect matching/unification to one *real* symbolic consumer, preferably planner action schemas.  Only after the semantics are stable should we benchmark environment representations or introduce indexing.  Fast wrong unification is still wrong, just with better throughput.

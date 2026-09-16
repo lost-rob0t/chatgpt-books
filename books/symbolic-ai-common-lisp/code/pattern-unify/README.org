@@ -1,0 +1,44 @@
+#+title: Pattern Matcher and Unifier -- Milestone A
+:PROPERTIES:
+:ID:       1455a470-f214-4df5-a23e-e938174123b4
+:END:
+
+* Purpose
+This directory is the first executable slice of Project 2.  It derives directional pattern matching and then symmetric first-order unification from small ANSI Common Lisp mechanisms.
+
+The implementation is teaching code, not a production rule engine and not a Prolog runtime.  Deeper production matching belongs in the sibling Expert Systems volume; native relational execution and meta-interpretation belong in Symbolic AI in Prolog.
+
+* Term contract
+A symbolic variable is represented explicitly as =(:var NAME)= and should normally be built with =MAKE-VARIABLE=.  That tag is reserved by this project.  Ordinary atoms and cons cells are terms, so proper lists, trees, and dotted pairs work without a separate AST class.
+
+Milestone A deliberately supports *finite acyclic terms*.  The unifier always performs the occurs check.  It does not silently create rational trees or cyclic substitutions.  The implementation never calls =EVAL= and never destructively rewrites the caller's terms.
+
+* Result contracts
+=MATCH-PATTERN= returns a =MATCH-RESULT=:
+- =:matched= with an alist of variable-name bindings;
+- =:failed= with a concrete reason such as =:literal-clash=, =:shape-clash=, or =:repeated-variable-clash=.
+
+=UNIFY= returns a =UNIFICATION-RESULT=:
+- =:unified= with a normalized substitution;
+- =:failed= with =:clash= or =:occurs-check= plus the term pair that caused the failure.
+
+Pattern matching is directional: only the pattern introduces variables.  Unification is symmetric: either side may contain variables, and substitutions constrain both sides until they become equal or fail.
+
+* Run
+From the repository root:
+
+#+begin_src sh
+sbcl --script books/symbolic-ai-common-lisp/code/pattern-unify/run-tests.lisp
+#+end_src
+
+ASDF test operation:
+
+#+begin_src sh
+sbcl --noinform --non-interactive \
+  --eval '(require :asdf)' \
+  --eval '(asdf:load-asd (truename "books/symbolic-ai-common-lisp/code/pattern-unify/symbolic-ai-pattern.asd"))' \
+  --eval '(asdf:test-system "symbolic-ai-pattern/tests")'
+#+end_src
+
+* Evidence boundary
+The source and tests are TESTED only when an exact commit has successfully run the executable suite.  Robinson's 1965 unification paper and Norvig's PAIP source are DOCUMENTED research context, not evidence that this particular implementation is correct.  No performance benchmark is claimed.
