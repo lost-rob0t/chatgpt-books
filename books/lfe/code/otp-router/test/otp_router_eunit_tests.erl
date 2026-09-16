@@ -32,7 +32,7 @@ fixture_cleanup_refuses_foreign_owner_test() ->
                      cleanup_router(State)),
         ?assertEqual(Dummy, whereis('otp-router')),
         ?assert(is_process_alive(Dummy)),
-        ?assertNot(is_process_alive(OwnedPid))
+        ?assert(not is_process_alive(OwnedPid))
     after
         release_dummy_registration(Dummy),
         stop_owned_router_if_alive(OwnedPid)
