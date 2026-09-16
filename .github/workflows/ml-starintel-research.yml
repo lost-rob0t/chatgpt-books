@@ -58,6 +58,32 @@ jobs:
           set -euo pipefail
           python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/acquire_gleif_live_snapshot.py
 
+      - name: Install publication tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y curl unzip default-jre-headless
+          curl --fail --location --retry 3 \
+            --output pandoc.deb \
+            https://github.com/jgm/pandoc/releases/download/3.10.1/pandoc-3.10.1-1-amd64.deb
+          sudo dpkg -i pandoc.deb
+          curl --fail --location --retry 3 \
+            --output epubcheck.zip \
+            https://github.com/w3c/epubcheck/releases/download/v5.3.0/epubcheck-5.3.0.zip
+          unzip -q epubcheck.zip -d .cache
+          pandoc --version | head -1
+          java -jar .cache/epubcheck-5.3.0/epubcheck.jar --version
+
+      - name: Build and validate ML-StarIntel book
+        shell: bash
+        env:
+          EPUBCHECK_JAR: ${{ github.workspace }}/.cache/epubcheck-5.3.0/epubcheck.jar
+        run: |
+          set -euo pipefail
+          make book BOOK=ml-starintel
+          make check BOOK=ml-starintel
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -74,4 +100,5 @@ jobs:
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/leakage/*.svg
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/composite-planner-gleif.json
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/candidate-generation-tier-c.json
+            books/ml-starintel/dist/ml-starintel.epub
           if-no-files-found: warn
