@@ -1,10 +1,11 @@
 (asdf:defsystem #:symbolic-ai-planner
   :description "Course-local symbolic state-space planner built from the book's search and unification mechanisms."
-  :version "0.1.0"
+  :version "0.2.0"
   :depends-on (#:symbolic-ai-search #:symbolic-ai-pattern)
   :serial t
   :components ((:file "package")
-               (:file "planner")))
+               (:file "planner")
+               (:file "heuristics")))
 
 (asdf:defsystem #:symbolic-ai-planner/tests
   :depends-on (#:symbolic-ai-planner)
