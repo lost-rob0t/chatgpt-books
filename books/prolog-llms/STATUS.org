@@ -4,7 +4,7 @@
 :END:
 
 * Phase
-Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / milestone A are editorially APPROVED and merged via PR #39. Chapters 4--5 / milestone B were editorially accepted and merged via PR #49 at merge commit =747f7f4713a4afa41dc5aee6ea3f9bd99ade8e80=. Chapter 6 / milestone C is TESTED and waiting for Editor-in-Chief review in PR #61. The complete long-form book remains in progress and is not DONE.
+Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / milestone A are editorially APPROVED and merged via PR #39. Chapters 4--5 / milestone B were editorially accepted and merged via PR #49 at merge commit =747f7f4713a4afa41dc5aee6ea3f9bd99ade8e80=. Chapter 6 / milestone C is editorially APPROVED as a bounded DCG/closed-dispatch slice and awaits fresh exact-head objective gates on the current-main integration/approval head. The complete long-form book remains in progress and is not DONE.
 
 * Accepted baseline
 - Standalone audience and teaching contract defined.
@@ -17,7 +17,7 @@ Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / m
 - PR #39 was editorially APPROVED and merged. Its final focused run =35103064124= passed 13/13 PL-Unit cases on SWI-Prolog 9.0.4 plus structure/book/check/EPUBCheck/Nix; generic =books-ci= run =35103064145= also passed.
 - PR #49 was editorially accepted and merged. Its recorded milestone-B verification includes focused =prolog-llms-book= run =35109295239= with 16 clean Project 1 PL-Unit cases on SWI-Prolog 9.0.4, book/check/EPUBCheck/Nix success, and generic =books-ci= run =35109295346= success. Later exact-head/reconciliation evidence remains in the PR discussion.
 
-* Active milestone C draft
+* Milestone C -- approved bounded slice
 - Issue #59 owns one bounded dependency-ready slice: the Project 1 DCG task-command language. CLP(FD), general meta-programming, live model/provider integration, and Prolog-RLM execution remain later milestones.
 - DOCUMENTED research pass [[file:research/dcg-task-language.org][dcg-task-language.org]] verifies current official SWI DCG/difference-list semantics, =phrase/[2,3]= complete-versus-prefix contracts, current list-state/string boundaries, and the fact that ={Goal}= invokes ordinary Prolog rather than creating a sandbox.
 - Chapter 6 derives list-state parsing before DCG notation, then builds a closed atom-token language producing only =tasks(owner(...))=, =tasks(status(...))=, =tasks(tag(...))=, and =dependency_path(...,...)= AST terms.
@@ -26,6 +26,7 @@ Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / m
 - New PL-Unit regressions cover all four syntax forms, malformed/unknown syntax, trailing-token rejection, explicit remainder behavior, exact structured dispatch results, rejection of =call(halt)= as an unknown AST, and an explicit parse-then-dispatch path. The existing milestone A/B suite remains loaded by the same fail-closed runner.
 - An editable/rendered diagram shows tokens -> trusted DCG -> closed AST -> explicit dispatcher -> Project 1 relations, with separate syntax and unknown-AST rejection paths.
 - No LLM/provider call, model output, benchmark, Prolog-RLM runtime execution, or arbitrary generated callable Prolog goal is introduced by milestone C.
+- The Editor-in-Chief reviewed the actual Chapter 6 manuscript, parser/dispatcher implementation and regressions, standalone curriculum/project boundaries, research record, and current official SWI-Prolog DCG documentation and marked milestone C APPROVED in PR #61.
 
 * Verification
 Milestone C was first verified on PR #61 head =fd00800ebccd3f39add365080fdf906ed099cdca= against main =09d329e93cd2b7472d7e5ae77a0f24e41b114512= through merge ref =ece67fef5d4028e14232e37923c967dcfb70bb5f=.
@@ -34,16 +35,18 @@ Focused =prolog-llms-book= run =35116162735= completed SUCCESS on Ubuntu 24.04.5
 
 The evidence-only status commit =daeae5cd3926fa5a31f9808afbdb0f9c602c6985= was then tested again. Focused =prolog-llms-book= run =35116561877= completed SUCCESS: Project 1 tests, structural validation, book build, book validation, and separate Nix flake check all passed. Generic =books-ci= run =35116561912= also completed SUCCESS: structural validation, Pandoc Org-reader contract, deterministic publication assets, EPUBCheck, publication/citation regressions, ERT, and real Org-roam DB synchronization all passed.
 
-The new code/manuscript/publication behavior described above is therefore TESTED for the implemented content and its evidence reconciliation. Current official SWI-Prolog DCG semantics are separately DOCUMENTED from sources retrieved 2026-09-16. No provider/model behavior, neuro-symbolic benchmark, or Prolog-RLM runtime result is promoted to TESTED by these checks.
+Exact completed worker-handoff head =06600ac842db37e406c068b3348b8584703ad9a7= passed focused =prolog-llms-book= run =35116842066= and generic =books-ci= run =35116842196=. That focused evidence included the actual Project 1 regressions, structural validation, =make book BOOK=prolog-llms=, =make check BOOK=prolog-llms=, publication validation, and =nix flake check -L=.
 
-This handoff-only status commit changes no code, manuscript, research claim, or publication asset. Its own required checks must still remain green on the pull request before merge; the external PR check state is the merge gate rather than a claim embedded in this file.
+The branch was then normally reconciled with canonical =main= =ec934223146cbf1a3293ea31e5041728196113c2= at merge integration commit =1615d9d6aec48c12011b535694a4b86317e5f59f=. This approval-state commit is a new exact head and must pass fresh focused =prolog-llms-book= and generic =books-ci= before merge; earlier successful runs remain evidence only for their recorded heads.
+
+The implemented code/manuscript/publication behavior is therefore TESTED for the recorded heads, while current official SWI-Prolog DCG semantics are separately DOCUMENTED from primary sources retrieved 2026-09-16. No provider/model behavior, neuro-symbolic benchmark, or Prolog-RLM runtime result is promoted to TESTED by these checks.
 
 * Editorial state
-TESTED / READY_FOR_EDITOR_REVIEW. Milestone C has not been editorially APPROVED and the worker does not declare it DONE. Final editorial acceptance and merge remain the Books Editor-in-Chief's authority.
+APPROVED for bounded milestone C only. The whole book is not DONE. Final merge remains gated on fresh exact-head objective checks after current-main integration and this approval-state update.
 
 * Next dependency-ready slice
-After milestone C is accepted, research and implement a genuine Project 1 CLP(FD) scheduling/constraint subproblem. Follow that with carefully bounded meta-programming that makes the contrast between closed dispatch and arbitrary meta-call explicit. Keep live model/provider work behind the later typed gateway boundary.
+After milestone C merges, research and implement a genuine Project 1 CLP(FD) scheduling/constraint subproblem. Follow that with carefully bounded meta-programming that makes the contrast between closed dispatch and arbitrary meta-call explicit. Keep live model/provider work behind the later typed gateway boundary.
 
 * Blockers
-- No known content, research, or executable blocker remains in milestone C; exact-current-head required checks remain an objective merge gate for the Editor-in-Chief.
+- No known content, research, or executable blocker remains in milestone C. The sole merge blocker is fresh exact-current-head focused/generic CI on this approval-state commit.
 - Version-sensitive LLM/provider examples remain intentionally deferred until a focused typed-gateway research slice chooses current primary-source-backed interfaces and records exact tested versions.
