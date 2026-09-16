@@ -1,0 +1,41 @@
+#+title: Symbolic AI in Prolog -- Explicit Search Kernel
+:PROPERTIES:
+:ID:       a4b4bc8b-df7b-45b6-bd48-3c650d7475d3
+:END:
+
+* Scope
+This directory is Project 2 milestone A. It derives explicit graph search before the book introduces planning operators.
+
+The public search relation consumes a *closed, ground transition graph* represented as =edge(Action, From, To)= data. It does not execute arbitrary predicates supplied by the caller.
+
+* Files
+- =search.pl= -- deterministic first-solution DFS/BFS over an explicit frontier plus a compact expansion trace.
+- =recovery_graph.pl= -- finite service-recovery teaching graph with a longer first branch, duplicate frontier state, cycles, and a shorter alternative route.
+- =test_search.pl= -- PL-Unit semantic regressions.
+
+* Result contract
+Successful search returns:
+
+#+begin_src prolog
+found(path(Actions, States))
+#+end_src
+
+If the finite reachable graph is exhausted without the requested goal, search returns:
+
+#+begin_src prolog
+exhausted(Goal)
+#+end_src
+
+The trace is a chronological list of =expanded(State, Depth)= events. It is diagnostic data about this explicit search algorithm. It is not a proof/provenance tree and not a SWI-Prolog runtime debugger trace.
+
+* Duplicate-state policy
+States are ground terms. The closed set is an ordered set, and membership uses term identity through SWI-Prolog =library(ordsets)=. A duplicate may be queued more than once before the first copy is expanded, but once the state enters the closed set later frontier copies are skipped. This distinction is intentional and covered by a regression.
+
+* Run
+From the repository root:
+
+#+begin_src sh
+bash books/symbolic-ai-prolog/code/run-tests
+#+end_src
+
+The top-level runner executes both Project 1 and Project 2 milestone-A regressions so this slice cannot silently break the earlier meta-interpreter.

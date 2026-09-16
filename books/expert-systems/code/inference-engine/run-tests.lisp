@@ -1,5 +1,7 @@
 (load (merge-pathnames "package.lisp" *load-truename*))
 (load (merge-pathnames "matcher.lisp" *load-truename*))
 (load (merge-pathnames "engine.lisp" *load-truename*))
+(load (merge-pathnames "incremental.lisp" *load-truename*))
 (load (merge-pathnames "fixtures.lisp" *load-truename*))
 (load (merge-pathnames "tests.lisp" *load-truename*))
+(load (merge-pathnames "incremental-tests.lisp" *load-truename*))
