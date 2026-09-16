@@ -32,7 +32,7 @@ The tagged =lfe_macro= manual documents these distinctions:
 
 Source: https://github.com/lfe/lfe/blob/v2.2.2/doc/src/lfe_macro.3.md
 
-Project consequence: Project 1 uses one-step expansion as its regression oracle. That keeps the test focused on what =event-rules-dsl:routes= itself emits instead of accidentally testing every subsequent predefined macro expansion too.
+The tagged upstream exported-macro regression uses =lfe_macro:expand_expr/2= for module-qualified macro calls such as =core-macros:caar=. Project 1 mirrors that acceptance boundary for =event-rules-dsl:routes=. An observed failed regression on 2026-09-16 also established a useful implementation detail: =expand_expr_1/2= stopped after normalizing the module-qualified call into its =:= form, so treating that first step as the exported macro's expansion was incorrect. The project therefore uses =expand_expr/2= to reach the exported macro while still comparing the resulting top-level expansion against an exact explicit rule form. It does not use =expand_expr_all/2=, which would recursively expand nested forms and widen the regression surface.
 
 * DOCUMENTED -- exported macros are real cross-module compiler inputs
 The tagged upstream =examples/core-macros.lfe= declares =(export-macro ...)= and defines macros with =defmacro=. The tagged upstream test suite compiles that module, then expands module-qualified macro calls such as =core-macros:caar= through =lfe_macro:expand_expr= using a fresh LFE environment.
