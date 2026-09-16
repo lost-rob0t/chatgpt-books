@@ -72,7 +72,7 @@ premature_cut_connection_within_hops(Start, Goal, Limit, Path, Hops) :-
 
 With limit =3=, the first form can reject the initial four-hop candidate before commitment and reach a later three-hop path. The second form commits to the four-hop candidate before the arithmetic test; when the test fails, the later valid paths have already been pruned.
 
-This is a repository-local TESTED behavior target, not a general benchmark or performance result.
+This is repository-local TESTED behavior, not a general benchmark or performance result.
 
 * Claim status
 ** DOCUMENTED
@@ -80,15 +80,18 @@ This is a repository-local TESTED behavior target, not a general benchmark or pe
 - current SWI =once/1= first-solution commitment behavior;
 - SWI's documented warning that scope differs through meta/control contexts, which is why the book avoids universal textual cut-rewrite rules.
 
-** TESTED once exact-head CI is green
+** TESTED
+Corrected implementation head =906a261f01c7265c5953084183e97f6850f3e157= passed focused =prolog-book= run =35141507499= on Ubuntu 24.04.5 / SWI-Prolog 9.0.4, including all four fail-closed Project 1 suites, production book/check, rendered citations, EPUBCheck with zero findings, and the separate Nix job. Generic =books-ci= run =35141507453= also completed SUCCESS.
+
+The executed suite verifies:
 - direct =first_connection_path_cut/3= and the accepted =once/1=-based wrapper return the same first path on the fixed synthetic fixture;
 - =connection_within_hops/5= retains all acceptable =ada -> sam= answers at limit 3;
 - =first_connection_within_hops/5= commits only after qualification and returns exactly one accepted answer;
 - the test-local premature-cut helper fails on =ada -> sam= limit 3 despite later acceptable paths;
-- first-acceptable at limit 4 is the four-hop first proof even though later three-hop proofs exist, proving that the wrapper is not shortest-path search;
+- first-acceptable at limit 4 is the four-hop first proof even though later three-hop proofs exist, demonstrating that the wrapper is not shortest-path search;
 - a cut inside the called wrapper does not remove a caller's later clause.
 
-Until CI executes the new suite, these implementation items remain UNTESTED draft expectations rather than results.
+The first CI attempt exposed a PL-Unit source-loading warning/error caused by reloading non-module =community.pl= inside the test-unit module. That attempt is SUPERSEDED as implementation evidence. The suite was corrected to use the already-loaded =user:= predicates, and the corrected exact implementation head above is the TESTED evidence.
 
 ** UNTESTED / OUT OF SCOPE
 - portability of all raw-cut scope details to non-SWI implementations beyond the ISO-level fact that =!/0= is standardized;
