@@ -1,0 +1,315 @@
+#+title: Unification as Equation Rewriting
+:PROPERTIES:
+:ID:       4ed157ee-7935-438b-890c-846785f281aa
+:END:
+
+* Make the hidden equation system visible
+:PROPERTIES:
+:ID:       d52bb571-8460-4852-85ab-b679b9a19b25
+:END:
+
+The recursive unifier from the previous section is small because Lisp's tree recursion does a lot of conceptual work for us.  When both sides are conses, recurse into their =CAR=s, carry the new substitution forward, and recurse into their =CDR=s.  When one side is a variable, try to bind it.  That implementation is readable, but a reader can still miss the larger invariant:
+
+#+begin_quote
+Unification is solving a changing system of equations while preserving its solutions.
+#+end_quote
+
+Martelli and Montanari present first-order unification explicitly as the solution of a set of equations and study transformations that preserve the set of unifiers [cite:@martelli1982].  Their paper goes on to derive substantially more efficient machinery.  We are not copying that optimized implementation.  We borrow the equation-system viewpoint because it lets us derive a second transparent algorithm whose control structure looks different from =UNIFY=.
+
+Why build two versions of a mechanism that already works on our examples?  Because Project 3 will make planning depend on it.  A planner can produce very convincing nonsense if its substitution layer is subtly wrong.  Before adding another subsystem, we want stronger evidence than “the examples in the chapter passed once.”
+
+The second implementation, =UNIFY-EQUATIONS=, keeps a pending worklist.  Each step selects one equation, rewrites both sides through the current substitution, and performs one visible transformation.  Its actions are:
+
+| Action | Meaning in this project |
+|--------+-------------------------------------------------------------|
+| =:delete= | both rewritten sides are already =EQUAL= |
+| =:orient= | the right side is a variable, so swap sides |
+| =:decompose= | both sides are conses; add =CAR= and =CDR= equations |
+| =:bind= | the left side is a variable; occurs-check, then extend the substitution |
+| =:occurs-check= | binding would make a variable contain itself under the finite-term contract |
+| =:clash= | neither equality, variable handling, nor cons decomposition can reconcile the terms |
+
+This is a teaching adaptation rather than a claim that ordinary Lisp lists are the same representation used in the 1982 paper.  Martelli and Montanari formulate terms over a ranked first-order signature: a function symbol has a known arity.  Project 2 deliberately represents terms with ordinary atoms and cons cells.  Therefore our decomposition primitive is literally “split two conses into =CAR= and =CDR= equations.”  A proper list's spine becomes visible to the algorithm.
+
+That detail is not noise to hide.  It reminds us that an algorithm always operates on a representation, not on mathematical notation floating in the air.
+
+#+caption: The validation unifier turns recursive decisions into explicit equation-worklist actions. A binding extends the current substitution only after the occurs check; later selected equations are rewritten through that substitution.
+#+attr_html: :alt A flow diagram for equation-worklist unification. A pending equation is rewritten by the current substitution and then deleted if equal, bound if the left is a variable and the occurs check succeeds, oriented if the right is a variable, decomposed into car and cdr equations if both sides are conses, or failed on a clash or failed occurs check. Processing repeats until no equations remain.
+[[file:assets/unification-worklist.svg]]
+
+* Derive the worklist from the recursive unifier
+:PROPERTIES:
+:ID:       efb449aa-27e3-4c95-bfd7-2e7bfc4bde3d
+:END:
+
+Start with the recursive case we already know:
+
+#+begin_src lisp
+((and (consp a) (consp b))
+ (unify their-cars ...)
+ (unify their-cdrs ...))
+#+end_src
+
+The recursive call stack is acting like an implicit to-do list.  Replace that implicit stack with explicit equations:
+
+#+begin_example
+(a . rest-a) = (b . rest-b)
+
+becomes
+
+a = b
+rest-a = rest-b
+#+end_example
+
+That is =:decompose=.  We push the =CDR= equation first and the =CAR= equation second because the implementation uses a stack; the =CAR= then becomes the next selected equation.  This preserves the left-to-right teaching trace of the recursive implementation without making ordering part of first-order unification semantics.
+
+Now consider a variable equation:
+
+#+begin_example
+X = (node a)
+#+end_example
+
+The recursive implementation extends its environment.  The equation presentation can be described as *variable elimination*: once =X= is bound, other equations should be understood under =X -> (node a)=.  A literal implementation could walk the entire pending worklist and rewrite every equation immediately.  Our version chooses a simpler equivalent operational strategy for the teaching data structures: extend the substitution now, and call =APPLY-SUBSTITUTION= on both sides when each equation is later selected.
+
+This is lazy variable elimination.  The invariant is what matters:
+
+#+begin_example
+before deciding the next action,
+selected terms are interpreted under every binding learned so far.
+#+end_example
+
+The occurs check remains mandatory before =:bind=.  If =X= appears inside the proposed right-hand side after following the current substitution, the worklist stops with =:occurs-check=.  We do not add a binding and hope a later recursion limit saves us.
+
+Orientation is deliberately its own trace step.  If the selected equation is:
+
+#+begin_example
+a = X
+#+end_example
+
+the algorithm turns it into:
+
+#+begin_example
+X = a
+#+end_example
+
+and lets the normal variable-binding case handle it on the next iteration.  The old recursive implementation can hide that symmetry in a pair of adjacent conditionals; the worklist makes it inspectable.
+
+Finally, equality deletes work.  If rewriting produces:
+
+#+begin_example
+(node a) = (node a)
+#+end_example
+
+there is no new constraint to learn.  Keeping the equation would only create pointless repeated work.
+
+* A complete small trace -- including the list spine
+:PROPERTIES:
+:ID:       d9eb4cbf-754a-4840-bec3-c5b5cad9eaae
+:END:
+
+Use a dotted pattern so the tail is a real symbolic object rather than a prose ellipsis:
+
+#+begin_src lisp
+(let ((x (make-variable 'x))
+      (tail (make-variable 'tail)))
+  (unify-equations `(job ,x . ,tail)
+                   '(job compile api)))
+#+end_src
+
+Read the terms as cons trees.  The initial equation is conceptually:
+
+#+begin_example
+(job X . TAIL) = (job compile api)
+#+end_example
+
+The work proceeds as follows.
+
+1. Both sides are conses, so *decompose* into =job = job= and =(X . TAIL) = (compile api)=.
+2. =job = job= is already equal, so *delete* it.
+3. The remaining pair is cons/cons, so *decompose* into =X = compile= and =TAIL = (api)=.
+4. =X= is a variable and does not occur in =compile=, so *bind* =X -> compile=.
+5. =TAIL= is a variable and does not occur in =(api)=, so *bind* =TAIL -> (api)=.
+6. No equations remain, so normalize the substitution and succeed.
+
+The exact alist ordering is not the public lesson.  A later consumer should ask what a substitution *does*, not whether =X= happens to be the first cons in an implementation list.
+
+The trace API makes those actions available without forcing the planner to depend on them:
+
+#+begin_src lisp
+(multiple-value-bind (result steps)
+    (unify-equations left right)
+  (values (unification-result-status result)
+          (mapcar #'unification-step-action steps)))
+#+end_src
+
+Each =UNIFICATION-STEP= also records the selected left/right terms, a snapshot of bindings learned so far, the pending-equation count after the action, and a failure reason when applicable.  That is enough for a debugger, exercise harness, or later explanation view to answer “what changed?” without scraping printed output.
+
+* A failure trace should keep evidence without returning a fake answer
+:PROPERTIES:
+:ID:       04d1282e-2be7-4e91-a455-9b7a5e7f1c52
+:END:
+
+Consider:
+
+#+begin_example
+(p X X) = (p a b)
+#+end_example
+
+The first occurrence can legitimately produce =X -> a=.  The second occurrence is then not a fresh wildcard.  Rewriting the remaining equation through the current substitution turns it into:
+
+#+begin_example
+a = b
+#+end_example
+
+which clashes.
+
+This creates an API-design question: should the failed result return =X -> a=?
+
+No.  That binding is useful *history*, not a solution to the original equation system.  =UNIFY-EQUATIONS= therefore follows the same public failure contract as =UNIFY=: the result does not expose newly accumulated partial bindings as though they were a valid unifier.  The trace still contains the =:bind= step and its substitution snapshot, so the debugger can explain how the contradiction arose.
+
+That distinction becomes important in larger symbolic systems.  “What did the algorithm try?” and “what is a valid answer?” are different questions.  A planner that accidentally treats a failed branch's partial substitution as state can leak constraints across sibling branches and manufacture plans that were never actually applicable.
+
+The occurs check is a different failure and stays separately typed:
+
+#+begin_example
+X = (f X)
+#+end_example
+
+Under the project's finite acyclic term contract, =:occurs-check= tells us *why* the branch is impossible.  Reporting the same case as a generic clash would throw away a semantic boundary the reader has already learned to reason about.
+
+* Cross-checking two implementations is useful -- and still not proof
+:PROPERTIES:
+:ID:       c1ce9c2d-240d-4ac8-876a-1f0a86ddcc28
+:END:
+
+The recursive and worklist implementations do not make decisions in the same shape.  That is exactly why comparing them is worthwhile.  A bug such as “forgot to process a pending =CDR= equation” is natural in the worklist but not in the recursive code.  A bug tied to recursive environment threading may appear in =UNIFY= but not in the explicit loop.
+
+However, they share important machinery:
+
+- =(:var NAME)= is the variable representation for both;
+- both use =APPLY-SUBSTITUTION= and =NORMALIZE-SUBSTITUTION=;
+- both use the same finite-term occurs predicate;
+- both inherit the book's =EQUAL=-based structural contract.
+
+If =APPLY-SUBSTITUTION= has the same bug underneath both algorithms, perfect agreement can be perfectly wrong.  Two implementations are therefore a *differential regression oracle*, not a theorem prover.
+
+This is a recurring engineering lesson in symbolic AI.  Redundancy improves evidence only to the extent that the redundant paths fail independently.
+
+* Metamorphic tests ask about relationships, not memorized answers
+:PROPERTIES:
+:ID:       856452f6-bdad-4032-a925-e12690cf73ca
+:END:
+
+A unit test such as “unifying =(f X)= with =(f a)= yields =X -> a=” is necessary and narrow.  It verifies one point.  Metamorphic testing asks which transformations of an input should preserve some semantic relationship even when we do not hand-write the exact substitution for every case.
+
+Milestone B builds a deterministic family from four base terms—two atoms and two variables—then adds unary =F= forms and binary =P= forms.  The source therefore enumerates 24 terms and 576 ordered term pairs.  Those numbers describe the fixture construction; they are not a claim that 576 cases exhaust first-order terms.
+
+For each controlled pair, the suite asks several questions.
+
+** Does every successful result actually unify its sources?
+
+Let =S= be the returned substitution.  Success requires:
+
+#+begin_example
+APPLY-SUBSTITUTION(left, S)
+  EQUAL
+APPLY-SUBSTITUTION(right, S)
+#+end_example
+
+This catches a surprisingly dangerous class of implementation errors: returning a plausible-looking environment that does not actually make the original terms equal.
+
+** Does swapping sides preserve unifiability?
+
+If =L= unifies with =R=, then =R= must also unify with =L= under this finite syntactic first-order model.  We compare =:unified= versus =:failed=, *not* raw alist equality.  Different orientations may choose different but equivalent variable bindings.
+
+This is an example of choosing the right oracle.  Testing an implementation detail would make a valid refactor fail; testing the semantic relationship catches the bug we care about.
+
+** Is a normalized substitution idempotent on the source terms?
+
+After applying a normalized substitution once, applying it again should not continue changing the source term:
+
+#+begin_example
+S(S(term)) = S(term)
+#+end_example
+
+The suite also checks every substitution right-hand side under the same rule.  This targets incomplete chain normalization such as leaving =X -> Y, Y -> a= exposed after a successful operation that promises normalized results.
+
+** Does fresh variable renaming preserve the problem?
+
+Rename =X= to a genuinely fresh =FRESH-X= and =Y= to =FRESH-Y= everywhere on both sides.  Whether the terms are unifiable must not change merely because we chose different variable names.
+
+For a successful pair we go further: the common instance after the fresh renaming must be the corresponding renaming of the original common instance.  This checks more than status while still avoiding dependence on alist order.
+
+Freshness matters.  Mapping =X= onto an already-used variable would merge identities and change the problem rather than rename it.
+
+** Do the recursive and worklist paths agree on status?
+
+Every generated pair is sent to both =UNIFY= and =UNIFY-EQUATIONS=.  They must agree on success versus failure.  Each successful result separately has to pass equalization and idempotence checks.
+
+Again, the evidence class matters: a finite generated family that passes is *TESTED* for those fixtures.  It is not an exhaustive proof of termination, soundness, completeness, or most-generality over every finite first-order term.
+
+* Failure injection -- break one invariant on purpose
+:PROPERTIES:
+:ID:       81152ddf-1bed-4c0e-b308-2e0965875a0e
+:END:
+
+A good validation suite should be able to explain what kind of mutation it is meant to catch.  Try these locally on a disposable branch, one at a time.
+
+1. In the worklist's =:decompose= case, push only the =CAR= equation and silently drop the =CDR=.  A pair that agrees on its first element but conflicts later can now succeed incorrectly.  Differential status checks should expose it.
+2. Remove normalization from one successful result path.  Simple ground examples can still look correct, while the idempotence/right-hand-side checks expose unresolved variable chains.
+3. Treat =t = X= as a clash instead of orienting it.  Side-reversal status symmetry starts failing on otherwise trivial variable cases.
+4. Rename =X= to =Y= when =Y= already exists instead of using a fresh name.  The “renaming” test itself becomes invalid because it changed variable identity.  This is a test-design failure, not an implementation failure.
+5. Return the current partial worklist environment on a later clash.  The explicit failure regression catches an API that leaks a failed branch's tentative bindings as though they were a valid answer.
+
+Do not commit these breakages.  The exercise is to connect a semantic invariant to the specific test that notices its loss.
+
+* Give the planner operations, not an alist layout
+:PROPERTIES:
+:ID:       7891dff4-ddf1-49c7-9c65-b78f34bb06ba
+:END:
+
+Project 3 will need variables in action schemas.  A move operator might eventually contain data shaped roughly like:
+
+#+begin_src lisp
+(action move
+        :parameters (robot from to)
+        :preconditions ((at robot from)
+                        (connected from to))
+        :effects ((not (at robot from))
+                  (at robot to)))
+#+end_src
+
+The planner's temptation will be to reach into the unifier's alist directly.  Resist it.
+
+A planner needs a semantic interface:
+
+- attempt unification and inspect =UNIFICATION-RESULT=;
+- apply a successful substitution to an action/precondition term;
+- inspect typed failure when debugging why an operator was inapplicable.
+
+It does not need to know whether a future implementation stores bindings in an alist, hash table, persistent map, union-find-like structure, or a trailed destructive environment.  The moment planner code starts relying on alist order or mutating binding conses, representation work in Project 2 becomes an accidental whole-book rewrite.
+
+=UNIFY-EQUATIONS= is intentionally a teaching/debugging oracle rather than the planner's required execution path.  Keeping that boundary gives us two benefits: the planner stays small enough to reason about, and the equation trace remains available when we *want* to explain a failed action-schema match.
+
+* Exercises
+:PROPERTIES:
+:ID:       2c7ad6db-9f1c-4cf3-bc51-bb6024b8d35c
+:END:
+
+1. *Trace the cons spine.* Hand-trace =UNIFY-EQUATIONS= for =(a X . TAIL)= and =(a b c d)=.  Write every =:decompose=, =:delete=, and =:bind= step instead of treating the proper list as an opaque function call.
+2. *Orientation failure lab.* Temporarily replace the =:orient= action with =:clash=.  Which smallest generated pair violates side-reversal status symmetry?
+3. *Independent oracle design.* =UNIFY= and =UNIFY-EQUATIONS= share =APPLY-SUBSTITUTION=.  Design one additional test that could detect a shared substitution-application bug without introducing a third full unifier.
+4. *Renaming carefully.* Extend the generated fixture family to three variables.  Generate a bijection to fresh names and add a guard that fails the test generator itself if a target name already occurs in the source family.
+5. *Failure provenance.* Format an =UNIFICATION-STEP= sequence as a compact explanation such as “decomposed argument 2; bound X to A; later A clashed with B.”  Keep formatting outside the unifier.
+6. *Planner boundary review.* Sketch an =APPLICABLE-ACTION= API for Project 3 using only exported Project 2 operations.  If your design calls =ASSOC= on the substitution from planner code, rewrite the boundary.
+7. *Evidence classification.* Suppose all 576 generated ordered pairs pass both implementations.  List three properties that result still does not prove.  Be precise about the difference between bounded test evidence and a general unification theorem.
+8. *Paper-to-code comparison.* Read the equation-system transformations in Martelli and Montanari [cite:@martelli1982].  Identify which parts map directly to =:delete=, =:orient=, =:decompose=, and =:bind=, and which efficiency machinery this teaching implementation deliberately omits.
+
+* Next dependency -- planning can finally consume the contract
+:PROPERTIES:
+:ID:       f65b4bad-b3b1-4c35-94ed-7d16401e8bf4
+:END:
+
+Once this validation slice has real green executable evidence, Project 2 has a stronger stopping point for the planner dependency.  The next implementation should not optimize unification for its own sake.  It should build the Symbolic Planner's state/action-schema layer and let a real consumer reveal which interfaces are missing.
+
+Only after we have that consumer should we ask whether alist lookup, repeated substitution rebuilding, indexing, or another representation is actually a bottleneck.  Any such claim will need an executed workload and recorded environment.  “Martelli--Montanari is efficient” is a historical statement about their algorithm, not a benchmark result for ours.
