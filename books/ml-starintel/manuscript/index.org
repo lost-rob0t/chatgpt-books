@@ -16,6 +16,4 @@
 
 #+include: "chapter-05.org"
 
-* Part II -- First supervised models
-
 #+include: "chapter-06.org"
