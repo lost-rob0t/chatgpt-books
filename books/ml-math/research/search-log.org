@@ -13,13 +13,13 @@ Result: the book's dependency order remains coordinates -> vectors/linear combin
 Remaining uncertainty: matrix-operation and transformation claims belong to the next Project 1 slice rather than this vector-only checkpoint.
 
 ** 2026-09-16 -- numerical oracle and floating-point behavior
-Questions: What current NumPy API should serve as an independent oracle for real vector dot products/norms? Which Python standard-library operations provide a more numerically careful teaching implementation than naive =sum(x*y)= and =sqrt(sum(x*x))=?
+Questions: What NumPy API should serve as an independent oracle for real vector dot products/norms? Which Python standard-library operations provide a more numerically careful teaching implementation than naive =sum(x*y)= and =sqrt(sum(x*x))=?
 
 Inspected:
-- official NumPy 2.5.0 release/project page;
+- official NumPy 2.5 documentation and release-news page; the chronology records 2.5.0 on 2026-06-21 and later bugfix releases through 2.5.3 on 2026-09-06;
 - NumPy 2.5 =numpy.dot=, =numpy.linalg.vector_norm=, and =numpy.testing.assert_allclose= documentation;
 - official Python 3.14.7 =math= documentation for =fsum=, =hypot=, =dist=, and finite-value predicates.
 
-Result: Project 1 implements real finite vectors independently, checks deterministic cases against NumPy 2.5.0 in CI, uses =math.fsum= for the dot-product accumulation and =math.hypot= for the Euclidean norm, and contains adversarial tests for cancellation, very large finite components, dimension mismatch, non-finite input, and zero-vector normalization.
+Result: Project 1 implements real finite vectors independently, deliberately pins NumPy 2.5.0 as the TESTED oracle in CI, uses =math.fsum= for the dot-product accumulation and =math.hypot= for the Euclidean norm, and contains adversarial tests for cancellation, very large finite components, dimension mismatch, non-finite input, and zero-vector normalization. The tested pin is not presented as the newest NumPy patch.
 
 Claim boundary: those implementation choices improve specific numerical failure modes; this slice does not claim arbitrary floating-point exactness or benchmark superiority over NumPy.
