@@ -1,0 +1,92 @@
+#+title: Symbolic AI in Prolog Research 06 -- Cost-Aware and Heuristic Planning Frontiers
+:PROPERTIES:
+:ID:       41dd5388-4a9b-4a5b-abd0-3182bfe43dd4
+:END:
+
+* Scope
+This record supports Project 2 milestone C / the first Chapter 9 implementation slice. Chapter 8 established explicit action schemas and a FIFO breadth-first planner. This pass asks what must change when actions carry unequal costs, and what additional assumptions are required before heuristic search may inherit a minimum-cost claim.
+
+Retrieval date: 2026-09-16.
+
+Claim status follows repository policy. Primary/official source statements are DOCUMENTED. Repository behavior remains UNTESTED until the exact branch head runs the SWI-Prolog and publishing gates. Historical theorem conditions are not promoted into claims about arbitrary caller data.
+
+* Question 1 -- What changes when an edge/action has a cost?
+DOCUMENTED, PRIMARY SOURCE: Dijkstra's 1959 paper explicitly poses the problem of finding a minimum-length path in a graph whose edges have given positive lengths [cite:@dijkstra-shortest-path-1959]. Its presentation is not the implementation copied by this course. The useful design lesson is narrower: once transitions have unequal weights, frontier priority must be tied to accumulated path cost rather than merely to the number of transitions.
+
+Chapter 8's FIFO queue optimizes action count on the finite unit-step teaching model. It cannot be relabeled an optimal-cost planner when one remote action costs 12 and a two-action on-site plan costs 11. Project 2 milestone C therefore makes accumulated cost =g= explicit and gives the frontier a minimum-priority queue.
+
+Course-specific extension: the implementation accepts *non-negative integer* costs, including zero. Dijkstra's original article states positive lengths. Zero-cost behavior is therefore TESTED repository behavior, not a historical claim attributed to the 1959 paper. Integer costs are a deliberate teaching restriction that keeps comparisons exact; arbitrary real-valued, negative, stochastic, temporal, or vector costs are out of scope.
+
+* Question 2 -- What does A* add, and what theorem conditions must stay visible?
+DOCUMENTED, PRIMARY SOURCE: Hart, Nilsson, and Raphael's 1968 paper gives a formal treatment of heuristic information for minimum-cost graph search and defines the A* family around an evaluation formed from cost-so-far plus a heuristic estimate [cite:@hart-nilsson-raphael-astar-1968]. The original authors' 1972 correction is part of the provenance trail and explicitly restates the distinction between a lower-bound heuristic condition for admissibility and a stronger consistency condition used for the paper's optimal-efficiency comparison [cite:@hart-nilsson-raphael-astar-correction-1972].
+
+Teaching consequence: this book must not compress those statements into “A* is always optimal.” The executable kernel consumes heuristic values but does not prove that a caller's table is admissible, consistent, informative, or even useful. The synthetic fixture ships with a complete hand-audited finite table, and the tests compare its returned plan cost with uniform-cost search on that bounded fixture. That is TESTED evidence once the suite runs; it is not a general proof checker for heuristic conditions.
+
+The implementation also keeps the older Chapter 8 state-transition semantics unchanged. A* changes how generated states are prioritized, not what a schema means.
+
+* Question 3 -- Which SWI-Prolog priority-queue behavior is relied on?
+DOCUMENTED, SWI-SPECIFIC IMPLEMENTATION DETAIL: current official =library(heaps)= documentation describes a min-heap whose key determines priority and whose minimum key is retrieved by =get_from_heap/4= [cite:@swi-heaps]. Keys are ordered using standard Prolog term ordering. The current documentation notes a pairing-heap implementation, but this chapter treats that representation and its complexity notes as implementation details rather than part of the planner's semantic contract.
+
+The course frontier uses the ground key =priority(F,Sequence)=:
+- =F= is accumulated cost for uniform-cost search, or =G+H= for A*;
+- =Sequence= is a monotonically increasing integer used only to make equal-priority behavior deterministic for the fixture and tests.
+
+No variables are inserted into heap keys. The planner never inspects the heap representation directly.
+
+* Question 4 -- Why keep a best-known-cost map as well as a heap?
+DOCUMENTED, SWI-SPECIFIC IMPLEMENTATION DETAIL: current official =library(assoc)= documentation requires ground keys and provides persistent association updates/lookups over an AVL-tree implementation [cite:@swi-assoc]. Chapter 8 already guarantees canonical *ground* planning states, so those state terms are valid map keys for the book's use.
+
+The heap and best-cost map solve different problems. Inserting a cheaper route to a state does not magically remove an older, more expensive queue entry. The implementation therefore:
+1. records the strict best =g= discovered for each canonical state;
+2. enqueues a state only when its new =g= is strictly smaller than the recorded one;
+3. leaves older heap entries in place;
+4. labels an older entry =stale(State,QueuedG,BestG)= when it is eventually popped with =QueuedG > BestG=;
+5. treats equal- or worse-cost rediscoveries as =dominated(...)= and does not enqueue them.
+
+This makes replacement/reopening behavior inspectable and prevents a zero-cost cycle from reinserting an already-known state at the same cost forever.
+
+* Question 5 -- Why is the heuristic a data table instead of a Prolog callback?
+Project-defined safety/inspectability boundary: =a_star_plan/6= accepts either =zero= or =table([estimate(State,H), ...])=. Each table state is canonicalized and every =H= must be a non-negative integer. A generated state missing from the table is an error.
+
+The planner deliberately does *not* accept =call(Heuristic,State,H)= or a caller-supplied predicate name. This continues the book's closed symbolic-data boundary: a heuristic supplied by an external parser, future subsystem, or experiment remains inert data until validated by an explicit adapter.
+
+The =zero= heuristic is important pedagogically. With the same deterministic tie policy it should reduce A* to the same cost ordering as uniform-cost search on the controlled fixture. That relation is executable regression evidence, not a benchmark.
+
+* Synthetic weighted-recovery fixture
+The fixture is synthetic teaching data. It starts with one failed node, one technician at a depot, a route to the hosting site, a remote-access fact, and an incident ticket that must survive unrelated transitions.
+
+Five schemas are reused through Chapter 8's existing =schema/5= semantics:
+- =remote_restore=: one action, cost 12;
+- =taxi=: move to the site, cost 2;
+- =shuttle=: same canonical move, cost 1;
+- =bus=: the same canonical move, also cost 1, intentionally creating an equal-cost dominated alternative;
+- =onsite_restore=: repair at the site, cost 10.
+
+The expected teaching contrast is:
+- FIFO breadth-first planning chooses the one-step remote recovery;
+- uniform-cost search chooses =shuttle + onsite_restore= with total cost 11;
+- =taxi= leaves a queued site-state entry at =g=2 after =shuttle= improves the same canonical state to =g=1, so the older entry later becomes visibly stale;
+- the hand-audited heuristic table assigns 11 to the start, 10 to the failed/on-site state, and 0 to the two reachable goal states.
+
+These numbers describe only this finite fixture. No production travel time, repair time, reliability, risk, or operational SLA is implied.
+
+* Verification state
+DOCUMENTED:
+- Dijkstra 1959 positive-edge minimum-path problem and bibliographic metadata;
+- Hart/Nilsson/Raphael 1968 heuristic minimum-cost-search lineage plus the authors' 1972 correction boundary;
+- current official SWI-Prolog =library(heaps)= min-priority API and key-order contract;
+- current official SWI-Prolog =library(assoc)= ground-key association contract.
+
+UNTESTED at authoring time:
+- the new cost-aware search implementation and PL-Unit regressions;
+- the claimed controlled-fixture BFS/UCS/A* outcomes;
+- the combined Project 1 + Project 2 runner after this change;
+- book build/check, EPUBCheck, Nix, and generic repository publication gates on this branch.
+
+NOT CLAIMED:
+- arbitrary-heuristic admissibility or consistency checking;
+- A* optimality outside the explicitly tested finite fixture/theorem preconditions;
+- negative-cost support;
+- arbitrary numeric-cost portability beyond the integer contract;
+- PDDL compatibility, temporal/probabilistic planning, production performance, or benchmark/scaling results;
+- any LLM, neuro-symbolic, or Prolog-RLM behavior.
