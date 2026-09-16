@@ -1,0 +1,150 @@
+#+title: Machine Learning for StarIntel -- Foundational Research Pass 03
+#+date: 2026-08-14
+
+* Status
+RESEARCH; foundational phase remains open.
+
+This pass moved Project 1 from design-only research into a minimal executable research harness. =TESTED= below means the named GitHub Actions command actually ran and its output was inspected. It does not imply full Project 1 completion or cross-language StarIntel conformance.
+
+* Scope
+- Build a minimal Project 1 research harness without chapter prose.
+- Materialize the exact pinned canonical StarIntel 0.9 schema without copying/rewriting its semantics.
+- Run Experiment E as a small Python/Draft-2020-12 conformance smoke matrix.
+- Run only a narrow D0 provenance-manifest round trip; the real public-data Experiment D remains UNTESTED.
+- Record failures as research results rather than silently correcting assumptions.
+
+* Research questions
+- Can Book 1 materialize the exact canonical schema by immutable commit and verify the bytes before use?
+- Does a minimal Project 1 StarIntel =person= record actually validate against that schema?
+- Which previously documented common-field assumptions survive executable validation?
+- Can the research harness retain enough source/schema/transform/split metadata to support a later full provenance round trip?
+- What should be executed next before Chapters 2--5 advance beyond research?
+
+* Sources inspected
+- Canonical schema: =lost-rob0t/starintel-gpt-auto-dig@ff814ff63868286d68e21502122832802cd5e361/schemas/starintel-doc-v0.9.0.schema.json=.
+- Canonical conformance documentation at the same commit.
+- Current Python adapter implementation: =lost-rob0t/starintel-doc/starintel_doc/v090.py=.
+- Current Python adapter dependency declaration: =lost-rob0t/starintel-doc/pyproject.toml=.
+- Official PyPI =jsonschema= package record; current release observed 2026-08-14: 4.26.0.
+
+* Harness architecture
+#+begin_example
+Pinned canonical GitHub commit
+        |
+        v
+Fetch schema bytes once
+        |
+        v
+verify Git blob SHA-1
+        |
+        +--> mismatch => hard failure
+        |
+        v
+JSON Schema Draft 2020-12 validator
+        |
+        +--> Experiment E smoke matrix
+        |
+        `--> D0 synthetic provenance-manifest round trip
+                 |
+                 v
+        machine-readable JSON artifact
+#+end_example
+
+The book does not own a second StarIntel schema or server. The harness points to the upstream immutable commit and rejects fetched bytes unless the Git blob SHA is exactly =b26d62644c675e2d55f4ea95f8ec207cfb08ae9a=.
+
+* Executed results
+** First run -- FAILED, assumption corrected
+Workflow: =ml-starintel-research= run #1, 2026-08-14.
+
+Executed command:
+#+begin_src sh
+python3 books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/run_experiments.py
+#+end_src
+
+Environment observed in the run:
+- Ubuntu 24.04.4 GitHub-hosted runner.
+- Python 3.12.3.
+- =jsonschema= 4.26.0.
+- schema source: pinned upstream commit above.
+
+Result: =FAILED=.
+
+The two supposed-valid fixtures were rejected with:
+#+begin_example
+$.version: '0.9.0' is not of type 'integer'
+#+end_example
+
+This exposed a concrete mistake in the research model: =schema_version= is the string ="0.9.0"=, but top-level document =version= is an integer with minimum 1. The schema source confirms =version: { minimum: 1, type: integer }=.
+
+The failure is retained as curriculum/research evidence. The harness was corrected to =version: 1= and the original mistake was added as a negative regression case named =wrong_document_version_type=.
+
+** Corrected run -- TESTED
+Workflow: =ml-starintel-research= run #2, 2026-08-14.
+Branch commit under test: =bfbaa190b561f7ad0ee836b30a1bf63dedcda3e6=; pull-request merge SHA observed by Actions: =f31f47fa90d511900cd422c3de5ee8a72dc9d17a=.
+
+Same command, same pinned schema, same =jsonschema= 4.26.0 dependency.
+
+Result: workflow =success=.
+
+Experiment E status: =TESTED=, zero failed checks.
+
+Passed positive cases:
+- minimal canonical =person= document;
+- same document with namespaced =extensions.ml_starintel= data;
+- JSON round trip preserved the document.
+
+Passed negative/rejection cases and observed categories:
+| Case | Expected/observed category |
+| missing required =dataset= | =missing_required_field= |
+| undeclared top-level field | =undeclared_field= |
+| RFC3339-like datetime without timezone | =invalid_datetime= |
+| legacy alias dtype =organization= | =invalid_enum= |
+| =schema_version= 0.8.0 | =unsupported_spec_version= |
+| string document =version= | =wrong_type= |
+| array instead of object =data= | =wrong_type= |
+
+This is a smoke matrix, not the complete upstream conformance suite. Python/Nim/Common Lisp matrix equivalence remains UNTESTED.
+
+** D0 provenance harness -- TESTED, narrow scope
+The corrected run also tested a synthetic manifest containing:
+- canonical schema repository, commit, path and Git blob SHA;
+- record ID;
+- transform identity/parameters;
+- schema version/commit;
+- split name/membership.
+
+The manifest JSON round trip was equal and all predeclared required paths remained present. The associated synthetic StarIntel record validated.
+
+This is =TESTED= only as a harness-shape check. It does not test GLEIF retrieval, immutable public-source snapshots, source hashes, label provenance, transformation hashes, exclusion records, or real train/validation/test membership. Full Experiment D remains =UNTESTED=.
+
+* Claim-status table
+| Claim | Status |
+| pinned schema bytes verified by Git blob identity in CI | TESTED |
+| minimal canonical person record validates | TESTED |
+| namespaced extension survives JSON round trip and validates | TESTED |
+| required/undeclared/date/alias/spec-version/version-type/data-type rejection smoke cases | TESTED |
+| top-level =version= is integer >= 1 | DOCUMENTED + TESTED |
+| D0 synthetic provenance-manifest shape round trips | TESTED |
+| full public-source provenance round trip | UNTESTED |
+| GLEIF fixture retrieval/snapshot/hash policy | UNTESTED |
+| cross-language StarIntel conformance | UNTESTED |
+| Experiments A--C leakage measurements | UNTESTED |
+
+* Implementation added
+- =projects/project-01-investigation-dataset-pipeline/research-harness/run_experiments.py=
+- =projects/project-01-investigation-dataset-pipeline/research-harness/requirements.txt=
+- =projects/project-01-investigation-dataset-pipeline/research-harness/README.org=
+- repository workflow =.github/workflows/ml-starintel-research.yml=
+
+The harness output is uploaded as =ml-starintel-project1-research-results= from CI.
+
+* Remaining uncertainty
+- The exact deterministic GLEIF Level 1/2 slice has not yet been frozen or hashed.
+- The current harness fetches the immutable schema on a cache miss; the final book environment still needs a deliberate offline materialization/packaging policy.
+- Transitive Python dependency locking is not yet complete; only =jsonschema==4.26.0= is pinned directly in this research harness.
+- Full upstream conformance fixtures and cross-language matrix have not run in Book 1.
+- Group+time split policy for entities spanning the cutoff remains experimental.
+- Near-duplicate clustering remains unspecified and must be predeclared before measuring leakage.
+
+* Next research slice
+Freeze a tiny, redistribution-safe public GLEIF fixture by explicit LEI IDs and source snapshot metadata; hash the raw and normalized artifacts; map it through the narrow StarIntel adapter; then run full Experiment D against real source provenance. After the fixture and grouping rules are frozen, implement Experiments A--C with deterministic synthetic leakage controls and real measured outputs/plots. Foundational research remains open.

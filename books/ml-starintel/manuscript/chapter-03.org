@@ -1,0 +1,193 @@
+** Chapter 3 -- Validation Before Learning
+:PROPERTIES:
+:ID:       bbe8402f-bc77-4e4f-90c2-4935b88c3aa3
+:END:
+
+A schema-valid document can still make a bad machine-learning example.
+
+That sentence is the reason Project 1 has more than one validation layer. JSON Schema can tell us whether a canonical StarIntel document has the required shape and types. It cannot tell us whether a test row repeats an entity seen during training, whether a feature came from the future, or whether two lightly edited documents are really one observation for evaluation purposes.
+
+Those are experimental-contract questions.
+
+Scikit-learn's current documentation defines leakage in operational terms: information unavailable at prediction time must not be used to build the model, and learned preprocessing must be fit on the training subset rather than on the held-out data [cite:@sklearn2026pitfalls]. Kapoor and Narayanan make the broader scientific point that leakage can invalidate reported machine-learning performance even when the implementation looks conventional [cite:@kapoor2023leakage].
+
+For StarIntel-style data, we therefore validate /from the outside inward/. First ask whether we know what the record is and where it came from. Then ask whether it is admissible for the experiment. Only after those boundaries are established do we build model features.
+
+*** Four validation layers
+:PROPERTIES:
+:ID:       2b0aa665-eb78-4af7-8d7f-9ac7e3929f10
+:END:
+
+Project 1 separates four questions:
+
+#+begin_example
+1. source/provenance integrity
+        |
+        v
+2. canonical document validity
+        |
+        v
+3. experimental admissibility
+        |
+        v
+4. train-only learned transforms
+#+end_example
+
+The first layer asks whether the source snapshot and transformation chain are the ones the manifest claims. Hash mismatches, unknown fixture IDs, or a transform version change belong here.
+
+The second layer asks whether the canonical record satisfies the current StarIntel document contract. This is where schema validation belongs. A canonical document that fails its wire contract is rejected before it becomes an ML row.
+
+The third layer asks whether a valid record may participate in the claimed evaluation. This includes entity grouping, duplicate grouping, source-lineage constraints, temporal cutoffs, and point-in-time feature availability.
+
+The fourth layer is the familiar model-preprocessing boundary. A vectorizer vocabulary, imputation statistic, scaler mean, feature selector, or other learned transform must be fit from training data only. Scikit-learn recommends pipelines partly because they make this train/transform separation easier to preserve during cross-validation [cite:@sklearn2026pitfalls].
+
+Each layer catches a different class of failure. Passing one layer does not imply passing the next.
+
+*** Controlled failure A -- the model memorizes entities
+
+Project 1's first synthetic control creates 160 entities with four observations per entity. Each entity has a stable text signature, and the label is stable for that entity. This construction is deliberately hostile to row-random evaluation: if one observation from an entity lands in training and another lands in testing, a text classifier can exploit identity-like text rather than learn anything that transfers to unseen entities.
+
+The frozen experiment compares two questions:
+
+- row-random: /Can we classify another row when the same entities may already be represented in training?/
+- entity-group: /Can we classify rows from entities absent from training?/
+
+On the deterministic Tier C control, the tested outputs were:
+
+| evaluation | balanced accuracy | contamination |
+|------------+-------------------+---------------|
+| row-random | 0.975 | 95% of test rows shared an entity with training |
+| entity-group | 0.500 | zero train/test entity overlap |
+
+The 0.975 score is not a bug in logistic regression. It is an answer to the first question. The problem appears only if we report it as evidence for the second question.
+
+This is why "avoid leakage" cannot mean "never allow an entity to appear twice." If the intended deployment truly predicts new documents about already-known entities, repeated entities may be legitimate. The split must encode the actual claim.
+
+*** Controlled failure B -- chronology with future knowledge
+
+The second synthetic control makes a more subtle point. Every row has a prediction timestamp and two signals:
+
+- =stable_signal= is available at prediction time but deliberately noisy;
+- =future_resolution= perfectly matches the label but becomes available after the prediction timestamp.
+
+A chronological split by itself does not repair a table that was materialized later with =future_resolution= already filled in.
+
+The tested control produced:
+
+| evaluation | balanced accuracy |
+|------------+-------------------|
+| random, finalized table | 1.000 |
+| strict temporal, finalized table | 1.000 |
+| strict temporal, point-in-time features | 0.750 |
+
+The strict temporal ordering was correct in both temporal runs. The difference is that the point-in-time builder refused to emit =future_resolution= before its =available_at= timestamp.
+
+This is the key distinction:
+
+#+begin_example
+row time tells us when the observation belongs
+feature availability tells us when a value could have been known
+#+end_example
+
+A historical backtest needs both.
+
+*** Controlled failure C -- copies cross the boundary
+
+The third synthetic control creates 160 base documents and, for each base, an original, an exact copy, and a controlled near-copy. Duplicate truth for this experiment is a predeclared normalized token-set Jaccard predicate with threshold =0.80=.
+
+A row-random split can place one version in training and another in testing. The tested outputs were:
+
+| evaluation | balanced accuracy | exact-hash contamination | near-component contamination |
+|------------+-------------------+--------------------------+------------------------------|
+| row-random | 0.9583333333 | 0.50 of test rows | 0.925 of test rows |
+| duplicate-component grouped | 0.500 | 0 | 0 |
+
+Again, these are synthetic-control measurements. They do not predict how much a future StarIntel model will lose when duplicate controls are enabled. They prove that the evaluation machinery can construct and detect a specific form of contamination.
+
+*** Validation should fail with evidence, not a shrug
+
+When an experiment violates its own contract, Project 1 does not return a best-effort split.
+
+Suppose two records are one hard group, one before a temporal cutoff and one after it. There is no legal partition that simultaneously preserves the group and puts all pre-cutoff observations in training while reserving all post-cutoff observations for testing.
+
+The split planner raises a typed =SplitInfeasible= condition with diagnostics. Likewise, if a feature's =available_at= timestamp is later than the row's =prediction_at= timestamp, grouped split preparation rejects the input before asking scikit-learn for indices.
+
+Failing closed matters because a silent repair changes the experiment. If code quietly moves the post-cutoff member into training, the resulting score no longer corresponds to the policy that the manifest claimed.
+
+*** Failure lab -- valid JSON, invalid experiment
+:PROPERTIES:
+:ID:       79e12d7f-8775-4c3e-8b48-f3beb56cf1e6
+:END:
+
+Build a canonical document that satisfies the StarIntel wire schema. Add to your dataset row a derived feature:
+
+#+begin_example
+prediction_at = 2026-06-01T00:00:00Z
+feature.name = analyst_resolution
+feature.available_at = 2026-06-10T00:00:00Z
+#+end_example
+
+Nothing about those two timestamps necessarily makes the underlying canonical document invalid. The failure belongs to the experimental layer: the June 10 value could not have been used for a June 1 prediction.
+
+The lesson is useful beyond timestamps. A schema describes representational validity. An experiment protocol describes admissibility for a claim. Do not overload one validator to pretend it can prove the other.
+
+*** Independent audits are deliberately redundant
+
+Project 1 compiles hard must-link facts into one =composite_group_id=. Later, a grouped splitter receives only that group vector. After it returns train/test indices, an independent audit rechecks direct record overlap, composite-group overlap, and any declared hard fields such as =entity_id=.
+
+Why audit a property we intended to enforce by construction?
+
+Because the compiler itself can be wrong or incomplete.
+
+One regression deliberately omits an entity edge before group compilation while still declaring =entity_id= a hard no-overlap field. The grouped splitter is then free to separate the two records because its input says they are independent. The post-split audit sees the repeated entity and rejects the fold.
+
+This is a general testing pattern:
+
+#+begin_quote
+Do not verify a safety property only by asking the component that was supposed to implement it whether it succeeded.
+#+end_quote
+
+An independent representation of the invariant can catch an omitted rule, a bad adapter, or a future refactor that changes semantics while leaving the call graph intact.
+
+*** Train-only transformations come after the boundary
+
+Scikit-learn's current common-pitfalls guide explicitly warns against fitting preprocessing steps on test data [cite:@sklearn2026pitfalls]. The important word is /fitting/. A test row usually needs the same transformation as a training row, but parameters learned by that transformation must come from training data.
+
+For example, a TF-IDF vectorizer learns a vocabulary and document-frequency statistics. If we fit it on the complete corpus and split afterward, the representation has already seen test documents. The same reasoning applies to standardization, imputation, feature selection, dimensionality reduction, target encoding, and many other transformations.
+
+Project 1's split layer avoids this class of bug structurally: it works with stable record IDs and group IDs, not with a completed model matrix. A downstream feature builder receives the train/test IDs and is responsible for fitting train-derived state only on the training records.
+
+That makes the architecture slightly more verbose and much easier to reason about.
+
+*** Exercises
+:PROPERTIES:
+:ID:       7a161b2a-fafb-4bdd-ba07-a296ad2aee38
+:END:
+
+**** ★ Name the failed layer
+
+For each failure, identify the earliest validation layer that should reject it:
+
+1. a captured source object no longer matches its manifest SHA-256;
+2. an =org= document is missing a required canonical field;
+3. a test row shares a hard entity ID with training;
+4. a scaler was fit on the complete dataset before cross-validation;
+5. a feature was available five days after the claimed prediction time.
+
+**** ★★ Reproduce entity contamination
+
+Construct at least 20 entities with several observations per entity. Give each entity an identity-like token correlated with its label. Compare row-random and entity-group evaluation and report both the metric and the fraction of test rows whose entity appeared in training. Do not assert what the result will be before running it.
+
+**** ★★ Make a schema-valid temporal leak
+
+Create rows whose canonical source documents are valid but whose feature metadata contains one future-only value. Add a validator that rejects that value under a historical prediction protocol. Your test must demonstrate that canonical-schema validation can pass while experiment validation fails.
+
+**** ★★★ Add an independent post-split oracle
+
+Compile groups from one set of rules, then audit the returned folds using a second hard field that was deliberately omitted from compilation. Show that the grouped splitter can be correct relative to its inputs while the experiment is still rejected.
+
+*** Project 1 checkpoint -- validation is layered
+
+We now have a sharper definition of a "clean" dataset. It is not merely parseable, schema-valid, or free of nulls. For a particular evaluation claim, it must also preserve provenance, satisfy the canonical document boundary, obey hard dependence constraints, respect time and feature availability, and keep learned preprocessing on the training side of the boundary.
+
+Chapter 4 uses that validation model to design features and labels without smuggling later knowledge backward into the training table.

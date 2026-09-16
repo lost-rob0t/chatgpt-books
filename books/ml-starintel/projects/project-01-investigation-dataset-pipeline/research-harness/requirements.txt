@@ -1,0 +1,4 @@
+jsonschema==4.26.0
+scikit-learn==1.9.0
+matplotlib==3.11.1
+datasketch==2.0.0
