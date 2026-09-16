@@ -1,0 +1,87 @@
+#+title: Project 3 Research -- Heuristic Relaxation and Explanation
+:PROPERTIES:
+:ID:       99b04a20-e0e6-4bc1-a52c-ffd0620a929f
+:END:
+
+* Scope
+Issue #107 advances Project 3 only after the state/action kernel from issue #97 / PR #100 was editorially approved and merged.  This milestone asks two narrower questions:
+
+1. How can the reader derive a useful planning heuristic from the action representation already implemented?
+2. How can a returned search path be turned into an inspectable grounded explanation without pretending that a symbolic action label is sufficient provenance?
+
+The action language itself does not grow here.  Positive preconditions, ground fact-set states, add/delete effects, and nonnegative action costs remain the frozen planner contract.
+
+* Primary sources inspected
+** Hart, Nilsson, Raphael 1968 -- heuristic minimum-cost search
+Peter E. Hart, Nils J. Nilsson, and Bertram Raphael, “A Formal Basis for the Heuristic Determination of Minimum Cost Paths,” /IEEE Transactions on Systems Science and Cybernetics/ 4(2), 100--107 (1968), DOI =10.1109/TSSC.1968.300136= [cite:@hart1968].
+
+DOCUMENTED: this is the primary historical basis already used by the Search Library for A*.  Project 1 deliberately keeps the heuristic as a caller-supplied domain function and reopens a state when a lower =g= is found.  Project 3 therefore needs to derive a planner heuristic at the domain layer rather than modifying the A* engine.
+
+** Bonet and Geffner 2001 -- planning as heuristic search
+Blai Bonet and Héctor Geffner, “Planning as Heuristic Search,” /Artificial Intelligence/ 129(1--2), 5--33 (2001), DOI =10.1016/S0004-3702(01)00108-4= [cite:@bonetgeffner2001].
+
+Primary text inspected from the journal article.  Section 4 defines atom-achievement costs by forward propagation and considers different ways to combine the costs of a set of atoms.  The paper calls the maximum combination =h_max= and states that this max heuristic is admissible for the formal setting it defines, while the additive combination may overestimate.  Section 7 explicitly discusses deriving heuristics from a relaxed problem in which delete lists are discarded.
+
+DOCUMENTED adaptation boundary: the paper's displayed recurrence is presented with unit action cost.  The course implementation carries the already-existing nonnegative =ACTION-SCHEMA-COST= through the analogous recurrence.  That cost-sensitive extension is an implementation adaptation, not a theorem imported from the citation.  The milestone therefore adds bounded executable lower-bound checks on controlled fixtures and does not claim a general proof for arbitrary course schemas.
+
+* Derived teaching mechanism
+** Delete relaxation
+For heuristic analysis only, executing a grounded action does not remove its delete effects.  Facts therefore accumulate monotonically.  This creates an easier problem than the original add/delete transition system: an achieved fact cannot be invalidated by the relaxed transition.
+
+The course implementation reuses =INSTANTIATE-APPLICABLE-ACTIONS= over the growing relaxed fact set.  It does not implement a second unifier or a second search engine.
+
+** Fact-cost propagation
+Initial facts receive cost zero.  For a grounded action whose preconditions already have costs, the candidate support cost is:
+
+#+begin_example
+action-cost + max(precondition fact costs)
+#+end_example
+
+Each add effect keeps the lowest candidate seen so far.  Goal estimate is the maximum cost among the goal facts after propagation reaches a fixpoint.
+
+The maximum is important pedagogically: it avoids summing subgoal estimates that may share work.  It can also be weak because it focuses only on the most costly subgoal.  The manuscript should teach both facts rather than selling “heuristic” as magic speed.
+
+** Bounded evidence state
+A course action schema can construct nested ground terms.  Therefore the relaxed closure need not be finite merely because one concrete fixture is finite.  =ANALYZE-HMAX-RELAXATION= must have a caller-visible iteration bound and distinguish:
+
+- =:REACHED=: propagation reached a fixpoint and every goal has a fact cost;
+- =:UNREACHABLE=: propagation reached a fixpoint while at least one goal remained without a cost;
+- =:BOUNDED=: the limit stopped propagation before a fixpoint.
+
+=:BOUNDED= is not relabeled as an unreachable/dead-end result.  The A*-compatible adapter returns zero for both =:UNREACHABLE= and =:BOUNDED= because the existing Search Library requires a finite nonnegative numeric heuristic.  Readers who need the evidence status call the analyzer directly.
+
+This choice favors an honest weak fallback over smuggling infinity or an incomplete conclusion through the search interface.
+
+* Explanation/provenance boundary
+A Search Library result currently records path states plus action labels.  The label alone is not enough to claim which schema instance justified a transition if two different grounded actions can have the same label and successor.
+
+Milestone B therefore derives explanation by replay:
+
+1. pair each recorded action label with its before/after path states;
+2. instantiate applicable actions from every supplied schema in the before state;
+3. keep only grounded actions whose label matches and whose actual delete/add transition equals the recorded after state;
+4. accept exactly one match and record its preconditions, effects, cost, schema name, and states;
+5. signal an error on zero matches or multiple matches.
+
+The failure-on-ambiguity rule is deliberate.  It is better to say “the current trace does not contain enough provenance” than to manufacture a plausible explanation.
+
+Relaxed supports and plan explanations are separate evidence.  A relaxed support says why a heuristic fact received a particular estimated cost.  It does not say that the action occurs in the returned real plan.  A plan-step explanation is checked against the real before/after states.
+
+* Executable evidence plan
+The exact-head suite must cover:
+- the warehouse fixture produces a converged relaxed estimate and inspectable support for the office-delivery goal;
+- the estimate is no larger than exact remaining UCS cost for every state on one controlled optimal warehouse path;
+- A* using this heuristic returns the same optimal cost as UCS on that controlled fixture;
+- a finite relaxed fixpoint missing the goal is =:UNREACHABLE=;
+- a term-growing schema hits the configured bound and returns =:BOUNDED=, not =:UNREACHABLE=;
+- every step of the warehouse result can be uniquely replayed into a grounded explanation;
+- deliberately duplicated indistinguishable schemas cause explanation to fail with =AMBIGUOUS-PLAN-STEP= instead of choosing one arbitrarily.
+
+Passing those tests is bounded TESTED evidence.  It is not a general proof of admissibility, completeness, termination, scaling, or explanation uniqueness for arbitrary schema sets.
+
+* Curriculum boundaries
+- =books/expert-systems= owns production matching networks, conflict resolution, truth maintenance, and production knowledge engineering.
+- =books/symbolic-ai-prolog= owns Prolog-native relational planning and meta-interpretation.
+- This Common Lisp volume owns the explicit composition: symbolic representation -> unification -> grounded operators -> graph search -> derived heuristic -> checked explanation.
+
+No PDDL parser, negative/conditional effects, temporal/probabilistic semantics, FF/LM-cut implementation, benchmark, or production claim belongs to issue #107.
