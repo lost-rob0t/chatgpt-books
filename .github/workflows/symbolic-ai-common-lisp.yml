@@ -108,5 +108,23 @@ jobs:
           EPUBCHECK_JAR: .cache/epubcheck-5.3.0/epubcheck.jar
         run: make check BOOK=symbolic-ai-common-lisp
 
-      - name: Repository structural validation
-        run: ./tools/check-structure
+      - name: Repository test target
+        run: make test
+
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y nix-bin
+          sudo mkdir -p /etc/nix
+          echo 'experimental-features = nix-command flakes' | sudo tee -a /etc/nix/nix.conf
+          nix --version
+
+      - name: Flake check
+        run: sudo nix flake check -L
