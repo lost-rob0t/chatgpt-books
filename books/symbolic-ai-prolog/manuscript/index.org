@@ -8,3 +8,4 @@
 #+include: "control-and-search.org"
 #+include: "explicit-search.org"
 #+include: "relational-planning.org"
+#+include: "search-strategies.org"
