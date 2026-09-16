@@ -7,7 +7,7 @@
 - Research date: 2026-09-16.
 - Tracking issue: #62.  Depends on the accepted finite-term contract from #45 / PR #48.
 - DOCUMENTED: Martelli--Montanari's equation-system formulation and transformation rules; the validation relationships below are derived for this project's stated finite acyclic term language.
-- UNTESTED until exact-head CI runs: the new equation-worklist implementation and bounded generated/metamorphic regression family.
+- TESTED: milestone-B implementation and manuscript content at head =650f3b2cb52d49855123eb5acf8e9378fe045bcf= under PR-integration run =35118475288=: Pattern Matcher/Unifier 19/19 direct and 19/19 ASDF, focused book build/check, diagram/citation checks, repository test target, and Nix all succeeded.  Generic =books-ci= run =35118475559= also succeeded.  The bounded generated family is 24 terms / 576 ordered pairs; this is finite regression evidence, not exhaustive proof.
 - No performance or complexity measurement is claimed for this Common Lisp implementation.
 
 * Research question
@@ -95,7 +95,6 @@ The next project should treat substitution representation as an implementation d
 =UNIFY-EQUATIONS= and its trace are teaching/debugging oracles.  They need not become the planner's normal hot path.  This keeps the planner coupled to symbolic operations rather than to one environment data structure and leaves later indexing/representation experiments possible without rewriting planner semantics.
 
 * Remaining uncertainty
-- Exact executable evidence remains UNTESTED until the branch's direct and ASDF suites complete successfully.
 - The bounded term generator is not a property-testing framework and does not establish completeness.
 - We have not benchmarked the recursive path against the worklist path and make no speed/allocation claim.
 - Destructive unification with a trail, rational trees, constraint/attributed variables, discrimination indexing, and production matching remain outside this milestone.
