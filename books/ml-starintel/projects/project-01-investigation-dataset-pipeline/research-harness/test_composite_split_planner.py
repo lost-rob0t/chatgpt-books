@@ -100,6 +100,95 @@ class CompositePlannerTests(unittest.TestCase):
             contamination["hard_rule_overlaps"]["entity_id"]["overlap_count"], 0
         )
 
+    def test_group_shuffle_uses_composite_group_as_atomic_unit(self):
+        rows = [
+            row("a1", "2026-01-01T00:00:00Z", "A"),
+            row("a2", "2026-01-01T00:00:00Z", "A"),
+            row("a3", "2026-01-01T00:00:00Z", "A"),
+            row("b1", "2026-01-01T00:00:00Z", "B"),
+            row("c1", "2026-01-01T00:00:00Z", "C"),
+            row("d1", "2026-01-01T00:00:00Z", "D"),
+        ]
+        edges = [
+            subject.ConstraintEdge("a1", "a2", "entity"),
+            subject.ConstraintEdge("a2", "a3", "near_duplicate"),
+        ]
+        result = subject.plan_group_shuffle(
+            rows,
+            edges,
+            n_splits=3,
+            test_size=1,
+            random_state=1729,
+        )
+        self.assertEqual(len(result["splits"]), 3)
+        for split in result["splits"]:
+            self.assertEqual(len(split["test_group_ids"]), 1)
+            self.assertEqual(split["contamination"]["composite_group_overlap_count"], 0)
+
+    def test_group_shuffle_is_reproducible_for_fixed_seed(self):
+        rows = [row(f"r{i}", "2026-01-01T00:00:00Z", f"E{i}") for i in range(8)]
+        first = subject.plan_group_shuffle(
+            rows, [], n_splits=4, test_size=0.25, random_state=1729
+        )
+        second = subject.plan_group_shuffle(
+            rows, [], n_splits=4, test_size=0.25, random_state=1729
+        )
+        self.assertEqual(first, second)
+
+    def test_group_kfold_holds_each_composite_group_out_once(self):
+        rows = [
+            row("a1", "2026-01-01T00:00:00Z", "A"),
+            row("a2", "2026-01-01T00:00:00Z", "A"),
+            row("b1", "2026-01-01T00:00:00Z", "B"),
+            row("b2", "2026-01-01T00:00:00Z", "B"),
+            row("c1", "2026-01-01T00:00:00Z", "C"),
+            row("d1", "2026-01-01T00:00:00Z", "D"),
+        ]
+        edges = [
+            subject.ConstraintEdge("a1", "a2", "entity"),
+            subject.ConstraintEdge("b1", "b2", "entity"),
+        ]
+        result = subject.plan_group_kfold(
+            rows, edges, n_splits=4, shuffle=True, random_state=1729
+        )
+        held_out = [
+            group_id
+            for split in result["splits"]
+            for group_id in split["test_group_ids"]
+        ]
+        self.assertEqual(sorted(held_out), ["a1", "b1", "c1", "d1"])
+        for split in result["splits"]:
+            self.assertEqual(split["contamination"]["composite_group_overlap_count"], 0)
+
+    def test_grouped_split_rejects_future_feature(self):
+        rows = [
+            row(
+                "a",
+                "2026-01-01T00:00:00Z",
+                "A",
+                features=[{"name": "future", "available_at": "2026-01-02T00:00:00Z"}],
+            ),
+            row("b", "2026-01-01T00:00:00Z", "B"),
+        ]
+        with self.assertRaises(subject.SplitInfeasible) as caught:
+            subject.plan_group_shuffle(rows, [], n_splits=1, test_size=1)
+        self.assertEqual(caught.exception.diagnostics["future_feature_violation_count"], 1)
+
+    def test_grouped_split_fails_if_uncompiled_hard_rule_leaks(self):
+        rows = [
+            row("a", "2026-01-01T00:00:00Z", "E1"),
+            row("b", "2026-01-01T00:00:00Z", "E1"),
+            row("c", "2026-01-01T00:00:00Z", "E2"),
+        ]
+        with self.assertRaises(subject.SplitInfeasible):
+            subject.plan_group_kfold(
+                rows,
+                [],
+                n_splits=3,
+                shuffle=False,
+                hard_rule_fields=("entity_id",),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
