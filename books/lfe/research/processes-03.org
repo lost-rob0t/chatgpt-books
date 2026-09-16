@@ -152,7 +152,9 @@ This evidence promotes the following Project 2 claims to TESTED for that exact c
 7. Erlang can start/request/stop the compiled LFE actor directly.
 8. an Erlang monitor observes the intentional LFE actor crash with the expected reason.
 
-The current documentation-only evidence head still requires final exact-head CI. That final rerun is integration verification, not a new behavioral claim. No latency, mailbox-throughput, scheduler, memory, or scalability benchmark is claimed by this pass.
+The branch was then reconciled non-destructively with canonical =main= =747f7f4713a4afa41dc5aee6ea3f9bd99ade8e80= at integration head =eec3721ee35019ae423d11f632ab78951b46e0fe= with 0 commits behind. Focused =lfe-book= run =35112726437= completed SUCCESS there, including Project 1, Project 2, all three LFE DOT diagrams, =make book BOOK=lfe=, =make check BOOK=lfe=, and =nix flake check -L=. Generic =books-ci= run =35112726427= also completed SUCCESS on that integration, including structure, the Pandoc Org-reader contract, deterministic publication assets, EPUB validation, publication/citation regressions, ERT, and real Org-roam synchronization.
+
+That reconciliation rerun is integration verification, not a new behavioral claim. Any later material change still requires its own exact-head gate. No latency, mailbox-throughput, scheduler, memory, or scalability benchmark is claimed by this pass.
 
 * Deferred questions
 - Links, =trap_exit=, restart policy, and supervisor strategies belong to the OTP/supervision pass.
