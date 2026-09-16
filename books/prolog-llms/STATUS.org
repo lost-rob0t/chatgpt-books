@@ -4,7 +4,7 @@
 :END:
 
 * Phase
-Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / milestone A are editorially APPROVED and merged via PR #39. Chapters 4--5 / milestone B are a verified draft awaiting Editor-in-Chief review. The complete long-form book remains in progress and is not DONE.
+Standalone Prolog foundation is progressing through Project 1. Chapters 1--3 / milestone A are editorially APPROVED and merged via PR #39. Chapters 4--5 / milestone B have passed substantive Editor-in-Chief review and are awaiting the final exact-head/current-main objective gates. The complete long-form book remains in progress and is not DONE.
 
 * Accepted baseline
 - Standalone audience and teaching contract defined.
@@ -37,14 +37,14 @@ Milestone B implementation content at commit =eea12da990d4ce43df52c7a9afe6808dbb
 - focused Nix job / =nix flake check -L=: PASS;
 - generic =books-ci= run =35109295346=: SUCCESS through structure, Pandoc Org-reader, deterministic publication assets/fixture, EPUB validation, publication assertions, per-book citation rendering, ERT, and real Org-roam DB synchronization.
 
-The following status-only head =a2924d6b90ece208d155d27d3df8ecc71ecb7ae4= also passed focused run =35109544889= and generic run =35109545120=. Main advanced during those runs because unrelated book work merged, so PR #49 remains the authoritative place to record the final current-main integration run at editorial handoff rather than repeatedly rewriting canonical Org for unrelated base movement.
+Later status-only/reconciliation heads also passed focused and generic CI. Because canonical =main= can advance independently while other book PRs merge, final merge eligibility is determined from the exact current PR head and the base revision recorded by its final pull-request workflow runs, not by inheriting older green evidence.
 
 * Editorial state
-DRAFT / IMPLEMENTATION VERIFIED / NEEDS CURRENT-MAIN INTEGRATION GATE. Final editorial acceptance and merge authority remains with the Books Editor-in-Chief. Passing an integration gate does not mark the whole book DONE.
+EDITORIAL_REVIEW / SUBSTANCE ACCEPTED / OBJECTIVE GATES PENDING. The Editor-in-Chief has reviewed the actual Chapters 4--5 manuscript, Project 1 module/control changes, regressions, research record, and sibling-book boundaries. No substantive rewrite blocker remains. APPROVED is withheld until the exact current head is non-draft, mergeable, and its focused plus generic pull-request checks complete successfully against the current integration base. Passing this milestone will not mark the whole book DONE.
 
 * Next dependency-ready slice
 After milestone B is accepted, research and implement the Project 1 DCG mini-language, a genuine CLP(FD) scheduling/constraint subproblem, and carefully bounded meta-programming. Keep live model/provider work behind the later typed gateway boundary.
 
 * Blockers
-- PR #49 must remain mergeable and pass its focused/generic checks against the current main at editorial handoff; unrelated book merges can move that base independently of this draft.
+- The exact editorial head must remain mergeable and pass its focused/generic checks against the current integration base at merge time.
 - Version-sensitive LLM/provider examples remain intentionally deferred until a focused typed-gateway research slice chooses current primary-source-backed interfaces and records exact tested versions.
