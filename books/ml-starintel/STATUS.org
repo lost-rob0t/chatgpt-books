@@ -6,7 +6,7 @@
 Phase 1 -- foundational research.
 * Completed
 - Curriculum and project map initialized.
-- Foundational research passes 01--14 completed as research records; the foundational phase itself remains open.
+- Foundational research passes 01--15 completed as research records; the foundational phase itself remains open.
 - Project 1 executable research harness added with pinned canonical StarIntel schema materialization and Git blob verification.
 - Experiment E StarIntel 0.9 wire-schema Python/Draft-2020-12 smoke matrix TESTED in CI after one recorded FAILED assumption correction; corrected runs pass all 9 smoke checks.
 - D0 narrow synthetic provenance-manifest round trip TESTED in CI.
@@ -27,18 +27,19 @@ Phase 1 -- foundational research.
 - Pass 12 IMPLEMENTED/TESTED that contract in =ml-starintel-research= run 81. The 480-record Tier C fixture has 114,960 possible pairs; the layered candidate union proposed 526 pairs, recovered all 480 exact qualifying pairs, produced 46 false-positive candidates safely rejected by exact verification, matched the all-pairs component oracle exactly, and remained deterministic under tested input permutations. This is a Tier C result, not a production scaling claim.
 - Pass 13 IMPLEMENTED/TESTED the final =composite_group_id= -> scikit-learn grouped-split handoff. =GroupShuffleSplit= and =GroupKFold= receive the already-compiled composite IDs only after point-in-time feature checks; strict temporal evaluation remains a separate =plan_strict_cutoff= path; post-split contamination auditing fails closed when a hard rule was omitted from group compilation. Integration run =35099487725= passed 44 selected harness tests, including all 11 composite-planner tests and the five new grouped-handoff regressions, plus the book build/check and EPUBCheck.
 - Pass 14 IMPLEMENTED/TESTED the Project 1 transitive Python version-lock contract. Resolver-capture run =35106255999= established the 24-distribution CPython 3.12.3/Linux x86_64 environment. Enforcement run =35106787481= recreated it from =requirements.lock= with =--no-deps=, =pip check= passed, the independent verifier reported 4 direct pins / 24 locked / 24 installed distributions, 50 selected tests passed, and the book/check/EPUB validation gates passed. Version locking is not promoted into a cryptographic artifact-hash claim.
+- Pass 15 DOCUMENTED/IMPLEMENTED the larger public-corpus benchmark protocol before measurement. It pins scikit-learn 1.9.0's 20 Newsgroups by-date archive metadata, selects 1,200 eligible unique public texts by content hash, adds 200 explicitly controlled one-token near-duplicate variants, freezes =num_perm= 64/128/256 with seed 1729 / =affine32= / two rare-token block keys, computes one exact all-pairs Jaccard oracle, and records union/source-specific recall, pair reduction, exact component agreement, wall clock, and Python-traced allocation peak. Larger-corpus results remain UNTESTED until the exact committed CI head completes.
 - Current StarIntel version language rechecked: =starintel-server/schema/starintel-schema.lock.json= reports current =release_version="0.9.1"= with =schema_version="0.9.0"=. The book now distinguishes the 0.9.1 release/profile from the 0.9.0 wire/base schema family instead of calling the current release 0.9.0.
 - Project 1 keeps persistence, routing, actor/runtime, search, and storage semantics behind the StarIntel adapter rather than duplicating them.
 * Active research
-- Freeze a predeclared =num_perm= benchmark grid and a reproducible larger public-corpus/oracle policy, then measure candidate recall, pair reduction, runtime/memory and component agreement without post-hoc tuning.
+- Execute the frozen pass-15 public-corpus benchmark without changing corpus/grid after observing results; record exact recall, pair reduction, environment-scoped runtime/allocation observations, component agreement, run identity, and failures if any.
 - Verify broader upstream/cross-language StarIntel conformance separately from the Book 1 Python smoke matrix.
 - Convert the tested provenance/leakage/composite-split/dependency evidence into reader-facing Chapters 2--5 and Project 1 exercises without promoting synthetic-control metrics into production claims.
 * Unverified claims
-- Larger-public-corpus candidate recall/runtime, adequacy of the current rare-token blocker outside Tier C, cross-language conformance equivalence, broader public-dataset scaling behavior, and cross-platform/byte-identical reproduction of the version-locked Python environment remain UNTESTED unless separately recorded as executed.
+- Pass-15 larger-public-corpus candidate recall/runtime/component agreement remains UNTESTED until exact-head CI completes; adequacy of the rare-token blocker outside the frozen benchmark, cross-language conformance equivalence, broader public-dataset scaling behavior, and cross-platform/byte-identical reproduction of the version-locked Python environment remain UNTESTED unless separately recorded as executed.
 - Pass 12's 99.5424495% candidate-pair reduction is specific to the synthetic Tier C fixture and is not a production performance estimate.
 - Grouped random holdout/cross-validation is not evidence of temporal validity; historical evaluation still requires the explicit cutoff/point-in-time path.
 - The refreshed live GLEIF API observations are probes only and are not silently promoted over the committed frozen factual fixture; any fixture refresh requires an explicit provenance/version decision.
 * Technical/editorial/visual review
 Not started.
 * Blockers
-The scalable candidate contract, grouped-split handoff, and transitive Python version-lock contract are tested. The remaining foundational research gate is the predeclared larger-public-corpus candidate benchmark. Chapters 2--5 and Project 1 remain RESEARCH/DRAFT until that contract is reviewed and teaching prose is built from the verified evidence.
+The remaining foundational evidence gate is execution of the already-frozen pass-15 larger-public-corpus benchmark on the exact committed protocol. Chapters 2--5 and Project 1 remain RESEARCH/DRAFT until that result is recorded honestly and teaching prose is built from the verified evidence.
