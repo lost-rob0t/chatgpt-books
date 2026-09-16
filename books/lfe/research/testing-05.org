@@ -1,0 +1,226 @@
+#+title: LFE Testing and Debugging Research Pass 05
+:PROPERTIES:
+:ID:       8a139791-43b7-4a82-a8ce-77ad498b6763
+:END:
+
+* Scope and claim status
+Retrieval date: 2026-09-16.
+
+This pass supports Chapter 13 and Project 3 checkpoint B. It starts from the
+editorially accepted OTP Router checkpoint A and asks how to test a Lisp-authored
+BEAM service without turning tests into timing folklore or framework ceremony.
+
+- DOCUMENTED :: inspected in current official Erlang/OTP documentation or the
+  tagged LFE v2.2.2 implementation.
+- TESTED :: executed by this repository at an exact recorded branch head.
+- UNTESTED :: implementation or behavior not yet through its executable gate.
+- FAILED :: an executable attempt failed; preserve the failure and correction.
+
+The current documentation baseline is Erlang/OTP 29.1, released 2026-09-16.
+The OTP 29.1 release contains Common Test 1.31.2, STDLIB 8.1, and Kernel
+11.0.4; EUnit remains 2.11. The executable book workflow records its actual
+runner OTP independently. LFE remains pinned to v2.2.2 for this project
+sequence.
+
+* DOCUMENTED -- EUnit tests ordinary BEAM modules, not Erlang syntax
+Official EUnit documentation describes tests as ordinary Erlang functions/test
+objects and =eunit:test/1,2= as the main runner. A module name is itself a test
+set. EUnit can discover separate =*_tests= modules, which means production code
+does not have to carry framework code merely to be testable.
+
+Source:
+https://www.erlang.org/doc/apps/eunit/chapter.html
+
+Project consequence: the course adds an Erlang EUnit module that calls the
+compiled LFE =otp-router= module through its public BEAM API. This is deliberate
+interop evidence: the unit under test is LFE source, while the test framework
+sees an ordinary module and ordinary terms.
+
+* DOCUMENTED -- fixtures exist to isolate state and clean it up
+The current EUnit guide defines =setup= and =foreach= fixture forms with setup,
+cleanup, and test-instantiation functions. =foreach= repeats setup/cleanup for
+each contained test set. The guide explicitly treats setup/cleanup as the place
+to establish the smallest required environment and remove it again.
+
+Source:
+https://www.erlang.org/doc/apps/eunit/chapter.html
+Relevant section: =EUnit test representation -> Fixtures=.
+
+Project consequence: the new contract suite gives every service contract a
+fresh locally registered =otp-router=. Setup fails closed if that local name is
+already occupied instead of killing an ambient process. Teardown stops the exact
+PID created by the fixture and verifies that the registered name is released;
+if ownership has moved to a different PID, teardown reports an ownership error
+without killing the new owner. This matters because the server intentionally
+uses one registered name. Fixture ownership is therefore part of the
+concurrency contract, not decorative boilerplate.
+
+* DOCUMENTED -- EUnit success requires an assertion or exception boundary
+The EUnit guide notes that a simple test succeeds if it returns normally and
+fails when it raises. Merely computing a wrong value without asserting against
+it is not a useful test. The standard assertion macros provide explicit failure
+boundaries.
+
+Source:
+https://www.erlang.org/doc/apps/eunit/chapter.html
+
+Teaching consequence: Chapter 13 distinguishes *exercise code* from a
+regression oracle. The new suite uses exact assertions for route results, state
+transition, tagged domain rejection, and fixture ownership rather than printing
+values for a human to eyeball.
+
+* DOCUMENTED -- tagged LFE itself consumes EUnit macros
+The LFE v2.2.2 source tree contains =test/ltest-macros.lfe=. It imports
+=eunit/include/eunit.hrl= with LFE's =include-lib= form and defines LFE helper
+macros that expand to EUnit assertions. This is primary evidence that EUnit is
+not foreign to the pinned LFE toolchain.
+
+Source:
+https://github.com/lfe/lfe/blob/v2.2.2/test/ltest-macros.lfe
+
+Teaching consequence: readers should understand two valid choices. Tests may be
+written in LFE and consume EUnit facilities, or a separate Erlang test module
+may drive the same compiled LFE code. This checkpoint chooses the latter for a
+small cross-language contract suite because the public boundary is exactly what
+we want to prove. It does not claim Erlang is inherently a better test language.
+
+* DOCUMENTED -- Common Test is a different layer, not “EUnit but bigger”
+Current OTP 29.1 contains Common Test 1.31.2. Current Common Test documentation
+presents test suites as ordinary modules with an =all/0= callback and optional
+suite/testcase lifecycle functions. It provides configuration, logs, test-run
+control, protocol helpers, and distributed/system facilities. OTP 29's Common
+Test application also includes =ct_doctest= for executable documentation
+examples.
+
+Sources:
+- https://www.erlang.org/doc/apps/common_test/write_test_chapter.html
+- https://www.erlang.org/doc/apps/common_test/api-reference.html
+- https://www.erlang.org/patches/OTP-29.1
+
+Teaching consequence: this slice does not add a Common Test suite merely to
+increase framework count. Project 3 still runs entirely inside one local VM and
+its important lifecycle failures are already covered by a direct executable
+harness. Common Test becomes more valuable when Project 4 introduces multiple
+nodes/configuration and system-level setup. Chapter 13 teaches that selection
+boundary explicitly.
+
+* DOCUMENTED -- =sys= is a debugging/system-message boundary
+Current OTP 29.1 / STDLIB 8.1 =sys= documentation describes simple debugging
+facilities for standard behaviour processes, including state inspection,
+suspension/resume, statistics, and tracing of system events. Suspending a
+process means it continues to answer system messages while ordinary processing
+is suspended.
+
+Sources:
+- https://www.erlang.org/doc/apps/stdlib/sys.html
+- https://www.erlang.org/doc/system/spec_proc.html
+
+Project consequence: Project 3 already uses =sys:get_state/1= as an observation
+boundary and =sys:suspend/1= to force a call timeout deterministically. Chapter
+13 reclassifies those uses as testing/debugging techniques: we intentionally
+control the server rather than hoping the scheduler happens to create a race.
+
+* DOCUMENTED -- tracing is observation, not proof
+Current OTP 29.1 / Kernel 11.0.4 exposes runtime trace points for function
+calls, message send/receive, garbage collection, and scheduling. The trace
+documentation recommends higher level tools such as =dbg= for debugging and
+=tprof= for profiling.
+
+Source:
+https://www.erlang.org/doc/apps/kernel/trace.html
+
+Teaching consequence: a trace can explain *why a failing run behaved as it did*.
+It is not itself a specification. This chapter therefore keeps assertions and
+protocol/failure contracts as the acceptance boundary, then uses =sys=/tracing
+as diagnostic tools rather than replacing tests with logs.
+
+* Design used by Project 3 checkpoint B
+The accepted testing pyramid for the current project is intentionally small and
+concrete:
+
+1. *pure semantic kernel regressions* -- Project 1 checks rule semantics without
+   any process;
+2. *LFE callback/service regressions* -- Project 3's existing LFE harness checks
+   public behavior and callback state;
+3. *EUnit contract fixtures* -- a separate Erlang EUnit module starts a fresh
+   compiled LFE server for each contract, tears down only the PID it created,
+   and fails closed on ambient or transferred registration ownership;
+4. *direct Erlang failure/interoperability harness* -- timeout, supervisor
+   replacement, state-loss boundary, and restart-intensity escalation remain
+   explicit scenario tests rather than being hidden behind unit-test helpers;
+5. *book/build gates* -- diagrams, Org/Pandoc/EPUB validation, and Nix remain
+   separate repository acceptance checks.
+
+The new EUnit suite deliberately does not repeat every failure scenario. Tests
+are organized by semantic boundary, not by a goal of maximizing test count.
+
+* FAILED -- first executable attempt exposed a missing CI build dependency
+Focused run =35148280506= on authored head
+=5b7d0156f5adf8763f6188b5a7c95103aaecaed2= did not reach the EUnit contracts.
+The Project 1 and Project 2 runners passed, but =erlc= failed compiling
+=otp_router_eunit_tests.erl= because the Ubuntu runner's installed Erlang
+packages did not provide =eunit/include/eunit.hrl= on the compiler include path.
+The EUnit application package itself was present; the missing development header
+was supplied by the distribution's =erlang-dev= package.
+
+The correction is infrastructure-specific and bounded: the focused LFE workflow
+now installs =erlang-dev= and explicitly checks that the EUnit header resolved by
+=code:lib_dir(eunit, include)= exists before compiling the project. No production
+router semantics changed to repair this failure. The failed run is preserved as
+evidence rather than rewritten into a green claim.
+
+* TESTED -- pre-editorial Testing Pass 05 implementation
+Corrected worker head =9574c12fb5dd7167272dbded75dd566614f113e3=
+passed focused =lfe-book= run =35148465246= on its pull-request integration
+commit against =main= =c340e5843981e33fe240d19797d9ef1354ed247d=.
+The observed focused environment was Ubuntu 24.04.5, Erlang/OTP 25, pinned LFE
+v2.2.2 at upstream commit =dae7489ebf9588e5f746a34cd4f8ff83d1469eef=,
+Pandoc 3.10.1, and EPUBCheck 5.3.0.
+
+That exact historical run established the original bounded contracts:
+
+- Project 1 and Project 2 executable regressions still passed;
+- Project 3's LFE callback checks and direct Erlang failure/lifecycle harness
+  passed unchanged around the new EUnit layer;
+- the original EUnit =foreach= suite ran all three service contracts and
+  reported =All 3 tests passed=;
+- the controlled crash/restart scenarios produced their expected OTP error and
+  supervisor reports while the harness still terminated successfully;
+- all five LFE teaching DOT sources, including =testing-layers.dot=, parsed;
+- =make book BOOK=lfe= succeeded;
+- =make check BOOK=lfe= succeeded and EPUBCheck 5.3.0 reported
+  =0 fatals / 0 errors / 0 warnings / 0 infos=;
+- the focused Nix job passed =nix flake check -L=.
+
+Generic =books-ci= run =35148465240= on the same exact head also succeeded through
+structural validation, the Pandoc Org-reader contract, deterministic publication
+assets, EPUBCheck, publication and per-book citation regressions, ERT, real
+Org-roam DB synchronization, and artifact upload.
+
+These results remain historical evidence for that exact revision/environment.
+The Editor-in-Chief later strengthened fixture ownership and refreshed current
+documentation to OTP 29.1; those changes require their own exact-head executable
+gates before the revised slice can be approved.
+
+* Explicit non-claims
+- EUnit success is regression evidence for the declared contracts, not a proof
+  of correctness, availability, or absence of races.
+- No coverage percentage is claimed; no coverage tool is run in this slice.
+- No timing, throughput, scheduler, memory, or mailbox benchmark is claimed.
+- A short timeout used to force one controlled failure is not a production
+  timeout recommendation.
+- Common Test, distributed-node testing, property testing, release testing, and
+  production tracing policy are not claimed as implemented by checkpoint B.
+- Current official documentation is OTP 29.1; the focused executable runner is
+  still recorded separately and must not be relabeled as OTP 29.1 unless a run
+  actually uses that runtime.
+
+* Deferred questions
+- Chapter 14 owns application/release packaging and must test the real packaged
+  artifact rather than treating source-tree compilation as release evidence.
+- Project 4 should introduce a real Common Test/system-test boundary when it has
+  multiple nodes and configuration worth managing.
+- Distribution failure injection, network partitions, cookies/TLS policy, and
+  node discovery require their own research and reproducible labs.
+- Property/generative testing is useful only after the project states explicit
+  invariants and generators; it should not be added as a buzzword-shaped test.

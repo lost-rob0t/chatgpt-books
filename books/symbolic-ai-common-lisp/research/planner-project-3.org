@@ -1,0 +1,84 @@
+#+title: Project 3 Research -- Explicit State-Space Planning
+:PROPERTIES:
+:ID:       fc93951e-2f8d-4679-9fa9-d7f90ec57863
+:END:
+
+* Scope
+Issue #97 starts Project 3 with one deliberately small, inspectable planning mechanism: finite symbolic states plus positive-precondition action schemas with add/delete effects, adapted to the book's already-tested graph-search and unification interfaces.  The purpose is to let the reader derive a planner from mechanisms they already own, not to drop in a planning framework.
+
+This is a *course-local STRIPS-style subset*.  It is not presented as an implementation of the complete historical STRIPS system, modern PDDL, partial-order planning, temporal planning, probabilistic planning, or an industrial planner.
+
+* Research questions
+1. What did the original STRIPS work actually establish, and which pieces can be used as historical grounding for explicit operator/state planning without projecting later textbook simplifications back onto the paper?
+2. Which representation boundary makes a small Common Lisp planner composable with the Search Library and Pattern Matcher/Unifier while hiding their internal table/alist layouts?
+3. What failure cases should be executable before heuristics or richer action languages are introduced?
+4. Which complexity statements are safe to make about a bounded teaching subset?
+
+* Primary and authoritative evidence
+** Fikes and Nilsson 1971
+Richard E. Fikes and Nils J. Nilsson, “STRIPS: A New Approach to the Application of Theorem Proving to Problem Solving,” /Artificial Intelligence/ 2(3--4), 189--208 (1971), DOI =10.1016/0004-3702(71)90010-5= [cite:@fikesnilsson1971].
+
+DOCUMENTED: this is the original STRIPS paper and the historical source for the planner lineage.  The paper's system is broader than the tiny add/delete teaching kernel in this milestone: it connects theorem proving, world models, operators, and problem solving.  The manuscript may use it to motivate explicit operators and state change, but must not claim that the course implementation reproduces the full STRIPS architecture.
+
+** Fikes and Nilsson 1993 retrospective
+Richard E. Fikes and Nils J. Nilsson, “STRIPS, a retrospective,” /Artificial Intelligence/ 59(1--2), 227--232 (1993), DOI =10.1016/0004-3702(93)90190-M= [cite:@fikesnilsson1993].
+
+DOCUMENTED: the authors' retrospective is useful specifically for historical perspective and for avoiding anachronistic claims about what later planning notation inherited from STRIPS.  It is not executable evidence for this Common Lisp implementation.
+
+** Bylander 1994
+Tom Bylander, “The Computational Complexity of Propositional STRIPS Planning,” /Artificial Intelligence/ 69(1--2), 165--204 (1994), DOI =10.1016/0004-3702(94)90081-7= [cite:@bylander1994].
+
+DOCUMENTED: the paper analyzes propositional STRIPS planning and establishes hardness/complexity results for precisely defined restrictions.  Use it to teach that a compact operator language does not make planning computationally trivial.  Do not transfer a complexity theorem to this course implementation without stating the exact representation/decision problem from the paper.
+
+** Existing book mechanisms
+The accepted Search Library already defines graph-search problem boundaries, explicit transitions, deterministic BFS/UCS/A*, stable =EQUAL= state keys, and instrumentation.  The accepted Pattern Matcher/Unifier already defines finite symbolic variables as =(:var NAME)=, first-order unification with an occurs check, and public substitution application.  Project 3 should consume those public operations rather than read their internal heap, hash-table, or alist representation.
+
+* Frozen milestone-A semantics
+** World state
+A state is a finite set of *ground* symbolic facts.  The implementation stores a fresh canonical list so equal fact sets have one stable =EQUAL= search key.  Duplicate facts and list order have no semantic meaning in this milestone.
+
+** Action schema
+An action schema has:
+- a stable symbolic name;
+- an ordered parameter list;
+- positive preconditions;
+- add effects;
+- delete effects;
+- a nonnegative numeric action cost.
+
+Variables use the already-accepted Pattern/Unifier representation.  Preconditions are joined against current facts by repeatedly invoking the public unifier with the preceding substitution.  Effects and action names are grounded only through the public substitution operation.
+
+** Applicability and transition
+A grounded action is applicable when one substitution makes every positive precondition equal to some fact in the current state.  Applying it removes matching delete effects and then inserts add effects, after which the state is canonicalized.  This gives the existing Search Library a normal successor function; the planner itself does not implement a second BFS/UCS/A* engine.
+
+** Deliberate omissions
+Milestone A does not implement or imply:
+- negative preconditions;
+- conditional or quantified effects;
+- derived predicates;
+- equality theories beyond Common Lisp structural =EQUAL= on the course terms;
+- temporal/numeric fluent semantics beyond one nonnegative action cost consumed by Search;
+- PDDL parsing or PDDL semantic conformance;
+- partial-order, hierarchical, probabilistic, contingent, or online planning;
+- automatic heuristic synthesis.
+
+Those omissions are curriculum boundaries, not defects hidden by terminology.
+
+* Executable evidence plan
+The focused suite must cover at least:
+- canonical state identity despite input order/duplicate facts;
+- repeated-variable binding consistency across multiple preconditions;
+- effect application with deletion followed by addition;
+- failure when an effect or action parameter remains ungrounded;
+- a multi-step warehouse/logistics plan that composes unification, action instantiation, effects, and graph search;
+- an unreachable goal that terminates as =:not-found=;
+- action costs respected by uniform-cost search;
+- equivalent successor states coalescing through canonical graph-search identity.
+
+Until those tests run on the exact branch head, implementation claims remain UNTESTED.  Passing the suite will make only those bounded semantics TESTED; it will not prove planner completeness for arbitrary action languages or establish a performance benchmark.
+
+* Curriculum boundary with sibling books
+This volume owns the explicit Common Lisp mechanism: symbolic data -> unification -> action grounding -> state transition -> reusable graph search -> inspectable plan.  =books/symbolic-ai-prolog= owns Prolog-native relational planning/meta-interpretation, and =books/expert-systems= owns production-rule agendas, RETE/TREAT-style incremental matching, truth maintenance, and production knowledge-system engineering.  Cross-link those deeper treatments instead of cloning them here.
+
+* Next research after milestone A
+After this state-transition kernel is accepted, research heuristic design, relaxed/problem-specific lower bounds, planner explanation/provenance, and richer constraint/graph interactions before widening the action language.  No benchmark is authorized by this note without a separately recorded experiment design and real execution evidence.
