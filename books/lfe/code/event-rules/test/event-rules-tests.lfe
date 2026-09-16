@@ -24,7 +24,11 @@
                  (when-level (quote critical) (quote pager))
                  (when-service (quote billing) (quote billing-queue))
                  (otherwise (quote archive))))
-         ((tuple 'yes expanded) (lfe_macro:expand_expr_1 expr env)))
+         ;; Use the same documented top-level expander exercised by LFE's
+         ;; exported-macro regression suite. expand_expr_1 stops after
+         ;; normalizing module-call syntax and therefore does not yet reach
+         ;; the exported macro itself.
+         ((tuple 'yes expanded) (lfe_macro:expand_expr expr env)))
     expanded))
 
 (defun run ()
@@ -69,7 +73,7 @@
     (expect 'macro-routes-through-kernel
             (tuple 'ok 'pager)
             (event-rules-example:route-critical))
-    (expect 'one-step-macro-expansion
+    (expect 'exported-macro-expansion
             '(list
               (tuple (quote when-level) (quote critical) (quote pager))
               (tuple (quote when-service) (quote billing) (quote billing-queue))
