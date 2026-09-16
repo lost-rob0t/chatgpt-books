@@ -71,6 +71,39 @@ test(a_star_audited_table_matches_ucs_cost) :-
     assertion(UcsCost == 11),
     assertion(AStarCost == UcsCost).
 
+test(overestimating_heuristic_can_return_costlier_goal) :-
+    weighted_recovery_costed_schemas(Costed),
+    weighted_recovery_initial_state(Start),
+    weighted_recovery_goal(Goal),
+    weighted_recovery_heuristic(
+        table([ estimate(StartState, _),
+                estimate(SiteState, _),
+                estimate(RemoteGoalState, _),
+                estimate(SiteGoalState, _)
+              ])),
+    Overestimating =
+        table([ estimate(StartState, 0),
+                estimate(SiteState, 100),
+                estimate(RemoteGoalState, 0),
+                estimate(SiteGoalState, 0)
+              ]),
+    uniform_cost_plan(Costed,
+                      Start,
+                      Goal,
+                      found(plan(UcsCost, _, _)),
+                      _),
+    a_star_plan(Costed,
+                Start,
+                Goal,
+                Overestimating,
+                found(plan(AStarCost,
+                           [step(remote_restore, remote_restore(node7))],
+                           _)),
+                _),
+    assertion(UcsCost == 11),
+    assertion(AStarCost == 12),
+    assertion(AStarCost > UcsCost).
+
 test(zero_heuristic_degenerates_to_ucs_on_fixture) :-
     weighted_recovery_costed_schemas(Costed),
     weighted_recovery_initial_state(Start),
@@ -143,6 +176,44 @@ test(negative_heuristic_value_is_rejected,
                 Start,
                 Goal,
                 table([estimate(Start, -1)]),
+                _,
+                _).
+
+test(non_integer_heuristic_value_is_rejected,
+     [throws(error(type_error(integer, 1.5), _))]) :-
+    weighted_recovery_costed_schemas(Costed),
+    weighted_recovery_initial_state(Start),
+    weighted_recovery_goal(Goal),
+    a_star_plan(Costed,
+                Start,
+                Goal,
+                table([estimate(Start, 1.5)]),
+                _,
+                _).
+
+test(duplicate_canonical_heuristic_state_is_rejected,
+     [throws(error(permission_error(insert,
+                                    heuristic_estimate,
+                                    [alpha, beta]),
+                   _))]) :-
+    a_star_plan([], 
+                [alpha, beta],
+                [],
+                table([ estimate([alpha, beta], 0),
+                        estimate([beta, alpha], 0)
+                      ]),
+                _,
+                _).
+
+test(callable_heuristic_term_is_rejected_without_execution,
+     [throws(error(type_error(planning_heuristic, throw(marker)), _))]) :-
+    weighted_recovery_costed_schemas(Costed),
+    weighted_recovery_initial_state(Start),
+    weighted_recovery_goal(Goal),
+    a_star_plan(Costed,
+                Start,
+                Goal,
+                throw(marker),
                 _,
                 _).
 
