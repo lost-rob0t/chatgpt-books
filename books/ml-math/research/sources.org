@@ -4,3 +4,30 @@
 :END:
 * Policy
 Add only sources actually inspected. Record URL, authority, publication/version date when known, retrieval date, relevant sections, and affected chapters/projects.
+
+* Inspected 2026-09-16
+** Gilbert Strang -- /Introduction to Linear Algebra/, Sixth Edition
+Authority: author-maintained MIT book site for the sixth edition.
+URL: https://math.mit.edu/~gs/linearalgebra/ila6/indexila6.html
+Edition/date: Sixth edition, 2023.
+ISBN: 978-17331466-7-8.
+Inspected material: official edition page and linked introductory/preface material establishing the opening vector/matrix sequence and the role of dot products, lengths, angles, linear combinations, and matrices.
+Used by: Chapters 3--7 and Project 1 sequencing. This book derives its own examples and explanations rather than reproducing textbook prose.
+
+** NumPy 2.5 documentation
+Authority: official NumPy documentation and official NumPy release-news page.
+Release evidence: NumPy 2.5.0 was released 2026-06-21. The official news page lists later 2.5.x bugfix releases, including NumPy 2.5.3 on 2026-09-06. Project 1 deliberately pins 2.5.0 as the TESTED numerical oracle; it does not claim 2.5.0 is the newest 2.5-series patch.
+URLs:
+- https://numpy.org/news/
+- https://numpy.org/doc/2.5/reference/generated/numpy.dot.html
+- https://numpy.org/doc/2.5/reference/generated/numpy.linalg.vector_norm.html
+- https://numpy.org/doc/2.5/reference/generated/numpy.testing.assert_allclose.html
+Inspected material: 1-D =numpy.dot= semantics; dimension errors; vector-norm API; numerical comparison support; 2.5-series release chronology.
+Used by: Project 1's independent numerical oracle. NumPy is deliberately not used to implement the teaching algorithms themselves.
+
+** Python 3.14.7 =math= documentation
+Authority: official Python documentation.
+URL: https://docs.python.org/3/library/math.html
+Version at retrieval: Python 3.14.7 documentation.
+Inspected material: =math.fsum= accurate floating-point summation, =math.hypot= Euclidean norm, =math.dist= Euclidean distance, and finite-value predicates.
+Used by: Chapter 5 numerical-stability notes and the standard-library implementation choices in Project 1 milestone A.
