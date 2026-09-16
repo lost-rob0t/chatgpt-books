@@ -1,0 +1,20 @@
+#+title: Project 1 -- Relational Task Solver, milestone A
+
+This directory is the executable symbolic baseline for Chapters 1--3.  The
+fixture is synthetic and deterministic; there is intentionally no LLM or
+network dependency yet.
+
+Run from the repository root:
+
+#+begin_src sh
+swipl -q -s books/prolog-llms/code/relational-task-solver/run_tests.pl
+#+end_src
+
+The tests cover directional relation mistakes, shared-variable joins, explicit
+list recursion, direct/transitive dependency paths, logical failure,
+provenance-bearing explanations, and the SWI-Prolog occurs-check boundary.
+The CI job prints the exact SWI-Prolog version used for the run.
+
+The later Typed LLM-to-Prolog Gateway will consume closed data contracts built
+on top of these deterministic relations.  It must not turn free-form model
+text into an arbitrary =call/1= target.
