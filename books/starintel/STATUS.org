@@ -3,14 +3,22 @@
 :ID:       d04e0764-a154-5602-934a-1a1ce9f935d7
 :END:
 * Phase
-Bootstrap curriculum and architecture.
+Foundational research and first project-backed manuscript slice are in editorial review. The book remains far from release-ready and retains the full long-form curriculum.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
+- Foundations Pass 01 records the live StarIntel release/wire-document distinction and current server ingest/validation/authorization/dataflow boundary from exact repository revisions.
+- Chapters 1--5 teach system boundaries, live-vs-historical source reading, document/version semantics, validation/provenance/authorization, and the HTTP -> RabbitMQ -> CouchDB -> actor document flow.
+- Project 1 milestone A contains synthetic records and an executable regression harness that imports the pinned real =starintel-doc= 0.9.1 adapter instead of duplicating validation logic.
+- Editable Graphviz document-flow source and a rendered SVG are included for the first runtime trace.
 * Active research
-Foundational primary-source research has not yet been declared complete.
+RabbitMQ delivery/retry/durability configuration, CouchDB conflict/outbox behavior, Sento actor semantics, registry/discovery, Quasar integration, external actors, language bindings, and production/debugging surfaces remain dependency-gated later research. Foundational research as a whole is not declared complete.
+* Verification status
+- TESTED at reviewed implementation head =7a1dada9496ca14cb3a95527e99783ed4d0f68aa=: focused =starintel-book= run =35098041606= passed the pinned real-adapter fetch, all 7 Project 1 record-contract tests under Python 3.12.3, Graphviz validation, =make book BOOK=starintel=, =make check BOOK=starintel=, EPUBCheck 5.3.0 with 0 fatals / 0 errors / 0 warnings / 0 infos, and =nix flake check -L=.
+- TESTED on the same reviewed implementation: generic =books-ci= run =35098041597= passed structural validation, Pandoc Org-reader/publication/citation regressions, EPUB validation, ERT, and real Org-roam database synchronization.
+- This STATUS reconciliation is a later editorial commit. Its exact resulting head must receive fresh current-main CI before the slice can be APPROVED or merged; the earlier successful runs are evidence for the implementation they tested, not a substitute for that merge gate.
 * Unverified claims
-All version-sensitive implementation details remain RESEARCH/UNTESTED until the relevant issue verifies them.
+Live multi-service deployment, persistence, actor dispatch, RabbitMQ confirm/durability settings, CouchDB integration behavior, and production performance remain UNTESTED by this book slice.
 * Technical/editorial/visual review
-Not started.
+The Chapters 1--5 / Project 1 foundation slice is in EDITORIAL_REVIEW after its earlier technical blocker was repaired. Whole-book technical/editorial/visual review has not started, and no later project milestone is promoted by this status update.
 * Blockers
-Dependency-aware backlog must be executed before chapter prose is promoted to DONE.
+No known book-local technical blocker remains in the reviewed foundation slice. Merge remains gated on fresh exact-head focused and generic CI after this editorial status reconciliation against current =main=.
