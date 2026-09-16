@@ -3,21 +3,24 @@
 :ID:       1d153fc1-8ecd-52f4-a6b6-d2f5f1d25898
 :END:
 * Phase
-Foundational research + first progressive Project 1 implementation slice.
+Foundational research + first progressive Project 1 implementation slice are in editorial review. The complete 300--700 page book remains far from release-ready.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
 - Project 1 milestone A primary-source research completed for meta-calling, clause reflection boundaries, debugger ports, variant comparison, rule freshening, depth-limit caveats, and PL-Unit.
 - Opening manuscript slice drafted around object/meta language separation, proof trees, provenance, explicit control, cycle detection, and rule budgets.
 - Runnable Project 1 milestone A implementation and semantic regression suite added under =code/meta-interpreter/=.
 - Editable + rendered proof-tree figure added.
+- The guarded-search regression establishes that reporting a cycle for one alternative does not cut away a later successful rule on backtracking.
 * Active research
 - Richer meta-interpreter control/tracing semantics, native-clause reflection boundaries, and later search/planning work remain open.
 - Foundational research for planning, knowledge representation, abduction, constraints, production systems, and the capstone is not complete.
 * Verification
-Verification evidence is recorded on the focused issue/PR. A result is TESTED only after an actual SWI-Prolog process executes the current branch head. Publication build/check and Nix status are likewise head-specific.
+- TESTED at reviewed implementation head =ce82f555c9d55f12c84a08cc96749c9a1d2deb56=: focused =symbolic-ai-prolog-book= run =35097595490= passed all 13 semantic tests under SWI-Prolog 10.0.2, =make book BOOK=symbolic-ai-prolog=, =make check BOOK=symbolic-ai-prolog=, EPUBCheck 5.3.0 with 0 fatals / 0 errors / 0 warnings / 0 infos, and =nix flake check -L=.
+- TESTED on the same reviewed implementation: generic =books-ci= run =35097595509= passed the structural, publication, citation-rendering, ERT, and real Org-roam gates.
+- This STATUS reconciliation is a later editorial commit. Its exact resulting head must receive fresh current-main CI before the slice can be APPROVED or merged; prior successful runs remain evidence for the implementation they tested rather than a substitute for the current merge gate.
 * Cross-book boundary
 [[file:../prolog/README.org][Prolog for Beginners]] remains the full pure-Prolog foundation. Explicit LLM/neuro-symbolic/RLM material belongs to [[file:../prolog-llms/README.org][Prolog + LLMs]]. This volume keeps classical/general symbolic-AI mechanisms complete and independently useful while cross-linking shared foundations where helpful.
 * Technical/editorial/visual review
-Not complete. One proof-tree figure exists; the whole-book visual and editorial passes remain future phases.
+The Project 1 meta-interpreter foundation is in EDITORIAL_REVIEW. The proof-vs-trace distinction, fresh-rule semantics, path-local cycle policy, explicit budget outcomes, and normal backtracking behavior are accepted as the correct teaching direction; whole-book editorial/visual review remains future work.
 * Blockers
-The 300--700 page book is far from complete. Later project milestones remain dependency-gated and must not be collapsed into this first interpreter slice.
+No known book-local technical blocker remains in this bounded foundation slice. Merge is gated on fresh exact-head focused and generic CI against current =main=. Later project milestones remain dependency-gated and must not be collapsed into this first interpreter slice.
