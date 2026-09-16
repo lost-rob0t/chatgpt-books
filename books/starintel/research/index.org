@@ -10,5 +10,6 @@
 - [[file:foundations-01.org][Foundations Pass 01 -- Live Architecture and Document Contract]] -- current release/wire-version distinction, live server boundary, historical-vs-current evidence, and Project 1 validation contract.
 - [[file:ingest-boundary-02.org][Ingest Boundary Pass 02 -- Rabbit Settlement, CouchDB Outbox, and HTTP Evidence]] -- loaded Rabbit consumer/retry semantics, current outbox/idempotency path, publisher-confirm evidence gap, source drift, and Project 2 boundary design at the recorded server snapshot.
 - [[file:runtime-failure-03.org][Runtime Failure Pass 03 -- Quarantine Identity, Unsettled Delivery, and Ambiguous Replay]] -- current-head delta for the concurrent quarantine-ID incident/fix, failed-settlement isolation, upstream-vs-book evidence status, and a conservative replay-reconciliation lab.
+- [[file:bulk-lifetime-04.org][Bulk Lifetime Pass 04 -- Terminal Payload Release and Bounded Reachability]] -- current-head delta for asynchronous bulk-job payload lifetime, terminal cleanup, upstream heap-exhaustion evidence, and a fail-closed lifecycle observation lab.
 - [[file:sources.org][Source inventory]]
 - [[file:search-log.org][Search log]]
