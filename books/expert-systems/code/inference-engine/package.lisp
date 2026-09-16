@@ -106,6 +106,7 @@
            #:incremental-retract-fact
            #:incremental-fire-activation
            #:run-incremental-engine
+           #:incremental-cache-references-current-p
            #:incremental-network-snapshot
            #:*service-diagnosis-facts*
            #:make-service-diagnosis-productions))

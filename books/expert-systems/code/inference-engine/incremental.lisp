@@ -306,6 +306,43 @@ implementation."
        (if (endp agenda) :quiescent :limit)
        agenda))))
 
+(defun incremental-cache-references-current-p (network)
+  "Return true when every cached alpha/beta support still names current WM state.
+
+This is a one-way cache-reference invariant, not a completeness proof. It catches
+stale cached supports after incorrect invalidation. It cannot detect a working-
+memory assertion that bypassed the incremental delta API, because all older
+cached references can remain valid while the cache is missing new matches. Use
+BUILD-AGENDA versus INCREMENTAL-AGENDA equivalence to test that second property."
+  (let* ((engine (incremental-network-engine network))
+         (memory (engine-working-memory engine)))
+    (every
+     (lambda (production-network)
+       (and
+        (every
+         (lambda (alpha-memory)
+           (every
+            (lambda (item)
+              (let* ((entry (alpha-item-entry item))
+                     (fact (wm-entry-fact entry))
+                     (current (find-wm-entry memory (fact-id fact))))
+                (eq current entry)))
+            (alpha-memory-items alpha-memory)))
+         (production-network-alpha-memories production-network))
+        (every
+         (lambda (beta-memory)
+           (every
+            (lambda (token)
+              (every
+               (lambda (stamp)
+                 (let ((current (find-wm-entry memory (car stamp))))
+                   (and current
+                        (= (wm-entry-sequence current) (cdr stamp)))))
+               (beta-token-support-stamps token)))
+            (beta-memory-tokens beta-memory)))
+         (production-network-beta-memories production-network))))
+     (incremental-network-production-networks network))))
+
 (defun incremental-network-snapshot (network)
   "Return deterministic inspectable cache sizes and terminal activation keys."
   (mapcar

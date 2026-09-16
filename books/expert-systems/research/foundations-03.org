@@ -66,6 +66,22 @@ Retraction captures the exact =wm-entry= before removing it from working memory.
 
 This invalidates cached matches. It intentionally does *not* retract already-derived working-memory facts whose prior firings depended on the removed support. That known stale-derived-fact failure is the truth-maintenance dependency for the next reasoning milestone.
 
+** Cache-reference soundness is not cache completeness
+Milestone C now makes one internal debugging invariant executable: =incremental-cache-references-current-p= checks that every retained alpha item still names the exact current =wm-entry= for its stable fact ID and that every beta support stamp still resolves to a current occurrence with the same assertion sequence.
+
+That predicate is deliberately one-way. A direct call to the underlying milestone-B =assert-fact= can bypass the incremental delta interface, leaving all old cached references valid while the network is missing matches for the new occurrence. Therefore cache-reference checking does not replace oracle equivalence. The regression suite deliberately creates this ownership failure, requires oracle/incremental agenda disagreement, rebuilds the network from working memory, and then requires equivalence again.
+
+This distinction supports two different debugging questions:
+- /stale reference/: did invalidation fail to remove cache state whose support disappeared?
+- /missed delta/: did working memory change without the incremental index seeing the new occurrence?
+
+Neither property is a truth-maintenance guarantee for already-derived facts.
+
+** Batch assertion and failed-firing boundaries
+=incremental-assert-facts= delegates whole-batch validation/mutation to the accepted milestone-B working-memory operation before propagating the returned new occurrences one at a time. The bounded regression requires ordered new occurrence sequences, oracle-equivalent agenda state, and current cache references after a two-fact batch creates one complete join.
+
+=incremental-fire-activation= delegates the actual rule action validation, working-memory commit, refraction mark, and firing-record append to =fire-activation= before propagating newly committed occurrences. A regression intentionally uses an action that returns a non-=fact= value and requires the validation error to leave working memory, firing history, refraction, and the incremental cache unchanged. This is course-local executable semantics; it is not an external transaction or side-effect guarantee.
+
 ** Production node and agenda
 The terminal beta memory is attached to a production node. Complete tokens are converted into the same =activation= structure as the complete-rematch engine. =incremental-agenda= uses the existing engine refraction set and =activation-precedes-p= comparator rather than defining a second conflict policy.
 
@@ -74,11 +90,15 @@ The terminal beta memory is attached to a production node. Complete tokens are c
 
 * Required regression cases
 - initial seeded incremental agenda equals complete-rematch ordered activation keys;
+- cached alpha/beta references resolve to current working-memory occurrences after seeding and legal deltas;
 - known local alpha-memory counts are inspectable on the synthetic service fixture;
 - final beta token preserves condition-ordered fact IDs and support occurrence stamps;
 - assertion of a previously missing second-condition fact creates the same activation as complete rematching;
+- a validated two-fact batch propagates both occurrences and produces the oracle-equivalent joined activation;
 - retraction removes dependent cached activation state and agrees with the oracle;
 - reassertion of the same stable fact ID gets a new sequence and new activation support stamp;
+- bypassing the incremental mutation API is demonstrably capable of preserving current cache references while breaking agenda completeness, and rebuilding restores equivalence;
+- invalid rule-action output fails before working memory, refraction, firing history, or incremental cache state changes;
 - one fact occurrence may satisfy two condition positions, matching milestone-A semantics;
 - empty-LHS production keeps one empty activation candidate;
 - firing the first service rule incrementally propagates its derived occurrence and creates the same downstream agenda as complete rematching;

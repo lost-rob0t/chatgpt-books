@@ -38,6 +38,9 @@
      (agenda-keys (build-agenda engine))
      (agenda-keys (incremental-agenda network))
      "seeded incremental agenda equals complete-rematch oracle")
+    (incremental-check-true
+     (incremental-cache-references-current-p network)
+     "seeded cache references only current working-memory occurrences")
     (incremental-check-equal '(1 1)
                              (mapcar (lambda (memory)
                                        (length (alpha-memory-items memory)))
@@ -88,6 +91,9 @@
      "retraction propagation equals complete-rematch oracle")
     (incremental-check-equal '() (incremental-agenda network)
                              "retracting support removes dependent activation")
+    (incremental-check-true
+     (incremental-cache-references-current-p network)
+     "retraction leaves no stale cache support references")
 
     ;; Reasserting the stable ID creates a new occurrence and therefore a new
     ;; activation/refraction identity, exactly as milestone B specifies.
@@ -102,7 +108,111 @@
      '(3 2)
      (mapcar #'cdr
              (activation-support-stamps (first (incremental-agenda network))))
-     "reasserted activation exposes new and retained occurrence stamps"))
+     "reasserted activation exposes new and retained occurrence stamps")
+    (incremental-check-true
+     (incremental-cache-references-current-p network)
+     "reassertion cache references the new occurrence rather than the old one"))
+
+  ;; Batch assertion validates the whole batch in the milestone-B engine, then
+  ;; propagates each accepted new occurrence through the incremental network.
+  (let* ((state (test-fact "batch.state" 'service-state '(api failed)))
+         (restart (test-fact "batch.restart" 'service-restart-policy
+                             '(api on-failure)))
+         (production
+           (noop-production "rule.batch-restart"
+                            '((service-state ?service failed)
+                              (service-restart-policy ?service on-failure))))
+         (engine (make-engine :productions (list production)))
+         (network (make-incremental-network engine))
+         (entries (incremental-assert-facts network (list state restart))))
+    (incremental-check-equal '(1 2)
+                             (mapcar #'wm-entry-sequence entries)
+                             "batch assertion returns ordered new occurrences")
+    (incremental-check-equal
+     (agenda-keys (build-agenda engine))
+     (agenda-keys (incremental-agenda network))
+     "batch assertion agenda equals complete-rematch oracle")
+    (incremental-check-equal 1 (length (incremental-agenda network))
+                             "batch assertion creates one joined activation")
+    (incremental-check-true
+     (incremental-cache-references-current-p network)
+     "batch assertion cache references current occurrences"))
+
+  ;; Cache-reference soundness and cache completeness are different properties.
+  ;; Bypassing the delta API can leave every old reference valid while omitting
+  ;; matches for a newly asserted fact. The oracle catches that incompleteness;
+  ;; rebuilding the network restores equivalence.
+  (let* ((state (test-fact "bypass.state" 'service-state '(api failed)))
+         (restart (test-fact "bypass.restart" 'service-restart-policy
+                             '(api on-failure)))
+         (production
+           (noop-production "rule.bypass"
+                            '((service-state ?service failed)
+                              (service-restart-policy ?service on-failure))))
+         (engine (make-engine :facts (list state)
+                              :productions (list production)))
+         (network (make-incremental-network engine)))
+    (assert-fact (engine-working-memory engine) restart)
+    (incremental-check-true
+     (incremental-cache-references-current-p network)
+     "bypassed assertion can leave old cache references individually valid")
+    (incremental-check-true
+     (not (equal (agenda-keys (build-agenda engine))
+                 (agenda-keys (incremental-agenda network))))
+     "bypassed assertion is detected by oracle agenda disagreement")
+    (let ((rebuilt (make-incremental-network engine)))
+      (incremental-check-equal
+       (agenda-keys (build-agenda engine))
+       (agenda-keys (incremental-agenda rebuilt))
+       "network rebuild restores agenda equivalence after bypassed delta")
+      (incremental-check-true
+       (incremental-cache-references-current-p rebuilt)
+       "rebuilt cache references current working-memory occurrences")))
+
+  ;; Incremental firing must preserve the milestone-B fail-before-mutation
+  ;; boundary. If an action proposes invalid output, FIRE-ACTIVATION signals
+  ;; before working memory/refraction/history changes and the wrapper must not
+  ;; mutate caches either.
+  (let* ((state (test-fact "invalid.state" 'service-state '(api failed)))
+         (production
+           (make-production
+            :id "rule.invalid-output"
+            :conditions '((service-state ?service failed))
+            :action (lambda (activation)
+                      (declare (ignore activation))
+                      (list :not-a-fact))))
+         (engine (make-engine :facts (list state)
+                              :productions (list production)))
+         (network (make-incremental-network engine))
+         (activation (first (incremental-agenda network)))
+         (before-fact-ids (current-fact-ids engine))
+         (before-snapshot (incremental-network-snapshot network))
+         (error-text nil))
+    (handler-case
+        (incremental-fire-activation network activation)
+      (error (condition)
+        (setf error-text (princ-to-string condition))))
+    (incremental-check-true
+     (and error-text
+          (search "Expected a FACT" error-text :test #'char-equal))
+     "invalid incremental firing exposes the expected validation failure")
+    (incremental-check-equal before-fact-ids
+                             (current-fact-ids engine)
+                             "failed incremental firing leaves working memory unchanged")
+    (incremental-check-equal '() (engine-firing-records engine)
+                             "failed incremental firing records no firing")
+    (incremental-check-equal '() (engine-refracted-keys engine)
+                             "failed incremental firing does not mark refraction")
+    (incremental-check-equal before-snapshot
+                             (incremental-network-snapshot network)
+                             "failed incremental firing leaves cache state unchanged")
+    (incremental-check-equal
+     (agenda-keys (build-agenda engine))
+     (agenda-keys (incremental-agenda network))
+     "failed incremental firing preserves oracle agenda equivalence")
+    (incremental-check-true
+     (incremental-cache-references-current-p network)
+     "failed incremental firing preserves cache-reference soundness"))
 
   ;; The existing matcher permits one fact to satisfy more than one condition;
   ;; the incremental network must preserve that declared semantic edge case.
