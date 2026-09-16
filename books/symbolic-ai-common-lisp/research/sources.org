@@ -44,7 +44,7 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Author source index: https://www.norvig.com/paip/
 - Authority: author-maintained book/source site.
 - Retrieved: 2026-09-16.
-- Used for: historical Common Lisp AI implementation context and project pedagogy; no source copied.
+- Used for: historical Common Lisp AI implementation context and project pedagogy; the source index exposes separate pattern-matching and unification utilities used as curriculum context for Project 2. No source copied.
 
 ** SBCL current release
 - Source: Steel Bank Common Lisp official download/news pages.
@@ -53,6 +53,24 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Authority: implementation's official project site.
 - Retrieved: 2026-09-16.
 - Used for: current executable-test environment record only; project code remains ANSI Common Lisp.
+
+* Pattern matching and unification sources
+** Robinson 1965 -- first-order unification in resolution
+- Source: J. A. Robinson, “A Machine-Oriented Logic Based on the Resolution Principle,” /Journal of the ACM/ 12(1), 23--41 (1965).
+- DOI: https://doi.org/10.1145/321250.321253
+- Inspected scan: https://web.stanford.edu/class/linguist289/robinson65.pdf
+- Bibliographic cross-check: DBLP record https://dblp.org/rec/journals/jacm/Robinson65
+- Authority: original JACM paper; DOI/publisher metadata cross-checked through independent bibliographic records.
+- Retrieved: 2026-09-16.
+- Used for: Chapter 14 / Project 2 historical and theoretical basis for first-order unification and most-general substitutions. This project does not implement Robinson's complete resolution prover.
+
+** ANSI Common Lisp HyperSpec -- structural terms and alists
+- Source: Common Lisp HyperSpec entries for =EQUAL=, list concepts, and association lists.
+- URLs: https://www.lispworks.com/documentation/HyperSpec/Body/f_equal.htm ; https://www.lispworks.com/documentation/HyperSpec/Body/26_glo_l.htm ; https://www.lispworks.com/documentation/HyperSpec/Body/26_glo_a.htm
+- Authority: LispWorks-hosted HyperSpec reproduction of the ANSI Common Lisp specification.
+- Retrieved: 2026-09-16.
+- Used for: Project 2 term representation, structural cons recursion, and transparent alist substitutions/bindings.
+- Design boundary: the milestone reserves =(:var NAME)= as its variable form and explicitly limits itself to finite acyclic terms; it does not infer rational-tree semantics from Common Lisp's ability to construct cyclic structures.
 
 * Formal methods and software verification sources
 ** Hoare 1969 -- axiomatic program reasoning
@@ -103,4 +121,4 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Source: official Lean 4 reference/tutorials, https://lean-lang.org/doc/reference/latest and https://docs.lean-lang.org/theorem_proving_in_lean4/
 - Authority: Lean project documentation.
 - Retrieved: 2026-09-16.
-- Used for: comparison of kernel-checked proof terms/type-theoretic theorem proving with model checking/ACL2.  Not a Common Lisp implementation dependency.
+- Used for: comparison of kernel-checked proof terms/type-theoretic theorem proving with model checking/ACL2. Not a Common Lisp implementation dependency.

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
+  <title id="title">Pattern matching and unification flow</title>
+  <desc id="desc">The upper path shows directional pattern matching carrying bindings. The lower path shows symmetric unification, dereferencing both terms, performing an occurs check before variable binding, recursively decomposing conses, and returning typed success or failure.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><path d="M0,0 L10,3.5 L0,7 Z" fill="currentColor"/></marker>
+    <style>.box{fill:white;stroke:black;stroke-width:2}.t{font:16px sans-serif;text-anchor:middle}.h{font:bold 21px sans-serif}.a{fill:none;stroke:black;stroke-width:2;marker-end:url(#arrow)}</style>
+  </defs>
+  <text class="h" x="30" y="34">Directional matching</text>
+  <rect class="box" x="30" y="65" width="160" height="60"/><text class="t" x="110" y="100">Pattern + datum</text>
+  <rect class="box" x="250" y="65" width="170" height="60"/><text class="t" x="335" y="90">Variable?</text><text class="t" x="335" y="112">or both conses?</text>
+  <rect class="box" x="480" y="65" width="210" height="60"/><text class="t" x="585" y="90">Bind/check variable</text><text class="t" x="585" y="112">or recurse CAR/CDR</text>
+  <rect class="box" x="750" y="45" width="180" height="60"/><text class="t" x="840" y="80">MATCHED + bindings</text>
+  <rect class="box" x="750" y="125" width="180" height="60"/><text class="t" x="840" y="160">Typed match failure</text>
+  <path class="a" d="M190 95 H250"/><path class="a" d="M420 95 H480"/><path class="a" d="M690 85 H750"/><path class="a" d="M690 105 C720 105 720 155 750 155"/>
+
+  <text class="h" x="30" y="250">Symmetric unification</text>
+  <rect class="box" x="30" y="280" width="160" height="60"/><text class="t" x="110" y="315">Term A + term B</text>
+  <rect class="box" x="235" y="280" width="170" height="60"/><text class="t" x="320" y="305">Dereference both</text><text class="t" x="320" y="327">under substitution</text>
+  <rect class="box" x="450" y="280" width="170" height="60"/><text class="t" x="535" y="305">Equal / variable</text><text class="t" x="535" y="327">/ both conses?</text>
+  <rect class="box" x="665" y="255" width="190" height="60"/><text class="t" x="760" y="280">Variable: occurs check</text><text class="t" x="760" y="302">then extend</text>
+  <rect class="box" x="665" y="335" width="190" height="60"/><text class="t" x="760" y="360">Conses: unify CAR</text><text class="t" x="760" y="382">then CDR</text>
+  <rect class="box" x="905" y="245" width="220" height="60"/><text class="t" x="1015" y="280">UNIFIED + substitution</text>
+  <rect class="box" x="905" y="345" width="220" height="60"/><text class="t" x="1015" y="370">FAILED:</text><text class="t" x="1015" y="392">clash / occurs-check</text>
+  <path class="a" d="M190 310 H235"/><path class="a" d="M405 310 H450"/><path class="a" d="M620 300 C640 300 645 285 665 285"/><path class="a" d="M620 320 C640 320 645 365 665 365"/><path class="a" d="M855 285 H905"/><path class="a" d="M855 365 H905"/>
+</svg>
