@@ -31,8 +31,11 @@ Phase 1 -- foundational research transitioning into reader-facing Project 1 draf
 - Pass 15 evidence artifact =10452834821= contains 27 files and has ZIP digest =sha256:8746ba36e495b73a5b5a076688dd082142eff528d4e40382e25d53b60ff03052=. The selected public/controlled manifest hash is =e5e0df1b8c33f18445be5a94140ecb8fe0a802f8d97fe661d053d525701c3a37=; raw public posts are not emitted in the benchmark JSON or committed to the repository.
 - Current StarIntel version language rechecked: =starintel-server/schema/starintel-schema.lock.json= reports current =release_version="0.9.1"= with =schema_version="0.9.0"=. The book distinguishes the 0.9.1 release/profile from the 0.9.0 wire/base schema family instead of calling the current release 0.9.0.
 - Project 1 keeps persistence, routing, actor/runtime, search, and storage semantics behind the StarIntel adapter rather than duplicating them.
+- Reader-facing Chapters 2--5 are now drafted as separate Org includes from the tested research base. They derive provenance layers, validation/leakage, point-in-time feature and label semantics, composite split construction, exact verification after approximate duplicate candidates, scoped measurements, failure labs, and Project 1 exercises. Existing split-chapter Org IDs were preserved while the former monolithic draft was moved into Chapter 5.
 * Active research/drafting
-- Convert the tested provenance, leakage, composite-split, candidate-generation, and dependency evidence into reader-facing Chapters 2--5 and Project 1 exercises. Derive the mechanisms from first principles and keep synthetic controls, factual snapshots, and the frozen 20 Newsgroups benchmark visibly separate.
+- Run exact-head book/publication/research validation on the Chapters 2--5 draft and repair any citation, Org include, or executable-contract regression before calling the slice verified.
+- Integrate Chapter 1 with the new Chapters 2--5 progression, then turn the research-harness pieces into a cohesive reader-facing Project 1 build/report interface rather than exposing a pile of research passes as the final project UX.
+- Technically review the new prose against the harness and primary sources; do not promote the draft to editorial completion without the Editor-in-Chief gate.
 - Verify broader upstream/cross-language StarIntel conformance separately from the Book 1 Python smoke matrix when a later project actually requires that boundary.
 - Treat broader public-corpus scaling, cross-platform environment reproduction, and production throughput/capacity as new research questions rather than inferring them from the frozen Project 1 benchmark.
 * Unverified claims
@@ -41,6 +44,6 @@ Phase 1 -- foundational research transitioning into reader-facing Project 1 draf
 - Grouped random holdout/cross-validation is not evidence of temporal validity; historical evaluation still requires the explicit cutoff/point-in-time path.
 - The refreshed live GLEIF API observations are probes only and are not silently promoted over the committed frozen factual fixture; any fixture refresh requires an explicit provenance/version decision.
 * Technical/editorial/visual review
-Not started.
+Not started. The new Chapters 2--5 draft is awaiting exact-head technical/build verification before editorial handoff.
 * Blockers
-No foundational evidence blocker remains for the current Project 1 teaching slice. The next blocker is editorial/implementation work: Chapters 2--5 and Project 1 exercises still need to be drafted from the verified evidence, then technically reviewed and integrated before Project 1 can move out of RESEARCH/DRAFT.
+No foundational evidence blocker remains for the current Project 1 teaching slice. The immediate gate is objective verification of the new Chapters 2--5 publication structure and citations. After that, Chapter 1 and a cohesive Project 1 reader interface remain dependency-ready drafting work; the book remains RESEARCH/DRAFT and far from DONE.
