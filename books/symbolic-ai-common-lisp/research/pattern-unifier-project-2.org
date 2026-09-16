@@ -1,0 +1,89 @@
+#+title: Project 2 Research -- Pattern Matching and First-Order Unification
+:PROPERTIES:
+:ID:       980b4096-f6ed-46fc-a7ad-c2ef76fc465f
+:END:
+
+* Status
+- Research date: 2026-09-16.
+- Tracking issue: #45.
+- Scope: directional structural matching, substitutions, first-order unification, occurs-check semantics, and the Common Lisp representation choices used by Project 2 milestone A.
+- DOCUMENTED: source-backed theory/history and ANSI Common Lisp representation behavior below.
+- TESTED: only behavior that has run successfully in exact-head CI; this note does not itself promote code to TESTED.
+- UNTESTED/RESEARCH: indexing, discrimination networks, destructive/optimized unifiers, rational-tree semantics, constraint unification, production-rule matching, and performance claims.
+
+* Why matching comes before unification
+Pattern matching is the smaller mechanism.  A pattern is compared with a datum in one direction: literal structure must agree, while pattern variables may acquire bindings.  A repeated variable creates an equality constraint.  For example, matching =(same X X)= against =(same a b)= must fail after =X= has already become =a=.
+
+Unification removes that one-way privilege.  Variables may occur on either side, and the algorithm must find one substitution that makes both terms identical when such a substitution exists.  Robinson's 1965 paper introduced the unification machinery used inside first-order resolution and describes the most-general-unifier role of substitution in automated deduction. [cite:@robinson1965]
+
+The book derives the two mechanisms separately so readers can see exactly which obligations appear when moving from matching to unification: dereferencing variable chains, applying substitutions consistently to both sides, detecting incompatible structures, and preventing a variable from being bound to a finite term containing itself.
+
+* Primary and authoritative sources
+** Robinson 1965
+- Source: J. A. Robinson, “A Machine-Oriented Logic Based on the Resolution Principle,” /Journal of the ACM/ 12(1), 23--41 (1965).
+- DOI: https://doi.org/10.1145/321250.321253
+- Inspected: a Stanford-hosted scan of the original JACM article plus bibliographic metadata linking the DOI, 2026-09-16.
+- Durable use: historical/theoretical basis for first-order unification and most-general substitutions in resolution.
+- Important limit: Project 2 is not implementing Robinson's full resolution prover.  It isolates matching/unification as reusable symbolic machinery.
+
+** Norvig / PAIP implementation context
+- Source: Peter Norvig, /Paradigms of Artificial Intelligence Programming: Case Studies in Common Lisp/ and the author-maintained source index.
+- Author source: https://www.norvig.com/paip/
+- Inspected: 2026-09-16.  The index exposes distinct =patmatch.lisp= and =unify.lisp= teaching artifacts.
+- Durable use: historical evidence that matching and unification are natural reusable Common Lisp AI utilities and useful curriculum boundaries. [cite:@norvig1992]
+- Copyright boundary: this book's implementation is original; no PAIP source is copied.
+
+** ANSI Common Lisp structural data behavior
+- Source: Common Lisp HyperSpec, =EQUAL=, list definitions, association lists, and hash/equality material.
+- Inspected: 2026-09-16.
+- Relevant behavior: =EQUAL= recursively compares cons structure; ordinary association lists are lists of key/value conses; circular list structure is a distinct category and recursive structural operations need an explicit contract.
+- Design consequence: milestone A uses atoms/conses as terms and a reserved two-element =(:var NAME)= representation rather than pretending arbitrary CLOS/structure objects have portable structural equality.
+
+* Representation contract
+The reserved variable representation is:
+
+#+begin_src lisp
+(:var x)
+#+end_src
+
+or, through the public constructor:
+
+#+begin_src lisp
+(make-variable 'x)
+#+end_src
+
+This makes variables visible in traces and lets ordinary cons recursion teach the mechanism.  The tradeoff is explicit: =:var= is reserved as a term tag in this project.
+
+Substitutions are association lists from variable names to terms.  This is not chosen for asymptotic performance; it is chosen so a beginner can inspect every binding.  Later optimization work may introduce indexed environments while preserving the semantics established here.
+
+* Finite-term and occurs-check boundary
+Milestone A deliberately models finite acyclic first-order terms.  Before binding variable =X= to term =T=, the unifier asks whether =X= occurs in =T= after following the current substitution.  If it does, the result is =:failed= with reason =:occurs-check=.
+
+Example:
+
+#+begin_example
+X = f(X)
+#+end_example
+
+A cyclic/rational-tree system can assign a different semantics to that equation, but silently switching semantics would make the finite-term derivation false.  Rational trees therefore remain a later research topic, not an optional flag hidden in milestone A.
+
+* Executable acceptance consequences
+- Matching is directional and recognizes variables only in the pattern.
+- Repeated pattern variables must agree with their earlier binding.
+- Both matching and unification recurse over cons cells, so dotted pairs are exercised explicitly.
+- Unification dereferences chains before comparing or extending a substitution.
+- A successful substitution, when applied to both original terms, must make the results =EQUAL=.
+- The occurs check rejects self-containing finite terms.
+- Inputs are treated as immutable; substitution application builds fresh cons structure instead of destructively rewriting caller data.
+- Failure records preserve a reason and offending term pair/pattern fragment for debugging.
+
+* Deliberate non-goals for milestone A
+- No RETE/TREAT network, agenda, working memory, or production conflict resolution; those are owned deeply by =books/expert-systems=.
+- No Prolog engine, clause indexing, trail, attributed variables, constraint store, or native backtracking; those belong in the Prolog-family volumes when relevant.
+- No benchmark claim.  An alist environment is intentionally transparent and may later be replaced or supplemented only after real measurements.
+- No arbitrary =EVAL= of symbolic terms.
+
+* Next research
+- Compare this simple recursive algorithm with a canonical equation-rewriting presentation such as Martelli--Montanari before optimizing it.
+- Decide how Project 2 should expose substitutions to the later planner/rule/KR projects without coupling them to one environment representation.
+- Add controlled property/metamorphic checks: applying a successful unifier to both inputs yields equal terms; renaming fresh variables should preserve success/failure modulo renaming.
