@@ -1,0 +1,41 @@
+#+title: Project 1 Milestone A -- Validate Real StarIntel Records
+:PROPERTIES:
+:ID:       f61107b7-f34c-47bf-82cf-b54fafaa0203
+:END:
+
+* Purpose
+This project exercises the *real* current Python StarIntel document boundary. It deliberately does not copy or reimplement schema validation inside the book.
+
+The executable dependency is pinned to:
+
+#+begin_example
+lost-rob0t/starintel-doc
+5857914a1e34ad18a6956b8ff0df5349de0ca099
+package release: 0.9.1
+wire schema_version: 0.9.0
+#+end_example
+
+The distinction is intentional: 0.9.1 is the coordinated package/release profile while =schema_version="0.9.0"= identifies the wire-schema family.
+
+* Run
+From the repository root:
+
+#+begin_src sh
+git clone https://github.com/lost-rob0t/starintel-doc .cache/starintel-doc
+git -C .cache/starintel-doc checkout 5857914a1e34ad18a6956b8ff0df5349de0ca099
+python3 -m pip install .cache/starintel-doc
+bash books/starintel/code/records/run-tests
+#+end_src
+
+The focused CI workflow performs the same pinning automatically.
+
+* What the tests prove
+- the synthetic =person= fixture validates against the imported upstream schema;
+- round-trip serialization preserves its permitted extension data;
+- the synthetic =operation= fixture demonstrates a 0.9.1 release capability without changing the 0.9.0 wire version;
+- missing identity, rejected dtype aliases, malformed RFC 3339 date-times, and unsupported wire versions fail through the upstream typed error categories.
+
+They do *not* prove persistence, HTTP authorization, RabbitMQ delivery, CouchDB storage, or actor execution. Those are separate boundaries and later projects exercise them independently.
+
+* Safety
+Fixtures are synthetic and contain no credentials, investigation targets, or private data. Do not point this harness at a production StarIntel deployment.
