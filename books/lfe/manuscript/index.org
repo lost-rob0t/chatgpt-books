@@ -11,7 +11,7 @@ LFE gives you Lisp's programmable syntax and expression-oriented style while run
 
 Every major project is cumulative. We begin with a small event-routing language whose rules are plain data. Later we give that language a macro surface, embed it in processes, expose it through OTP behaviours, supervise it, distribute it, and package it as an application. The point is not to collect syntax tricks. The point is to watch abstractions grow without hiding the runtime they depend on.
 
-The exact executable baseline for the first project slice is LFE v2.2.2. The build records the actual Erlang/OTP release used for each run. Version-sensitive statements stay tied to primary sources and executable gates; later chapters must re-check their own OTP/LFE surfaces rather than inheriting this pass by folklore.
+The exact executable baseline for the first project slice is LFE v2.2.2. [cite:@lfe-v2-2-2] The build records the actual Erlang/OTP release used for each run. Version-sensitive statements stay tied to primary sources and executable gates; later chapters must re-check their own OTP/LFE surfaces rather than inheriting this pass by folklore.
 
 * Part I -- Foundations
 ** Chapter 1 -- S-Expressions on the BEAM
@@ -34,7 +34,7 @@ Its surface is Lisp: the outer parentheses form a list-like source expression wh
 
 That distinction is the foundation for everything later. *Source form* is how we write a computation. *Runtime term* is the value that processes, libraries, ETS tables, OTP behaviours, and Erlang modules actually exchange.
 
-LFE v2.2.2's guide documents Erlang-family data with Lisp syntax, including integers, floats, list strings, binary strings, lists, tuples, and function references. The upstream compiler produces modules that participate in the same VM ecosystem as Erlang modules. We will exploit that rather than building a second universe on top of it.
+LFE v2.2.2's guide documents Erlang-family data with Lisp syntax, including integers, floats, list strings, binary strings, lists, tuples, and function references. The upstream compiler produces modules that participate in the same VM ecosystem as Erlang modules. [cite:@lfe-guide-v2-2-2] We will exploit that rather than building a second universe on top of it.
 
 *** Atoms, symbols, strings, and binaries
 A beginner coming from another Lisp has to resist mapping names mechanically.
@@ -45,12 +45,12 @@ A beginner coming from another Lisp has to resist mapping names mechanically.
 "disk full"
 #+end_src
 
-The first form quotes the atom-like name we want as data. The second is a binary string literal in current LFE syntax. The third is a list string: conceptually a list of integer character/codepoint values. List strings and binaries may print similarly in tiny examples while having different runtime representations and performance properties.
+The first form quotes the atom-like name we want as data. The second is a binary string literal in current LFE syntax. The third is a list string: conceptually a list of integer character/codepoint values. List strings and binaries may print similarly in tiny examples while having different runtime representations and performance properties. [cite:@lfe-guide-v2-2-2;@erlang-data-types-29]
 
 That is not a cosmetic distinction. Protocols should normally decide deliberately whether text crosses a boundary as a binary or a list. Later networking and OTP chapters will use binaries heavily because external byte-oriented protocols naturally map to them. For now, the event project chooses a binary payload to make representation visible early.
 
 *** Lists are structure, not generic bags
-The BEAM list model is recursive. A proper list is either empty or a head paired with another list as its tail. LFE makes that visible with =cons=:
+The BEAM list model is recursive. A proper list is either empty or a head paired with another list as its tail. [cite:@erlang-data-types-29] LFE makes that visible with =cons=:
 
 #+begin_src lfe
 (cons 'critical
@@ -66,7 +66,7 @@ For ordinary source, =(list 'critical 'warning 'info)= is clearer. But the expli
 That structure will become executable in Chapter 3.
 
 *** Functions are values too
-LFE documents function-reference forms such as:
+LFE documents function-reference forms such as: [cite:@lfe-guide-v2-2-2]
 
 #+begin_src lfe
 (function lists reverse 1)
@@ -109,7 +109,7 @@ The lesson is not “always use binaries.” The lesson is that a Lisp reader ca
 :END:
 
 *** Matching is not assignment
-Erlang variables are single-assignment within their scope. Pattern matching either proves that a term has the required shape and binds previously unbound variables, or it fails. LFE retains that model even though the source syntax is Lisp.
+Erlang variables are single-assignment within their scope. Pattern matching either proves that a term has the required shape and binds previously unbound variables, or it fails. [cite:@erlang-patterns-29] LFE retains that model even though the source syntax is Lisp.
 
 The project's most compact rule is a good example:
 
@@ -119,7 +119,7 @@ The project's most compact rule is a good example:
  (tuple 'ok destination))
 #+end_src
 
-This is a function clause with two argument patterns. The variable =level= occurs in the event pattern and in the rule pattern. LFE v2.2.2's own pattern tests explicitly exercise recurring variables across tuple/list patterns. The clause succeeds only when those positions contain the same term. There is no mutation and no hidden lookup table; structural equality is expressed by the repeated variable in the pattern.
+This is a function clause with two argument patterns. The variable =level= occurs in the event pattern and in the rule pattern. LFE v2.2.2's own pattern tests explicitly exercise recurring variables across tuple/list patterns. [cite:@lfe-pattern-test-v2-2-2] The clause succeeds only when those positions contain the same term. There is no mutation and no hidden lookup table; structural equality is expressed by the repeated variable in the pattern.
 
 That is a deeply Lisp-friendly feature for a BEAM language: a small symbolic structure can *be* the control flow.
 
@@ -206,7 +206,7 @@ BEAM programmers often learn “tail recursion is good” and accidentally turn 
 
 Our router's recursive call is already in tail position: once =(route-event event rest)= returns, the caller has no more work. There is no need to add an accumulator just to look more Erlang-ish.
 
-For transformations that build an output list, an accumulator plus a final reverse can be useful. LFE's upstream =fizzbuzz.lfe= example demonstrates both simple recursion and an accumulator/reverse style. We will revisit the tradeoff with measurements only when a later chapter has a workload worth measuring; this book will not manufacture benchmark numbers for pedagogical decoration.
+For transformations that build an output list, an accumulator plus a final reverse can be useful. LFE's upstream =fizzbuzz.lfe= example demonstrates both simple recursion and an accumulator/reverse style. [cite:@lfe-fizzbuzz-v2-2-2] We will revisit the tradeoff with measurements only when a later chapter has a workload worth measuring; this book will not manufacture benchmark numbers for pedagogical decoration.
 
 *** Failure lab: remove the base case
 Delete the empty-rule clause and re-run the regression suite. A request with =()= no longer produces a tagged =no-route= value; instead no function clause matches. That is a different failure class.
@@ -237,12 +237,6 @@ The runnable implementation for this milestone lives in =books/lfe/code/event-ru
 The macro chapters will build syntax *on top of* this kernel. That sequencing is deliberate. If a future macro makes the routing semantics harder to explain than these plain terms, the macro is not automatically an improvement just because Lisp can express it.
 
 * Source checkpoints for this slice
-- LFE v2.2.2 release: https://github.com/lfe/lfe/releases/tag/v2.2.2
-- LFE v2.2.2 user guide source: https://github.com/lfe/lfe/blob/v2.2.2/doc/src/lfe_guide.7.md
-- LFE recurring-pattern implementation test: https://github.com/lfe/lfe/blob/v2.2.2/dev/pattern-test.lfe
-- LFE process/message example: https://github.com/lfe/lfe/blob/v2.2.2/examples/messenger.lfe
-- Erlang current data types: https://www.erlang.org/doc/system/data_types.html
-- Erlang current expressions/patterns: https://www.erlang.org/doc/system/expressions.html and https://www.erlang.org/doc/system/patterns.html
-- Erlang current process/signal semantics: https://www.erlang.org/doc/system/ref_man_processes.html
+The first slice is grounded in the official LFE v2.2.2 release and guide, the upstream recurring-pattern and recursion examples, and current Erlang term/pattern documentation. [cite:@lfe-v2-2-2;@lfe-guide-v2-2-2;@lfe-pattern-test-v2-2-2;@lfe-fizzbuzz-v2-2-2;@erlang-data-types-29;@erlang-expressions-29;@erlang-patterns-29]
 
-The detailed retrieval record and claim status live in =books/lfe/research/foundations-01.org=.
+The detailed retrieval record, exact source URLs, and claim status live in =books/lfe/research/foundations-01.org=. The executable workflow records the actual OTP runtime used for each test run separately from the current-documentation baseline.
