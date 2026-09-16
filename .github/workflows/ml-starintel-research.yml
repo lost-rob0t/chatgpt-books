@@ -52,7 +52,8 @@ jobs:
             test_full_provenance_experiment.py \
             test_leakage_experiments.py \
             test_composite_split_planner.py \
-            test_near_duplicate_candidates.py
+            test_near_duplicate_candidates.py \
+            test_public_candidate_benchmark.py
 
       - name: Acquire and inventory official GLEIF JSON samples
         shell: bash
@@ -71,6 +72,12 @@ jobs:
           "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_leakage_experiments.py"
           "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_composite_planner_diagnostic.py"
           "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_candidate_experiment.py"
+
+      - name: Run predeclared larger public-corpus candidate benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_public_candidate_benchmark.py"
 
       - name: Acquire factual GLEIF API snapshot
         shell: bash
@@ -120,5 +127,6 @@ jobs:
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/leakage/*.svg
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/composite-planner-gleif.json
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/candidate-generation-tier-c.json
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/candidate-generation-20newsgroups.json
             books/ml-starintel/dist/ml-starintel.epub
           if-no-files-found: warn
