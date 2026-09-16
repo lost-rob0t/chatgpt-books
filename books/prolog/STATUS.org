@@ -18,27 +18,30 @@ Issue #76 owns the dependency-ready recursion/lists/backtracking/termination sli
 - =topic_member/2= and =list_reverse/2= derive list recursion from first principles before comparing the teaching relations with current SWI =library(lists)= behavior.
 - =connection_path/3= carries explicit branch-local Seen state and uses =dif/2= constraints to enumerate simple paths without revisiting the deliberate cycle.
 - =first_connection_path/3= is the explicitly named =once/1= commitment boundary; the underlying path relation remains multi-answer.
-- A second named PL-Unit suite adds list, multi-answer path, no-repeat, cycle, unreachable-target, and first-answer regressions. The runner now fails closed if either named Project 1 suite is missing.
-- An editable/rendered search-flow diagram connects choice points, redo, visited-state rejection, and the explicit commitment boundary.
+- A second named PL-Unit suite adds list, multi-answer path, no-repeat, cycle, unreachable-target, and first-answer regressions. The runner fails closed if either named Project 1 suite is missing.
+- An editable/rendered search-flow diagram connects choice points, redo, visited-state rejection, and the explicit commitment boundary and is included in the production EPUB.
 - Research note =research/recursion-lists-backtracking.org= records current official SWI claims for =once/1=, =member/2=, =reverse/2=, and =call_with_time_limit/2=. The timeout remains a SWI-specific regression guard, never benchmark evidence.
 
-Worker state: DRAFT / RESEARCH-DOCUMENTED / OBJECTIVE VERIFICATION PENDING. This is not editorial approval.
+Worker state: TESTED CONTENT / STATUS-CONTINUITY GATES PENDING / NOT EDITORIALLY APPROVED. The Editor-in-Chief remains the only final approval/merge authority.
 * Active research
 Foundational primary-source research is still incomplete for arithmetic, cut, negation, modules, DCGs, search beyond the beginner traversal, constraints/CLP(FD), meta-programming, persistence/integration, debugging tooling, advanced testing, and indexing/performance.
 * Verification
 - Source claims in =research/foundations-01.org= are DOCUMENTED from official SWI-Prolog sources retrieved 2026-09-16.
-- Project 1 milestone 2 source claims in =research/recursion-lists-backtracking.org= are DOCUMENTED from current official SWI-Prolog sources retrieved 2026-09-16. Executable milestone-2 claims remain UNTESTED until exact-head CI completes.
+- Project 1 milestone 2 source claims in =research/recursion-lists-backtracking.org= are DOCUMENTED from current official SWI-Prolog sources retrieved 2026-09-16.
+- Milestone-2 implementation/publication head =b98ddb4d7510499bb72d58b572b3aa85d9b6359f= passed focused =prolog-book= run =35129800175= on Ubuntu 24.04.5 / SWI-Prolog 9.0.4. Both named Project 1 PL-Unit suites passed; =make book BOOK=prolog= passed; publication preprocessing retained 9 stable Org-ID aliases; =make check BOOK=prolog= passed; EPUBCheck 5.3.0 reported 0 fatals / 0 errors / 0 warnings / 0 infos; and the separate Nix job passed =nix flake check -L=.
+- Generic =books-ci= run =35129800450= also completed SUCCESS on =b98ddb4d7510499bb72d58b572b3aa85d9b6359f= through structural validation, the Pandoc Org-reader contract, deterministic asset/fixture checks, EPUB validation, publication/citation regressions, ERT, and real Org-roam DB synchronization.
+- Predecessor head =5c82e3464f42e7c96ded4a6bed0a3626857e730d= is explicitly FAILED / SUPERSEDED for publication validation: its actual SWI test step and book build succeeded, but =make check BOOK=prolog= failed because the new diagram used a resource path Pandoc could not resolve. The manuscript path was corrected before the successful =b98ddb4...= gates; this failed run is not counted as green evidence.
 - Final reviewed milestone-1 PR head =9220d54b51914d20b8a32d1b1e6c5b9a8ff46cab= passed =prolog-book= run =35094308426= and generic =books-ci= run =35094308474= before merge.
 - The milestone-1 focused gate executed the Project 1 SWI-Prolog/PL-Unit suite, production =make book BOOK=prolog=, =make check BOOK=prolog=, and =nix flake check -L= successfully. The earlier full exact-runtime record for that implementation observed SWI-Prolog 9.0.4 and 11 successful PL-Unit tests with no test warnings.
-- EPUBCheck 5.3.0 reported zero findings on the accepted foundation slice.
 - The previous repository-wide fixed-book-set structural failure is RESOLVED by issue #27 / PR #29; it is no longer a Prolog blocker.
+- This STATUS evidence commit is newer than =b98ddb4...= and therefore requires fresh exact-head focused and generic gates before worker handoff. Earlier successful runs remain evidence only for their recorded exact heads.
 * Coordination
 [[file:../prolog-llms/README.org][Prolog + LLMs: Neuro-Symbolic Systems from First Principles]] is now a canonical standalone sibling. This book remains the strongest pure-Prolog foundation; cross-linking must not remove the language/runtime depth needed by a reader who never opens the LLM volume.
 
 =books/symbolic-ai-prolog= remains the deeper classical/general symbolic-AI volume. This milestone teaches recursion and finite graph traversal only as foundational Prolog mechanics; it does not claim the planner/meta-interpreter/abduction curriculum owned there.
 * Technical/editorial/visual review
 - Chapters 1--3 / Project 1 milestone 1: editorially APPROVED as a bounded slice.
-- Chapters 4--6 / Project 1 milestone 2: worker draft awaiting objective verification and later Editor-in-Chief review.
+- Chapters 4--6 / Project 1 milestone 2: worker content TESTED on the recorded implementation/publication head; current status-continuity head awaits exact gates and then Editor-in-Chief review.
 - Whole book: not DONE and not in final technical/editorial/visual review.
 * Blockers
-No known conceptual blocker. Milestone 2 must pass actual SWI-Prolog tests, =make book BOOK=prolog=, =make check BOOK=prolog=, focused CI, generic CI, and the existing Nix gate before it is handed to the Editor-in-Chief.
+No known book-local conceptual, code, research, or publication blocker remains after the diagram-path repair. The only worker handoff gate is fresh exact-head CI on this status-continuity commit. No merge or auto-merge is authorized for this worker.
