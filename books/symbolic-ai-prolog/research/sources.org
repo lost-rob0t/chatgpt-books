@@ -136,3 +136,10 @@ URL: https://www.swi-prolog.org/pldoc/man?section=assoc
 Authority: official current SWI-Prolog library documentation, retrieved 2026-09-16.
 Relevant material: association maps require ground keys; persistent lookup/update operations over the documented interface.
 Affects: Project 2 milestone-C best-known-cost and finite heuristic-table maps. Canonical planning states are already ground before they become keys.
+
+** Korf -- depth-first iterative deepening
+Citation: Richard E. Korf, “Depth-First Iterative-Deepening: An Optimal Admissible Tree Search,” =Artificial Intelligence= 27(1), 97--109, 1985. DOI: 10.1016/0004-3702(85)90084-0.
+Primary copy inspected: the published-paper scan mirrored at University of South Carolina, pages 99--100 inspected directly on 2026-09-16; metadata cross-checked with DBLP and the DOI record.
+Authority: primary published article plus bibliographic metadata records.
+Relevant material: depth-first cutoff behavior; failure to find solutions when an estimated cutoff is too low; restarting depth-first search at successively deeper limits; theorem scope for brute-force tree search; explicit arbitrary-graph caveat.
+Affects: Chapter 9 bounded DFS / iterative-deepening result semantics. The course planner does not claim Korf's tree-search asymptotic theorem for its graph-shaped relational state space.

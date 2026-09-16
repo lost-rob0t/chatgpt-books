@@ -97,3 +97,19 @@ Inspected primary/official sources:
 Result: sufficient to implement a course-local non-negative-integer UCS/A* frontier over the already accepted Chapter 8 transition semantics. =priority(F,Sequence)= gives a deterministic ground heap key; a ground-state assoc tracks the strict best discovered =g=; older heap entries become explicit =stale/3= diagnostics; equal/worse rediscoveries become =dominated/4=. The heuristic interface is restricted to =zero= or a validated finite =table([estimate(State,H),...])= and never executes a caller-supplied goal.
 
 Implementation status at research time: UNTESTED until exact-head SWI-Prolog and book/publication/Nix gates run. The synthetic weighted-recovery fixture and its heuristic table are teaching data; no benchmark, production-performance, arbitrary-heuristic admissibility, negative-cost, PDDL, LLM, or RLM claim is inferred from these sources.
+
+** 2026-09-16 -- Project 2 milestone C: bounded DFS and iterative deepening
+Questions:
+- How should a depth-limited planner distinguish caller cutoff from genuine finite exhaustion?
+- What does Korf 1985 actually say about depth-first cutoff and iterative deepening?
+- Which of the paper's claims are tree-search theorems that must not be pasted onto this graph-shaped planner?
+- Which duplicate policy avoids letting a deep first encounter globally suppress a shallower later encounter with more remaining depth budget?
+- How should iterative deepening itself remain caller-bounded on an infinite unsolved state space?
+
+Inspected primary/metadata sources:
+- Richard E. Korf, “Depth-First Iterative-Deepening: An Optimal Admissible Tree Search,” =Artificial Intelligence= 27(1), 97--109 (1985), DOI =10.1016/0004-3702(85)90084-0=. The published-paper scan was inspected directly, including pp. 99--100 for depth-first cutoff, too-low cutoff behavior, repeated increasing limits, the tree-search theorem statement, and the arbitrary-graph caveat.
+- DBLP record for =journals/ai/Korf85= and DOI metadata were used only to cross-check bibliographic fields.
+
+Result: sufficient to add a typed =found=/=cutoff=/=exhausted= result algebra, path-local canonical-state cycle pruning, and bounded iterative-deepening iterations without relabeling resource cutoff as logical failure. Korf's asymptotic/tree-search theorem is retained as source context, not claimed as measured or proven behavior of the course planner.
+
+Implementation status at research time: DOCUMENTED source claims; new bounded-search code, tests, publication, and Nix status remain UNTESTED until the exact new PR head runs.

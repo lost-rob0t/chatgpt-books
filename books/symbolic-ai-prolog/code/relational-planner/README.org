@@ -4,12 +4,14 @@
 :END:
 
 * Purpose
-This directory is the executable Project 2 planner lab. Chapter 8 / milestone B derives a small forward state-space planner from explicit symbolic action schemas. Chapter 9 / milestone C keeps that transition model fixed and derives cost-aware and heuristic frontier policies on top of it. The project remains a course-local symbolic planner, not the full historical STRIPS system and not a PDDL planner.
+This directory is the executable Project 2 planner lab. Chapter 8 / milestone B derives a small forward state-space planner from explicit symbolic action schemas. Chapter 9 / milestone C keeps that transition model fixed and derives explicit depth-bounded, cost-aware, and heuristic frontier policies on top of it. The project remains a course-local symbolic planner, not the full historical STRIPS system and not a PDDL planner.
 
 * Files
 - =planner.pl= -- state canonicalization, schema freshening/applicability, explicit add/delete state transitions, goal tests, and breadth-first plan search.
 - =field_service_domain.pl= -- synthetic technical field-service/recovery teaching domain for the Chapter 8 unweighted planner.
 - =test_planner.pl= -- PL-Unit semantic regressions for binding consistency, freshening, effects, plan provenance, impossible goals, and fail-closed unsafe schemas.
+- =bounded_search.pl= -- depth-limited DFS with typed =found=/=cutoff=/=exhausted= outcomes, path-local cycle pruning, and bounded iterative deepening with per-iteration traces.
+- =test_bounded_search.pl= -- regressions for low-limit cutoff, exact-depth success, iterative-deepening progression, finite-cycle exhaustion, early stop on true exhaustion, and invalid limits.
 - =cost_search.pl= -- non-negative-integer uniform-cost and A* frontiers, best-known-cost state map, strict-improvement replacement, stale/dominated diagnostics, deterministic heap tie-breaking, and a closed heuristic-data interface.
 - =weighted_recovery_domain.pl= -- synthetic weighted technical-recovery fixture where fewest actions and lowest total cost intentionally disagree.
 - =test_cost_search.pl= -- PL-Unit regressions for BFS/UCS objective disagreement, stale and equal-cost dominated entries, zero-cost cycles, UCS/A* fixture agreement, zero heuristic behavior, exhaustion, malformed/duplicate heuristic data, rejection of callable heuristic terms, and a deliberate overestimating-heuristic counterexample where A* returns a costlier goal than UCS.
@@ -33,6 +35,16 @@ found(plan([step(SchemaId, ConcreteAction), ...],
 #+end_src
 
 with =expanded(State,Depth)= diagnostics.
+
+The bounded Chapter 9 interface preserves why search stopped:
+
+#+begin_src prolog
+found(plan(Steps, States))
+cutoff(Goals, Limit)
+exhausted(Goals)
+#+end_src
+
+=cutoff/2= means at least one live non-cycle branch crossed the caller's maximum depth; =exhausted/1= is reserved for a search that found no hidden deeper branch under the same transition and path-cycle semantics. =iterative_deepening_plan/6= repeats limits from zero through an explicit maximum and records each iteration. It does not promise termination beyond that caller-provided bound.
 
 Chapter 9 attaches cost as a wrapper rather than mutating =schema/5=:
 
