@@ -8,10 +8,8 @@ Retrieval date: 2026-09-16.
 
 This pass supports Chapters 1--3 and the first data-first kernel of Project 1. It separates three statuses:
 - DOCUMENTED :: behavior inspected in current primary documentation or implementation source.
-- TESTED :: behavior executed by this repository's LFE-book gate at the exact branch head.
+- TESTED :: behavior executed by this repository's LFE-book gate at the branch head recorded below.
 - UNTESTED :: a plausible or planned statement that this pass does not claim as executed fact.
-
-Before the branch CI runs, every executable claim below remains DOCUMENTED or UNTESTED, not TESTED.
 
 * Current version boundary
 ** DOCUMENTED -- LFE
@@ -72,15 +70,21 @@ Why data first:
 4. Chapters 6--7 can later add macros and compare macro-expanded output against an already-tested semantic core.
 5. Chapter 8 can show Erlang calling the compiled LFE module with the same tuples/lists, proving the boundary is ordinary BEAM interoperability.
 
-** Acceptance evidence required
-- =lfec= compiles the source and test modules from this repository.
-- The regression module exercises critical/service/fallback/first-match/no-route/bad-event/bad-rule cases.
-- An Erlang =erl -eval= smoke test calls the compiled LFE module directly using ordinary Erlang tuples and lists.
-- =make book BOOK=lfe= succeeds.
-- =make check BOOK=lfe= succeeds with EPUBCheck.
-- Because this slice adds a workflow file, =nix flake check -L= must also execute in CI.
+** TESTED -- foundation acceptance evidence
+Observed on 2026-09-16 at branch head =f00794f74408dd0112ac93efb73c08acb862d9e9= in GitHub Actions run =35092206019=:
+- Runner installed Erlang/OTP 25.3.2.8 and printed =OTP 25=; this is the execution runtime, distinct from the OTP 29 documentation baseline above.
+- LFE tag =v2.2.2= resolved to upstream commit =dae7489ebf9588e5f746a34cd4f8ff83d1469eef= and built successfully from source.
+- =lfec= compiled this repository's =event-rules= source and regression module.
+- The LFE regression module exercised critical/service/fallback/first-match/no-route/bad-event/bad-rule behavior and completed successfully.
+- A separate Erlang =erl -eval= process called the compiled LFE module directly with ordinary Erlang tuples/lists and completed successfully: =event-rules: LFE regressions and Erlang interop smoke passed=.
+- =make book BOOK=lfe= produced =books/lfe/dist/lfe.epub=.
+- =make check BOOK=lfe= succeeded under EPUBCheck 5.3.0 with =0 fatals / 0 errors / 0 warnings / 0 infos=.
+- The workflow's independent Nix job completed =nix flake check -L= successfully.
 
-Until those exact-head checks complete, none of the above is labeled TESTED.
+These observations test the foundation project/build boundary. They do not promote later macro, process, OTP, distribution, or packaging claims to TESTED status.
+
+* Repository-wide gate note
+The separate generic =books-ci= workflow still fails before its later steps in =tools/check-structure= with a repository-wide book-set mismatch listing all ten current book directories. This failure also existed before the LFE-specific EPUB link repair and is outside the book-local implementation scope. The LFE workflow therefore does not duplicate that generic structural validator; it exercises the book-specific runtime/build/EPUB/Nix gates directly instead of hiding the unrelated failure.
 
 * Deferred questions
 - Macro expansion and hygiene behavior need a dedicated primary-source pass before Chapters 6--7 become normative.
