@@ -74,15 +74,17 @@ jobs:
           "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_composite_planner_diagnostic.py"
           "$RESEARCH_PYTHON" "$RESEARCH_HARNESS/run_candidate_experiment.py"
 
-      - name: Run reader-facing Project 1 checkpoint
+      - name: Run reader-facing Project 1 checkpoints
         shell: bash
         run: |
           set -euo pipefail
           cd "$PROJECT1"
           "$RESEARCH_PYTHON" -m unittest -v \
             test_chapter01_constant_baseline.py \
+            test_chapter06_regression.py \
             test_project1.py
           "$RESEARCH_PYTHON" project1.py --offline
+          "$RESEARCH_PYTHON" chapter06_regression.py --output-dir artifacts/chapter06
 
       - name: Run predeclared larger public-corpus candidate benchmark
         shell: bash
@@ -113,6 +115,7 @@ jobs:
           pandoc --version | head -1
           java -jar .cache/epubcheck-5.3.0/epubcheck.jar --version
           dot -Tsvg books/ml-starintel/assets/project-01-boundary.dot >/dev/null
+          dot -Tsvg books/ml-starintel/assets/chapter-06-regression-flow.dot >/dev/null
 
       - name: Build and validate ML-StarIntel book
         shell: bash
@@ -129,6 +132,7 @@ jobs:
           name: ml-starintel-project1-research-results
           path: |
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/artifacts/project-01-reader-report.json
+            books/ml-starintel/projects/project-01-investigation-dataset-pipeline/artifacts/chapter06/**
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/experiments.json
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/fixture-experiment.json
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-sample-acquisition.json
