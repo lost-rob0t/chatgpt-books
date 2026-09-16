@@ -171,7 +171,7 @@ The real optimal plan in the fixture costs four because the real transition syst
 
 That difference is the teaching point.  The relaxation is useful because it forgets some constraints, not because it secretly solves the original problem.
 
-The executable suite is written to require the relaxed warehouse estimate to be three and the real UCS solution cost to be four.  Until the exact branch head completes CI, those are expected assertions in source, not claimed observed output.
+The permanent suite requires the relaxed warehouse estimate to be three and the real UCS solution cost to be four.  Those numbers count as TESTED evidence only on an exact revision whose recorded test run actually passed; source assertions by themselves are not observed results.
 
 ** 7.6 An estimate should carry its derivation
 
@@ -290,7 +290,7 @@ There are now three cases.
 
 Exactly one match gives a =PLAN-STEP-EXPLANATION= containing the grounded preconditions, add effects, delete effects, action cost, schema name, and before/after states.
 
-Zero matches raises =INVALID-PLAN-TRACE=.  Either the result and domain do not belong together or some semantics changed after the result was produced.
+Zero matches raises =INVALID-PLAN-TRACE=.  Either the result and domain do not belong together or some semantics changed after the result was produced.  The permanent regression deliberately removes =PICKUP= from the replay schema set after producing a valid warehouse result; replay must reject that stale/domain-mismatched evidence at the first transition.
 
 More than one match raises =AMBIGUOUS-PLAN-STEP=.  The system does not invent provenance it does not possess.
 
@@ -327,7 +327,7 @@ Then make one change at a time.
 3. Return =:UNREACHABLE= whenever the iteration bound is hit.  Use the term-growing =SEED/NEXT= fixture to demonstrate the false conclusion.
 4. Make =MAKE-HMAX-HEURISTIC= return a huge sentinel value for =:BOUNDED=.  Observe that you have turned incomplete analysis into search-order information with no justified lower-bound meaning.
 5. Change =EXPLAIN-PLAN-RESULT= to select the first matching schema.  Add the duplicated =FINISH= schemas.  The code now prints a specific provenance record even though the trace cannot distinguish the sources.
-6. Corrupt the recorded after-state in a found plan and confirm that explanation fails rather than narrating the impossible transition.
+6. Remove or alter one schema after solving a plan and confirm that replay fails with =INVALID-PLAN-TRACE= rather than narrating an action label whose original semantics are no longer available.
 
 Every failure corresponds to a different category of bug: heuristic unsoundness, semantic mismatch, evidence-status collapse, numeric-interface abuse, provenance fabrication, and stale trace/domain mismatch.
 
@@ -346,8 +346,8 @@ Every failure corresponds to a different category of bug: heuristic unsoundness,
 
 ** 7.14 Checkpoint: what we actually know
 
-After exact-head tests pass, this milestone can establish bounded TESTED claims about the concrete fixtures and APIs above.  The primary sources establish the historical/theoretical context for heuristic search and delete-relaxation planning [cite:@hart1968;@bonetgeffner2001].
+Exact-head passing tests are what upgrade the concrete fixture/API assertions in this chapter from authored expectations to bounded TESTED evidence.  The primary sources establish the historical/theoretical context for heuristic search and delete-relaxation planning [cite:@hart1968;@bonetgeffner2001].
 
-It still does not establish a general proof that every caller-supplied course schema yields an admissible or terminating heuristic computation.  It does not establish a benchmark.  It does not turn an ambiguous action label into unique provenance.  It does not implement FF, LM-cut, PDDL, or a production planner.
+Even with those tests green, this milestone does not establish a general proof that every caller-supplied course schema yields an admissible or terminating heuristic computation.  It does not establish a benchmark.  It does not turn an ambiguous action label into unique provenance.  It does not implement FF, LM-cut, PDDL, or a production planner.
 
 What it does give the reader is more valuable than a recipe: one explicit example of how symbolic representations can generate search guidance, how evidence status prevents an approximation from becoming a fake proof, and how explanation can be checked against the same semantics that produced the plan.
