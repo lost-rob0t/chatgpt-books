@@ -12,5 +12,6 @@
 - [[file:runtime-failure-03.org][Runtime Failure Pass 03 -- Quarantine Identity, Unsettled Delivery, and Ambiguous Replay]] -- current-head delta for the concurrent quarantine-ID incident/fix, failed-settlement isolation, upstream-vs-book evidence status, and a conservative replay-reconciliation lab.
 - [[file:bulk-lifetime-04.org][Bulk Lifetime Pass 04 -- Terminal Payload Release and Bounded Reachability]] -- current-head delta for asynchronous bulk-job payload lifetime, terminal cleanup, upstream heap-exhaustion evidence, and a fail-closed lifecycle observation lab.
 - [[file:service-trace-05.org][Service Trace Pass 05 -- Real HTTP/Ingest Persistence and Broker-Outage Evidence]] -- pinned disposable upstream stack reuse, full-path read-back experiment design, verified fault preconditions, evidence sanitization, and explicit operator recovery.
+- [[file:actor-runtime-06.org][Actor Runtime Pass 06 -- Registry, Dispatch Envelopes, and Restart Boundaries]] -- current target-dispatch load order, local-vs-Rabbit resolution, typed envelopes, the =define-actor= registration trap, persisted-target recovery boundary, and Project 3's pinned upstream actor test design.
 - [[file:sources.org][Source inventory]]
 - [[file:search-log.org][Search log]]

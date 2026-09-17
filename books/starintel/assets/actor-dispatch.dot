@@ -1,0 +1,23 @@
+digraph starintel_actor_dispatch {
+  rankdir=LR;
+  graph [fontname="sans", labelloc="t", label="StarIntel target actor dispatch: acceptance, address resolution, and observed execution"];
+  node [shape=box, fontname="sans"];
+  edge [fontname="sans"];
+
+  target [label="validated target document"];
+  record [label="parse-target-record\nTARGET-RECORD"];
+  envelope [label="make-target-dispatch-envelope\nschedule / execution / trace"];
+  acceptance [label="persist target acceptance"];
+  schedule [label="register timer schedule"];
+  resolve [shape=diamond, label="registry name resolves?"];
+  local [label="local Sento actor\nTELL envelope"];
+  receipt [label="handler receipt\nTESTED in Project 3A"];
+  rabbit [label="Rabbit destination\ndocuments.target.dispatch.<actor>"];
+  remote [label="external actor consumer\nUNTESTED here"];
+
+  target -> record -> envelope -> acceptance -> schedule -> resolve;
+  resolve -> local [label="yes"];
+  local -> receipt;
+  resolve -> rabbit [label="no"];
+  rabbit -> remote [style=dashed, label="later service-backed test"];
+}

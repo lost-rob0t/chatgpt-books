@@ -1,0 +1,240 @@
+#+title: Actor Runtime Pass 06 -- Registry, Dispatch Envelopes, and Restart Boundaries
+:PROPERTIES:
+:ID:       bdf1fd06-f2cb-4dc5-a6cb-ab0e9cf3eef8
+:END:
+
+* Scope and evidence policy
+This pass supports Chapter 7 and Project 3 milestone A.  The executable project
+remains pinned to =lost-rob0t/starintel-server= revision
+=1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= and the Sento/cl-gserver revision
+pinned by that server, =6a510c5b58469e72e6363bd3a6059d80b9a5c320=.
+
+On 2026-09-17, StarIntel Server =master= was rechecked at
+=e49c67d88d60dbcc0fcba1b4ba76c1a0a6d6655c=.  The eleven-commit delta from
+the experiment pin changes observability, authorization, configuration, Compose,
+and their tests; it does not change =source/actors.lisp=,
+=source/target-recovery.lisp=, =source/target-dispatch.lisp=,
+=source/target-dispatch-fixes.lisp=, =source/runtime-lifecycle.lisp=, or the
+serial actor/target load order in =source/starintel-gserver.asd=.  Those current
+files were re-inspected at the new head.  Therefore the actor-routing and
+load-order findings below remain current source findings, while the runnable
+milestone deliberately stays TESTED only at its recorded =1ac298b...= pin.
+
+The pass separates four kinds of evidence:
+- DOCUMENTED :: directly inspected current source/load graph or pinned upstream
+  documentation.
+- TESTED :: independently executed by this book's focused workflow at the exact
+  pinned revisions.
+- UPSTREAM-REPORTED :: upstream tests/docs say a behavior is covered, but this
+  book has not reproduced it.
+- UNTESTED :: a reasonable or documented boundary that the book has not yet
+  exercised.
+
+This is not a StarLang pass and does not write to any StarIntel product
+repository.
+
+* Current load graph matters more than the nearest function definition
+=source/starintel-gserver.asd= is serial.  In the actor/target region it loads
+=actors=, then target persistence/recovery, then =target-dispatch=, then
+=target-dispatch-fixes=, and later =runtime-lifecycle=.  Several of those files
+define functions with the same names.  In Common Lisp, the later =defun= updates
+the function binding.  Therefore the last loaded definition is the relevant
+source-level default unless another path explicitly calls an earlier helper.
+
+That observation changes two beginner-facing stories.
+
+** The old target actor is historical implementation evidence
+=source/actors.lisp= still contains the older =start-target-actor= implementation
+that routes a missing local actor to =actors.<actor>.new.target= and directly
+handles recurring scheduling.  =target-dispatch.lisp= is loaded later and
+redefines the target actor around =target-record= and
+=target-dispatch-envelope=.  The current target-dispatch coordinator validates,
+persists a target acceptance record, establishes a schedule identity, and only
+then dispatches an occurrence through an explicit local or Rabbit destination.
+
+Evidence status: DOCUMENTED from the current serial load graph and current
+source.  The book must not teach the older =actors.lisp= router as the effective
+current target-dispatch implementation merely because the code is still in the
+repository.
+
+** Automatic persisted-target recovery is not evidenced in the final start function
+=target-recovery.lisp= defines a =start-actors= that starts actor hooks and then
+calls =recover-persisted-targets=.  Later-loaded =runtime-lifecycle.lisp=
+redefines =start-actors=.  Its current definition starts the actor system,
+producer agent, timers, CouchDB actors, actor index, target actor, then runs
+=*actors-start-hook*= and returns =*sys*=; it does not call
+=recover-persisted-targets=.
+
+Repository search at the current rechecked head finds the recovery function in
+=target-recovery.lisp= and as an exported API, but no later default-runtime call
+that restores the omitted call.
+
+Evidence status: DOCUMENTED source/load-order finding.  It is *not* a claim that
+persisted target recovery has been live-fault-tested and shown broken.  The safe
+book statement is narrower: automatic recovery is not evidenced by the final
+loaded =start-actors= definition at the rechecked current revision, while
+explicit =recover-persisted-targets= remains present.  A restart/fault experiment
+is required before stronger operational claims.
+
+* The actor registry is an address book, not actor discovery magic
+The current local registry is =*actor-index-agent*=, a Sento agent whose value
+is a Serapeum dictionary.  =register-actor= updates that dictionary and
+=get-dest-actor= reads it.  Target destination resolution asks the registry for
+an exact actor name:
+
+#+begin_example
+registered name -> local destination handle containing the actor component
+missing name    -> Rabbit destination handle
+#+end_example
+
+The fallback is not an error.  Current =resolve-target-destination= deliberately
+turns an unresolved local name into a remote destination with canonical routing
+key:
+
+#+begin_example
+documents.target.dispatch.<lowercase-actor-name>
+#+end_example
+
+It also records the older key as compatibility metadata:
+
+#+begin_example
+actors.<lowercase-actor-name>.new.target
+#+end_example
+
+Current =doc/actors.org= and =doc/index.org= still describe the older
+=actors.<name>.new.target= route as if it were the active primary route.  That
+prose therefore drifts from the later-loaded target dispatcher.
+
+Evidence status: DOCUMENTED.  Project 3's pinned upstream regression will TEST
+local resolution and the unresolved actor's current canonical/compatibility
+keys, but will not send a real Rabbit delivery in this milestone.
+
+* Current target messages are typed envelopes
+The important type transition is:
+
+#+begin_example
+wire target document
+      |
+      v
+parse-target-record
+      |
+      v
+target-record
+      |
+      v
+make-target-dispatch-envelope
+      |
+      +--> destination handle (local | rabbit)
+      +--> schedule-id
+      +--> execution-id
+      +--> attempt
+      +--> trace-id
+      +--> lease-id / fencing-token
+      +--> deadline
+#+end_example
+
+=dispatch-target-envelope-now= sends the envelope itself to a local actor.  For
+a Rabbit destination it serializes a target document augmented with dispatch
+metadata under =extensions= and publishes to the canonical remote route.
+
+This is a major difference from examples that show local actors receiving a raw
+JSOWN target object.  A new actor written for the current target-dispatch path
+must understand the envelope boundary it actually receives.
+
+* Acceptance and execution are separate states
+=process-target-dispatch-envelope= persists a target acceptance document before
+registering the timer schedule.  The acceptance record includes schedule,
+execution, trace, lease/fencing, destination, recurrence, delay, deadline, and
+a copy of the target document.  Duplicate schedule identity is accepted only
+when the stored fingerprint matches current target semantics; the later-loaded
+=target-dispatch-fixes.lisp= expands that fingerprint to include actor, target,
+delay, recurrence, options, and deadline rather than treating schedule identity
+alone as semantic equivalence.
+
+The coordinator then registers either a one-shot or recurring timer.  The timer
+callback dispatches a new occurrence.  Therefore "target accepted" is not the
+same observation as "actor handled the target."  That distinction mirrors the
+earlier ingest evidence ladder.
+
+For local delivery, current StarIntel calls Sento =tell=.  The exact Sento
+revision pinned in =flake.nix= documents =tell= as fire-and-forget message
+passing.  A successful dispatch function return therefore proves that the send
+boundary returned, not that arbitrary actor work completed successfully.
+
+Evidence status: DOCUMENTED from StarIntel and pinned Sento source/docs.  The
+book actor regression waits for an in-handler receipt so it can make the
+stronger TESTED claim for that synthetic delivery.
+
+* The =define-actor= registration trap
+Current =define-actor= accepts =:register= and its docstring says it defines an
+actor handler and registers it.  The macro expansion does something narrower:
+it defines a variable, defines =START-<NAME>= that calls =actor-of=, and adds
+that start function to =*actors-start-hook*=.  The =register= parameter is not
+used and the generated start function does not call =register-actor=.
+
+Current =doc/actors.org= explicitly warns about this and shows a separate
+registration hook.  The book avoids a two-hook ordering dependency entirely:
+Project 3's teaching extension has one =start-book-actor= function that creates
+the actor and immediately registers the resulting component.
+
+Evidence status: DOCUMENTED from the macro and current actor documentation.
+The pinned upstream test TESTS that the teaching start function leaves the
+actor resolvable through =get-dest-actor=.
+
+* Sento supervision: do not invent an OTP story
+The StarIntel server pin used by this milestone pins mdbergmann/cl-gserver
+(Sento) revision =6a510c5b58469e72e6363bd3a6059d80b9a5c320=.  Its documentation
+establishes actor systems, actor contexts, asynchronous =tell=, shared/pinned
+dispatchers, and actor lifecycle primitives.  Current StarIntel architecture
+prose says actor exceptions remain inside the Sento actor boundary and
+actor-specific recovery policy is not centralized in StarIntel Server.
+
+The StarIntel source audit did not find a repository-wide explicit supervisor
+strategy for arbitrary project actors.  That absence is not permission to
+claim "actors automatically restart" or "actors never restart."  Those are
+runtime statements that need a focused crash probe against the pinned Sento
+revision and the actual actor construction used by the project.
+
+Evidence status: DOCUMENTED boundary plus UNTESTED restart semantics for the
+new book actor.
+
+* Project 3 milestone A test design
+The book adds =code/actor-runtime/book-actor.lisp=.  It is intentionally small:
+it accepts only the current =target-dispatch-envelope= type and records sanitized
+routing metadata in memory.  It does not scrape, persist documents, publish
+Rabbit messages, or duplicate scheduling logic.
+
+The focused workflow clones the exact StarIntel Server pin and injects the book
+actor plus three FiveAM regressions into the *upstream test system*:
+
+1. create the real Sento actor system/index, start+register the book actor,
+   resolve a local destination, build the current target record/envelope, call
+   the current local dispatcher, and wait until the actor handler records the
+   receipt;
+2. resolve an unregistered actor and require the current canonical Rabbit key
+   plus compatibility key;
+3. require malformed actor identity to fail before routing.
+
+The injector patches exact ASDF/test-runner markers and fails closed if upstream
+layout drifts.  The runner refuses any upstream checkout whose HEAD is not the
+recorded server pin.
+
+If green, those claims become TESTED for the upstream unit-test environment.
+Still UNTESTED: real Rabbit remote delivery, actor crash/restart behavior,
+automatic persisted-target recovery across process restart, mailbox pressure,
+production deployment behavior, and actor-generated document ingest.
+
+* Next research gate
+Project 3 milestone B should fault the actor boundary rather than add more prose.
+It should determine, with the pinned/current Sento implementation and StarIntel
+construction path:
+- what an exception in a local actor handler does to that actor/component;
+- whether registry state retains a dead component;
+- which restart/replacement policy is actually configured, if any;
+- whether a restarted process automatically reloads persisted target schedules
+  or requires explicit recovery at the current runtime head;
+- how an external actor's Rabbit settlement semantics differ from local
+  fire-and-forget =tell=.
+
+Only after that evidence exists should Chapter 7 teach restart/supervision as a
+current StarIntel behavior rather than as generic actor-model background.

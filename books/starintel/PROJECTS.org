@@ -40,17 +40,17 @@ Expected deliverable: runnable implementation, tests, design notes, diagrams, ex
 :ID:       bf7baaa8-ae6f-5dd9-adda-026e1437c38b
 :END:
 Purpose: Implement and test a new actor through the current runtime and messaging boundaries.
-Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
-Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
-Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
-Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
-Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
-External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
-Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
-Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
-Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
-Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
-Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+Learning outcomes: understand actor creation versus registration, typed target-dispatch envelopes, local versus Rabbit destination resolution, asynchronous send versus observed handler execution, and the difference between isolation and restart policy.
+Prerequisites: merged Project 2 runtime/evidence work plus the Chapter 7 source audit at the exact StarIntel Server/Sento revisions used by the project.
+Relevant chapters: Chapter 7 introduces the local actor/registry/dispatch contract. Later fault and external-actor chapters extend the same actor rather than replacing it with a toy example.
+Architecture: keep the teaching actor intentionally thin. Reuse the real StarIntel registry, target record/envelope types, destination resolver, dispatcher, scheduler/persistence interfaces, and pinned Sento runtime instead of copying product implementation into the book.
+Implementation language/tooling: Common Lisp extension code loaded into the exact pinned StarIntel Server upstream unit-test environment; Python is used only for a fail-closed test injector; Graphviz keeps the routing/evidence diagram editable.
+External dependencies: =lost-rob0t/starintel-server= revision =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= and its pinned Sento/cl-gserver revision =6a510c5b58469e72e6363bd3a6059d80b9a5c320= for milestone A.
+Tests: milestone A must execute the actor inside the upstream StarIntel unit-test system, prove explicit create+register leaves the local registry resolvable, prove current typed-envelope delivery reaches the handler, prove unresolved actors select the current canonical Rabbit destination/compatibility route, and prove invalid actor identity fails before routing. The injector itself must fail closed on upstream test-layout drift.
+Failure scenarios: milestone A covers missing registration, remote fallback selection, unexpected message shape, and invalid actor identity. Milestone B must deliberately inject an actor-handler crash and a process restart before teaching concrete restart/recovery semantics.
+Visuals: editable target acceptance/address-resolution/execution diagram, followed later by a crash/restart trace once the runtime experiment exists.
+Research requirements: verify the serial ASDF load graph and later function redefinitions, current target-dispatch route/message shape, =define-actor= behavior, exact Sento pin, and final runtime startup/recovery path before each milestone. Historical target-routing source and drifting docs must be labelled rather than blended with current behavior.
+Expected deliverable: an evolving real StarIntel actor extension plus upstream-runtime tests, failure labs, source audit, diagrams, and later external-transport/provenance behavior. No production actor framework is duplicated into this repository.
 ** Project 4 -- Add Search or Inference
 :PROPERTIES:
 :ID:       33c8e718-032d-5a5a-b104-746748a9f154
