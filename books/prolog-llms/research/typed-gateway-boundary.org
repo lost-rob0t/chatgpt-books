@@ -1,0 +1,64 @@
+#+title: Research Pass -- Typed LLM-to-Prolog Gateway Boundary
+:PROPERTIES:
+:ID:       9d495155-1f73-4b94-89d4-a3b5b547c23c
+:END:
+
+* Scope
+This pass supports Project 2 milestone A only: provider-neutral model-response data, JSON parsing, exact schema/correlation validation, closed capability selection, host-owned provenance, and deterministic fake-provider tests. It does not claim live-provider behavior for the book fixture.
+
+* Primary and authoritative sources
+** JSON wire syntax -- DOCUMENTED
+RFC 8259 defines JSON as a text-based, language-independent structured-data interchange format and specifies objects, arrays, strings, numbers, booleans and null. Networked JSON exchanged outside a closed ecosystem is required to use UTF-8. The RFC defines syntax/interoperability; it does not grant application semantics or execution authority.
+
+Source: RFC 8259, December 2017, https://www.rfc-editor.org/rfc/rfc8259
+Retrieved: 2026-09-16.
+
+** SWI-Prolog JSON representation -- DOCUMENTED
+Current SWI-Prolog =library(http/json)= documentation exposes =atom_json_dict/3= for converting JSON text to dict representation. JSON string values default to Prolog strings and may be configured with =value_string_as/1=. Project 2 uses the dict representation but applies its own exact-key, schema, request-correlation, capability and argument checks after parsing.
+
+Source: SWI-Prolog =library(http/json)= documentation, https://www.swi-prolog.org/pldoc/doc/_SWI_/library/ext/json/json.pl
+Retrieved: 2026-09-16.
+
+** Structured output is shape, not semantic authority -- DOCUMENTED
+OpenAI's current structured-output documentation distinguishes JSON validity from schema conformance and describes strict schema-constrained tool/function arguments. The same documentation also warns that structurally valid output can still contain mistakes in field values. Anthropic's current tool documentation likewise makes the application responsible for executing client tools after receiving tool-use data; its strict-tool mode constrains tool inputs to the supplied JSON Schema.
+
+These provider facilities can reduce syntax/schema failures. They do not justify skipping application-side capability, correlation, provenance or domain validation. This book therefore treats provider schema enforcement as an optional upstream aid, not as the authorization boundary.
+
+Sources retrieved 2026-09-16:
+- OpenAI, "Introducing Structured Outputs in the API", https://openai.com/index/introducing-structured-outputs-in-the-api/
+- Anthropic, "Tool use with Claude", https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview
+- Anthropic, "Strict tool use", https://platform.claude.com/docs/en/agents-and-tools/tool-use/strict-tool-use
+
+* Current Prolog-RLM source boundary -- DOCUMENTED, read-only
+The current =lost-rob0t/prolog-rlm= main snapshot was rechecked at commit =51d2530f0e18c84cff860b7c0bf3afcc3c488057= before drafting this slice.
+
+The current provider documentation exposes a provider-neutral =model_complete(+Provider,+Request,-Outcome)= contract and represents provider/transport failure as structured data. It documents an OpenAI-compatible generation-option allow-list and explicitly states that provider tool-choice compatibility is trusted host/provider configuration, not an authority grant that model-produced request data may widen.
+
+The current completion-runtime documentation describes a bounded supervisor whose model output is a strict direct envelope or typed plan AST. Parsing, structural validation, capability checks, budget checks and execution are host-owned phases; it explicitly states there is no arbitrary model-generated =call/1= path and no fake-provider fallback in production execution.
+
+The current repository also has =test/support/fake_model_provider.pl=. Its module comment says it is intentionally test-only and production code must never import it. This supports the book's decision to keep deterministic model doubles separate from production/provider claims.
+
+The current =prolog/rlm_closed_data.pl= rejects genuine variables and cyclic values while normalizing closed runtime data; this is useful architecture evidence for the broader course, but Project 2A does not copy that production mechanism.
+
+Sources, snapshot =51d2530f0e18c84cff860b7c0bf3afcc3c488057=, inspected read-only 2026-09-16:
+- =docs/providers.md=
+- =docs/completion-runtime.md=
+- =prolog/rlm_closed_data.pl=
+- =test/support/fake_model_provider.pl=
+
+* Derived teaching contract
+1. JSON parsing proves only that text belongs to the accepted serialization grammar.
+2. Exact application envelope validation is separate from JSON syntax.
+3. Request IDs are checked against host-held state rather than trusted because the model repeats them.
+4. Capability names are matched against the finite Project 1 capability relation before execution.
+5. Argument shape and domain checks happen before conversion into the Project 1 request form.
+6. Provider/model/response provenance is supplied by the trusted adapter envelope, not copied from model-controlled JSON.
+7. Only after all checks pass does =gateway_once/3= cross the already-derived =execute_capability/2= boundary.
+8. A deterministic fake adapter is TEST FIXTURE evidence only. It is not a live-model result.
+
+* Deliberate limits
+- No provider SDK or HTTP call is executed by this milestone.
+- No claim is made that JSON Schema alone supplies authorization or semantic truth.
+- No arbitrary Prolog source, predicate name or callable term is accepted from model output.
+- Transport byte limits, atom-table resource policy, timeouts/cancellation, retries/repair, duplicate suppression and persistence are deferred to later Project 2 milestones.
+- Current vendor claims are DOCUMENTED from their official documentation; this book has not independently benchmarked provider schema-conformance rates.

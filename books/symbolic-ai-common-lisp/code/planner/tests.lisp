@@ -67,6 +67,9 @@
     (connected dock hall)
     (connected hall office)))
 
+(defun warehouse-goals ()
+  '((at package-17 office)))
+
 (deftest canonical-state-is-set-like-and-deterministic
   (let ((left (canonical-state '((z 2) (a 1) (z 2))))
         (right (canonical-state '((a 1) (z 2)))))
@@ -123,8 +126,6 @@
          (state '((flag ready)))
          (action (first (instantiate-applicable-actions schema state)))
          (next (apply-ground-action state action)))
-    ;; The overlapping FLAG effect distinguishes delete-then-add from the
-    ;; opposite order: FLAG must be present in the successor.
     (is (member '(flag ready) next :test #'equal))
     (is (member '(audit refreshed) next :test #'equal))
     (is (= 2 (length next)))))
@@ -143,7 +144,7 @@
 (deftest warehouse-plan-composes-bindings-search-and-effects
   (let ((result (solve-plan
                  (warehouse-initial-state)
-                 '((at package-17 office))
+                 (warehouse-goals)
                  (warehouse-schemas)
                  :algorithm :breadth-first)))
     (is (eq :found (symbolic-ai.search:search-result-status result)))
@@ -155,7 +156,7 @@
     (is (= 4 (symbolic-ai.search:search-result-cost result)))
     (is (goal-satisfied-p
          (car (last (symbolic-ai.search:search-result-path result)))
-         '((at package-17 office))))))
+         (warehouse-goals)))))
 
 (deftest unreachable-goal-returns-not-found
   (let ((result (solve-plan
@@ -223,6 +224,128 @@
                        :algorithm :breadth-first)))
     (is (eq :found (symbolic-ai.search:search-result-status result)))
     (is (plusp (symbolic-ai.search:search-result-duplicate-pruned result)))))
+
+(deftest hmax-relaxation-is-inspectable-on-warehouse
+  (let* ((analysis
+           (analyze-hmax-relaxation
+            (warehouse-initial-state)
+            (warehouse-goals)
+            (warehouse-schemas)))
+         (support
+           (cdr (assoc '(at package-17 office)
+                       (relaxed-analysis-supports analysis)
+                       :test #'equal))))
+    (is (eq :reached (relaxed-analysis-status analysis)))
+    (is (= 3 (relaxed-analysis-estimate analysis)))
+    (is support)
+    (is (eq :action (relaxed-support-source support)))
+    (is-equal '(drop package-17 office)
+              (relaxed-support-action-name support))))
+
+(deftest hmax-is-a-lower-bound-on-controlled-warehouse-path
+  (let* ((schemas (warehouse-schemas))
+         (goals (warehouse-goals))
+         (optimal
+           (solve-plan (warehouse-initial-state)
+                       goals
+                       schemas
+                       :algorithm :uniform-cost)))
+    (is (= 4 (symbolic-ai.search:search-result-cost optimal)))
+    (dolist (state (symbolic-ai.search:search-result-path optimal))
+      (let* ((analysis (analyze-hmax-relaxation state goals schemas))
+             (remaining (solve-plan state goals schemas :algorithm :uniform-cost)))
+        (is (eq :reached (relaxed-analysis-status analysis)))
+        (is (eq :found (symbolic-ai.search:search-result-status remaining)))
+        (is (<= (relaxed-analysis-estimate analysis)
+                (symbolic-ai.search:search-result-cost remaining)))))))
+
+(deftest a-star-with-hmax-preserves-optimal-cost-on-warehouse
+  (let* ((schemas (warehouse-schemas))
+         (goals (warehouse-goals))
+         (result
+           (solve-plan
+            (warehouse-initial-state)
+            goals
+            schemas
+            :algorithm :a-star
+            :heuristic (make-hmax-heuristic goals schemas))))
+    (is (eq :found (symbolic-ai.search:search-result-status result)))
+    (is (= 4 (symbolic-ai.search:search-result-cost result)))))
+
+(deftest relaxed-fixpoint-distinguishes-unreachable-from-bounded
+  (let ((unreachable
+          (analyze-hmax-relaxation
+           (warehouse-initial-state)
+           '((at package-17 moon))
+           (warehouse-schemas))))
+    (is (eq :unreachable (relaxed-analysis-status unreachable)))
+    (is (null (relaxed-analysis-estimate unreachable))))
+  (let* ((x (v 'x))
+         (grow
+           (make-action-schema
+            'grow
+            (list x)
+            `((seed ,x))
+            `((seed (next ,x)))
+            '()))
+         (bounded
+           (analyze-hmax-relaxation
+            '((seed zero))
+            '((done))
+            (list grow)
+            :max-iterations 3)))
+    (is (eq :bounded (relaxed-analysis-status bounded)))
+    (is (null (relaxed-analysis-estimate bounded)))))
+
+(deftest plan-explanation-replays-every-ground-transition
+  (let* ((schemas (warehouse-schemas))
+         (result
+           (solve-plan (warehouse-initial-state)
+                       (warehouse-goals)
+                       schemas
+                       :algorithm :breadth-first))
+         (steps (explain-plan-result schemas result)))
+    (is (= 4 (length steps)))
+    (is-equal '(pickup package-17 dock)
+              (plan-step-explanation-action-name (first steps)))
+    (is-equal 'pickup (plan-step-explanation-schema-name (first steps)))
+    (is (member '(carrying robot package-17)
+                (plan-step-explanation-add-effects (first steps))
+                :test #'equal))
+    (loop
+      for step in steps
+      for expected-before in (symbolic-ai.search:search-result-path result)
+      for expected-after in (rest (symbolic-ai.search:search-result-path result))
+      do (is-equal expected-before
+                   (plan-step-explanation-before-state step))
+         (is-equal expected-after
+                   (plan-step-explanation-after-state step)))))
+
+(deftest plan-explanation-refuses-ambiguous-provenance
+  (let* ((first
+           (make-action-schema 'finish '() '((ready)) '((done)) '()))
+         (second
+           (make-action-schema 'finish '() '((ready)) '((done)) '()))
+         (schemas (list first second))
+         (result
+           (solve-plan '((ready)) '((done)) schemas :algorithm :breadth-first)))
+    (is (eq :found (symbolic-ai.search:search-result-status result)))
+    (signals ambiguous-plan-step
+      (explain-plan-result schemas result))))
+
+(deftest plan-explanation-refuses-stale-or-mismatched-domain
+  (let* ((schemas (warehouse-schemas))
+         (result
+           (solve-plan (warehouse-initial-state)
+                       (warehouse-goals)
+                       schemas
+                       :algorithm :breadth-first)))
+    (is (eq :found (symbolic-ai.search:search-result-status result)))
+    ;; Removing PICKUP makes the first recorded transition impossible under the
+    ;; replay domain.  Explanation must reject the stale/domain-mismatched trace
+    ;; instead of narrating the remaining labels as if provenance still held.
+    (signals invalid-plan-trace
+      (explain-plan-result (rest schemas) result))))
 
 (defun run-tests ()
   (let ((passed 0)

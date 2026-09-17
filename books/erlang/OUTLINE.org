@@ -128,13 +128,13 @@ Visuals: admission/FIFO -> dynamic supervisor -> temporary worker -> completion/
 Expected code: executable Project 3 checkpoint A modules and EUnit tests on strict OTP 29.1.
 Research: immutable OTP 29.1 =supervisor=, =queue=, and process-reference sources; distinguish documented runtime mechanics from course-local retry/backpressure policy.
 ** Chapter 16 -- Distribution
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for distribution.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+Goal: begin Project 4 by extending the already-taught process/message model across a real node boundary while keeping node identity, process identity, registered names, process-monitor evidence, and distribution-connection evidence distinct. Teach explicitly that =noconnection= is evidence about the observer's path, not proof that the remote process or VM died.
+Dependencies: Chapters 1--15, especially message protocols, monitors, OTP application/release boundaries, and Project 3's explicit ownership/failure semantics.
+Examples: same-host peer-node request/reply; deliberate remote service crash while the peer stays connected; missing remote registration yielding =noproc=; deliberate Distribution disconnect yielding process-monitor =noconnection= plus =nodedown=; independent =peer= standard-I/O control proving the service is still alive; reconnect with a new connection ID, a fresh process monitor, and a successful new request.
+Exercises: ★ interpret =noproc=/=noconnection=/real-exit evidence, ★★ add timeout and connection-ID-aware client state, ★★★ specify the durable state needed before accepted work could be replayed safely and design a TLS-distribution deployment boundary without pretending the teaching cookie is production security.
+Visuals: origin node ↔ Erlang Distribution ↔ peer node/service, with separate process-monitor, node-monitor, and test-only standard-I/O control paths; show disconnect and reconnect as distinct connection identities.
+Expected code: executable Project 4 checkpoint-A service and real multi-node EUnit scenarios using OTP 29.1 =peer= and =net_kernel:monitor_nodes/2=.
+Research: immutable OTP 29.1 Distributed Erlang, =net_kernel=, =erlang:monitor/2=, STDLIB =peer=, and Secure Coding Guidelines. Keep same-host TESTED observations separate from WAN/partition/failover claims, and distinguish =connect_all=false= from =dist_auto_connect=.
 ** Chapter 17 -- Fault Tolerance
 Goal: develop working intuition, precise terminology, and an implementation/debugging angle for fault tolerance, including an explicit persistence/recovery boundary for accepted work.
 Dependencies: previous chapter.

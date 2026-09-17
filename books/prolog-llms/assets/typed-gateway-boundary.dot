@@ -1,0 +1,27 @@
+digraph TypedGateway {
+  rankdir=LR;
+  graph [fontname="sans-serif", labelloc="t", label="Project 2A: model data crosses validation before capability authority"];
+  node [shape=box, fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  model [label="Model-controlled text\n(JSON candidate)"];
+  adapter [label="Trusted adapter envelope\nprovider/model/response_id"];
+  parse [label="JSON parse\nsyntax only"];
+  shape [label="Exact envelope + schema\nrequest correlation"];
+  cap [label="Closed capability lookup\narity + identifier validation"];
+  proposal [label="Typed proposal\n+ host-owned provenance"];
+  dispatch [label="Project 1 dispatcher\nexecute_capability/2"];
+  kb [label="Relational task system"];
+  reject [shape=octagon, label="Reject as data\nno dispatch"];
+
+  model -> adapter [label="content"];
+  adapter -> parse;
+  parse -> shape;
+  shape -> cap;
+  cap -> proposal;
+  proposal -> dispatch [label="trusted host decision"];
+  dispatch -> kb;
+  parse -> reject [label="malformed"];
+  shape -> reject [label="wrong keys/schema/id"];
+  cap -> reject [label="unknown/invalid"];
+}
