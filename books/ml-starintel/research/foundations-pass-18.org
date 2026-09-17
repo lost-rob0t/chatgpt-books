@@ -2,7 +2,7 @@
 #+date: 2026-09-16
 
 * Status
-DOCUMENTED / IMPLEMENTED / TESTED for the original Chapter 6 regression slice recorded below. The exact-duplicate-predictor rank-deficiency hardening added after the first editorial handoff is DOCUMENTED / IMPLEMENTED and remains PENDING exact-head pinned CI at the time of this record update.
+DOCUMENTED / IMPLEMENTED / TESTED for Chapter 6 regression, including the post-handoff exact-duplicate-predictor rank-deficiency hardening recorded below.
 
 This pass begins the first supervised-model chapter after the Editor-in-Chief approved and merged Project 1 foundations. It adds no production StarIntel model, no analyst-productivity claim, no new StarIntel runtime behavior, and no production benchmark.
 
@@ -107,7 +107,7 @@ The original implementation was exercised before repository handoff in the avail
 - command equivalent: =python -m unittest -v test_chapter06_regression.py=;
 - result at that historical point: 8 tests ran, 8 passed.
 
-This local run is retained only as LOCAL-TESTED development evidence for the pre-hardening version. The repository's authoritative Project 1 environment remains CPython 3.12.3 with the committed dependency lock, including scikit-learn 1.9.0 and matplotlib 3.11.1. The later rank-deficiency test is not promoted to TESTED here until pinned CI executes it.
+This local run is retained only as LOCAL-TESTED development evidence for the pre-hardening version. The repository's authoritative Project 1 environment remains CPython 3.12.3 with the committed dependency lock, including scikit-learn 1.9.0 and matplotlib 3.11.1. The later rank-deficiency invariant is promoted only by the pinned CI evidence recorded below.
 
 The local frozen control produced a lower OLS held-out RMSE than the training-mean baseline and a high synthetic-control R^2, but those local numbers are intentionally not promoted into the manuscript because the pinned repository environment is the evidence gate.
 
@@ -119,7 +119,13 @@ The first complete pull-request verification of the original implementation head
 
 A later manuscript-index correction keeps Chapter 6 inside the already-declared Foundations part. That correction is prose structure only and was green on later current-main verification before the first editorial handoff.
 
-The exact-duplicate-predictor hardening is newer than the historical runs above. Until an exact-head pinned workflow passes the new ninth Chapter 6 test, its status remains IMPLEMENTED / UNTESTED-IN-PINNED-ENVIRONMENT in this record.
+The exact-duplicate-predictor hardening was then verified on head =f7cf25b4a8fa86c6776b6b6fb77c61a1673d0e3f= against the current PR merge state:
+
+- =ml-starintel-research= run =35164607370= / job =105022778980=: SUCCESS. The committed CPython 3.12.3 lock was recreated; 55/55 research-harness tests passed; 19/19 combined reader-facing Project 1 tests passed, including all 9 Chapter 6 tests and the duplicate-predictor rank-deficiency invariant; GLEIF acquisition/provenance, foundational experiments, the frozen larger-public-corpus benchmark, Chapter 6 evidence generation, editable Graphviz validation, =make book BOOK=ml-starintel=, =make check BOOK=ml-starintel=, and EPUBCheck 5.3.0 all completed successfully.
+- =books-ci= run =35164607347= / job =105022778504=: SUCCESS. Structural validation, Pandoc Org-reader validation, deterministic assets/fixtures, EPUBCheck 5.3.0, publication/citation regressions, ERT, real Org-roam DB synchronization, and artifact upload all completed successfully.
+- research artifact =10474860825=, 134440 bytes, digest =sha256:c129fba20d767954a92f7c5a8a6f6338442520fc6a97acdbcb23b860a08e3d31=.
+
+The pinned deterministic control recorded an original design rank of 3 for 3 features and an augmented duplicate-predictor design rank of 3 for 4 features. The maximum absolute held-out prediction delta between the two fits was approximately =1.7053025658242404e-13=, below the predeclared tolerance, and the duplicate-feature coefficients summed to the original =token_count= coefficient within the focused test tolerance. These are fixture-scoped observations, not production results.
 
 * Reproducible artifacts
 The chapter script writes:
@@ -133,9 +139,8 @@ The manuscript also has an editable Graphviz source =assets/chapter-06-regressio
 * Claim boundaries
 - DOCUMENTED: current scikit-learn OLS/metric behavior and dense-design =rank_=/=singular_= diagnostics cited from official 1.9.1 docs.
 - IMPLEMENTED: first-principles one-feature OLS, manual regression metrics, deterministic grouped control, scikit-learn multi-feature OLS, residual/failure artifacts, and the exact-duplicate-predictor rank-deficiency probe.
-- TESTED: the original Chapter 6 invariants under the committed CPython 3.12.3/scikit-learn 1.9.0 environment, plus the book/publication gates recorded above.
-- PENDING PINNED VERIFICATION: the new exact-duplicate-predictor rank-deficiency invariant and updated report/manuscript at the current hardening head.
+- TESTED: all recorded Chapter 6 invariants, including the exact-duplicate-predictor rank-deficiency invariant, under the committed CPython 3.12.3/scikit-learn 1.9.0 environment; the associated book/publication gates also passed on the recorded head.
 - NOT CLAIMED: real analyst effort model, production accuracy, production throughput, cross-platform equivalence, causal interpretation of coefficients, a measured near-collinearity stability result, robustness to arbitrary shift/outliers, deployment integration, or StarIntel runtime behavior.
 
 * Next evidence gate
-Run the exact current PR head through both the focused =ml-starintel-research= workflow and generic =books-ci=. Only after the pinned environment executes the new rank-deficiency invariant and the publication path remains green may this hardening be marked TESTED. The worker state then returns to READY FOR EDITOR-IN-CHIEF REVIEW, not editorially APPROVED or DONE. Chapter 7 remains dependency-gated on that editorial decision.
+The worker-side Chapter 6 hardening is TESTED. PR #113 still requires Editor-in-Chief review and is not editorially APPROVED or DONE. Chapter 7 remains dependency-gated on that editorial decision; do not stack it prematurely.
