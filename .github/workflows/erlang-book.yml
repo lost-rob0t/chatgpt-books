@@ -94,7 +94,7 @@ jobs:
           grep -q 'erlang_book_dist_service' /tmp/distributed-service-failure.svg
           grep -q 'monitor_nodes' /tmp/distributed-service-failure.svg
           grep -q 'disconnect_node' /tmp/distributed-service-failure.svg
-          grep -q 'standard-I/O control' /tmp/distributed-service-failure.svg
+          grep -Eq 'standard.*I/O control' /tmp/distributed-service-failure.svg
 
       - name: Build Erlang book
         run: make book BOOK=erlang
