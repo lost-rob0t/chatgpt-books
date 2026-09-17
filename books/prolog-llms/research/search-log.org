@@ -163,6 +163,43 @@ Detailed evidence, exact source inventory, and teaching contract: [[file:typed-g
 
 Downstream: Chapters 7--8 / Project 2A. Later Project 2 work must research deadline/cancellation, duplicate/stale completion handling, and live-provider adapters separately before promoting those behaviors to DOCUMENTED or TESTED.
 
+* 2026-09-16 -- primary neuro-symbolic architecture landscape for Chapters 20--24
+Questions:
+- what concrete neural/symbolic authority transitions have primary systems actually implemented;
+- which systems generate imperative programs, declarative specifications, first-order logic, PDDL, explanations, or Prolog representations;
+- which systems feed solver/verifier feedback back to a model;
+- where has Prolog itself been used as the reasoning/proof runtime;
+- how should the book separate solver correctness from semantic translation correctness;
+- what current =lost-rob0t/prolog-rlm= architecture evidence is still true today;
+- what evidence must a later reproduction preserve before any published benchmark claim can become TESTED locally?
+
+Search terms / primary source paths inspected:
+- =PAL Program-Aided Language Models Gao PMLR= -> official PMLR ICML 2023 record;
+- =Faithful Chain-of-Thought Reasoning= -> ACL Anthology IJCNLP-AACL 2023 record;
+- =SatLM Satisfiability-Aided Language Models= -> official NeurIPS 2023 proceedings record;
+- =LINC neurosymbolic first-order logic prover= -> ACL Anthology EMNLP 2023 record;
+- =Logic-LM symbolic solvers faithful logical reasoning= -> ACL Anthology Findings EMNLP 2023 record;
+- =LLM+P optimal planning proficiency= -> primary arXiv:2304.11477 record;
+- =Verification and Refinement of Natural Language Explanations through LLM-Symbolic Theorem Proving= -> ACL Anthology EMNLP 2024 record;
+- =LLMs Can't Plan But Can Help Planning in LLM-Modulo Frameworks= -> primary PMLR ICML 2024 record;
+- =Reliable Reasoning Beyond Natural Language= -> primary arXiv:2407.11373 plus authors' public code/README context;
+- =Neuro-Symbolic Integration Brings Causal and Reliable Reasoning Proofs= -> ACL Anthology Findings NAACL 2025 record;
+- existing =Recursive Language Models= primary arXiv source;
+- read-only =lost-rob0t/prolog-rlm= canonical =main= rechecked at exact commit =51d2530f0e18c84cff860b7c0bf3afcc3c488057=, with =docs/completion-runtime.md= and =docs/providers.md= re-inspected.
+
+Result:
+- DOCUMENTED: PAL delegates execution of model-produced programs to a runtime; Faithful CoT separates symbolic translation from deterministic solving; SatLM produces declarative specifications for an automated solver; LINC uses an LLM semantic parser into first-order logic plus an external theorem prover; Logic-LM adds solver-error-driven formalization repair; LLM+P maps natural-language planning problems through PDDL into a classical planner; Explanation-Refiner uses theorem-prover validation/refinement of explanations; LLM-Modulo proposes tighter verifier-guided generate/test/critique interaction; Reliable Reasoning Beyond Natural Language uses Prolog for explicit deductive computation over LLM-produced logical code; CaRing uses Prolog-interpreter search artifacts for reasoning proofs; RLM externalizes context and recursively invokes models.
+- DOCUMENTED: SatLM and CaRing primary sources make the formalization condition especially explicit: guarantees/proofs are relative to the parsed/translated formal object. The book therefore treats source-to-formalization faithfulness as a separate proposition from solver/proof correctness.
+- DOCUMENTED REPOSITORY DESIGN: current =prolog-rlm= still documents a strict direct-or-typed-plan completion boundary, host-owned parse/validation/capability/budget phases, provider-visible schemas separate from execution authority, narrowed recursive child capabilities, duplicate-recursion checks, structured provider failures, bounded usage accounting, and no arbitrary model-generated =call/1= production path.
+- REPOSITORY DESIGN: Chapters 20--24 organize these systems by authority transition and derive closed formalization vocabularies, typed repair failures, source/acceptance/proof provenance separation, and a claim-ledger reproduction protocol. These designs are the book's synthesis unless directly attributed to a paper.
+- UPSTREAM-REPORTED: every cited benchmark, accuracy, cost, latency, proof-quality, or state-of-the-art result. None was reproduced during this pass.
+- UNTESTED: live provider behavior, paper code execution, benchmark reproduction, the proposed Part V labs, and live/full-suite =prolog-rlm= execution.
+
+Detailed evidence and per-system source ledger: [[file:neurosymbolic-architecture-landscape.org][neurosymbolic-architecture-landscape.org]].
+
+Downstream: Chapters 20--24, later Project 4 repair-loop implementation, Project 5 evaluation harness, and Project 6 Prolog-RLM-style capstone.
+
 * Next research sessions
-- Current structured-output and tool-call documentation for any provider used in runnable examples.
-- Primary neuro-symbolic systems beyond RLM and evaluation methodology for verifier-assisted/recursive systems.
+- Select one narrowly reproducible Part V/VI system or subclaim only after inspecting its exact code/tagged artifact, dataset license/version, and provider/model availability.
+- Research deadline/cancellation, duplicate/stale completion handling, and live provider adapters when a dependency-ready executable Project 2/4 issue is opened.
+- Recheck =lost-rob0t/prolog-rlm= exact main again when the capstone begins; do not let the current source snapshot become a timeless claim.
