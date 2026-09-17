@@ -22,16 +22,17 @@ Every research pass records:
 - [[file:clpfd-scheduling.org][CLP(FD) scheduling research pass]] -- current SWI finite-domain membership, constraint-posting versus labeling/search boundary, objective ordering, reification, and a derived single-resource Project 1 scheduling worksheet for milestone D. The accompanying 2012 solver paper is historical/implementation context; its performance results remain UPSTREAM-REPORTED here.
 - [[file:meta-capability-boundary.org][Meta-programming and capability-boundary research pass]] -- current SWI =call/N=, ISO/SWI term inspection and construction boundaries, runtime predicate reflection, and the repository design rule that closed capability policy must be resolved before any meta-call.
 - [[file:typed-gateway-boundary.org][Typed gateway boundary research pass]] -- RFC 8259, current SWI JSON dict conversion, current official provider structured-output/tool contracts, and a read-only recheck of current =prolog-rlm= provider/completion/fake-provider boundaries for Project 2A.
+- [[file:neurosymbolic-handoff-architectures.org][Neuro-symbolic handoff architecture research pass]] -- PAL, Program of Thoughts, Faithful CoT, SatLM, Logic-LM, LINC, LLM+P, RLM, and the current Prolog-RLM source boundary, organized by what artifact crosses the model/symbolic boundary and what the deterministic component actually guarantees.
 
 * Priority queues
 ** Prolog foundation
 Project 1 is now merged through the bounded meta-call/reflection capability boundary. Broader meta-interpreters, planning, and classical symbolic-AI algorithms remain in =books/symbolic-ai-prolog= rather than expanding this foundation indefinitely.
 
 ** LLM integration boundary
-Project 2A is the active dependency-ready slice: deterministic provider-neutral response data, exact schema/correlation validation, host-owned provenance, and dispatch only through the closed Project 1 capability vocabulary. Timeouts/cancellation, replay handling, repair loops and live provider adapters remain later milestones.
+Project 2A is editor-approved content awaiting merge. Issue #129 is a stacked research/manuscript slice that uses the accepted typed-gateway boundary to teach program, constraint, logic, planner, and recursive-runtime handoffs without giving generated text execution authority. Timeouts/cancellation, replay handling, repair loops and live provider adapters remain later milestones.
 
 ** Neuro-symbolic systems
-Primary papers and actual implementations for systems that combine neural generation/retrieval with symbolic constraints, proof, program execution, theorem proving, logic programming, or recursive language-model orchestration. Record what each system actually delegates to each component.
+Primary papers and actual implementations for systems that combine neural generation/retrieval with symbolic constraints, proof, program execution, theorem proving, logic programming, or recursive language-model orchestration. Record what each system actually delegates to each component and keep paper benchmark results UPSTREAM-REPORTED until independently reproduced.
 
 ** Evaluation
 Methods for comparing direct generation, retrieval augmentation, symbolic verification, repair loops, and recursive orchestration without benchmark leakage or post-hoc metric selection. Track exact datasets/prompts/providers/versions for any measured result.
@@ -42,4 +43,4 @@ Methods for comparing direct generation, retrieval augmentation, symbolic verifi
 - =../references.bib= -- bibliographic metadata promoted only after verification.
 
 * Current state
-DOCUMENTED research now supports the standalone Chapters 1--6 Prolog foundation and the Project 2A typed model-data boundary. Repository-specific TESTED status is recorded only after the SWI-Prolog suite runs on the authored branch. Live provider behavior, provider conformance benchmarks, neuro-symbolic benchmark claims, and live Prolog-RLM execution remain UNTESTED / NOT CLAIMED by Project 2A.
+DOCUMENTED research now supports the standalone Chapters 1--8 Prolog/typed-gateway foundation plus the issue #129 architecture case-study draft. Repository-specific TESTED status is recorded only after the SWI-Prolog suite runs on the authored branch. Paper benchmark claims, live provider behavior, provider conformance, and live Prolog-RLM execution remain UPSTREAM-REPORTED or UNTESTED as explicitly marked; source inspection alone never promotes them to TESTED.
