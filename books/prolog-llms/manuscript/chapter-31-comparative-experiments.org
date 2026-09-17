@@ -1,0 +1,383 @@
+* Chapter 31 -- Comparative Experiments Without Fake Wins
+:PROPERTIES:
+:ID:       6d59fb7d-56e7-45d5-8f6e-f83e5b349cb1
+:STATUS:   DRAFT
+:END:
+
+A recursive harness is not useful because it is recursive.
+
+It is useful only when the extra machinery buys something we care about:
+correctness, robustness, inspectability, evidence quality, recovery from
+failure, lower context pressure, or another measured property.  Recursion can
+also make a system slower, more expensive, harder to debug, and easier to drive
+into a useless decomposition loop.
+
+So the first rule of our evaluation chapter is deliberately hostile to the
+capstone itself:
+
+#+begin_quote
+The recursive system does not get to win by definition.
+#+end_quote
+
+The RLM research program motivates recursive interaction with external context
+as an alternative to treating the entire context as one prompt
+[cite:@zhang-rlm].  Our job is not to repeat that motivation as an experimental
+result.  Our job is to construct comparisons in which a direct system is
+allowed to be better.
+
+** Start with a deterministic structural control
+
+Before paying for provider calls, we can compare four increasingly structured
+plans on the same tiny fixture.  The companion implementation in
+[[https://github.com/lost-rob0t/prolog-rlm/pull/445][prolog-rlm PR #445]] exposes:
+
+#+begin_src prolog
+study_compare(Topic, study_report{topic:Topic, variants:Observations}) :-
+    Variants = [direct, retrieve, verify, recursive],
+    maplist(study_variant_observation(Topic), Variants, Observations).
+#+end_src
+
+These names are intentionally modest.
+
+- =direct= returns the input through the typed plan runtime.
+- =retrieve= invokes only the deterministic retrieval fixture.
+- =verify= retrieves, normalizes, and verifies in one flat plan.
+- =recursive= performs the same retrieval and verification work but places the
+  normalize/verify sequence inside one nested =rlm/2= plan and checkpoints its
+  result.
+
+This is *not* yet a direct-vs-RAG-vs-RLM quality benchmark.  There is no model in
+any variant.  The four plans do not even return the same semantic output type.
+They are a control for the execution machinery.
+
+That control is useful because it tells us what structure costs before model
+behavior adds noise.
+
+** Structural accounting is not benchmark performance
+
+The validator can compute the following plan shapes from source:
+
+| Variant | Steps | Max depth | Tool calls | Model calls |
+|-
+| direct | 1 | 1 | 0 | 0 |
+| retrieve | 2 | 1 | 1 | 0 |
+| verify | 4 | 1 | 3 | 0 |
+| recursive | 7 | 2 | 3 | 0 |
+
+These are *static plan estimates*, not observed latency, token usage, accuracy,
+or cost.  They are useful precisely because there is no sampling uncertainty:
+they describe the authored control programs.
+
+The recursive variant has more steps than the flat verify variant even though
+both invoke three tools.  The extra work comes from the nested wrapper, the
+child =final/1=, the parent checkpoint, and the parent =final/1=.
+
+If a later provider-backed recursive system performs no better than the flat
+verified system, this table reminds us that recursion was not free.
+
+** Implement the comparison as data
+
+The study harness does not print a hand-written table.  For each variant it
+asks the real plan validator for its estimate and then runs the plan:
+
+#+begin_src prolog
+study_variant_observation(Topic, Variant, Observation) :-
+    study_variant(Variant, Plan, Capabilities, Budget),
+    plan_validate(Plan, Capabilities, Budget, ok(Validated)),
+    study_variant_run(Variant, Topic, ok(Result)),
+    get_dict(estimate, Validated, Estimate),
+    get_dict(value, Result, Value),
+    get_dict(transitions, Result, Transitions),
+    get_dict(budget_remaining, Result, Remaining),
+    Observation = study_variant_result{
+                      variant:Variant,
+                      estimate:Estimate,
+                      value:Value,
+                      transitions:Transitions,
+                      budget_remaining:Remaining
+                  }.
+#+end_src
+
+The report therefore carries the exact values needed to audit the control:
+
+- the static estimate;
+- the returned value;
+- ordered runtime transitions;
+- remaining budget.
+
+There is deliberately no field called =score=.
+
+A generic harness should collect observations before it decides how to compare
+them.  Baking a winner into the data structure is a great way to stop noticing
+that two variants were evaluated under different conditions.
+
+** Why the flat verifier matters
+
+A common bad RLM experiment compares:
+
+#+begin_example
+weak baseline:       one model call, no retrieval, no verifier
+strong recursive:    retrieval + tools + verifier + multiple model calls
+#+end_example
+
+If the recursive system wins, what caused the difference?  Recursion?  Better
+evidence?  More compute?  The verifier?  Tool access?  The experiment cannot
+say.
+
+Our =verify= control exists to isolate that question.  It has the same three
+deterministic tools as the recursive variant but no recursive nesting.
+
+That gives the eventual experiment a much more useful ladder:
+
+#+begin_example
+A. direct generation
+B. retrieval-augmented generation
+C. retrieval + flat symbolic verification
+D. retrieval + recursive orchestration + symbolic verification
+#+end_example
+
+Only C versus D isolates the incremental value of recursive orchestration once
+retrieval and verification are already present.
+
+** Make every live variant return the same answer schema
+
+Our deterministic control variants intentionally return different values
+because they teach the mechanics.  A real comparative experiment cannot do
+that.
+
+Before live runs, define one result schema.  For example:
+
+#+begin_src prolog
+answer{
+    task_id:TaskId,
+    value:Value,
+    citations:Citations,
+    confidence:Confidence,
+    abstained:Abstained
+}
+#+end_src
+
+Every variant must be projected into that schema *before* scoring.  The direct
+model cannot be allowed to omit evidence while the recursive model receives
+credit for detailed trace fields that the task never required.  Conversely,
+the direct model should not be penalized merely because it solved a trivial
+item without recursion.
+
+Keep runtime telemetry separate:
+
+#+begin_src prolog
+run_observation{
+    variant:Variant,
+    task_id:TaskId,
+    answer:Answer,
+    verifier:VerifierOutcome,
+    usage:Usage,
+    latency_ms:Latency,
+    trajectory:Trajectory,
+    runtime_outcome:Outcome
+}
+#+end_src
+
+The answer is what the task produced.  The observation is what the experiment
+knows about the run.
+
+** Freeze the task set before looking at results
+
+The easiest way to accidentally manufacture a result is to change tasks while
+watching the benchmark.
+
+For each experiment campaign, freeze:
+
+1. task IDs and exact task inputs;
+2. the reference answers or independent verifier definitions;
+3. the context snapshot or retrieval corpus revision;
+4. provider/model identifiers;
+5. runtime and harness commit IDs;
+6. capability sets;
+7. token/cost/time/depth/tool budgets;
+8. provider options that materially affect generation;
+9. the scoring code.
+
+Then assign the experiment an ID and preserve the configuration with its
+results.
+
+If a bug forces a change, create a new experiment version.  Do not silently
+patch the old run and continue accumulating rows as if nothing changed.
+
+** Prefer independent verification to model self-grading
+
+The strongest tasks in this book have a verifier that does not ask the same
+model whether its answer was good.
+
+Useful examples include:
+
+- a CLP(FD) solution checked against the original constraints;
+- a Prolog relation checked against hidden ground facts;
+- a structured extraction checked against a frozen labeled fixture;
+- a source claim checked against an exact project-KB observation;
+- a transformation checked by deterministic tests;
+- a citation checked for support and provenance.
+
+The =prolog-rlm= repository already treats first-class Specs and independent
+verification as separate from planning/execution, which is the right direction
+for these experiments [cite:@prolog-rlm-source].
+
+A model critic can still be interesting, but label it as a model critic.  It is
+not independent ground truth merely because its system prompt says "be strict."
+
+** Measure failure classes, not only final correctness
+
+Two systems with the same final accuracy may behave very differently.
+
+Record at least these categories when they are meaningful for the task:
+
+- correct accepted result;
+- correct result rejected by verifier;
+- incorrect result rejected by verifier;
+- incorrect result accepted by verifier;
+- abstention;
+- parse/normalization failure;
+- capability denial;
+- runtime preflight failure;
+- provider failure;
+- tool failure;
+- budget exhaustion;
+- timeout;
+- cancellation;
+- repair success after an initial failure;
+- repair exhaustion.
+
+The dangerous cell is not merely "wrong answer."  It is *wrong answer accepted
+as correct*.
+
+That is why verification quality needs its own evaluation.  A sophisticated
+recursive planner sitting in front of a permissive verifier can produce a very
+confident failure factory.
+
+** Account for compute honestly
+
+A recursive system often spends more provider calls than a direct system.
+Comparing only task accuracy can hide that cost.
+
+For each run, capture what the provider/runtime can actually report:
+
+- model-call count;
+- prompt/completion/total tokens when available;
+- provider-reported or locally calculated cost when trustworthy;
+- tool-call count;
+- context-operation count;
+- wall-clock latency at the experiment boundary;
+- maximum recursion depth reached;
+- output/observation bytes where relevant.
+
+Do not invent missing usage.  If a provider omits cost, mark cost unknown.  If
+latency is not captured around the same boundary for all variants, do not print
+a latency leaderboard.
+
+The current typed plan runtime preserves model responses, model-event lineage,
+transitions, checkpoints, and remaining budgets in structured outcomes
+[cite:@prolog-rlm-source].  Use those records instead of parsing a pretty log
+when the experiment needs execution facts.
+
+** Separate deterministic, live, and stochastic evidence
+
+We will use three evidence classes in this capstone.
+
+*** Deterministic control
+
+No model provider.  Same input always follows the same authored plan.  This is
+where =study_compare/2= lives.  It tests the harness and accounting assumptions.
+
+*** Live integration
+
+A real provider is called to prove the provider path works.  A small number of
+successful calls can establish integration behavior, not broad model quality.
+
+*** Comparative experiment
+
+A frozen task set is run across all variants under declared conditions.  When a
+provider is stochastic, repeat enough trials to describe variability rather
+than treating one completion as a property of the architecture.
+
+Keep those labels in reports.  "The deterministic control passed" must never be
+abbreviated into "RLM works better."
+
+** A minimal experiment record
+
+An Org-friendly record can be plain data:
+
+#+begin_src prolog
+experiment{
+    id:prolog_rlm_capstone_v1,
+    runtime_commit:RuntimeCommit,
+    book_commit:BookCommit,
+    task_set:TaskSetFingerprint,
+    variants:[direct, rag, verify, recursive],
+    provider:Provider,
+    model:Model,
+    budgets:Budgets,
+    runs:Runs
+}
+#+end_src
+
+The exact serialization format matters less than the invariants:
+
+- configuration is frozen;
+- every run has a task and variant identity;
+- raw outcomes remain available;
+- aggregation can be reproduced;
+- a later report can point back to the exact runtime source.
+
+** What we can say today
+
+At this draft stage, the companion implementation gives us a deterministic
+structural comparison.  The intended exact-head regression asserts the four
+plan estimates and verifies that every variant consumes zero model calls.  That
+is enough to support statements about *plan shape*.
+
+It is not enough to support any of these statements:
+
+- recursive is more accurate;
+- recursive is cheaper;
+- recursive is faster;
+- recursive recovers from provider errors better;
+- RAG is worse than symbolic verification;
+- a particular model benefits from depth two.
+
+Those sentences remain hypotheses until their corresponding experiment is
+actually executed and recorded.
+
+** Lab: inspect the comparison report
+
+Run:
+
+#+begin_src sh
+swipl -q -g "use_module('examples/prolog_rlm_study'), study_compare('prolog-rlm', Report), portray_clause(Report), halt"
+#+end_src
+
+Answer these questions from the returned data rather than from the source code:
+
+1. Which variant has the greatest static depth?
+2. Which two variants have the same tool-call estimate?
+3. Which variant performs verification without recursion?
+4. Does any variant consume a model call?
+5. Which fields would be insufficient for a live quality comparison?
+
+Then extend the fixture with a deliberately incomplete evidence source.  Make
+both =verify= and =recursive= reject it through the same verifier.  If recursion
+changes the acceptance result even though the evidence and verifier are
+identical, explain exactly which runtime behavior caused that difference.
+
+** The experiment is allowed to disappoint us
+
+The most valuable possible result may be that recursion does not help on a
+particular task class.
+
+That would tell us to keep the simpler path for those tasks and reserve
+recursive orchestration for cases where decomposition, context management, or
+repair actually earns its cost.  A harness that can decide *not* to recurse is
+more mature than one that treats recursion as branding.
+
+We will therefore promote provider-backed comparative claims only after the
+frozen experiment exists, the runs have actually happened, and the raw evidence
+can survive an adversarial reading.
