@@ -1,0 +1,139 @@
+#+title: Prolog + LLMs -- Neuro-Symbolic Handoff Architecture Research
+:PROPERTIES:
+:ID:       4555c093-8f5c-4da6-a33f-146f0e33fa87
+:END:
+
+* Scope
+Retrieval date: 2026-09-17.
+
+Issue: #129.
+
+Questions:
+1. What artifact does the language model produce in representative LLM+symbolic systems?
+2. What deterministic or symbolic component consumes that artifact?
+3. Which component actually owns search, calculation, proof, or planning?
+4. What does successful execution prove, and what does it leave unverified about the natural-language-to-symbolic translation?
+5. Which mechanism is worth teaching locally in Prolog without reproducing another project's runtime or silently granting generated text execution authority?
+
+This pass researches architecture and claim boundaries. It does not reproduce any paper benchmark. Every reported paper result remains UPSTREAM-REPORTED. The local =symbolic-handoff= workbench is a new repository teaching artifact, not an implementation or claimed reproduction of PAL, PoT, Faithful CoT, SatLM, Logic-LM, LINC, LLM+P, or RLM.
+
+* Architecture table
+| Family | Representative work | Model-produced artifact | Deterministic/symbolic consumer | What the consumer owns | Remaining translation risk |
+|-
+| imperative program handoff | PAL; Program of Thoughts | executable/interpretable program | Python/external computer | arithmetic/program execution | generated program may encode the wrong problem |
+| symbolic-chain handoff | Faithful CoT | symbolic reasoning chain | deterministic solver | solving the emitted chain | chain can faithfully execute a mistranslation |
+| declarative constraint handoff | SatLM | declarative task specification | automated theorem prover / satisfiability machinery | search/constraint solving relative to the specification | specification may not faithfully represent the prompt |
+| formal logic handoff | Logic-LM; LINC | symbolic formulation / first-order logic | symbolic solver / first-order theorem prover | deduction over the formal theory | semantic parser can omit, reverse, or invent premises/relations |
+| planner handoff | LLM+P | PDDL problem representation | classical planner | planning/search over formalized problem | PDDL formalization can describe the wrong state/goals/actions |
+| recursive externalized inference | RLM | programs/subqueries over external prompt environment | host runtime plus recursive model calls | context access, recursion mechanics, accounting chosen by host | recursive decomposition and subanswers remain model-dependent |
+
+The table is deliberately about *handoffs*. It does not rank systems and it does not claim that every paper uses identical solver technology across every task.
+
+* PAL -- generated programs, interpreter-owned execution
+Source inspected: Luyu Gao et al., =PAL: Program-aided Language Models=, arXiv:2211.10435 [cite:@gao-pal-2022].
+
+DOCUMENTED: PAL has the language model read a natural-language problem and generate programs as intermediate reasoning steps, then delegates the solution step to a runtime such as a Python interpreter. The paper explicitly frames decomposition/program generation as the learned/model task and execution as the interpreter's task.
+
+DOCUMENTED: the paper notes that the runtime need not be Python specifically; the architectural move is to let a solver/interpreter/compiler execute a generated intermediate representation.
+
+UPSTREAM-REPORTED: benchmark accuracy, GSM8K comparisons, and other empirical gains in the paper. None were reproduced here.
+
+Teaching consequence: an interpreter can make computation deterministic *given a program*. It cannot establish that the generated program faithfully encodes the user's problem. Also, a paper experiment that directly executes generated Python is not an authority model we should copy into a general service. In this book, =program_proposal= is opaque data and the teaching workbench returns =generated_program_execution_not_authorized= rather than evaluating it.
+
+* Program of Thoughts -- separate reasoning expression from computation
+Source inspected: Wenhu Chen et al., =Program of Thoughts Prompting: Disentangling Computation from Reasoning for Numerical Reasoning Tasks=, arXiv:2211.12588 [cite:@chen-pot-2022].
+
+DOCUMENTED: PoT prompts the model to express reasoning as a program while an external computer executes the computation. The paper's stated goal is to separate computation from reasoning in numerical tasks.
+
+UPSTREAM-REPORTED: average performance gains and benchmark comparisons. This repository did not rerun them.
+
+Teaching consequence: “model writes, machine executes” is already a useful decomposition even before Prolog appears. But it contains two contracts, not one: semantic translation into a program, and execution of that program. A correct executor can faithfully compute the consequence of an incorrect translation.
+
+* Faithful Chain-of-Thought -- make the final answer a deterministic consequence of the emitted chain
+Source inspected: Qing Lyu et al., =Faithful Chain-of-Thought Reasoning=, arXiv:2301.13379 [cite:@lyu-faithful-cot-2023].
+
+DOCUMENTED: Faithful CoT separates Translation (natural-language query to symbolic reasoning chain) from Problem Solving (chain to answer), with an LM performing the former and a deterministic solver the latter.
+
+DOCUMENTED: the paper's faithfulness claim is specifically about making the reported answer follow from the emitted symbolic chain. That is a stronger and more inspectable relation between intermediate representation and answer than unconstrained free-form chain-of-thought.
+
+UPSTREAM-REPORTED: reported accuracy/faithfulness results remain paper evidence, not local TESTED evidence.
+
+Teaching consequence: there are two different questions: “did the solver follow the representation?” and “did the representation mean what the original text meant?” The first can be deterministic while the second remains a semantic-parsing problem.
+
+* SatLM -- let the model state constraints and let the solver search
+Source inspected: Xi Ye, Qiaochu Chen, Isil Dillig, and Greg Durrett, =SatLM: Satisfiability-Aided Language Models Using Declarative Prompting=, NeurIPS 2023 [cite:@ye-satlm-2023].
+
+DOCUMENTED: SatLM asks the LLM for a declarative task specification instead of an imperative program and delegates reasoning to an off-the-shelf automated theorem prover. The paper explicitly motivates this for tasks that require constraint solving, planning, or search rather than straightforward forward computation.
+
+DOCUMENTED: the paper states the crucial scope of the guarantee: the solver can guarantee correctness of the answer *with respect to the parsed specification*. That wording must not be widened into “the natural-language answer is guaranteed correct.”
+
+UPSTREAM-REPORTED: comparative benchmark results are not reproduced by this book.
+
+Teaching consequence: this is the cleanest bridge to the already accepted Project 1 CLP(FD) worksheet. The new workbench therefore gives =constraint_spec(deadline(N))= one real execution path through repository-owned constraints. The model-facing artifact supplies data only; it does not supply a Prolog predicate, operator, or solver callback.
+
+* Logic-LM -- formalize first, solve second, use solver errors as feedback
+Source inspected: Liangming Pan et al., =Logic-LM: Empowering Large Language Models with Symbolic Solvers for Faithful Logical Reasoning=, arXiv:2305.12295 [cite:@pan-logic-lm-2023].
+
+DOCUMENTED: Logic-LM uses an LLM to translate a natural-language problem into a symbolic formulation and then invokes a deterministic symbolic solver. The framework also uses symbolic-solver error messages to refine malformed symbolic formalizations.
+
+UPSTREAM-REPORTED: the paper's performance improvements across ProofWriter, PrOntoQA, FOLIO, LogicalDeduction, and AR-LSAT remain upstream results.
+
+Teaching consequence: solver feedback is not merely a final grade. It can become structured repair data. Later Project 4 can reuse this architectural idea, but the book must distinguish syntax/type/solver errors from semantic mistranslation: a solver saying “well-formed and satisfiable” does not mean the formalization matches the source text.
+
+* LINC -- LLM as semantic parser, first-order prover as reasoner
+Source inspected: Theo X. Olausson et al., =LINC: A Neurosymbolic Approach for Logical Reasoning by Combining Language Models with First-Order Logic Provers=, arXiv:2310.15164 [cite:@olausson-linc-2023].
+
+DOCUMENTED: LINC assigns the LLM a semantic-parsing role: premises and conclusions are translated from natural language into first-order logic expressions, then an external theorem prover performs deductive inference.
+
+UPSTREAM-REPORTED: ProofWriter/FOLIO results and model comparisons are not local evidence.
+
+Teaching consequence: first-order theorem proving belongs in depth to =books/symbolic-ai-prolog=, not this integration volume. Here the important artifact is a typed =logic_theory= crossing the model boundary. The local workbench validates a deliberately tiny closed proposition vocabulary but returns =theorem_prover_not_implemented=. That visible non-execution is preferable to pretending a few Prolog clauses reproduce LINC.
+
+* LLM+P -- formal planning as the handoff
+Source inspected: Bo Liu et al., =LLM+P: Empowering Large Language Models with Optimal Planning Proficiency=, arXiv:2304.11477 [cite:@liu-llm-p-2023].
+
+DOCUMENTED: LLM+P converts a natural-language planning problem into PDDL, calls a classical planner, and translates the resulting plan back to natural language. The planner therefore owns formal search once given a planning problem.
+
+UPSTREAM-REPORTED: feasibility/optimality results from the paper remain upstream evidence.
+
+Teaching consequence: a valid planner can establish properties of the PDDL problem it actually receives. It cannot repair a semantically wrong PDDL translation by itself. The local workbench accepts only =planning_problem(problem(DomainId,ProblemId))= as typed data and returns =planner_owned_by_symbolic_ai_prolog=. Actual planner derivation remains in the sibling classical symbolic-AI volume.
+
+* Recursive Language Models -- externalize the prompt and recurse under a host runtime
+Source inspected: Alex L. Zhang, Tim Kraska, and Omar Khattab, =Recursive Language Models=, arXiv:2512.24601 [cite:@zhang-rlm].
+
+DOCUMENTED: RLMs treat long prompts as an external environment that the model can examine programmatically, decompose, and recursively query with sub-model calls. The architectural change is not “a bigger prompt”; it moves context access and recursive inference into an explicit inference strategy.
+
+UPSTREAM-REPORTED: long-context quality and cost claims in the paper are not reproduced here.
+
+Teaching consequence: recursion adds an accounting problem. A serious host needs subproblem identity, depth/call/token/time limits, duplicate detection, provenance, and a rule for accepting intermediate results. The local =subproblem_request= type is therefore bounded to depth 0--8 and deliberately returns =recursive_runtime_not_enabled=. The later capstone will implement and evaluate a concrete runtime instead of pretending this type alone is an RLM.
+
+* Current Prolog-RLM source boundary
+Read-only source rechecked 2026-09-17: =lost-rob0t/prolog-rlm= main remains exact revision =51d2530f0e18c84cff860b7c0bf3afcc3c488057= [cite:@prolog-rlm-source].
+
+DOCUMENTED from the already-inspected current source baseline: the runtime separates provider completion, parsing/normalization, capability/budget validation, and execution; it does not grant the model unrestricted =call/1= or arbitrary shell/source execution. Its deterministic fake provider is test support rather than evidence about live providers.
+
+UNTESTED IN THIS BOOK: Prolog-RLM's runtime, recursive experiments, provider integrations, benchmarks, and production behavior were not executed by issue #129. Source inspection is architectural evidence only.
+
+Teaching consequence: the capstone can study the concrete current architecture, but it must still build its own frozen experiments and report its own failures. It cannot import the RLM paper's numbers or Prolog-RLM repository claims as local results.
+
+* Local symbolic-handoff teaching contract
+REPOSITORY DESIGN / currently UNTESTED pending CI:
+- =artifact_kind/1= enumerates a closed set: capability request, opaque program proposal, constraint specification, logic theory, planning problem, and recursive subproblem request.
+- host-owned =request_id= and =source_id= become provenance; an external artifact cannot add an =authority= key to that host context.
+- capability requests reuse the existing accepted Project 1 =execute_capability/2= authority path.
+- one constraint artifact reuses the existing accepted CLP(FD) scheduling relation, so readers can see a genuine declarative solver handoff without a model or a fabricated external system.
+- program proposals remain opaque strings and are never parsed or executed as code.
+- logic theories and planning problems are validated only enough to show a closed shape, then return explicit =unsupported= outcomes because this book is not implementing a theorem prover or second planner here.
+- recursive subproblems carry bounded depth data but do not trigger model recursion.
+
+The workbench tests must prove these boundaries before any bullet above is promoted to TESTED.
+
+* Cross-book boundary
+- =books/prolog= teaches the language mechanisms themselves and remains the strongest pure-Prolog course.
+- =books/symbolic-ai-prolog= owns theorem/proof/search/planning mechanisms as classical symbolic AI in Prolog.
+- this volume owns the model-to-artifact handoff, validation, provenance, solver feedback, evaluation, and eventual recursive model orchestration.
+
+* Remaining research
+- Inspect implementation repositories at fixed revisions before describing implementation details beyond the papers.
+- Research empirical evaluation methodology for semantic-parser error versus solver error, false acceptance, repair success, and provenance completeness before Project 5.
+- Before any live provider example, separately research provider timeout/cancellation/retry semantics at the exact API revision used.
