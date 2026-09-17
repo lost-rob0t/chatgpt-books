@@ -15,3 +15,7 @@
 [[file:assets/gradient_geometry.svg]]
 #+include: "chain-rule.org"
 #+include: "linear-regression-project.org"
+#+include: "gradient-descent-visualizer.org"
+#+caption: Fixed-step gradient descent can approach a minimum monotonically, cross it while converging, or diverge depending on the curvature-scaled step. The two-dimensional panel shows the same global rate behaving differently along directions with different curvature.
+#+attr_html: :alt The left panel shows scalar parameter-error traces for monotone convergence, oscillatory convergence, and divergence using different line patterns and markers. The right panel shows elliptical quadratic level curves with one solid zig-zagging path converging toward the minimum and one dashed path growing away because its high-curvature coordinate is unstable.
+[[file:assets/gradient_descent_regimes.svg]]
