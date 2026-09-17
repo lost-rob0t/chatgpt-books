@@ -1,0 +1,36 @@
+digraph search_strategy_frontiers {
+  rankdir=LR;
+  graph [fontname="DejaVu Sans", labelloc="t", label="One planner kernel, three frontier policies"];
+  node [shape=box, fontname="DejaVu Sans"];
+  edge [fontname="DejaVu Sans"];
+
+  start [label="canonical state\nfailed(node7), tech@depot"];
+  generate [label="Chapter 8 successor kernel\napplicable/3 + apply_instance/3"];
+  remote [label="remote_restore\n1 step, cost 12"];
+  site [label="shuttle -> onsite_restore\n2 steps, total cost 11"];
+
+  bfs [label="FIFO / BFS\npriority = depth"];
+  ucs [label="uniform-cost\npriority = g"];
+  astar [label="A*\npriority = g + h"];
+  best [label="best-known g map\nstrict improvement only"];
+  stale [label="older heap entry\nreported stale on pop"];
+  htab [label="closed heuristic table\nState -> H\n(no callable goal)"];
+
+  start -> generate;
+  generate -> remote [label="candidate"];
+  generate -> site [label="candidate"];
+
+  remote -> bfs [label="depth 1"];
+  site -> bfs [label="depth 2"];
+  bfs -> remote [label="selected first", dir=back, style=dashed];
+
+  remote -> ucs [label="g=12"];
+  site -> ucs [label="g=11"];
+  ucs -> best;
+  best -> stale [label="when cheaper state rediscovered"];
+
+  remote -> astar [label="g+h"];
+  site -> astar [label="g+h"];
+  htab -> astar [label="validated H"];
+  astar -> best [label="same replacement rule"];
+}
