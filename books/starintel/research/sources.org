@@ -33,11 +33,21 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 ** Sento / cl-gserver actor runtime pinned by StarIntel Server
 - URL :: https://github.com/mdbergmann/cl-gserver
 - Revision :: =6a510c5b58469e72e6363bd3a6059d80b9a5c320=
-- Retrieved :: 2026-09-16
+- Retrieved :: 2026-09-17
 - Authority :: Exact upstream Common Lisp actor runtime revision pinned by the Project 3 StarIntel Server test pin for the =sento= ASDF system.
-- Inspected :: StarIntel flake pin plus the pinned README sections for actor systems/contexts, =actor-of=, asynchronous =tell=/ask semantics, actor lookup, lifecycle operations, and shared versus pinned dispatchers.
-- Used by :: Chapter 7 and Project 3 milestone A to define the generic actor/message boundary actually used by the pinned StarIntel runtime.
-- Evidence status :: the inspected Sento API/semantics are DOCUMENTED from the exact pinned upstream source. StarIntel-specific actor crash/restart behavior is UNTESTED in Project 3 milestone A and is not inferred from generic actor terminology.
+- Inspected :: StarIntel flake pin; pinned README sections for actor systems/contexts, =actor-of=, asynchronous =tell=/ask semantics, actor lookup, lifecycle operations, and shared versus pinned dispatchers; and =src/actor-cell.lisp= for the exact handler exception/running/stop boundary.
+- Handler-failure finding :: =handle-message= catches =serious-condition= raised by user handling and returns =(:handler-error . condition)=; the catch path does not invoke the explicit =stop= method. =running-p= reads the actor-cell's internal running flag; =stop= changes that flag and stops the message box.
+- Used by :: Chapter 7 and Project 3 milestones A--B to define and test the generic actor/message/failure boundary actually used by the pinned StarIntel runtime.
+- Evidence status :: these implementation semantics are DOCUMENTED from the exact pinned upstream source. The book promotes StarIntel-specific post-fault continuation only after its injected upstream-runtime regression executes successfully; generic automatic restart/replacement is not inferred.
+
+** StarIntel Project 3 milestone-A PR #93
+- URL :: https://github.com/lost-rob0t/chatgpt-books/pull/93
+- Merge revision :: =8e9328b2332cddb224fa781106c772e0ecaa3f63=
+- Accepted PR head :: =509495bd3f346c08e660b053b4b164b4a15f9e08=
+- Retrieved :: 2026-09-17
+- Authority :: Merged book verification/editorial record establishing the dependency gate for Actor Failure Pass 07.
+- Verification record :: focused =starintel-book= run =35177306168= and generic =books-ci= run =35177306173= succeeded at the accepted head.
+- Used by :: Project 3 continuity and the historical/current boundary between milestone A and the active handler-failure slice.
 
 ** StarIntel Server issue #187 -- concurrent quarantine ID collision
 - URL :: https://github.com/lost-rob0t/starintel-server/issues/187

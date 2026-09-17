@@ -3,7 +3,7 @@
 :ID:       d04e0764-a154-5602-934a-1a1ce9f935d7
 :END:
 * Phase
-The first two project-backed runtime milestones are merged and Project 3 milestone A is the active worker draft in PR #93. The current slice derives and tests actor registration, target-dispatch envelopes, local-versus-Rabbit destination selection, and the evidence boundary around restart/recovery behavior. The complete 300--700 page book remains far from release-ready.
+The first two projects and Project 3 milestone A are merged. Project 3 milestone B is now the active worker slice: fault the same local actor, distinguish exception isolation from restart/replacement, and keep the separate whole-process persisted-target recovery claim fail-closed until a real restart experiment exists. The complete 300--700 page book remains far from release-ready.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
 - The bounded Chapters 1--5 / Project 1 milestone-A foundation was editorially approved and merged previously.
@@ -19,42 +19,44 @@ The first two project-backed runtime milestones are merged and Project 3 milesto
 - The =bulk-job-lifetime= book lab audits sanitized lifecycle observations with explicit =proven= / =incomplete= / =contradicted= outcomes rather than simulating StarIntel. Its synthetic suite covers eleven lifecycle/failure cases.
 - PR #44 was editorially APPROVED and merged as =84fab98a4eb3f7ab136c99a138dc1fb1f15c0488= after exact-head focused and generic CI.
 - PR #58 was editorially APPROVED and merged as =316378ea8e30f94f7041c86b31842de73a16eddb=. Its disposable-stack evidence established only the bounded observations actually measured: baseline POST/read-back, broker-down POST without bounded read-back, and explicit =start RabbitMQ -> restart StarIntel= recovery. Publisher confirms, settlement redelivery, transparent reconnect, and the outbox crash window were not promoted by that merge.
-- The StarIntel manuscript is split into stable Org include modules without changing the earlier foundation/runtime content or IDs.
-- Editable Graphviz source and rendered SVG assets cover the foundation document flow, ingest settlement/outbox model, and the active actor-dispatch evidence boundary.
-* Active slice -- Actor Runtime Pass 06 / Project 3 milestone A
-PR #93's runnable Project 3 evidence is pinned to StarIntel Server revision =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= and that revision's Sento/cl-gserver pin =6a510c5b58469e72e6363bd3a6059d80b9a5c320=. Current StarIntel Server =master= was rechecked on 2026-09-17 at =e49c67d88d60dbcc0fcba1b4ba76c1a0a6d6655c=. The eleven-commit delta from the experiment pin changes observability, authorization, configuration, Compose, and their tests, not the actor/target/runtime source used by this milestone; the relevant current files were re-inspected at the new head.
+- Project 3 milestone A / Chapter 7 actor-dispatch boundary was editorially APPROVED and merged from PR #93 as =8e9328b2332cddb224fa781106c772e0ecaa3f63=. Its accepted head =509495bd3f346c08e660b053b4b164b4a15f9e08= passed focused =starintel-book= run =35177306168= and generic =books-ci= run =35177306173=.
+- Milestone A TESTED explicit create+register, current typed local target-envelope delivery, unresolved-name current canonical/compatibility destination construction, and invalid actor identity at exact StarIntel Server pin =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= with Sento/cl-gserver =6a510c5b58469e72e6363bd3a6059d80b9a5c320=.
+- The StarIntel manuscript is split into stable Org include modules without changing earlier foundation/runtime IDs.
+- Editable Graphviz source and rendered SVG assets cover document flow, ingest settlement/outbox, actor dispatch, and the new handler-failure evidence boundary.
+* Active slice -- Actor Failure Pass 07 / Project 3 milestone B
+Current StarIntel Server =master= was rechecked on 2026-09-17 at =e49c67d88d60dbcc0fcba1b4ba76c1a0a6d6655c=. The actor/target/runtime source relevant to Project 3 remains unchanged from the executable milestone-A pin. Current-source currency is therefore DOCUMENTED at =e49c67d...= while runtime tests remain deliberately pinned to =1ac298b...= and the exact Sento revision recorded above.
 
-The source audit distinguishes historical code from the effective serial load graph. At the current rechecked head:
-- the target-dispatch layer resolves an exact registered actor locally and otherwise constructs canonical Rabbit route =documents.target.dispatch.<actor>= while retaining =actors.<actor>.new.target= as compatibility metadata;
-- local target delivery carries the current =target-dispatch-envelope= rather than the older raw-target message shape;
-- =define-actor= accepts =:register= but its macro expansion does not call =register-actor=, so Project 3 keeps actor creation and registry insertion adjacent in one explicit startup function;
-- a later-loaded =runtime-lifecycle.lisp= definition of =start-actors= does not contain the earlier =recover-persisted-targets= call from =target-recovery.lisp=. This is a DOCUMENTED source/load-order finding only; no restart experiment has yet established the operational consequence.
+The exact pinned Sento =src/actor-cell.lisp= provides the first new source finding: its =handle-message= catches a =serious-condition= from user handling, logs it, and returns a =(:handler-error . condition)= result. That path does not call the explicit actor-cell =stop= method. This is DOCUMENTED source evidence, not yet a StarIntel test result.
 
-The teaching extension in =code/actor-runtime/book-actor.lisp= is deliberately thin: it creates and registers one Sento actor, requires the current typed dispatch envelope, and records a sanitized in-memory handler receipt. The focused test injector loads that extension into the exact pinned upstream StarIntel test system instead of copying routing, scheduling, persistence, or Rabbit implementation into the book.
+Milestone B extends the same =book-audit= teaching actor rather than creating a second toy actor. A one-shot book-only switch causes exactly the next *valid* =target-dispatch-envelope= to raise inside the receive handler before recording a receipt. The test then queues a second valid envelope and uses its handler receipt as the positive post-fault liveness observation. It additionally requires the original actor object to remain =sento.actor-cell:running-p= and requires StarIntel's registry to resolve =book-audit= to that same =eq= object.
+
+The recovery question remains intentionally separate. =check_recovery_load_order.py= now fails closed unless the exact pinned ASDF load order still loads =target-recovery= before =runtime-lifecycle=, the earlier =start-actors= contains =recover-persisted-targets=, and the later effective =start-actors= omits that call. This is an executable DOCUMENTED-source guard, not a whole-process recovery simulator.
 * Active research
-- Project 3 milestone A validates local create/register/envelope delivery, unresolved-name destination construction, and invalid actor identity against the exact =1ac298b...= pinned upstream runtime; those executable results are not silently generalized to newer server heads.
-- Current-source currency for the actor/target/load-order claims is DOCUMENTED separately at =e49c67d...= after a full compare and targeted reinspection.
-- Project 3 milestone B must deliberately fault the local actor boundary before the manuscript may make concrete claims about handler exceptions, component death, registry state after failure, replacement/restart policy, or queued-message survival.
-- A separate process-restart experiment is required before making a stronger claim about automatic persisted-target recovery at the current load graph.
+- Actor Failure Pass 07 derives the difference between handler exception isolation, component stop, replacement, and process restart from exact pinned Sento source and current StarIntel registry/load-order evidence.
+- The new same-component failure regression is a TEST TARGET until exact-branch CI runs it inside the pinned upstream StarIntel/Sento unit-test environment. Do not call it TESTED merely because the source has been written.
+- The recovery load-order guard has hermetic regression cases for the recorded boundary, reversed component order, a newly restored final recovery call, and balanced-form parsing with parentheses inside strings. Its source-level result remains separate from operational restart behavior.
+- A real whole-process restart experiment is still required: persist a synthetic target, cross an actual StarIntel process boundary, and observe whether the runtime schedule/execution is reconstructed without directly invoking the explicit recovery API.
 - Real Rabbit delivery/settlement to an external actor remains a later service-backed boundary; destination construction alone is not delivery evidence.
 - Publisher confirms, settlement-failure redelivery/listener survival, the CouchDB outbox crash window, concurrent quarantine-ID behavior, terminal bulk payload release under sustained backlog, and transparent broker reconnect remain separate executable questions.
 - Quasar integration, language bindings, search/inference, deployment, security, and broader production-debugging surfaces remain later research.
 * Verification status
 - Merged Project 1 and Project 2 evidence is recorded in PRs #37, #44, and #58.
-- PR #93's first exact-head run at =bd8a1cb940aba87faaaedc290f08e499177e665b= passed the book/example job and repository Nix check, including =make book BOOK=starintel=, =make check BOOK=starintel=, the existing Project 1/2/failure-analysis suites, the actor injector's hermetic tests, and editable-diagram validation.
-- That first head did *not* pass the pinned upstream actor job: the Nix Git-flake snapshot excluded the newly injected untracked Lisp files while the patched ASDF system referenced them. This was a test-harness packaging failure, not evidence about actor delivery. The runner now requires a clean exact-pin checkout and stages only the disposable injected files before invoking =nix run .#star-unit-tests= so the Nix source snapshot can see them. Later exact-head PR verification is authoritative.
-- DOCUMENTED at current upstream StarIntel Server head =e49c67d88d60dbcc0fcba1b4ba76c1a0a6d6655c=: the actor-target files used by milestone A are unchanged from the executable pin; current target route/envelope/destination behavior, actor registry implementation, =define-actor= registration behavior, target acceptance/scheduling separation, and the final loaded startup/recovery boundary remain as described.
-- TESTED actor-runtime claims remain bounded to the exact upstream StarIntel Server pin =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= and its recorded Sento revision.
-- UPSTREAM-REPORTED: product incidents and product-repository verification not independently reproduced by this book remain labelled as such.
+- Merged Project 3 milestone-A evidence is recorded in PR #93. Exact accepted focused/generic workflow runs are =35177306168= and =35177306173=.
+- DOCUMENTED at current upstream StarIntel Server head =e49c67d88d60dbcc0fcba1b4ba76c1a0a6d6655c=: actor/target/runtime files used by Project 3 remain unchanged from the executable pin; the current target route/envelope/destination behavior, registry implementation, =define-actor= registration behavior, target acceptance/scheduling separation, and final loaded startup/recovery boundary remain as recorded in Pass 06.
+- DOCUMENTED from exact Sento pin =6a510c5b58469e72e6363bd3a6059d80b9a5c320=: user-handler =serious-condition= is caught at =actor-cell:handle-message= and that catch path does not invoke explicit =stop=.
+- TEST TARGET on this active branch: the same =book-audit= actor consumes an injected handler failure, remains the same running/registered component, and handles the next valid typed envelope. Promotion to TESTED requires the exact upstream-runtime CI result.
+- TEST TARGET on this active branch: recovery source guard and hermetic guard regressions. Passing this guard may support DOCUMENTED source/load-order currency only; it may not promote whole-process recovery behavior.
+- UPSTREAM-REPORTED product incidents and product-repository verification not independently reproduced by this book remain labelled as such.
 * Unverified claims
+- Automatic actor restart/replacement is *not* claimed for the handler exception. If the new test passes with the same object identity, the accurate conclusion is continuation of the same component, not replacement.
+- Whole-process persisted-target recovery remains UNTESTED. The current load-order guard does not substitute for process-restart observation.
 - Real Rabbit delivery to an external actor is not tested by destination construction alone.
-- Actor handler crash/restart behavior, registry state after actor death, mailbox pressure, and replacement policy remain UNTESTED.
-- Automatic persisted-target recovery after a whole process restart remains UNTESTED; only the current source/load-order boundary is documented.
+- Mailbox pressure/overload and explicit actor stop/replacement behavior remain UNTESTED.
 - Publisher-confirm acceptance, settlement-failure redelivery, the outbox crash window, and transparent broker reconnect remain UNTESTED by the book's current evidence.
 - Actor-generated document ingest/provenance, multi-process discovery, Quasar integration, deployment guarantees, and production performance remain UNTESTED.
 * Technical/editorial/visual review
-The first two bounded projects are merged. PR #93 retains its prior Editor-in-Chief content approval; source-currency notes added by the worker do not constitute a new editorial decision. Whole-book technical/editorial/visual review has not started.
+Projects 1--2 and Project 3 milestone A are merged. The active milestone-B manuscript/code/research is a worker draft and has not received Editor-in-Chief approval. Whole-book technical/editorial/visual review has not started.
 * Next dependency-ready slice
-After Project 3 milestone A is accepted and landed, fault the same local actor instead of creating a second toy actor: inject a handler exception, observe component and registry state, determine the actual configured Sento restart/replacement behavior, and run a bounded whole-process persisted-target recovery experiment. Only then extend the actor to a real external/Rabbit boundary and actor-generated document/provenance flow.
+Finish the current handler-fault slice only after exact pinned upstream tests, =make book BOOK=starintel=, =make check BOOK=starintel=, diagram validation, generic repository CI, and Nix checks are green. The next evidence gate after that is the bounded whole-process persisted-target recovery experiment. Only after process recovery is observed should Project 3 expand to a real external/Rabbit actor boundary and actor-generated document/provenance flow.
 * Blockers
-No product implementation blocker is currently known. Project 3 milestone B remains dependency-gated on PR #93 landing. No merge or auto-merge is authorized for this worker.
+No product implementation blocker is currently known. Whole-process persisted-target recovery remains an explicit experimental gap, not a blocker for testing handler-failure isolation. No merge or auto-merge is authorized for this worker.

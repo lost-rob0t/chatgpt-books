@@ -1,0 +1,178 @@
+#+title: Actor Failure Pass 07 -- Handler Isolation, Registry Identity, and Recovery Evidence
+:PROPERTIES:
+:ID:       55b29a4f-b1f1-463f-82f8-3e431462ea28
+:END:
+
+* Scope
+Research date: 2026-09-17.
+
+Project 3 milestone A merged in PR #93 as commit
+=8e9328b2332cddb224fa781106c772e0ecaa3f63=.  That milestone proved local
+registration and typed-envelope delivery at the exact executable StarIntel
+Server pin =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= and its Sento/cl-gserver
+pin =6a510c5b58469e72e6363bd3a6059d80b9a5c320=.  It intentionally left
+handler faults and restart semantics untested.
+
+This pass advances the first half of milestone B by faulting the *same* teaching
+actor.  It also adds an executable fail-closed source guard around the separate
+persisted-target startup/recovery question.  It does not relabel that source
+guard as a process-restart experiment.
+
+Current StarIntel Server =master= was rechecked before edits at
+=e49c67d88d60dbcc0fcba1b4ba76c1a0a6d6655c=.  The actor/target/runtime files
+used by the Project 3 evidence remain unchanged from the exact executable pin,
+so current-head source findings and pinned execution can be kept distinct.
+
+* Claim policy
+- DOCUMENTED :: inspected current StarIntel source/load order or exact pinned
+  Sento implementation.
+- TEST TARGET :: runnable book test written for the exact pinned upstream
+  StarIntel/Sento environment but not promoted until CI actually passes.
+- TESTED :: only after the exact branch CI executes the relevant test.
+- UNTESTED :: no runnable observation yet.
+
+No claim below is promoted from TEST TARGET to TESTED merely because the code
+looks plausible.
+
+* Finding 1 -- this Sento handler boundary catches serious conditions
+At exact Sento revision =6a510c5...=, =src/actor-cell.lisp= implements
+=handle-message= with a =handler-case= around internal dispatch plus the user
+handler.  A =serious-condition= is logged and converted to a cons whose car is
+=:handler-error=.  That handler does not call =stop= or set the cell's internal
+running flag to false.
+
+The same file defines =running-p= from the actor-cell internal state.  The
+explicit =stop= method is the code path in that file that changes the running
+flag to false and stops the message box.  Therefore the source supports a
+narrow expectation: an ordinary condition raised by a user receive function is
+caught at the actor-cell message boundary rather than automatically invoking
+the explicit stop path.
+
+Evidence status: DOCUMENTED from the exact pinned Sento source.  This does *not*
+yet prove what the StarIntel teaching actor does after the fault; that is the
+purpose of the new upstream-runtime regression.
+
+* Finding 2 -- "exception isolation" is not "restart"
+A generic actor-model story can easily become misleading here.  If the same
+component remains alive after its handler throws, no replacement occurred.
+Calling that event an "automatic restart" would be false even if a later
+message succeeds.
+
+Project 3 therefore records three identities before/after the injected fault:
+
+#+begin_example
+component identity   -- the actor object returned by START-BOOK-ACTOR
+running state        -- SENTO.ACTOR-CELL:RUNNING-P on that same object
+registry resolution  -- STAR.ACTORS:GET-DEST-ACTOR("book-audit")
+#+end_example
+
+The post-fault test is designed to require all three observations plus a
+receipt from a later valid typed envelope.  If green, the precise conclusion is
+that this deliberately injected handler exception was isolated by the pinned
+Sento boundary and the same StarIntel-registered actor continued processing.
+It is *not* evidence for a supervisor replacing a dead actor.
+
+* Experiment design -- fault one valid target envelope
+The teaching actor keeps its normal contract: it accepts the current
+=star.actors:target-dispatch-envelope=.  Milestone B adds a book-only one-shot
+flag, =arm-book-handler-failure=, that causes exactly the next valid envelope to
+raise from inside the receive handler before a receipt is recorded.
+
+The test sequence is:
+
+1. create the real pinned Sento actor system and StarIntel actor index;
+2. start+register the existing =book-audit= actor and retain object identity A;
+3. assert A is running;
+4. arm the one-shot failure and dispatch a valid local typed envelope F;
+5. immediately queue another valid local typed envelope N to the same actor;
+6. wait for the sanitized receipt from N;
+7. require exactly one receipt and require it belongs to N, not F;
+8. require the failure switch was consumed;
+9. require =running-p(A)= remains true;
+10. require StarIntel's registry still resolves =book-audit= to =eq= object A.
+
+Sento actor mailboxes process an actor's messages serially.  Receipt N therefore
+serves as the positive liveness observation after F crossed the exception
+boundary.  The test avoids a fixed "sleep and hope" assertion that F failed;
+the later receipt is the synchronization point.
+
+Evidence status before CI: TEST TARGET.
+
+* Finding 3 -- persisted-target recovery is a different failure domain
+Current StarIntel source still contains two =start-actors= definitions in serial
+load order.  =source/target-recovery.lisp= defines an earlier version that runs
+actor hooks and then calls =recover-persisted-targets=.  Later-loaded
+=source/runtime-lifecycle.lisp= defines the effective runtime version and ends
+after running actor hooks; it does not call =recover-persisted-targets=.
+
+The explicit recovery function is still implemented and exported.  Its
+recovery logic queries persisted target documents, validates them, skips active
+leases, deduplicates by process-local target/revision fingerprints, and calls
+=submit-target= with =:recovered-p t= for eligible records.  The issue is not
+whether an explicit recovery API exists; it does.  The open operational
+question is whether normal whole-process startup invokes it at the current load
+boundary.
+
+To keep this claim from silently drifting, milestone B adds
+=check_recovery_load_order.py=.  Against the exact pinned StarIntel checkout it
+fails unless:
+
+- =target-recovery= is loaded before =runtime-lifecycle=;
+- the earlier =start-actors= contains =recover-persisted-targets=; and
+- the later effective =start-actors= omits that call.
+
+The parser extracts balanced Lisp forms and its own hermetic tests cover
+reversed load order, a newly added final recovery call, and parentheses inside
+strings.
+
+Evidence status: executable DOCUMENTED-source guard once CI passes.  It remains
+UNTESTED as a whole-process recovery behavior.  The guard exists specifically
+to prevent source inspection from being mistaken for runtime reproduction.
+
+* Diagram evidence
+Editable source: =assets/actor-failure-boundary.dot=.
+Rendered book asset: =assets/actor-failure-boundary.svg=.
+
+The diagram keeps the fault experiment and process-recovery question visually
+separate: same actor A receives F, the Sento actor-cell boundary catches the
+condition, later envelope N produces the observed receipt, and post-fault
+assertions check both running state and registry identity.  A dotted edge marks
+whole-process target recovery as a separate UNTESTED question.
+
+* Historical versus current behavior
+Milestone A already established that the older target router in
+=source/actors.lisp= is historical relative to the later loaded typed-envelope
+dispatcher.  Nothing inspected for this pass changes that conclusion.
+
+Likewise, generic statements such as "actor systems restart failed actors" are
+not used as current StarIntel evidence.  The exact pinned Sento implementation
+observed here catches a user-handler serious condition inside the actor-cell.
+A different Sento failure mode, an explicit stop, dispatcher failure, process
+exit, or external actor failure may have different semantics and must be tested
+separately.
+
+* Primary source inspected
+- =lost-rob0t/starintel-server= current =master= at
+  =e49c67d88d60dbcc0fcba1b4ba76c1a0a6d6655c=, rechecked 2026-09-17.
+  Relevant current files: =source/starintel-gserver.asd=,
+  =source/target-recovery.lisp=, =source/runtime-lifecycle.lisp=, and the actor
+  registry/dispatch files already inventoried in Pass 06.
+- =lost-rob0t/starintel-server= executable Project 3 pin
+  =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=.
+- =mdbergmann/cl-gserver= / Sento exact pin
+  =6a510c5b58469e72e6363bd3a6059d80b9a5c320=, especially
+  =src/actor-cell.lisp=.
+- =lost-rob0t/chatgpt-books= merged Project 3 milestone A PR #93 / merge
+  =8e9328b2332cddb224fa781106c772e0ecaa3f63=.
+
+* Remaining milestone-B gate
+The next missing experiment is intentionally not hidden by this pass: create a
+persisted synthetic target in the disposable authenticated StarIntel stack,
+terminate/restart the whole StarIntel process, and observe whether the target
+schedule is automatically reconstructed without directly calling the explicit
+recovery API.  The experiment must distinguish "persisted target document still
+exists" from "runtime schedule was reconstructed" and must not infer recovery
+from source shape alone.
+
+External Rabbit actor delivery/settlement is another later fault boundary and
+must not be conflated with local Sento =tell= behavior.
