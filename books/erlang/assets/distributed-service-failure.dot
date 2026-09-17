@@ -1,0 +1,27 @@
+digraph distributed_service_failure {
+  rankdir=LR;
+  graph [fontname="sans-serif", bgcolor="transparent", pad="0.2", nodesep="0.45", ranksep="0.75"];
+  node [shape=box, fontname="sans-serif", fontsize=11];
+  edge [fontname="sans-serif", fontsize=10];
+
+  subgraph cluster_origin {
+    label="origin node";
+    client [label="client\nrequest + process monitor"];
+    netmon [label="net_kernel:monitor_nodes/2\nconnection observer"];
+    harness [label="peer control process\ntest harness only"];
+  }
+
+  subgraph cluster_peer {
+    label="peer node";
+    service [label="erlang_book_dist_service\nregistered process"];
+  }
+
+  client -> service [label="Erlang Distribution\nrequest / reply"];
+  netmon -> service [style=dashed, label="nodeup / nodedown\nconnection A then B"];
+  harness -> service [style=dotted, label="standard-I/O control\nsurvives distribution cut"];
+  service -> client [style=dashed, label="DOWN deliberate_crash\nor DOWN noconnection"];
+
+  cut [shape=diamond, label="disconnect_node"];
+  client -> cut [style=dashed];
+  cut -> service [style=dashed, label="cuts Distribution only"];
+}
