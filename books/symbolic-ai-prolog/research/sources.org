@@ -143,3 +143,12 @@ Primary copy inspected: the published-paper scan mirrored at University of South
 Authority: primary published article plus bibliographic metadata records.
 Relevant material: depth-first cutoff behavior; failure to find solutions when an estimated cutoff is too low; restarting depth-first search at successively deeper limits; theorem scope for brute-force tree search; explicit arbitrary-graph caveat.
 Affects: Chapter 9 bounded DFS / iterative-deepening result semantics. The course planner does not claim Korf's tree-search asymptotic theorem for its graph-shaped relational state space.
+
+* Inspected 2026-09-17
+** Dechter and Pearl -- generalized best-first search and A* reopening
+Citation: Rina Dechter and Judea Pearl, “Generalized Best-First Search Strategies and the Optimality of A*,” =Journal of the Association for Computing Machinery= 32(3), 505--536, July 1985. DOI: 10.1145/3828.3830.
+Primary copy inspected: https://ics.uci.edu/~dechter/publications/r0.pdf -- author-hosted published-paper copy from Rina Dechter's UCI publication archive.
+Metadata cross-check: Rina Dechter's UCI publications page and ACM DOI record.
+Authority: original authors' paper plus publisher/author bibliographic records.
+Relevant material: BF* duplicate handling explicitly replaces a worse path and moves an improved node from CLOSED back to OPEN; discussion later notes that under consistent =h= A* does not reopen closed nodes; paper distinguishes admissible and consistent heuristic domains.
+Affects: Chapter 9 regression/failure lab for an admissible-but-inconsistent finite heuristic where the current teaching kernel must re-expand a canonical state after a strict best-=g= improvement. The book does not claim exact algorithmic equivalence to BF* or transfer the paper's optimal-efficiency results to the course kernel without their premises.

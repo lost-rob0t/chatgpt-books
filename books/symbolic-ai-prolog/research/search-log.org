@@ -113,3 +113,30 @@ Inspected primary/metadata sources:
 Result: sufficient to add a typed =found=/=cutoff=/=exhausted= result algebra, path-local canonical-state cycle pruning, and bounded iterative-deepening iterations without relabeling resource cutoff as logical failure. Korf's asymptotic/tree-search theorem is retained as source context, not claimed as measured or proven behavior of the course planner.
 
 Implementation status at research time: DOCUMENTED source claims; new bounded-search code, tests, publication, and Nix status remain UNTESTED until the exact new PR head runs.
+
+** 2026-09-16 -- Project 2 milestone C: finite heuristic-premise audit
+Questions:
+- Can the existing hand-audited heuristic table be checked against a completed finite reachable graph without pretending to prove an arbitrary heuristic generator correct?
+- What result should a state-cap cutoff return?
+- How can admissibility and consistency be reported independently?
+
+Inspected primary/official sources:
+- Hart, Nilsson, and Raphael 1968 plus the 1972 correction already inspected for Research 06.
+- Current official SWI =library(heaps)= and =library(assoc)= documentation already used by the running cost-search implementation.
+
+Result: only a completed finite reachable closure may receive heuristic-quality verdicts. The audit checks state lower bounds with exact remaining costs from the existing UCS kernel and checks every recorded edge for consistency. Hitting =MaxStates= returns =cutoff= with no admissibility/consistency verdict. This is finite fixture evidence, not a theorem about unbounded domains or heuristic generators.
+
+Implementation status at research time: recorded in Research 08; exact execution evidence is tracked separately in PR #112 and STATUS.org.
+
+** 2026-09-17 -- Project 2 milestone C: reopening after prior expansion
+Questions:
+- Does primary best-first/A* literature treat reopening a previously expanded node as an explicit graph-search mechanism?
+- Can the existing repository kernel be tested so a strict best-=g= improvement after prior expansion cannot be silently broken by a permanent CLOSED-set optimization?
+- Can one finite table force that behavior while remaining admissible and visibly inconsistent?
+
+Inspected primary/authoritative sources:
+- Rina Dechter and Judea Pearl, “Generalized Best-First Search Strategies and the Optimality of A*,” =Journal of the ACM= 32(3), 505--536 (1985), DOI =10.1145/3828.3830=; inspected the author-hosted primary PDF at https://ics.uci.edu/~dechter/publications/r0.pdf and cross-checked publication metadata with ACM/UCI records. The BF* pseudocode explicitly moves an improved node from CLOSED back to OPEN; the discussion later notes that consistent =h= avoids A* reopenings.
+
+Result: add a deterministic five-state/five-edge regression where the heuristic is admissible on every audited state but inconsistent on =b -> c=. The current kernel must first expand canonical state =c= at =g=4=, later improve it to =g=2=, expand it again, improve the queued goal from 9 to 7, and return the cost-7 plan. The test freezes the existing best-=g= replacement/reopening contract; it does not claim that every inconsistent heuristic causes a reopen.
+
+Implementation status at research time: DOCUMENTED source claim / UNTESTED new regression until exact-head SWI-Prolog and publication gates run.

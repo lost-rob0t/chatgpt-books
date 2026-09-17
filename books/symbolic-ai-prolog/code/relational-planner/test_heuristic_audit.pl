@@ -146,4 +146,96 @@ test(callable_heuristic_term_is_rejected_without_execution,
                     10,
                     _).
 
+test(admissible_inconsistent_heuristic_reopens_expanded_state) :-
+    reopening_costed_schemas(Costed),
+    reopening_start(Start),
+    reopening_goal(Goal),
+    reopening_heuristic(Heuristic),
+    canonical_state([at(b)], BState),
+    canonical_state([at(c)], CState),
+    audit_heuristic(
+        Costed,
+        Start,
+        Goal,
+        Heuristic,
+        10,
+        audited(summary(5, 5),
+                verdict(admissible_on_audited_states, inconsistent),
+                problems(Problems),
+                unreachable_goal_states([]))),
+    assertion(\+ member(inadmissible(_, _, _), Problems)),
+    assertion(member(inconsistent(BState,
+                                  step(b_to_c, b_to_c),
+                                  6,
+                                  1,
+                                  CState,
+                                  0),
+                     Problems)),
+    a_star_plan(
+        Costed,
+        Start,
+        Goal,
+        Heuristic,
+        found(plan(7,
+                   [ step(to_b, to_b),
+                     step(b_to_c, b_to_c),
+                     step(c_to_goal, c_to_goal)
+                   ],
+                   _)),
+        Trace),
+    findall(G,
+            member(expanded(CState, G, _, _), Trace),
+            CExpansionCosts),
+    assertion(CExpansionCosts == [4, 2]),
+    assertion(member(improved(CState,
+                              4,
+                              2,
+                              2,
+                              step(b_to_c, b_to_c)),
+                     Trace)).
+
+reopening_costed_schemas(
+    [ costed(schema(to_a,
+                    to_a,
+                    [at(start)],
+                    [at(a)],
+                    [at(start)]),
+             2),
+      costed(schema(to_b,
+                    to_b,
+                    [at(start)],
+                    [at(b)],
+                    [at(start)]),
+             1),
+      costed(schema(a_to_c,
+                    a_to_c,
+                    [at(a)],
+                    [at(c)],
+                    [at(a)]),
+             2),
+      costed(schema(b_to_c,
+                    b_to_c,
+                    [at(b)],
+                    [at(c)],
+                    [at(b)]),
+             1),
+      costed(schema(c_to_goal,
+                    c_to_goal,
+                    [at(c)],
+                    [at(goal)],
+                    [at(c)]),
+             5)
+    ]).
+
+reopening_start([at(start)]).
+reopening_goal([at(goal)]).
+
+reopening_heuristic(
+    table([ estimate([at(start)], 0),
+            estimate([at(a)], 0),
+            estimate([at(b)], 6),
+            estimate([at(c)], 0),
+            estimate([at(goal)], 0)
+          ])).
+
 :- end_tests(heuristic_audit).
