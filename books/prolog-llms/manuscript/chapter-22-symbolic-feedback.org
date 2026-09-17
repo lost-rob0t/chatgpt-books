@@ -1,0 +1,502 @@
+* Chapter 22 -- Symbolic Feedback, Repair, and Verifier-Guided Loops
+:PROPERTIES:
+:ID:       3431b41e-103b-4394-878c-379a30ec87aa
+:END:
+
+A symbolic component does not have to be only the last stage of a pipeline.  It
+can also tell the model why a candidate failed.
+
+That sounds straightforward: generate, check, send the error back, try again.
+The primary literature contains several versions of this idea.  Logic-LM uses
+symbolic-solver error messages to revise symbolic formulations
+[cite:@pan-logic-lm-2023].  Explanation-Refiner uses theorem proving to validate
+formalized explanations and produce feedback for subsequent refinement
+[cite:@quan-explanation-refiner-2024].  The LLM-Modulo framework argues for a
+broader generate-test-critique interaction between LLMs and external
+model-based verifiers [cite:@kambhampati-llm-modulo-2024].
+
+The loop is useful precisely because the verifier and model have different
+strengths.  It is dangerous for the same reason: feedback changes later model
+behavior, so the system now has state, iteration, stopping rules, and an
+acceptance protocol to get right.
+
+** 22.1 First classify the rejection
+
+Do not send every failure back as “try again.”  A useful verifier result is a
+typed value.
+
+For the formalization boundary from Chapter 21, a result vocabulary might be:
+
+#+begin_src prolog
+accepted(FormalizationId).
+rejected(parse_error(Location)).
+rejected(unknown_constructor(Name)).
+rejected(type_error(Field, Expected, Actual)).
+rejected(unknown_entity(Entity)).
+rejected(uncovered_requirement(RequirementId)).
+rejected(contradiction(LeftId, RightId)).
+rejected(unsatisfiable(CoreOrSummary)).
+rejected(resource_limit(Limit)).
+#+end_src
+
+These failures suggest different actions.
+
+A parse error may be repairable by re-emitting the same intended structure.  An
+unknown entity may require source clarification rather than formatting repair.
+An uncovered requirement means the translation lost information.  An
+unsatisfiable formalization may be a faithful representation of an impossible
+problem.  A resource limit says nothing about logical validity.
+
+If all failures collapse to one natural-language string, later analysis cannot
+tell whether repair improved syntax, semantics, or merely changed the problem.
+
+** 22.2 Logic-LM: solver errors as formalization feedback
+
+Logic-LM is a useful concrete case because it does more than translate and
+solve.  Its self-refinement module uses symbolic-solver error messages to revise
+generated symbolic formulations [cite:@pan-logic-lm-2023].
+
+The general pattern is:
+
+#+begin_example
+natural-language problem
+  -> candidate symbolic formulation
+  -> symbolic solver
+  -> error / result
+       |
+       +-- if repairable -> model refinement -> new formulation -> solver
+#+end_example
+
+This architecture can recover from some generated formalizations that a one-shot
+pipeline would discard.  But it creates a new question: what exactly is allowed
+to change between attempts?
+
+Suppose attempt 1 correctly includes a difficult constraint but fails because
+one predicate name is malformed.  A repair prompt that asks the model to
+“produce a version the solver accepts” might delete the difficult constraint.
+Attempt 2 then parses and solves.  The loop became more executable while the
+formalization became less faithful.
+
+Therefore a repair protocol needs invariants that survive across attempts.
+
+** 22.3 Freeze the problem, vary the candidate
+
+The host should keep request identity and source evidence outside model control:
+
+#+begin_example
+request_id       = req-73
+source_snapshot  = sha256:...
+required_items   = [r1,r2,r3,r4]
+formal_schema    = schedule_ir_v2
+attempt          = 1
+candidate_hash   = ...
+verdict          = rejected(...)
+#+end_example
+
+A repair produces attempt 2, not a mutation of attempt 1.  The source snapshot,
+required-item set, and schema stay fixed unless trusted host policy explicitly
+starts a new request.
+
+This gives the repair model a narrow job:
+
+#+begin_quote
+Produce another candidate for this same frozen problem that addresses these
+structured rejection reasons.
+#+end_quote
+
+It does not get to redefine what counts as success.
+
+** 22.4 Feedback should describe evidence, not grant authority
+
+Imagine the verifier returns:
+
+#+begin_src prolog
+rejected(unknown_capability(halt)).
+#+end_src
+
+A model can use that information to choose a capability from the supported
+vocabulary.  The error must not carry a generic suggestion such as:
+
+#+begin_example
+Try executing relational_task_solver:halt/0 directly.
+#+end_example
+
+That would widen the interface during repair.
+
+The accepted operation set remains host-owned across every attempt.  Feedback
+can reveal why a proposal failed; it cannot create a new capability.
+
+This is a general rule for neuro-symbolic repair:
+
+#+begin_quote
+A verifier may explain the boundary.  It must not let the candidate rewrite the
+boundary.
+#+end_quote
+
+** 22.5 Explanation-Refiner: verify an explanation, not only an answer
+
+Explanation-Refiner targets another layer.  It combines LLM generation and
+formalization with theorem-prover validation of explanatory reasoning, then
+uses formal feedback for refinement [cite:@quan-explanation-refiner-2024].
+
+This is important because answer correctness and explanation validity are
+separate properties.  A model can guess the right label while giving invalid
+reasoning.  It can also produce a logically valid derivation from mistranslated
+premises.
+
+For our book, explanation verification should therefore preserve at least three
+objects:
+
+1. the original evidence/premises;
+2. the accepted formal representation;
+3. the proof or explanation artifact derived from that representation.
+
+If a natural-language explanation is repaired, store the new rendering as a
+new artifact attached to the same or a new formal proof.  Do not overwrite the
+formal evidence merely because the prose improved.
+
+A renderer should ideally be downstream of proof data:
+
+#+begin_example
+accepted evidence
+  -> formal premises
+  -> proof object / solver trace
+  -> natural-language explanation
+#+end_example
+
+Then the model can improve readability without becoming the authority on which
+premises were used.
+
+** 22.6 LLM-Modulo: a bank of critics changes the acceptance predicate
+
+The LLM-Modulo position paper describes a tighter bi-directional architecture in
+which candidate plans can be evaluated by external model-based verifiers and
+other critics, with feedback returning to the model
+[cite:@kambhampati-llm-modulo-2024].  Later technical evaluations instantiate
+versions of this generate-test-critique idea in planning settings; their
+performance numbers remain upstream evidence for this book.
+
+A critic bank raises an important formal question: how are verdicts combined?
+
+Suppose we have:
+
+#+begin_example
+schema_critic        PASS
+resource_critic      PASS
+safety_critic        FAIL
+preference_critic    WARN
+#+end_example
+
+“Most critics passed” may be completely wrong if the safety critic is a hard
+constraint.  A system therefore needs an explicit acceptance relation, for
+example:
+
+#+begin_src prolog
+accept(Critiques) :-
+    hard_critics_pass(Critiques),
+    no_fatal_transport_error(Critiques),
+    preference_policy_satisfied(Critiques).
+#+end_src
+
+The model does not choose which critic counts as hard after seeing the results.
+That is host policy.
+
+Critic identity also belongs in provenance.  A verdict without the exact
+verifier version/configuration is difficult to reproduce.
+
+** 22.7 Hard verifier, soft critic, and learned judge are different evidence
+
+The word /verifier/ is often used loosely.  We should distinguish at least:
+
+- *formal verifier/solver check*: a deterministic or otherwise specified
+  procedure establishes a property of a formal artifact under known semantics;
+- *executable test*: code runs a finite set of cases and observes results;
+- *heuristic checker*: a deterministic rule approximates a desired property;
+- *learned classifier/judge*: another model estimates whether a property holds;
+- *human review*: a person makes a judgment under a stated protocol.
+
+All five can be useful.  They do not provide the same guarantee.
+
+If an LLM critiques another LLM's answer, the second model is not automatically
+a symbolic verifier.  If Prolog checks a closed invariant exactly, that is a
+stronger statement about that invariant—but still only about the encoded data.
+
+Chapter 24 will require evaluation reports to name the critic type instead of
+pooling them under “verified.”
+
+** 22.8 A passing verifier can be gamed if the property is incomplete
+
+Imagine a scheduling critic checks only that no two jobs overlap.  A model
+learns from rejection feedback and eventually returns an empty schedule.  The
+non-overlap checker passes it.
+
+The model did not hack Prolog.  The acceptance predicate was incomplete.
+
+This is verifier gaming in its simplest form: optimization pressure finds a way
+to satisfy the measured property while violating the intended task.
+
+Repair loops intensify this risk because each rejection teaches the generator
+something about the boundary.  The fix is not to hide errors from the model.
+The fix is to make the acceptance contract cover the properties that actually
+matter.
+
+For the schedule, acceptance might require:
+
+#+begin_src prolog
+acceptable_schedule(Schedule) :-
+    contains_all_required_jobs(Schedule),
+    respects_precedence(Schedule),
+    respects_resources(Schedule),
+    respects_release_times(Schedule),
+    bounded_values(Schedule).
+#+end_src
+
+Each predicate deserves negative tests.  In particular, add a degenerate
+candidate that passes one critic by omitting the work entirely.
+
+** 22.9 Counterexamples are better feedback than vague rejection
+
+A symbolic component can often produce a compact witness for failure.
+
+Instead of:
+
+#+begin_example
+invalid schedule
+#+end_example
+
+return:
+
+#+begin_src prolog
+rejected(resource_overlap(
+    verifier,
+    interval(validate_schema, 4, 6),
+    interval(verify_provenance, 5, 8))).
+#+end_src
+
+The model now has structured information about the violated relation without
+being handed an executable Prolog goal.
+
+For logical formalization, feedback might identify an uncovered source
+requirement or contradictory pair of accepted candidate facts.  For planning,
+it might return the first invalid transition with the missing precondition.  For
+proof checking, it might return the proof step whose premises do not entail its
+conclusion.
+
+Good feedback narrows the repair problem.
+
+** 22.10 But do not leak private or irrelevant state into repair prompts
+
+A verifier may know more than the model is permitted to see.  Imagine a
+multi-tenant system where a failed resource check is caused by a private object
+owned by another tenant.  Returning the raw database row as “helpful feedback”
+would leak data.
+
+Therefore rejection data needs the same permission discipline as normal
+results.  Separate:
+
+#+begin_example
+internal diagnostic
+  -> redaction / authorization
+  -> model-visible repair feedback
+#+end_example
+
+The internal diagnostic can remain detailed for audit logs.  The model-visible
+form can be narrower:
+
+#+begin_src prolog
+rejected(conflict_with_reserved_resource(verifier)).
+#+end_src
+
+A later production chapter will expand the privacy boundary.  The architectural
+lesson belongs here because verifier feedback is an outbound data channel.
+
+** 22.11 Bound the loop before the first model call
+
+A repair loop without a stopping rule is not an algorithmic contract.  Define
+budgets before execution:
+
+#+begin_example
+max_attempts          4
+max_model_calls       4
+wall_clock_deadline   30 s
+max_symbolic_steps    100000
+max_candidate_bytes   16384
+#+end_example
+
+The exact numbers depend on the application and are not recommendations here.
+The invariant is that the host owns them.
+
+A loop outcome should distinguish:
+
+#+begin_src prolog
+completed(AcceptedArtifact).
+failed(no_valid_candidate(Attempts)).
+failed(deadline_exceeded(LastAttempt)).
+failed(symbolic_budget_exhausted(LastAttempt)).
+failed(provider_failure(Attempt, Reason)).
+#+end_src
+
+Do not translate every non-success into “the proposition is false.”  Operational
+exhaustion and logical rejection are different evidence.
+
+** 22.12 Detect repeated candidates
+
+Models can oscillate:
+
+#+begin_example
+attempt 1 -> candidate A -> error X
+attempt 2 -> candidate B -> error Y
+attempt 3 -> candidate A -> error X
+attempt 4 -> candidate B -> error Y
+#+end_example
+
+Canonicalize accepted candidate data before hashing, then keep a host-owned set
+of seen candidate identities.  If a new attempt reproduces a rejected candidate
+under the same frozen request and schema, the controller can stop early or
+change repair strategy.
+
+Do not hash raw prose if whitespace or irrelevant key order can change without
+changing semantics.  Hash the validated/canonical candidate representation.
+
+Duplicate detection is not proof of convergence.  It is a practical stopping
+signal and an observable failure mode.
+
+** 22.13 Repair can target representation without changing semantics
+
+Some repairs are safe to automate narrowly.
+
+Suppose a model returns the right capability and arguments under the wrong JSON
+field name.  A host-side deterministic migration from an older known schema may
+be safer than another model call.  Similarly, canonical identifier spelling or
+unit conversion can sometimes be handled by trusted code.
+
+Use the model when the repair requires language understanding.  Use deterministic
+transformations when the transformation is already known.
+
+This gives a repair precedence:
+
+1. reject impossible/unauthorized requests;
+2. apply known deterministic normalization or version migration;
+3. validate again;
+4. only then consider a bounded model repair for unresolved semantic/formulation
+   errors.
+
+A model should not be paid to rediscover a deterministic normalization rule on
+every request.
+
+** 22.14 Keep rejected attempts as research data
+
+A system that stores only the final accepted candidate makes itself look better
+than it is.  For research, debugging, and safety analysis, rejected attempts are
+valuable evidence.
+
+Record at least:
+
+#+begin_example
+attempt_id
+parent_attempt_id
+candidate_hash
+candidate_representation (subject to privacy policy)
+parser/schema result
+semantic validation result
+solver/verifier result
+model-visible feedback
+provider/model identity
+latency/cost when observable
+final disposition
+#+end_example
+
+This allows questions such as:
+
+- Which failure classes are most common?
+- Does repair fix syntax but worsen semantic coverage?
+- How often does the loop repeat a prior candidate?
+- Does a particular verifier create a new failure elsewhere?
+- Are accepted candidates usually first-pass successes or late repairs?
+
+Those are much more informative than one aggregate accuracy number.
+
+** Lab 22.A -- A bounded repair controller
+
+Design a controller around the typed gateway from Chapters 7--8.  Keep the
+existing =execute_capability/2= authority boundary unchanged.
+
+The controller accepts:
+
+#+begin_src prolog
+repair_request(RequestId, FrozenInput, Budget).
+#+end_src
+
+Each model attempt returns the same typed candidate envelope already used by the
+gateway.  The controller must:
+
+1. assign an =attempt_id= before the provider call;
+2. validate/canonicalize the response;
+3. store a typed rejection reason if validation fails;
+4. expose only redacted structured feedback to the next attempt;
+5. detect a repeated canonical candidate;
+6. stop at the attempt/deadline budget;
+7. dispatch only an accepted candidate through the existing capability layer;
+8. return a final typed outcome containing the accepted attempt or terminal
+   failure reason.
+
+Required tests:
+
+- success on the first attempt;
+- malformed JSON followed by a valid repair;
+- unknown capability followed by an allowed capability;
+- same invalid candidate repeated until duplicate detection fires;
+- budget exhausted with no accepted candidate;
+- provider failure distinguished from verifier rejection;
+- stale/wrong request id never repaired into acceptance implicitly;
+- rejected attempt data never reaches =execute_capability/2=;
+- model-visible feedback omits one synthetic private diagnostic field.
+
+Use a deterministic fake provider sequence.  Do not claim that these tests
+measure real model repair skill.
+
+** Exercises
+
+1. Logic-LM receives a solver error.  Give one example where fixing the error
+   preserves source meaning and one where a naive repair could silently weaken
+   the problem.
+2. Design a typed counterexample for a violated =before/2= constraint.
+3. Explain why an LLM judge is not equivalent to a theorem prover even if both
+   return PASS/FAIL.
+4. Give a candidate that games an incomplete verifier.  Add the missing hard
+   critic.
+5. Should a warning-level preference critic block acceptance?  Show how the
+   answer belongs in explicit host policy rather than model discretion.
+6. Why should the exact rejected candidate be preserved after a successful
+   repair?
+7. How would you detect A/B/A/B repair oscillation if the JSON key order changes
+   on every attempt?
+8. Give one deterministic normalization that should happen before another model
+   call and explain why.
+9. What information in an internal verifier diagnostic might need redaction
+   before becoming model feedback?
+10. Explain why =deadline_exceeded= cannot be rendered as “no valid solution
+    exists.”
+
+** Evidence checkpoint
+
+DOCUMENTED: Logic-LM's solver-error refinement loop, Explanation-Refiner's
+LLM/theorem-prover validation/refinement architecture, and the LLM-Modulo
+position paper's external-verifier interaction model as described by their
+primary publications [cite:@pan-logic-lm-2023;@quan-explanation-refiner-2024;@kambhampati-llm-modulo-2024].
+
+REPOSITORY DESIGN: typed rejection terms, frozen request invariants, critic
+combination policy, redacted feedback, duplicate detection, attempt records, and
+Lab 22.A are designs for this book.  They are not attributed wholesale to those
+papers.
+
+UPSTREAM-REPORTED: published performance or benchmark improvements of cited
+systems.
+
+UNTESTED: the proposed bounded repair controller until implemented in a later
+Project 4 slice; real-provider repair effectiveness; any claim that repeated
+repair converges.
+
+The next chapter narrows from the general verifier loop to systems that use
+Prolog itself as the symbolic runtime.  There, we can inspect not only a final
+verdict but also the proof/search artifacts produced by logic execution.
