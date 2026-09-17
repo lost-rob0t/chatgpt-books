@@ -66,7 +66,7 @@ disconnect_reports_noconnection_without_killing_peer() ->
                                       {erlang_book_dist_service, Node}),
             {ok, #{node := Node, value := reconnected}} =
                 distributed_service:request(Node, {echo, reconnected}, 2000),
-            true = erlang:demonitor(Monitor2, [flush])
+            erlang:demonitor(Monitor2, [flush])
         after
             ok = net_kernel:monitor_nodes(false, Options)
         end
@@ -98,8 +98,17 @@ with_peer(Fun) ->
         {ok, _Pid} = peer:call(Peer, distributed_service, start, []),
         Fun(Peer, Node)
     after
-        catch peer:call(Peer, distributed_service, stop, []),
-        catch peer:stop(Peer)
+        ignore_cleanup(fun() ->
+            peer:call(Peer, distributed_service, stop, [])
+        end),
+        ignore_cleanup(fun() -> peer:stop(Peer) end)
+    end.
+
+ignore_cleanup(Fun) ->
+    try Fun() of
+        _ -> ok
+    catch
+        _:_ -> ok
     end.
 
 receive_node_event(Type, Node) ->
