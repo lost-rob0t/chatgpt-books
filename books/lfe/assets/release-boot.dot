@@ -1,0 +1,31 @@
+digraph lfe_release_boot {
+  rankdir=LR;
+  graph [fontname="sans-serif", labelloc="t", label="LFE Project 3 checkpoint C: source -> application -> release -> fresh BEAM"];
+  node [shape=box, fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  source [label="LFE source\nevent-rules + otp-router\n+ supervisor + application callback"];
+  beam [label="Compiled BEAM modules\nordinary VM code"];
+  app [label="otp_router.app\ncomponent identity + modules\nregistered names + dependencies\nmod = otp-router-app"];
+  controller [label="application controller\nstarts application master\nwhich starts top supervisor"];
+  sup [label="otp-router-sup\none_for_one policy"];
+  worker [label="otp-router gen_server\nProject 1 routing kernel"];
+  rel [label="lfe_router_release.rel\nwhole-system composition\nERTS + exact app versions"];
+  systools [label="systools:make_script/2\nvalidates .rel/.app closure"];
+  boot [label=".script + .boot\nstartup instructions"];
+  fresh [label="fresh erl -boot VM\nloads + starts otp_router"];
+  pkg [label="make_tar/2\nrelease package shape\n(no deployment proof)"];
+
+  source -> beam;
+  beam -> app [label="listed by"];
+  app -> controller [label="application:start"];
+  controller -> sup;
+  sup -> worker;
+  app -> rel [label="component metadata"];
+  rel -> systools;
+  app -> systools;
+  systools -> boot;
+  boot -> fresh;
+  fresh -> sup [label="owns same tree"];
+  systools -> pkg;
+}

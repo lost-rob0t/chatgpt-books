@@ -8,3 +8,4 @@
 #+include: "chapter-06-dcg.org"
 #+include: "chapter-06-clpfd.org"
 #+include: "chapter-06-meta.org"
+#+include: "chapter-07-08-typed-gateway.org"

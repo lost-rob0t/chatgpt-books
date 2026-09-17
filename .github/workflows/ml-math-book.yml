@@ -45,6 +45,10 @@ jobs:
         working-directory: books/ml-math/code/calculus
         run: python -m unittest -v test_calculus_lab.py
 
+      - name: Run Project 2 affine regression suite
+        working-directory: books/ml-math/code/linear_regression
+        run: python -m unittest -v test_linear_regression.py
+
       - name: Regenerate deterministic teaching figures
         shell: bash
         run: |
@@ -57,6 +61,9 @@ jobs:
           python plot_calculus_secants.py
           python plot_gradient_geometry.py
           git diff --exit-code -- ../../assets/calculus_secants.svg ../../assets/gradient_geometry.svg
+          cd ../linear_regression
+          python plot_regression_fit.py
+          git diff --exit-code -- ../../assets/linear_regression_fit.svg
 
       - name: Compile teaching Python
         shell: bash
@@ -68,7 +75,9 @@ jobs:
             books/ml-math/code/vector_toolkit/plot_matrix_transform.py \
             books/ml-math/code/calculus/calculus_lab.py \
             books/ml-math/code/calculus/plot_calculus_secants.py \
-            books/ml-math/code/calculus/plot_gradient_geometry.py
+            books/ml-math/code/calculus/plot_gradient_geometry.py \
+            books/ml-math/code/linear_regression/linear_regression.py \
+            books/ml-math/code/linear_regression/plot_regression_fit.py
 
       - name: Structural validation
         run: ./tools/check-structure
