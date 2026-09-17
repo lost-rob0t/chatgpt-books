@@ -88,10 +88,21 @@ jobs:
             books/starintel/code/bulk-job-lifetime/audit.py \
             books/starintel/code/bulk-job-lifetime/test_audit.py
 
+      - name: Run Project 3 actor-injector tests
+        run: |
+          python3 -m unittest discover \
+            -s books/starintel/code/actor-runtime \
+            -p 'test_*.py' -v
+          python3 -m py_compile \
+            books/starintel/code/actor-runtime/inject_upstream_test.py \
+            books/starintel/code/actor-runtime/test_injector.py
+          bash -n books/starintel/code/actor-runtime/run-pinned-tests
+
       - name: Validate editable diagram sources
         run: |
           dot -Tsvg books/starintel/assets/document-flow.dot -o /tmp/starintel-document-flow.svg
           dot -Tsvg books/starintel/assets/ingest-settlement.dot -o /tmp/starintel-ingest-settlement.svg
+          dot -Tsvg books/starintel/assets/actor-dispatch.dot -o /tmp/starintel-actor-dispatch.svg
 
       - name: Build StarIntel book
         run: make book BOOK=starintel
@@ -100,6 +111,35 @@ jobs:
         env:
           EPUBCHECK_JAR: .cache/epubcheck-5.3.0/epubcheck.jar
         run: make check BOOK=starintel
+
+  actor-runtime-upstream:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Fetch exact StarIntel Server actor-runtime pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/starintel-server
+          git -C .cache/starintel-server init
+          git -C .cache/starintel-server remote add origin https://github.com/lost-rob0t/starintel-server.git
+          git -C .cache/starintel-server fetch --depth=1 origin 1ac298b797bd4bc0e71cfde083c6a59af55ccc6f
+          git -C .cache/starintel-server checkout --detach FETCH_HEAD
+          test "$(git -C .cache/starintel-server rev-parse HEAD)" = \
+            "1ac298b797bd4bc0e71cfde083c6a59af55ccc6f"
+
+      - name: Run Project 3 inside pinned upstream StarIntel/Sento unit suite
+        run: bash books/starintel/code/actor-runtime/run-pinned-tests .cache/starintel-server
 
   service-backed-trace:
     runs-on: ubuntu-latest

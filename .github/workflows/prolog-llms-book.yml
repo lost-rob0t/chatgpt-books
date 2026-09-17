@@ -34,6 +34,9 @@ jobs:
       - name: Test Project 1 relational baseline
         run: swipl -q -s books/prolog-llms/code/relational-task-solver/run_tests.pl
 
+      - name: Test Project 2 typed gateway
+        run: swipl -q -s books/prolog-llms/code/typed-gateway/run_tests.pl
+
       - name: Structural validation
         run: ./tools/check-structure
 

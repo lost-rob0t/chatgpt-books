@@ -1,0 +1,85 @@
+** 9.20 Failure Lab E -- Valid Data Can Still Be a Bad Heuristic
+:PROPERTIES:
+:ID:       3c993cbc-2dac-453d-a696-4dbb834333d4
+:END:
+
+The previous labs made the adapter fail closed on malformed heuristic data. That is necessary, but it is not enough.
+
+A heuristic table can be perfectly valid according to the program's *data contract* and still violate the mathematical assumptions needed for a minimum-cost A* claim.
+
+This distinction matters because software validation and theorem premises answer different questions:
+
+- the adapter asks whether the input has an allowed shape, uses canonical ground states, contains unique entries, and supplies non-negative integer estimates;
+- an admissibility argument asks whether each estimate is a lower bound on the true remaining optimal cost;
+- a consistency argument imposes an additional relation between neighboring states and transition costs.
+
+The implementation checks the first category. It does not prove the latter two [cite:@hart-nilsson-raphael-astar-1968;@hart-nilsson-raphael-astar-correction-1972].
+
+Use the same weighted recovery fixture, but replace the audited estimate for the failed/on-site state with =100=. Keep zero estimates for the restored goal states. In abbreviated form:
+
+#+begin_src prolog
+Overestimating = table([
+    estimate(StartState,      0),
+    estimate(FailedSiteState, 100),
+    estimate(RemoteGoalState, 0),
+    estimate(SiteGoalState,   0)
+]).
+#+end_src
+
+Nothing about those terms is malformed. The states are allowed data and every estimate is a non-negative integer.
+
+Now follow the frontier arithmetic after the start state expands.
+
+The direct remote recovery reaches a goal with:
+
+#+begin_example
+g = 12
+h = 0
+f = 12
+#+end_example
+
+The cheaper on-site route first reaches the site through the cost-1 shuttle, but the deliberately bad estimate gives it:
+
+#+begin_example
+g = 1
+h = 100
+f = 101
+#+end_example
+
+The remote goal therefore reaches the front of the heap first. This teaching implementation returns when a goal node is selected from the frontier, so the overestimating table can make A* return the one-action cost-12 plan while uniform-cost search still returns the two-action cost-11 plan.
+
+That outcome is not evidence that the priority queue is broken. It is evidence that *well-formed heuristic data is weaker than a justified heuristic*.
+
+The regression suite encodes this counterexample directly. It compares UCS with A* under the deliberately overestimating table and requires the disagreement to remain visible. If a future refactor starts advertising every accepted table as an optimality-preserving heuristic, the failure case is already waiting to contradict it.
+
+*** Representation safety is a different axis
+There is a second boundary in the same API. Try to pass a callable-looking term as the heuristic:
+
+#+begin_src prolog
+throw(marker)
+#+end_src
+
+The planner must treat that term as data presented to the heuristic adapter. It must reject it with a =planning_heuristic= type error; it must *not* execute it.
+
+That check answers an authority question: “Can heuristic input become arbitrary host execution?”
+
+The overestimation counterexample answers a reasoning-quality question: “Does accepted heuristic data preserve the theorem condition needed for the claim I want?”
+
+Do not collapse those questions into one generic word such as “safe.” A closed data boundary can be safe from meta-call injection while still containing logically poor estimates. Conversely, a mathematically excellent heuristic callback could still be an unacceptable execution boundary in a system that does not authorize arbitrary predicates.
+
+*** Debugging disagreement between UCS and A*
+For a finite teaching domain where UCS is still practical, a disagreement is useful evidence. Work outward from the shared transition kernel instead of immediately blaming the heap.
+
+1. Confirm both searches received the same canonical start, goals, =schema/5= terms, and explicit costs.
+2. Confirm the selected plans replay through =applicable/3= and =apply_instance/3= under the same transition semantics.
+3. Check that the heuristic table covers every state that A* actually queues and that canonicalization has not merged two entries unexpectedly.
+4. Compare each =h= against a trusted remaining-cost calculation for the finite fixture. A passing representation check is irrelevant to this step.
+5. Only after the inputs and theorem premises are understood should you investigate priority ordering, stale-entry handling, or best-known-=g= replacement.
+
+This is one reason Chapter 9 retains UCS even after introducing A*. The simpler cost-aware search is not merely an obsolete precursor; on bounded fixtures it is a useful reference mechanism for testing the stronger assumptions introduced by heuristic search.
+
+*** Exercises
+1. Change the failed/on-site estimate from =100= to =11=. Predict the frontier order before running the test. Then determine whether that value is admissible for the fixture and justify the answer from remaining path cost rather than from the observed result.
+2. Give the remote goal a positive heuristic value. Explain why a goal estimate is part of the heuristic contract even though the state already satisfies the planning goal.
+3. Construct a complete, non-negative heuristic table that is admissible on the fixture but inconsistent across at least one transition, if possible under your chosen values. State exactly which inequality you are checking and which historical claim you are *not* importing automatically.
+4. Design a finite-domain audit predicate that checks a supplied table against exact UCS distances for every reachable state. Explain why passing that audit would establish a property of this enumerated fixture, not a theorem about arbitrary future domains.

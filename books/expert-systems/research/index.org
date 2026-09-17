@@ -12,5 +12,7 @@
 - [[file:foundations-03.org][Incremental Alpha/Beta Matching -- cached local/partial matches, delta propagation, and RETE-like boundaries]]
 - [[file:foundations-04.org][Justification-Based Truth Maintenance -- support groups, exact occurrence identity, grounding, and cascading retraction]]
 - [[file:foundations-05.org][Assumptions, Contradictions, and Counterevidence -- explicit assumptions, consistency keys, contradiction reports, and execution gates]]
+- [[file:foundations-06.org][Explanation and Provenance from Exact Supports -- current support graphs, alternatives, stale identity, and counterevidence]]
+- [[file:foundations-07.org][Source-Backed systemd Dependency Diagnosis -- requirement vs ordering semantics, attempt/generation identity, and provenance-bearing domain rules]]
 * Records
 Use [[file:sources.org][sources.org]] and [[file:search-log.org][search-log.org]].

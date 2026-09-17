@@ -8,5 +8,9 @@
 - screenshots only when real UI teaches something
 - generated illustration provenance records when used
 - unique cover background/motif + deterministic typography
+* Current teaching diagrams
+- =document-flow.dot/svg= -- foundation document/boundary flow.
+- =ingest-settlement.dot/svg= -- ingest settlement/outbox evidence model.
+- =actor-dispatch.dot/svg= -- Project 3 target acceptance, schedule, local registry resolution, Rabbit fallback, and observed handler boundary. The remote-consumer branch is explicitly marked UNTESTED in milestone A.
 * Rule
 Do not add decorative assets merely to inflate the book. Every informative figure gets caption + alt text.

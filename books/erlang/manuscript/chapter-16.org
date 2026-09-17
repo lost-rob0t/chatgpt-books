@@ -1,0 +1,383 @@
+** Chapter 16 -- Distribution: Nodes, Connections, and the Failure You Cannot See Through
+:PROPERTIES:
+:ID:       b20fd97d-014f-4f6d-b594-22ad8026310e
+:END:
+
+Chapter 15 gave Project 3 an honest local ownership boundary. A job can be
+accepted, queued, dispatched, retried, and then lost if the volatile ledger
+process itself dies. Distribution does not erase any of that. It adds another
+boundary between what one process can observe and what is actually happening
+somewhere else.
+
+This chapter begins Project 4 by refusing the easiest distributed-systems lie:
+
+#+begin_quote
+"I lost the connection" does not mean "the other process died."
+#+end_quote
+
+Erlang makes remote messaging unusually pleasant, but the convenience is a
+language/runtime mechanism, not proof of remote liveness, durable delivery,
+consensus, or failover.
+
+*** A node is a runtime identity, not a giant process
+
+A distributed Erlang system consists of multiple Erlang runtime systems called
+/nodes/. Current OTP 29.1 documents node identity as =name@host=, established
+with =-name= or =-sname= (or at runtime through =net_kernel=). Pid-based message
+passing, links, and monitors can cross node boundaries. Registered names remain
+local, so a remote registered service is addressed with both name and node.
+[cite:@erlang-distributed-29-1]
+
+That gives us three different identities to keep separate:
+
+| Layer | Example | What it identifies |
+|-
+| node | ='worker_a@host'= | one BEAM runtime identity |
+| process | =<12345.98.0>= | one process instance |
+| registered address | ={erlang_book_dist_service, Node}= | a name looked up on one node |
+
+A node can stay alive while a registered process crashes. A process can stay
+alive while another node loses its connection to it. Reconnecting to the same
+node name does not resurrect a monitor that already terminated on the old
+connection.
+
+The language helps us write the address. It cannot collapse those facts into
+one boolean called =alive=.
+
+*** Remote messaging is still message passing
+
+Project 4 uses a deliberately tiny service instead of starting with =rpc= or a
+framework. The point is to see the same protocol from Chapter 6 cross a real
+node boundary.
+
+The service registers one local name on the peer node. A request is still a
+term containing the caller PID and a fresh correlation reference:
+
+#+begin_src erlang
+Target = {erlang_book_dist_service, Node},
+Monitor = erlang:monitor(process, Target),
+Request = make_ref(),
+Target ! {request, self(), Request, {echo, hello}}.
+#+end_src
+
+The server replies directly to the caller PID:
+
+#+begin_src erlang
+From ! {dist_service_reply, Request,
+        #{node => node(), value => Value}}.
+#+end_src
+
+No separate serialization API appears in the application protocol. Erlang
+Distribution carries the term between nodes. That transparency is useful, but
+it is narrow: the nodes must be able to form a distribution connection, and the
+protocol still needs correlation, timeouts, failure handling, and ownership.
+[cite:@erlang-distributed-29-1]
+
+The runnable implementation is in =../code/distributed-service=. It is small on
+purpose. Project 4 is not trying to invent a second OTP framework; it is making
+the new failure surface executable.
+
+*** Connections appear when you use remote identity
+
+OTP describes distributed nodes as loosely connected. Referring to another node
+can initiate a connection attempt. Visible-node connections are normally
+transitive, and explicit disconnection is available through
+=erlang:disconnect_node/1=. [cite:@erlang-distributed-29-1]
+
+This has a design consequence that is easy to miss in beginner examples. A
+remote send is not just "the same mailbox, farther away." Before signals can
+cross the boundary, there is distribution state with its own setup, teardown,
+authentication configuration, and failure detection.
+
+For the teaching lab we disable connect-all behavior and make the relevant
+connection explicit. That keeps the trace legible:
+
+#+begin_example
+origin node                  peer node
+    |                            |
+    | net_kernel:connect_node    |
+    |--------------------------->|
+    |<---------- nodeup ---------|
+    |                            |
+    | request / reply            |
+    |<==========================>|
+#+end_example
+
+The double line represents the distribution connection. The service process is
+/not/ the line. That distinction drives the failure labs.
+
+*** Observe a process and a connection with different mechanisms
+
+We need two observations because we are asking two questions.
+
+A process monitor asks:
+
+#+begin_quote
+What happened to this process relationship?
+#+end_quote
+
+For a remote monitored process, current OTP can report the process's exit
+reason, =noproc= when the target did not exist at monitor creation, or
+=noconnection= when the observer has no connection to the node where the target
+resides. [cite:@erlang-preloaded-29-1]
+
+Node monitoring asks:
+
+#+begin_quote
+What happened to this observed distribution connection?
+#+end_quote
+
+=net_kernel:monitor_nodes/2= emits =nodeup= and =nodedown= events and can include
+connection identity and down-reason metadata. OTP 29.1 gives those events useful
+ordering guarantees: =nodeup= arrives before signals delivered from the remote
+node over the new connection; =nodedown= arrives after signals from the remote
+node over the old connection have been delivered. A later connection to the
+same node can be distinguished by its connection ID.
+[cite:@erlang-net-kernel-29-1]
+
+Those are runtime ordering guarantees. They are not a distributed-membership
+algorithm. A =nodedown= event says what this observer knows about one connection,
+not what every node in the system agrees about.
+
+*** Failure lab 1: crash the service and keep the node
+
+The first failure is deliberately local to the remote node.
+
+1. Start a real peer BEAM.
+2. Connect the origin to it.
+3. Start and monitor =erlang_book_dist_service= on the peer.
+4. Ask the peer control channel to make that service exit with
+   =deliberate_crash=.
+5. Observe the process =DOWN=.
+6. Assert that the node is still present in =nodes()=.
+
+The expected shape is:
+
+#+begin_example
+origin                      peer
+  |                           |
+  | monitor service           |
+  |                           | service exits(deliberate_crash)
+  |<-- DOWN deliberate_crash -|
+  |                           |
+  | nodes() still has peer    |
+#+end_example
+
+That one test kills a common debugging shortcut. A dead service and a dead node
+are different hypotheses. If you start by restarting or reconnecting the entire
+node whenever one process fails, you are destroying evidence and widening the
+blast radius.
+
+*** Failure lab 2: disconnect the nodes and keep the service
+
+The second lab is the inverse. We want the distribution connection to fail while
+the remote service remains alive.
+
+Testing this honestly needs a second channel. If the test harness controls the
+peer only through Erlang Distribution, disconnecting Distribution also destroys
+our ability to ask whether the peer survived. STDLIB's =peer= module solves that
+test-infrastructure problem: its control connection can use standard I/O instead
+of Erlang Distribution, specifically allowing tests of distribution itself.
+[cite:@erlang-peer-29-1]
+
+The lab therefore starts the peer with:
+
+#+begin_src erlang
+#{name => peer:random_name(erlang_book_dist_peer),
+  connection => standard_io,
+  args => ["-setcookie", Cookie,
+           "-kernel", "connect_all", "false",
+           "-pa", BeamDir]}
+#+end_src
+
+That standard-I/O channel belongs to the test harness, not the application.
+Application requests still use ordinary Erlang Distribution.
+
+Now the trace can say something precise:
+
+#+begin_example
+origin                         peer VM
+  | monitor_nodes(true)           |
+  | connect_node ---------------->|
+  |<--------- nodeup(connection A)|
+  | monitor remote service        |
+  | request =====================>|
+  |<======================= reply |
+  |                               |
+  | disconnect_node ------------X |  Distribution removed
+  |<------ DOWN(...,noconnection) |
+  |<------ nodedown(connection A) |
+  |                               |  service still running
+  | peer control RPC -----------> |  running() = true
+#+end_example
+
+The crucial assertion is not the =noconnection= itself. It is the independent
+observation that the service is still running after =noconnection= arrived.
+
+So what does =noconnection= mean?
+
+#+begin_quote
+The monitor relationship cannot continue because this observer lacks a
+distribution connection to the target node.
+#+end_quote
+
+It does /not/ mean the target process is dead. It does /not/ mean the peer VM is
+dead. A real partition gives you exactly this kind of epistemic problem: the
+observer has lost a path, not gained omniscience.
+
+*** Reconnection creates a new observation boundary
+
+The same lab reconnects without restarting the peer. =monitor_nodes/2= observes
+a new =nodeup= with a new connection ID. The test then creates a fresh process
+monitor and sends another request successfully.
+
+Why create a new monitor? Because the old one already terminated with
+=noconnection=. A new connection does not retroactively restore a dead monitor
+relationship.
+
+This is a miniature version of a much larger production rule:
+
+#+begin_quote
+After reconnect, reconstruct the application relationships your correctness
+requires. Do not assume the transport reconstructed them for you.
+#+end_quote
+
+For Project 3 that eventually means deciding how accepted work is rediscovered.
+For Project 4 it currently means rebuilding observation and request state. Later
+chapters will make persistence and replay explicit rather than smuggling them
+into a reconnect handler.
+
+*** =noproc= is different again
+
+The fourth executable scenario stops the remote registered service while the
+node connection remains healthy, then issues a monitored request to the now
+missing name. The process monitor reports =noproc=.
+
+That gives the project a useful failure table:
+
+| Evidence | Narrow interpretation |
+|-
+| =DOWN ... deliberate_crash= | that monitored service instance exited with that reason |
+| =DOWN ... noproc= | the monitored process/name did not exist when the monitor was established |
+| =DOWN ... noconnection= | this observer lacks a connection to the target node |
+| =nodedown= | the observed distribution connection went down |
+
+Do not promote any row into "the cluster is down." There is no cluster-wide
+truth object in this checkpoint.
+
+*** Debug the layers in order
+
+When a remote request fails, debug from the outside inward:
+
+1. *Node identity:* are both runtimes actually distributed nodes? Do their long
+   versus short naming modes agree?
+2. *Discovery/connection:* does =net_kernel:connect_node(Node)= succeed, and is
+   the node visible where expected?
+3. *Connection event:* did =monitor_nodes/2= report =nodeup= or =nodedown=, and
+   which connection ID is involved?
+4. *Process address:* does the expected registered name exist on that node?
+5. *Process monitor:* did it report a real exit, =noproc=, or =noconnection=?
+6. *Protocol:* did the request reference match the reply reference, and did the
+   caller time out after the send?
+7. *Application state:* if reconnect occurred, which relationships and pending
+   operations need reconstruction?
+
+This order prevents a classic waste of time: changing business logic while the
+nodes were never connected, or blaming the network when only one registered
+process crashed.
+
+*** Security boundary: the cookie is not your perimeter
+
+The examples use a fixed string named =erlang_book_test_cookie=. It is
+intentionally not a secret. The nodes are ephemeral same-host CI fixtures.
+
+Do not copy that choice into a production deployment.
+
+OTP 29.1 warns that starting a distributed node without TLS distribution can
+expose the node and cluster to complete compromise. The Distributed Erlang
+reference explicitly says its default cookie mechanism is not cryptographically
+secure and ordinary inter-node traffic is clear text. The Secure Coding
+Guidelines go further with deployment rule DEP-001: do not expose default
+Erlang Distribution on untrusted networks. [cite:@erlang-distributed-29-1
+@erlang-secure-coding-29-1]
+
+The right mental model is:
+
+- a matching cookie is a distribution admission mechanism;
+- it is not confidentiality;
+- it is not a hostile-network authentication design;
+- it is not authorization for application operations;
+- for an untrusted network, use the current OTP TLS-distribution guidance and a
+  deliberate deployment/security design.
+
+This checkpoint documents that boundary. It does not pretend that generating a
+certificate in a chapter would amount to a production PKI design.
+
+#+caption: Project 4 checkpoint A separates node-connection state from the lifetime of a registered remote process. The test harness uses a separate peer control channel so it can prove that a service survives while ordinary Erlang Distribution is disconnected, then observe a new connection and establish a fresh monitor.
+#+attr_html: :alt "Diagram with an origin node and peer node connected by Erlang Distribution. A registered service is inside the peer. A process monitor crosses the distribution connection, while a separate peer standard-I/O control channel stays alive when distribution is cut. The disconnect produces DOWN noconnection and nodedown, but the service remains alive; reconnection creates a new connection and monitor."
+[[file:assets/distributed-service-failure.svg]]
+
+The editable source is =../assets/distributed-service-failure.dot=.
+
+*** Project 4 checkpoint A contract
+:PROPERTIES:
+:ID:       e6a52330-a8b9-4ef8-b1cf-584db6358b68
+:END:
+
+This checkpoint is TESTED only when the pinned OTP runtime executes scenarios
+that establish all of the following:
+
+- a request/reply crosses a real local multi-node distribution connection and
+  the reply identifies the peer node that executed it;
+- killing the registered remote service yields its deliberate process exit
+  while the peer node remains connected;
+- stopping the remote registration without dropping the node yields =noproc=;
+- deliberately disconnecting Erlang Distribution terminates the remote process
+  monitor with =noconnection= and produces an observed =nodedown=;
+- the separate =peer= control channel can still prove the service process is
+  alive while Distribution is down;
+- reconnecting produces a new connection event, a fresh remote process monitor
+  can be established, and a new request succeeds.
+
+The checkpoint does *not* claim durable request recovery, exactly-once effects,
+multi-host availability, WAN partition behavior, TLS deployment correctness,
+consensus, global naming correctness, leader election, or production failover.
+
+*** Exercises
+
+1. ★ Explain why =noconnection= is weaker evidence than a remote process exit
+   reason such as =deliberate_crash=.
+2. ★ Draw two timelines that both produce =noconnection=: one where the peer VM
+   is dead and one where it is alive but unreachable. Mark the point at which
+   the observer's evidence becomes identical.
+3. ★★ Change the service to use an unregistered remote PID returned during
+   setup. Which address/name failure disappears, and which connection failures
+   remain?
+4. ★★ Add a client operation that deliberately times out while the remote
+   service continues running. Show why timeout, process death, and disconnection
+   are three different observations.
+5. ★★ Record =connection_id= in a tiny client state record and reject a stale
+   =nodeup=/=nodedown= event whose ID belongs to an older connection.
+6. ★★★ Replace the fixed request protocol with the Project 3 job-submission
+   message. Specify exactly which state would have to become durable before a
+   reconnect could safely replay accepted work. Do not implement storage yet.
+7. ★★★ Run the lab on two hosts inside an isolated trusted network. Record only
+   what you actually observe; do not generalize latency or failure timing from
+   one topology.
+8. ★★★ Design the TLS-distribution deployment boundary for a real environment:
+   certificate identity, trust roots, rotation, port exposure, EPMD strategy,
+   and application authorization. Keep the design separate from the simple
+   cookie-authenticated teaching fixture.
+
+*** What we have earned
+
+Project 4 can now cross a real node boundary without collapsing every failure
+into "remote thing died." It has distinct evidence for a process crash, a
+missing registered process, and a lost distribution connection. It can keep a
+peer alive while Distribution is cut and prove why =noconnection= is uncertainty
+rather than death proof.
+
+That is enough to proceed to recovery. Chapter 17 can now ask the harder
+question from a position of evidence: if a caller accepted work before a
+connection or process failed, what state must exist outside the volatile process
+so the system can decide what to recover, replay, reject, or explain?
