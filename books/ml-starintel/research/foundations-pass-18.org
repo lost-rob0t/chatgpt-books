@@ -1,0 +1,146 @@
+#+title: Machine Learning for StarIntel -- Foundational Research Pass 18
+#+date: 2026-09-16
+
+* Status
+DOCUMENTED / IMPLEMENTED / TESTED for Chapter 6 regression, including the post-handoff exact-duplicate-predictor rank-deficiency hardening recorded below.
+
+This pass begins the first supervised-model chapter after the Editor-in-Chief approved and merged Project 1 foundations. It adds no production StarIntel model, no analyst-productivity claim, no new StarIntel runtime behavior, and no production benchmark.
+
+* Dependency decision
+Project 1 Chapters 1--5 were approved and merged through PR #18. The Editor-in-Chief's issue #7 update explicitly made Chapter 6 / regression dependency-ready while preserving the existing fixture-scoped claim boundaries.
+
+The next slice therefore remains inside the accepted Project 1 experimental boundary rather than starting Entity Resolution or another later project prematurely.
+
+* Research question
+Can Chapter 6 teach regression from first principles while proving, in executable form, that fitted state remains training-only and that error metrics, residuals, outlier sensitivity, extrapolation warnings, and coefficient-identifiability failures are attached to one declared evaluation boundary?
+
+* Current source recheck
+Inspected on 2026-09-16:
+
+- scikit-learn 1.9.1 =LinearRegression= documentation: https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html
+  - authority: official current scikit-learn documentation;
+  - observed claim: =LinearRegression= is ordinary least squares and minimizes residual sum of squares;
+  - observed dense-design diagnostics: =rank_= reports the rank of dense =X= and =singular_= reports its singular values;
+  - version-sensitive detail: current docs record the 1.9 dense-data interpretation of =tol=, although this lab does not set =tol=.
+- scikit-learn 1.9.1 =mean_absolute_error=: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_absolute_error.html
+  - authority: official current documentation;
+  - observed claim: MAE is a non-negative regression loss with best value zero.
+- scikit-learn 1.9.1 =root_mean_squared_error=: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.root_mean_squared_error.html
+  - authority: official current documentation;
+  - observed claim: RMSE is exposed directly as a regression loss metric.
+- scikit-learn 1.9.1 =r2_score=: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.r2_score.html
+  - authority: official current documentation;
+  - observed claim: best score is 1.0; held-out scores can be negative; a mean predictor is the zero-score reference in the ordinary non-constant case.
+- Pedregosa et al. 2011 remains the project-level primary publication for scikit-learn's library architecture and is already in =references.bib=.
+
+Read-only StarIntel source recheck:
+- =lost-rob0t/starintel-server= master remained =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= during this pass.
+- This Chapter 6 slice does not depend on server routing, persistence, actors, or storage behavior. It consumes only the previously accepted dataset/evidence boundary and therefore does not duplicate product implementation.
+
+* Teaching mechanism
+Chapter 6 is deliberately layered:
+
+1. reuse Chapter 1's training-mean constant baseline;
+2. derive one-feature OLS from centered sums;
+3. fail closed when the feature has zero variance;
+4. generalize the same residual-squared objective to multiple features;
+5. use scikit-learn =LinearRegression= only after the mechanism is explicit;
+6. evaluate OLS and the baseline on the exact same held-out groups;
+7. derive MAE, RMSE, and R^2 from residuals;
+8. inspect predicted-vs-actual and residual plots;
+9. inject one large held-out target error without retraining;
+10. issue a deliberately out-of-range prediction but refuse to score it without a label;
+11. duplicate one training predictor exactly, inspect dense-design rank/singular values, and demonstrate that individual duplicate-feature coefficients are not separately identifiable even when held-out predictions remain equivalent.
+
+* Exact-duplicate-predictor hardening protocol
+The coefficient-identifiability addition was frozen before inspecting a pinned-environment result.
+
+The new probe must:
+1. keep the original three-feature fit unchanged;
+2. create a separate four-column diagnostic design by appending an exact copy of =token_count=;
+3. fit that augmented design on the exact same training rows and targets;
+4. require the original design to have full column rank on this frozen control;
+5. require the duplicated design to have rank lower than its feature count;
+6. compare predictions from the original and duplicated designs on the exact same held-out rows with =rtol= and =atol= both =1e-10=;
+7. record the maximum absolute prediction delta;
+8. require the two duplicated =token_count= coefficients to sum to the original =token_count= coefficient within test tolerance;
+9. record singular values for both dense designs;
+10. make no assertion about the exact ratio in which a solver allocates coefficient weight between the two identical columns.
+
+The algebraic reason is independent of the solver. If two columns are both =x=, their prediction contribution is =b1*x + b2*x = (b1+b2)*x=. Changing =b1= by =+c= and =b2= by =-c= leaves every prediction unchanged. The individual duplicate-column coefficients are therefore not identified by those data.
+
+This is an identifiability/debugging probe, not a new performance benchmark. It does not establish the magnitude of coefficient instability under merely near-collinear real-world features; that remains a separate future experiment.
+
+* Synthetic-control contract
+The executable =chapter06_regression.py= creates a deterministic Tier C control:
+
+- 12 synthetic case groups;
+- 3 records per case;
+- 8 groups declared training and 4 held out;
+- three features: =token_count=, =relation_count=, =source_count=;
+- one synthetic numeric target: =review_minutes=;
+- target generation: a known linear rule plus a small deterministic error term.
+
+The names make the example concrete, but the target is not observed analyst behavior. The report labels its evidence scope as a deterministic Tier C synthetic regression control.
+
+* Executable invariants
+The focused test suite requires:
+
+1. exact one-feature line recovery;
+2. fail-closed zero-variance behavior;
+3. exact first-principles metric values on a tiny known vector, including negative R^2;
+4. 24 training + 12 test rows with no group overlap;
+5. lower held-out RMSE for OLS than the training-only mean on the deliberately linear frozen control;
+6. held-out R^2 above 0.9 only as a fixture regression invariant, not a production threshold;
+7. mutation of held-out targets cannot change fitted intercept/coefficients;
+8. the frozen +60-minute outlier changes RMSE more than MAE;
+9. the extrapolation probe is outside the observed training feature range and is not scored because no label exists;
+10. an exact duplicate predictor makes the augmented dense design rank-deficient while preserving the held-out prediction vector within the declared tolerance and preserving the original predictor's combined coefficient contribution.
+
+* Local verification before PR CI
+The original implementation was exercised before repository handoff in the available local Python environment:
+
+- Python: 3.13.5;
+- scikit-learn: 1.8.0;
+- NumPy: 2.3.5;
+- matplotlib: 3.10.8;
+- command equivalent: =python -m unittest -v test_chapter06_regression.py=;
+- result at that historical point: 8 tests ran, 8 passed.
+
+This local run is retained only as LOCAL-TESTED development evidence for the pre-hardening version. The repository's authoritative Project 1 environment remains CPython 3.12.3 with the committed dependency lock, including scikit-learn 1.9.0 and matplotlib 3.11.1. The later rank-deficiency invariant is promoted only by the pinned CI evidence recorded below.
+
+The local frozen control produced a lower OLS held-out RMSE than the training-mean baseline and a high synthetic-control R^2, but those local numbers are intentionally not promoted into the manuscript because the pinned repository environment is the evidence gate.
+
+* Pinned repository verification
+The first complete pull-request verification of the original implementation head =d1f3f9970fc776f3105bd50efb01cb79f2fb1b24= succeeded:
+
+- =ml-starintel-research= run =35156487117= / job =104997050133= recreated the committed CPython 3.12.3 dependency lock, passed the existing research harness, passed the reader-facing Project 1 checkpoint including all 8 original Chapter 6 regression tests, regenerated the Chapter 6 JSON/SVG evidence, reran the frozen public-corpus benchmark and factual GLEIF acquisition, validated the editable Graphviz source, and passed =make book BOOK=ml-starintel= plus =make check BOOK=ml-starintel=;
+- =books-ci= run =35156487077= / job =104997049738= passed structural validation, Pandoc Org parsing, deterministic assets/fixture generation, EPUBCheck 5.3.0, publication/citation regressions, ERT, real Org-roam DB synchronization, and artifact upload.
+
+A later manuscript-index correction keeps Chapter 6 inside the already-declared Foundations part. That correction is prose structure only and was green on later current-main verification before the first editorial handoff.
+
+The exact-duplicate-predictor hardening was then verified on head =f7cf25b4a8fa86c6776b6b6fb77c61a1673d0e3f= against the current PR merge state:
+
+- =ml-starintel-research= run =35164607370= / job =105022778980=: SUCCESS. The committed CPython 3.12.3 lock was recreated; 55/55 research-harness tests passed; 19/19 combined reader-facing Project 1 tests passed, including all 9 Chapter 6 tests and the duplicate-predictor rank-deficiency invariant; GLEIF acquisition/provenance, foundational experiments, the frozen larger-public-corpus benchmark, Chapter 6 evidence generation, editable Graphviz validation, =make book BOOK=ml-starintel=, =make check BOOK=ml-starintel=, and EPUBCheck 5.3.0 all completed successfully.
+- =books-ci= run =35164607347= / job =105022778504=: SUCCESS. Structural validation, Pandoc Org-reader validation, deterministic assets/fixtures, EPUBCheck 5.3.0, publication/citation regressions, ERT, real Org-roam DB synchronization, and artifact upload all completed successfully.
+- research artifact =10474860825=, 134440 bytes, digest =sha256:c129fba20d767954a92f7c5a8a6f6338442520fc6a97acdbcb23b860a08e3d31=.
+
+The pinned deterministic control recorded an original design rank of 3 for 3 features and an augmented duplicate-predictor design rank of 3 for 4 features. The maximum absolute held-out prediction delta between the two fits was approximately =1.7053025658242404e-13=, below the predeclared tolerance, and the duplicate-feature coefficients summed to the original =token_count= coefficient within the focused test tolerance. These are fixture-scoped observations, not production results.
+
+* Reproducible artifacts
+The chapter script writes:
+
+- =chapter-06-regression-report.json= with exact train/test IDs, group IDs, baseline/model metrics, fitted parameters, residuals, failure-injection metrics, the extrapolation probe, and the duplicate-predictor rank/singular-value diagnostic;
+- =chapter-06-predicted-vs-actual.svg=;
+- =chapter-06-residuals.svg=.
+
+The manuscript also has an editable Graphviz source =assets/chapter-06-regression-flow.dot= with a rendered SVG. It shows the boundary from validated rows -> declared split -> training-only baseline/fit -> held-out metrics -> residual audit -> failure injection -> explicit experiment revision.
+
+* Claim boundaries
+- DOCUMENTED: current scikit-learn OLS/metric behavior and dense-design =rank_=/=singular_= diagnostics cited from official 1.9.1 docs.
+- IMPLEMENTED: first-principles one-feature OLS, manual regression metrics, deterministic grouped control, scikit-learn multi-feature OLS, residual/failure artifacts, and the exact-duplicate-predictor rank-deficiency probe.
+- TESTED: all recorded Chapter 6 invariants, including the exact-duplicate-predictor rank-deficiency invariant, under the committed CPython 3.12.3/scikit-learn 1.9.0 environment; the associated book/publication gates also passed on the recorded head.
+- NOT CLAIMED: real analyst effort model, production accuracy, production throughput, cross-platform equivalence, causal interpretation of coefficients, a measured near-collinearity stability result, robustness to arbitrary shift/outliers, deployment integration, or StarIntel runtime behavior.
+
+* Next evidence gate
+The Editor-in-Chief has APPROVED the bounded Chapter 6 / Pass 18 content. PR #113 remains NOT DONE until it is merged and the repository's post-merge definition of done is satisfied. Merge requires successful exact-head focused/generic gates on the status-reconciled current-main integration head. Chapter 7 remains dependency-gated until PR #113 actually lands; do not stack it prematurely.

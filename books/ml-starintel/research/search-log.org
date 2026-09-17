@@ -97,3 +97,14 @@
 - Remaining uncertainty: freeze entity-group/time precedence and near-duplicate clustering rules before measuring leakage; transitive dependency lock; broader public-data scaling; cross-language conformance.
 - Follow-up: write tests first for deterministic synthetic leakage controls, then execute A random-vs-entity-group, B random-vs-temporal, and C duplicate/near-duplicate contamination with real measured outputs and plots.
 - Record: [[file:foundations-pass-07.org][foundations-pass-07.org]].
+
+** 2026-09-16 -- pass 18 hardening / exact duplicate predictor
+- Question: Can Chapter 6 demonstrate coefficient non-identifiability with an executable failure case instead of merely warning that correlated predictors complicate interpretation?
+- Queries/topics: current scikit-learn 1.9.1 =LinearRegression= dense-design diagnostics; =rank_=; =singular_=; exact duplicate predictors; least-squares coefficient identifiability.
+- Primary source inspected: official scikit-learn 1.9.1 =LinearRegression= documentation at https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html.
+- Retrieval date: 2026-09-16.
+- Result: current documentation exposes =rank_= as the rank of dense training matrix =X= and =singular_= as its singular values. The exact-duplicate case is derivable directly: if two columns are the same =x=, predictions depend on =(b1+b2)x=, so the individual coefficients are not separately identified by those data.
+- Protocol frozen before pinned-environment measurement: append an exact =token_count= duplicate only in a separate diagnostic fit; require full rank in the original three-column control and rank deficiency in the four-column augmented design; compare identical held-out rows with =rtol= and =atol= =1e-10=; require the duplicate coefficient sum to match the original coefficient within test tolerance; record singular values; do not assert a solver-specific allocation ratio.
+- Claim boundary: this is a deterministic identifiability/debugging probe, not a production benchmark and not a measured claim about merely near-collinear real-world predictors.
+- Status at research-log write: DOCUMENTED / IMPLEMENTED; pinned CI PENDING.
+- Record: [[file:foundations-pass-18.org][foundations-pass-18.org]].

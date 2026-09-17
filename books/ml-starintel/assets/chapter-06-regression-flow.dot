@@ -1,0 +1,25 @@
+digraph regression_flow {
+  rankdir=LR;
+  graph [bgcolor="transparent", pad="0.2", nodesep="0.35", ranksep="0.45"];
+  node [shape=box, style="rounded", fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  evidence [label="validated dataset rows\n+ stable record/group IDs"];
+  split [label="declared evaluation boundary\n(train groups | test groups)"];
+  baseline [label="training-only mean baseline"];
+  fit [label="training-only OLS fit"];
+  evaluate [label="held-out predictions\nMAE · RMSE · R²"];
+  residuals [label="residual audit\n(actual - predicted)"];
+  failure [label="failure injection\noutlier + extrapolation probe"];
+  revise [label="revise model/contract\nwithout rewriting evidence"];
+
+  evidence -> split;
+  split -> baseline;
+  split -> fit;
+  baseline -> evaluate;
+  fit -> evaluate;
+  evaluate -> residuals;
+  residuals -> failure;
+  failure -> revise;
+  revise -> split [style=dashed, label="new experiment"];
+}
