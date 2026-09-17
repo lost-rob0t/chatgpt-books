@@ -1,0 +1,106 @@
+#+title: LFE Distribution and System Testing Pass 07
+:PROPERTIES:
+:ID:       2a7d8780-69ea-4473-a959-84480f59aa8a
+:END:
+
+* Scope and claim status
+Retrieval date: 2026-09-17.
+
+This pass supports Chapter 15 and Project 4 checkpoint A. It begins only after Project 3 checkpoint C was merged as =fb17a8e6cf43624db15bde9535b9721f14c0c470=. The existing =otp_router= service remains the system under test; this slice adds a node boundary and a system-test harness rather than implementing a second service.
+
+- DOCUMENTED :: inspected in current official Erlang/OTP documentation or tagged/current implementation documentation.
+- TESTED :: executed by this repository at an exact recorded branch head.
+- UNTESTED :: authored implementation or claim not yet through its executable gate.
+- FAILED :: an executable attempt failed; preserve the failure and correction.
+
+At authoring time all Project 4 executable claims are *UNTESTED*. Current documentation baseline is Erlang/OTP 29.1; the focused runner's actual OTP version remains a separate observation.
+
+* DOCUMENTED -- distribution adds node identity, not a new message model
+Official Distributed Erlang documentation defines a distributed system as multiple Erlang runtime systems, each called a node. PIDs can be used transparently across connected nodes, while registered names remain local and therefore require a node component when addressed remotely. [cite:@erlang-distributed-29]
+
+Project consequence: Project 4 does not create an LFE registry abstraction. The already locally registered Project 3 server is addressed with the ordinary =gen_server= server reference ={'otp-router', PeerNode}=.
+
+* DOCUMENTED -- remote gen_server calls have an explicit node-failure surface
+Current =gen_server:call/3= accepts ={Name,Node}= for a process locally registered on another node. Its documented exit reasons include ={nodedown,Node}= when the connection to the remote node fails. [cite:@erlang-gen-server-29]
+
+Project consequence: the failure lab catches the actual call exit and requires the documented node identity in the reason. It must not relabel every timeout or =noproc= as a node failure.
+
+* DOCUMENTED -- node monitoring is observation, not recovery
+Current =erlang:monitor_node/2= attempts to establish a connection if one does not exist and sends ={nodedown,Node}= when the monitored node fails or cannot be connected. Its documentation explicitly warns that this =nodedown= signal is not ordered relative to other link/monitor signals from the failed node; =net_kernel:monitor_nodes/1= is the stronger boundary when that ordering is needed. [cite:@erlang-monitor-node-29]
+
+Project consequence: checkpoint A uses =monitor_node/2= only to assert that node loss becomes observable. It makes no claim about draining all earlier remote signals before that notification. A later protocol that depends on such ordering must choose and test a stronger boundary explicitly.
+
+* DOCUMENTED -- peer is the OTP 25-compatible disposable-node mechanism
+The official =peer= documentation says the module was introduced in OTP 25.0. It starts and controls linked Erlang nodes, automatically terminates a peer when its control relationship is lost, and is specifically designed to facilitate multi-node testing with Common Test. [cite:@erlang-peer-25;@erlang-peer-29]
+
+That version boundary matters: the focused LFE workflow has historically executed on OTP 25.3.2.8. Project 4 can therefore use =peer= without silently depending on an OTP-29-only node launcher. The exact runner still has to execute the authored harness before this claim becomes TESTED for the repository.
+
+* DOCUMENTED -- Common Test now owns a real system boundary
+Common Test suites are ordinary modules exporting =all/0= and testcase functions. =ct:run_test/1= returns ={Ok,Failed,{UserSkipped,AutoSkipped}}= or ={error,Reason}=, which gives the shell harness a deterministic acceptance boundary. Current Common Test also documents distributed test-control facilities. [cite:@erlang-common-test-29;@erlang-common-test-run-29]
+
+Chapter 13 deliberately deferred Common Test while Project 3 was one local supervisor/worker. Project 4 has multiple BEAM nodes, per-test lifecycle, distributed configuration and failure observation, so Common Test now earns its place. It does not replace the existing EUnit service contracts.
+
+* DOCUMENTED -- the cookie is authentication plumbing, not a secure transport recipe
+Current Erlang distribution documentation warns that starting a distributed node without =-proto_dist inet_tls= can expose complete node/cluster access to attackers. It further states that the default cookie mechanism is not cryptographically secure and that ordinary inter-node traffic is clear text. The current Secure Coding Guidelines say default distribution should only be used on trusted networks and recommend TLS for untrusted networks. [cite:@erlang-distributed-29;@erlang-secure-coding-29;@erlang-tls-distribution-29]
+
+Project consequence: the executable lab uses a fixed throwaway cookie only inside the isolated same-host CI process. The book labels that setup *test-only*. It does not promote a cookie string to a production secret-management or transport-security pattern. TLS distribution, alternate EPMD policy, cross-host certificates and deployment remain later work.
+
+* Design used by Project 4 checkpoint A
+The test topology is intentionally small:
+
+#+begin_example
+Common Test origin node
+  |
+  | gen_server:call({'otp-router', PeerNode}, ...)
+  v
+Erlang distribution connection
+  |
+  v
+PeerNode
+  otp_router application
+    otp-router-sup
+      otp-router
+        event-rules:route/2
+#+end_example
+
+The origin compiles the existing Project 1 and Project 3 modules into an isolated build directory. A Common Test case uses =peer:start_link/1= to create a disposable same-host node with that directory on its code path. The remote node loads and starts =otp_router= through the ordinary application controller. No production module is forked for distribution.
+
+Acceptance contracts authored in this slice:
+1. a real remote =gen_server:call/3= reaches the LFE service and preserves routing semantics;
+2. the supervisor and router PIDs are on the peer node while the same registered names remain absent on the origin, making node-local registration concrete;
+3. stopping the peer produces ={nodedown,PeerNode}= for the explicit monitor;
+4. a later remote call fails with a reason containing ={nodedown,PeerNode}= rather than being mislabeled as a successful domain response.
+
+At authoring time these four are *UNTESTED* until the focused workflow executes them.
+
+* Failure semantics to teach
+1. *A remote name has two coordinates.* ='otp-router'= alone means a local registration. ={'otp-router',Node}= names a registration on a specific remote node.
+2. *Distribution failure is not a domain error.* =#(error no-route)= is application data. An exit containing ={nodedown,Node}= says the transport/node boundary failed before a normal server reply completed.
+3. *A node monitor is not a restart strategy.* Observing =nodedown= does not recreate the application elsewhere.
+4. *A local supervisor remains local.* The supervisor running on =PeerNode= can replace its own child while that node is alive. When =PeerNode= disappears, the origin has no magical cross-node supervisor ownership.
+5. *Cookie agreement is not encryption.* The test cookie exists to make disposable nodes authenticate to one another; it is not production security evidence.
+6. *Same-host multi-node evidence is still bounded.* It proves real Erlang distribution/process semantics on the runner, not WAN behavior, cross-host DNS, firewall policy, partitions, or deployability.
+
+* Explicit non-claims
+- no network-partition/split-brain semantics;
+- no consensus, leader election or global registry correctness claim;
+- no automatic remote restart or failover;
+- no persistence, replay or exactly-once delivery;
+- no node-discovery framework;
+- no cross-host deployment or TLS configuration proof;
+- no production cookie/EPMD policy;
+- no latency, throughput, scheduler, mailbox or availability benchmark.
+
+* Sources
+- Distributed Erlang, current 29-series system documentation: https://www.erlang.org/doc/system/distributed.html
+- Secure Coding Guidelines, OTP 29.1: https://www.erlang.org/docs/29/system/secure_coding.html
+- Erlang Distribution over TLS: https://www.erlang.org/doc/apps/ssl/ssl_distribution.html
+- =gen_server=: https://www.erlang.org/doc/apps/stdlib/gen_server.html
+- =erlang:monitor_node/2=: https://www.erlang.org/doc/apps/erts/erlang.html
+- =net_kernel=: https://www.erlang.org/doc/apps/kernel/net_kernel.html
+- =peer= current: https://www.erlang.org/doc/apps/stdlib/peer.html
+- =peer= OTP 25 reference: https://www.erlang.org/docs/25/man/peer.html
+- Common Test writing guide: https://www.erlang.org/doc/apps/common_test/write_test_chapter.html
+- Common Test run/results guide: https://www.erlang.org/doc/apps/common_test/run_test_chapter.html
+
+Retrieved 2026-09-17. Current release identity remains OTP 29.1; individual online manual pages can retain a 29.0.x page label, so release identity and page-specific component version are recorded separately rather than silently rewritten.
