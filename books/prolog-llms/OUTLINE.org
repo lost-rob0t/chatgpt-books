@@ -82,6 +82,11 @@ Compare PAL, Faithful CoT, SatLM, LINC, Logic-LM, LLM+P, Explanation-Refiner, LL
 
 Evidence discipline: architecture claims come from primary papers/official proceedings or exact source evidence; published benchmark numbers remain UPSTREAM-REPORTED until reproduced.
 
+** Research Interlude 20A -- 2026: Route the Solver, Compile to Prolog
+Add current EACL 2026 adaptive logical solver composition and the NeuroProlog preprint as two genuinely new directions: dynamically select a symbolic regime before solver-specific formalization, and train for executable Prolog generation with execution-guided repair. Keep route selection, formalization correctness, execution correctness, and semantic source faithfulness as separate propositions.
+
+Boundary: the existence of research systems that execute generated Prolog does not change this book's production-facing rule. Model output remains closed data/AST under host validation and authorization unless an isolated reproduction explicitly studies generated-program execution as the experimental object.
+
 ** Chapter 21 -- Program Synthesis, Semantic Parsing, and the Formalization Bottleneck
 Treat LLM-to-program/logic/PDDL translation as a compilation-like boundary with syntax, type/schema, domain, source-coverage, and semantic-role obligations. Compare imperative PAL-style programs with declarative SatLM specifications, LINC/Logic-LM theorem-prover handoffs, and LLM+P planning models.
 
