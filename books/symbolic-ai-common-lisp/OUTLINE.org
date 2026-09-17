@@ -78,13 +78,13 @@ Visuals: relaxed-cost/support flow, three-cost comparison, and checked real-plan
 Expected code: the tested Project 3 heuristic analyzer, finite relaxed oracle fixtures, A* adapter, and checked explanation/replay boundary.
 Research: Hart/Nilsson/Raphael 1968, Bonet/Geffner 2001, and current implementation documentation where comparison claims are version-sensitive; do not transfer upstream theorems across changed assumptions.
 ** Chapter 10 -- Production Systems
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for production systems.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+Goal: derive a transparent production-system control loop from the existing directional matcher: ground working memory -> shared-binding multi-condition joins -> explicit activations -> deterministic agenda/conflict resolution -> firing -> exact-activation refraction -> retained justifications.
+Dependencies: Symbolic Representation and Pattern Matching/Unification. Planning provides prior project context and evidence-discipline vocabulary, but production-rule semantics do not depend on planner action semantics.
+Examples: a synthetic infrastructure-diagnosis chain with stable fact identities, activation tables, repeated-variable joins, salience/order/support tie-breaking, duplicate fact assertion, a no-op refraction case, and bounded non-quiescent inference.
+Exercises: debug inconsistent joins, fact-reuse assumptions, agenda ordering, malformed/ungrounded action output, refraction loops, and =:BOUNDED= versus =:QUIESCENT=; extend the technical fixture without turning it into a production diagnosis claim; identify exactly which repeated work motivates incremental matching.
+Visuals: editable working-memory -> match/join -> activation -> agenda -> fire/assert/justify cycle plus support/justification traces.
+Expected code: Project 4's full-rematch teaching engine with ground facts and stable fact IDs, matcher reuse, multi-condition joins, inspectable activations, deterministic agenda order, exact-support refraction, trusted actions returning validated symbolic fact data, explicit bounded termination, and justification records.
+Research: Davis and King 1975 for production-system framing; Forgy 1981/1982 for OPS5/RETE lineage and the repeated matching problem; current CLIPS 6.4.2 documentation for maintained activation/agenda/salience terminology. This chapter does not claim OPS5/CLIPS conformance, RETE/TREAT implementation, truth maintenance, persistence, concurrency, or performance results; those deeper engine mechanisms remain in =books/expert-systems=.
 ** Chapter 11 -- Semantic Networks
 Goal: develop working intuition, precise terminology, and an implementation/debugging angle for semantic networks.
 Dependencies: previous chapter.

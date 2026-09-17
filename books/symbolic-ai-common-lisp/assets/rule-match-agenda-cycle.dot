@@ -1,0 +1,31 @@
+digraph rule_cycle {
+  graph [rankdir=LR, bgcolor="transparent", pad="0.2", nodesep="0.35", ranksep="0.55"];
+  node [shape=box, style="rounded", fontname="sans-serif", fontsize=11];
+  edge [fontname="sans-serif", fontsize=9];
+
+  wm [label="Working memory\nground facts + stable IDs"];
+  match [label="Match conditions\nexisting directional matcher"];
+  join [label="Join partial matches\none binding environment"];
+  agenda [label="Agenda\nactivations + supports"];
+  select [label="Conflict resolution\nsalience → rule order → support IDs"];
+  action [label="Fire one activation\naction returns fact data"];
+  validate [label="Validate + assert\nground facts only"];
+  justify [label="Retain justification\nrule + bindings + support IDs"];
+  done [shape=diamond, label="Unfired\nactivation?"];
+  quiet [shape=ellipse, label=":QUIESCENT"];
+  bounded [shape=ellipse, label=":BOUNDED"];
+  limit [shape=diamond, label="Firing limit\nreached?"];
+
+  wm -> match;
+  match -> join;
+  join -> agenda;
+  agenda -> done;
+  done -> quiet [label="no"];
+  done -> limit [label="yes"];
+  limit -> bounded [label="yes"];
+  limit -> select [label="no"];
+  select -> action;
+  action -> validate;
+  validate -> justify;
+  justify -> wm [label="new facts; rebuild"];
+}

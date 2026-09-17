@@ -1,0 +1,34 @@
+#+title: Project 4 Milestone A -- Transparent Production Rule System
+:PROPERTIES:
+:ID:       59484df3-c70b-42e9-a3a3-456bc44d4ef8
+:END:
+
+This directory contains the deliberately small production-rule engine used by the Common Lisp symbolic-AI book.  It is teaching code, not a RETE/TREAT implementation or a production expert-system shell.
+
+* Contract
+- Working memory stores unique ground facts with stable insertion identities.
+- Rule conditions are directional patterns interpreted by the accepted =symbolic-ai.pattern= matcher.
+- Multi-condition joins carry one binding environment across conditions.
+- By default one working-memory fact cannot satisfy two different condition slots in the same activation; a rule can opt into reuse explicitly.
+- Activations retain rule identity, bindings, and supporting fact IDs.
+- The agenda orders higher salience first, then declaration order, then support IDs for deterministic ties.  This is a course-local policy, not CLIPS/OPS5 conformance.
+- Exact-activation refraction prevents the same rule/support tuple from firing repeatedly.
+- Rule actions are Common Lisp functions that return a proper list of ground fact data.  The engine never evaluates generated Lisp forms.
+- =RUN-RULES= returns =:QUIESCENT= only when no unfired activation remains.  Hitting =MAX-FIRINGS= with work still available returns =:BOUNDED=.
+- Newly derived facts retain =JUSTIFICATION= records containing rule identity, bindings, and supporting fact IDs.
+
+* Run
+From the repository root:
+
+#+begin_src sh
+sbcl --script books/symbolic-ai-common-lisp/code/rules/run-tests.lisp
+#+end_src
+
+Or load the ASDF definitions and run:
+
+#+begin_src lisp
+(asdf:test-system "symbolic-ai-rules/tests")
+#+end_src
+
+* Boundary
+The sibling =books/expert-systems= volume owns the deep production-engine progression: incremental matching, alpha/beta memories, join/token/production networks, RETE/TREAT-style networks, truth maintenance, persistence, knowledge engineering, and production operations.  This project builds enough transparent machinery to derive why those mechanisms become necessary.
