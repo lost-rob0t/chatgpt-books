@@ -1,0 +1,235 @@
+#+title: Chapter 15 -- Distribution: One Lisp Program, More Than One BEAM
+:PROPERTIES:
+:ID:       9dc22d1d-cbba-4781-a176-3f90f67d214d
+:END:
+
+* Distribution starts by making location visible
+By the end of Chapter 14, =otp_router= is a real OTP application. It owns a supervision tree, can be described by application and release metadata, and can boot in a fresh VM. None of that makes it distributed.
+
+Distribution begins when two Erlang runtime systems communicate as *nodes*. A node has an identity such as =origin@host= or =router@host=. Once two compatible nodes connect, ordinary BEAM mechanisms cross that boundary: messages can travel to remote PIDs, links and monitors can cross nodes, and a =gen_server= can be called through a remote server reference. Registered names, however, remain local to a node. [cite:@erlang-distributed-29]
+
+That last sentence gives us the first useful Project 4 problem. Project 3 registered the router locally as ='otp-router'=. On a second node, it can use the same local name without colliding with the origin. The address has two coordinates:
+
+#+begin_src erlang
+{'otp-router', RouterNode}
+#+end_src
+
+The first coordinate names the process *inside* a node. The second identifies which node's local namespace we mean. There is no new LFE object model here. Distribution exposes more of the BEAM model we have already been learning.
+
+This chapter deliberately reuses the Project 3 application instead of copying it. If the distributed project created =distributed-otp-router.lfe= with a second routing implementation, the lesson would become muddy: did behavior change because of distribution, or because we rewrote the service? The system-test harness therefore compiles the existing LFE modules and runs them on a disposable second node.
+
+* Project 4 checkpoint A: one remote service, two real nodes
+The new test topology is small enough to reason about and real enough to fail in the ways we care about:
+
+#+begin_example
+origin node
+  Common Test case
+       |
+       | gen_server:call({'otp-router', PeerNode}, Request, Timeout)
+       v
+  Erlang distribution connection
+       |
+       v
+PeerNode
+  otp_router application
+    otp-router-sup
+      otp-router
+        event-rules:route/2
+#+end_example
+
+The editable source for the full success/failure diagram is =books/lfe/assets/distribution-boundary.dot=. The solid path is the successful call. Dashed edges show two observations after the peer node disappears: a node monitor receives ={nodedown, PeerNode}=, and a later remote =gen_server:call/3= exits with a reason containing ={nodedown, PeerNode}=.
+
+Notice what did *not* change. The pure routing kernel is still Project 1's =event-rules:route/2=. The =gen_server= is still the Chapter 11 implementation. The supervisor is still the Chapter 12 one-for-one supervisor. The application is still Chapter 14's application callback and =.app= metadata. Project 4 changes the execution topology and therefore the failure surface.
+
+That is a useful architecture habit: when adding a boundary, preserve as many already-tested semantics on each side of it as possible.
+
+* Node names are runtime identity, not application identity
+A module name, an OTP application name, a registered process name, and a node name answer different questions.
+
+- ='otp-router'= :: Which process in this node's local registry?
+- =otp_router= :: Which OTP application does the application controller know about?
+- =otp-router.beam= :: Which compiled module exports the server callbacks?
+- =router@host= :: Which Erlang runtime system?
+
+Collapsing those into “the service name” makes distributed debugging miserable. Suppose a remote call exits with ={nodedown, router@host}=. That says the node connection failed. It does not say the =otp_router= application rejected the request. Conversely, =#(error no-route)= is a perfectly ordinary domain result returned *through* a healthy distributed call.
+
+Project 4's test keeps those failure classes separate. A successful critical event still produces the same route result as the local service:
+
+#+begin_src erlang
+Event = {event, critical, edge, <<"disk full">>},
+{ok, pager} = gen_server:call(
+                {'otp-router', PeerNode},
+                {route, Event},
+                2000).
+#+end_src
+
+Current =gen_server= documentation explicitly accepts ={Name,Node}= as a server reference and documents ={nodedown,Node}= among the possible remote-call failure reasons. [cite:@erlang-gen-server-29]
+
+The Lisp lesson is subtle but important. We still model requests and results as symbolic terms. The BEAM lesson is that the same term protocol now crosses a failure boundary that can interrupt the computation before any application result exists.
+
+* Starting disposable nodes with =peer=
+Older Erlang test material often reaches for the =slave= module. This book does not. OTP's =peer= module was introduced in OTP 25.0 specifically to start and control linked Erlang nodes, including for Common Test. [cite:@erlang-peer-25;@erlang-peer-29]
+
+That version matters because the focused LFE workflow has historically run on OTP 25.3.2.8. A current chapter should not quietly depend on a node-testing helper introduced only in OTP 29 while claiming the older runner proves it.
+
+The Project 4 suite creates a peer with a unique name and puts the isolated compiled-project directory on the peer's code path. Conceptually:
+
+#+begin_src erlang
+BeamDir = filename:dirname(code:which('otp-router')),
+Name = peer:random_name("lfe_book_dist"),
+Cookie = atom_to_list(erlang:get_cookie()),
+{ok, Peer, PeerNode} =
+    peer:start_link(#{name => Name,
+                      args => ["-setcookie", Cookie,
+                               "-pa", BeamDir]}).
+#+end_src
+
+The returned =Peer= is the local control process for the disposable peer. =PeerNode= is the node identity used by distributed Erlang. Keeping those values distinct prevents another common conceptual bug: a process that controls a test node is not the node itself.
+
+The test then loads and starts =otp_router= through the remote node's ordinary application controller. We are not remotely invoking a private test-only process loop. We are starting the same OTP application boundary Chapter 14 established.
+
+* Why Common Test finally earns a chapter role
+Chapter 13 used EUnit for service contracts and deliberately deferred Common Test. That was not because Common Test is “advanced EUnit.” It was because Project 3 had one local VM and already possessed deterministic direct failure harnesses.
+
+Project 4 changes the shape of the system. A test now owns:
+
+1. an origin node;
+2. one or more disposable peer nodes;
+3. per-test node startup and cleanup;
+4. remote application lifecycle;
+5. distribution connections;
+6. asynchronous node-status events;
+7. logs useful for diagnosing a failed multi-node scenario.
+
+This is a real system-test boundary. Current Common Test documentation describes suites as ordinary modules with =all/0= and testcase functions, plus lifecycle/configuration/logging facilities. Its programmatic runner returns explicit counts for passed, failed, user-skipped and auto-skipped cases. [cite:@erlang-common-test-29;@erlang-common-test-run-29]
+
+The Project 4 runner therefore treats this result as an oracle rather than printing a cheerful message regardless of failures:
+
+#+begin_src erlang
+case ct:run_test(Options) of
+    {Ok, 0, {0, 0}} when Ok >= 2 -> halt(0);
+    Other ->
+        io:format("distributed-router: Common Test failed ~p~n", [Other]),
+        halt(1)
+end.
+#+end_src
+
+That line expresses a useful testing principle: a harness should fail closed. A suite that did not run, auto-skipped its distributed cases, or reported a failure does not count as evidence for distribution.
+
+* Local supervision stays local
+Here is the most dangerous misunderstanding in this chapter:
+
+#+begin_quote
+“We already have a supervisor, so if the remote node dies, OTP will restart the service.”
+#+end_quote
+
+No. The Chapter 12 supervisor is a process on =PeerNode=. It supervises a child process on that same runtime system. While the node is alive, it can replace that child according to its restart policy. If the entire node disappears, the supervisor disappears with it.
+
+Project 4 makes this visible by checking the node component of both PIDs:
+
+#+begin_src erlang
+SupPid = rpc:call(PeerNode, erlang, whereis, ['otp-router-sup']),
+RouterPid = rpc:call(PeerNode, erlang, whereis, ['otp-router']),
+PeerNode = node(SupPid),
+PeerNode = node(RouterPid).
+#+end_src
+
+The origin also requires its own =whereis('otp-router')= to be =undefined=. Same registered name, different node-local namespace.
+
+If a later design wants failover to another node, it needs an explicit mechanism that decides *where* to start replacement work, what state the replacement needs, how duplicate ownership is prevented, and what happens during partitions. A local supervisor does not solve those problems by implication.
+
+* Failure lab 1: stop the node, not the worker
+Earlier failure labs crashed the worker while leaving its supervisor alive. This one stops the peer node itself.
+
+Before stopping the peer, the test subscribes to node status:
+
+#+begin_src erlang
+true = erlang:monitor_node(PeerNode, true).
+#+end_src
+
+After =peer:stop(Peer)=, the test requires:
+
+#+begin_src erlang
+receive
+    {nodedown, PeerNode} -> ok
+after 5000 ->
+    ct:fail({missing_nodedown, PeerNode})
+end.
+#+end_src
+
+Current =erlang:monitor_node/2= documentation says that node failure produces this message. It also says something easy to miss: this =nodedown= notification is not ordered with respect to every other link/monitor signal originating from the failed node. If an algorithm needs a guarantee that earlier signals have been delivered first, OTP points to =net_kernel:monitor_nodes/1= as the stronger boundary. [cite:@erlang-monitor-node-29]
+
+Our checkpoint does *not* need that stronger ordering. It only needs to prove that node loss becomes observable. That distinction keeps us from accidentally writing a distributed protocol whose correctness depends on an ordering guarantee we never asked for.
+
+* Failure lab 2: a dead node is not =no-route=
+After the monitor observes node loss, the suite calls the same node-scoped server name again. A correct failure oracle must reject several tempting false positives:
+
+- =#(error no-route)= would mean the request reached a functioning application and found no domain rule;
+- =noproc= describes a process lookup/liveness failure and is not automatically equivalent to losing the whole node;
+- =timeout= only says the call did not complete within the chosen budget;
+- ={nodedown, PeerNode}= identifies the documented remote-node connection failure.
+
+The test recursively inspects the caught exit term for that exact node-specific reason. It does not assert the human formatting of the exception, because formatting is not the semantic contract.
+
+This repeats a theme from the Chapter 14 release tests: negative tests need to prove *why* they failed. “Some exception happened” is often a false green.
+
+* Distribution security: the test cookie is not a production recipe
+Our same-host test nodes use a fixed throwaway cookie. That makes the lab deterministic. It is also intentionally not production guidance.
+
+Current Erlang documentation warns that default distribution can expose complete node and cluster access if reachable by an attacker. It describes ordinary cookie authentication as protection against accidental/mistaken connection, not cryptographic transport security, and notes that default inter-node traffic is clear text. Current Secure Coding Guidelines say default distribution should be confined to trusted networks and recommend TLS distribution for untrusted networks. [cite:@erlang-distributed-29;@erlang-secure-coding-29]
+
+OTP provides TLS distribution through =inet_tls_dist=. [cite:@erlang-tls-distribution-29] We do not configure it in this checkpoint because doing so responsibly requires a real certificate/trust setup, explicit host assumptions, and its own executable failure cases. Copying a TLS command line without testing its trust model would be worse than deferring it honestly.
+
+So the book draws a bright line:
+
+- fixed cookie + same-host plain distribution :: TEST HARNESS MECHANISM;
+- production node authentication, TLS, EPMD exposure and network policy :: LATER DEPLOYMENT/SECURITY SLICE.
+
+* Failure lab 3: short names and long names are protocol configuration
+Node names are not arbitrary display strings. Erlang distribution distinguishes short and long naming modes, and nodes using incompatible modes do not simply discover one another by wishful thinking. [cite:@erlang-distributed-29]
+
+The current harness starts its origin with =-sname= and lets =peer= follow the origin's naming mode. That removes DNS/FQDN variation from the same-host test. It proves exactly that environment, not every deployment topology.
+
+A useful exercise is to deliberately launch a peer with incompatible naming assumptions and observe the startup/connection failure. Do not turn that observation into a permanent regression until the exact failure category is stable across the supported OTP versions. Tests should freeze semantic contracts, not incidental error prose.
+
+* Debugging a distributed test without guessing
+When =remote_route= fails, debug from the outside inward:
+
+1. *Did the origin become distributed?* =node()= must not be =nonode@nohost=.
+2. *Did =peer:start_link/1= return a node?* Keep the exact returned node atom; do not reconstruct it from strings.
+3. *Can the origin connect?* =net_adm:ping(PeerNode)= should return =pong= in this controlled lab.
+4. *Can the peer load the application resource?* A missing =otp_router.app= is a packaging/code-path failure, not a routing failure.
+5. *Did =application:start(otp_router)= succeed remotely?* If not, inspect the remote application error before testing calls.
+6. *Does =whereis('otp-router')= return a PID on the peer?* If not, the local registration contract failed.
+7. *Only then test the remote call.* Domain assertions belong after the distributed endpoint exists.
+
+This sequence matters because distributed symptoms collapse easily. A call timing out does not tell you whether the peer booted, the cookie matched, the application started, the name registered, the server wedged, or the network disappeared. Good failure labs preserve layer information instead of flattening it.
+
+* What this checkpoint proves -- and what it refuses to prove
+Once its exact-head workflow is green, checkpoint A may promote only these bounded claims:
+
+1. the pinned LFE service can execute as an OTP application on a second same-host Erlang node created by =peer=;
+2. an origin node can call its locally registered =otp-router= through ={'otp-router', PeerNode}= and receive the expected routing result;
+3. router and supervisor PIDs are node-local to the peer;
+4. stopping the peer yields an observable =nodedown= notification;
+5. a later remote =gen_server:call/3= exposes the documented node-specific failure rather than an application result;
+6. Common Test can own these multi-node lifecycle contracts without replacing the existing EUnit layer.
+
+It still does not prove network-partition handling, WAN behavior, cross-host deployment, TLS correctness, service discovery, failover, persistence, consensus, exactly-once delivery, performance or production availability.
+
+Those non-claims are not caveats pasted on at the end. They define the next projects. A serious distributed-systems course grows by turning one previously excluded failure class into the next executable question.
+
+* Exercises
+1. ★ Explain why =whereis('otp-router')= can be =undefined= on the origin while =gen_server:call({'otp-router', PeerNode}, ...)= succeeds.
+2. ★ Trace one successful route from the LFE source term through the origin call, distribution connection, remote =gen_server= callback and pure routing kernel. Mark the exact point where Lisp syntax stops mattering and ordinary BEAM terms take over.
+3. ★★ Modify the Common Test case so it records the remote supervisor and worker PIDs before and after a *worker-only* crash. Contrast that result with stopping the entire peer node.
+4. ★★ Catch a remote =gen_server:call/3= after node loss and print the raw exit term for debugging. Keep the regression assertion on the semantic ={nodedown,Node}= reason rather than the formatted text.
+5. ★★★ Replace =erlang:monitor_node/2= with =net_kernel:monitor_nodes/1=. Read the official delivery guarantees and write down one protocol property that could legitimately depend on the stronger ordering. Do not claim your protocol has that property until you test it.
+6. ★★★ Design a node-level failover protocol on paper. Specify ownership/fencing, state source, duplicate-start prevention and partition behavior. Explain why simply “start another supervisor” is insufficient.
+7. ★★★ Research TLS distribution and sketch the certificate/trust inputs a reproducible two-node CI test would need. Separate certificate authentication, node cookie use, transport encryption and EPMD exposure in your threat model.
+8. ★★★ Extend Project 4 with a third node only after stating a new invariant that genuinely requires it. Reject “three nodes looks more distributed” as a reason by itself.
+
+* Project checkpoint
+Project 4 checkpoint A is the course's first real multi-node boundary. Its implementation lives in =books/lfe/code/distributed-router/=. The system test reuses the existing application rather than duplicating product logic.
+
+The detailed source ledger and pre-verification claim status live in =books/lfe/research/distribution-07.org=. Until the exact branch passes the focused workflow, the authored multi-node behaviors remain UNTESTED. A future green run can promote only the scenarios it actually executes.
