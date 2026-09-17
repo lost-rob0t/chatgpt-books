@@ -1,0 +1,325 @@
+* Chapter 29 -- Capstone Architecture: Prolog Owns the Machine
+:PROPERTIES:
+:ID:       18f38d9d-4bd7-47ea-9af0-e4754fcb5b61
+:STATUS:   DRAFT
+:END:
+
+We have spent most of this book refusing a seductive shortcut: treating a
+language model as if it were the runtime.
+
+A model can be excellent at proposing a decomposition, recognizing which piece
+of evidence matters, or deciding that a question should be split into smaller
+questions.  None of those abilities imply that the model should own process
+lifetime, authority, retry policy, tool dispatch, mutable state, or the meaning
+of "done."
+
+The capstone makes that separation concrete.
+
+Recursive Language Models (RLMs) treat a large context as something a model can
+interact with programmatically rather than as one monolithic prompt.  A model
+can inspect or partition context, ask bounded subquestions, and recursively
+work on selected pieces before returning a result [cite:@zhang-rlm].  Our study
+system keeps that recursive idea but gives Prolog a stronger job: *the model may
+choose semantic strategy; Prolog owns execution semantics*.
+
+That sentence is the architectural thesis of the =prolog-rlm= runtime we will
+study in this capstone [cite:@prolog-rlm-source].  It is also a useful design
+rule well beyond this particular repository.
+
+** The machine has two different kinds of intelligence
+
+The easiest way to get confused about an RLM is to draw one big box labeled
+"agent."  Do not do that.  Draw two boxes.
+
+#+begin_example
+semantic side                           execution side
+--------------                          -------------------------------
+propose decomposition                   parse closed plan data
+choose what to inspect                  validate operations
+choose a provider/tool name             check capabilities
+suggest recursive subproblems           enforce budgets and depth
+produce candidate answers               execute trusted host closures
+                                        preserve trace/accounting state
+                                        checkpoint / cancel / stop
+                                        return structured outcomes
+#+end_example
+
+The semantic side can be probabilistic.  The execution side cannot be vague
+about what operation is being attempted.
+
+This is the same distinction we developed in Chapter 6 when a request tag was
+not automatically an executable predicate.  Here the scale is larger, but the
+rule is identical: *data can describe a requested operation without itself
+becoming executable authority*.
+
+** A closed plan language, not arbitrary Prolog
+
+The current =rlm_plan= module normalizes model-shaped data into a small plan
+AST.  Its executable vocabulary is intentionally finite [cite:@prolog-rlm-source]:
+
+#+begin_src prolog
+context(HandleExpr, Action, Bind).
+model(ProviderName, PromptExpr, RequestOptions, Bind).
+rlm(SubPlan, Bind).
+tool(ToolName, ArgsExpr, Bind).
+parallel(SubPlans, Bind).
+retry(Attempts, SubPlan, Bind).
+checkpoint(Label).
+final(ValueExpr).
+#+end_src
+
+The corresponding expression language is closed too: literals, inputs, bound
+variables, field selection, lists, and objects.  Unknown operators are rejected
+while a plan is normalized.  A raw term such as =call(shell(id))= is not a plan
+operation merely because SWI-Prolog could call such a term in another context.
+
+This is more important than JSON versus Prolog syntax.  JSON can carry unsafe
+intent and a Prolog term can be inert data.  The security-relevant property is
+that the runtime has a *closed interpretation* of the data.
+
+The production execution path is conceptually:
+
+#+begin_example
+model/provider output or host plan
+        |
+        v
+     parse
+        |
+        v
+    normalize  ---- reject unknown syntax
+        |
+        v
+    validate   ---- capabilities + bindings + static budgets
+        |
+        v
+    preflight  ---- required providers/tools actually registered
+        |
+        v
+    execute    ---- one shared runtime state and budget
+        |
+        v
+ structured result / structured error
+#+end_example
+
+The distinction between validation and preflight is worth keeping.  A plan may
+be *authorized* to request =tool(search)= while the current host forgot to
+register a search implementation.  Conversely, a host may have a search tool
+installed while a particular request lacks =tool(search)= capability.  Tool
+availability and tool authority are separate facts.
+
+** The three boundaries you should be able to point at
+
+Before we write any recursive code, identify three concrete boundaries.
+
+*** Boundary 1: plan data
+
+The plan is a data structure.  Bindings such as =evidence= and =verdict= are
+lexical names in the plan language, not global Prolog variables supplied by the
+model.
+
+*** Boundary 2: capability policy
+
+Validation walks the entire plan before execution.  A =tool(Name,...)= step
+requires =tool(Name)= in the granted capability list.  A nested =rlm/2= step
+requires =rlm=.  A checkpoint requires =checkpoint=.  The same validation pass
+also rejects duplicate bindings, unbound plan variables, malformed operations,
+and plans whose single =final/1= is not last [cite:@prolog-rlm-source].
+
+*** Boundary 3: trusted runtime registry
+
+A plan names a tool, but the callable closure comes from host configuration.
+The production runtime invokes a tool only after looking its name up in a host
+registry.  This is the same closed-table pattern from our earlier
+meta-programming lab, now embedded in the RLM executor.
+
+A model can therefore request =study_verify=.  It cannot make the atom
+=study_verify= magically mean an arbitrary predicate.
+
+** Build the smallest useful study system
+
+The companion implementation for this chapter lives in
+[[https://github.com/lost-rob0t/prolog-rlm/pull/445][prolog-rlm PR #445]].
+It deliberately uses the real typed-plan runtime but no model provider.  That
+choice gives us an executable control experiment: if we cannot explain the
+orchestration without a model, adding a model would only hide our confusion.
+
+The study plan is:
+
+#+begin_src prolog
+study_plan(
+    plan([
+        tool(study_retrieve, input(topic), evidence),
+        rlm(
+            plan([
+                tool(study_normalize, var(evidence), claim),
+                tool(study_verify, var(claim), verdict),
+                final(var(verdict))
+            ]),
+            verified),
+        checkpoint(verified),
+        final(var(verified))
+    ])).
+#+end_src
+
+Read it from the outside inward.
+
+1. =study_retrieve= receives the topic and returns deterministic fixture
+   evidence.
+2. The =rlm/2= step enters one nested plan.
+3. The nested plan normalizes the evidence into a claim.
+4. A verifier produces a typed =verification{...}= dict.
+5. The child plan returns that verification.
+6. The parent records a checkpoint.
+7. The parent returns the verified value.
+
+Nothing in that sequence requires probabilistic behavior.  That is exactly why
+it is useful pedagogically.
+
+** Make authority visible in source
+
+The matching capability set is intentionally boring:
+
+#+begin_src prolog
+study_capabilities([
+    tool(study_retrieve),
+    rlm,
+    tool(study_normalize),
+    tool(study_verify),
+    checkpoint
+]).
+#+end_src
+
+And the callable implementations are supplied separately:
+
+#+begin_src prolog
+study_tool_registry([
+    tool(study_retrieve, prolog_rlm_study:study_retrieve),
+    tool(study_normalize, prolog_rlm_study:study_normalize),
+    tool(study_verify, prolog_rlm_study:study_verify)
+]).
+#+end_src
+
+This duplication is healthy.  The capability list says what this execution may
+request.  The tool registry says what this host knows how to run.  Merging them
+would make it much harder to ask a simple audit question: "Is this installed,
+or is this granted?"
+
+** The budget is part of the program
+
+Our fixture gives the recursive plan an exact structural budget:
+
+#+begin_src prolog
+study_budget(
+    plan_budget{
+        max_steps:7,
+        max_depth:2,
+        max_parallel:1,
+        max_model_calls:0,
+        max_tool_calls:3,
+        max_context_ops:0,
+        max_output_bytes:4096,
+        time_limit:2.0
+    }).
+#+end_src
+
+Notice =max_model_calls:0=.  This chapter is not quietly pretending that a
+nested =rlm/2= term is itself a language-model call.  In this plan, =rlm/2=
+means nested typed-plan execution.  Provider-backed recursion is a higher-level
+behavior that can *use* this machinery, but this deterministic fixture proves
+only plan semantics.
+
+That distinction will matter throughout the capstone:
+
+- *plan recursion* is a property of the executor;
+- *model recursion* additionally requires actual provider calls;
+- *useful model recursion* requires empirical evidence that the extra calls
+  improve an outcome worth paying for.
+
+Do not collapse those three claims.
+
+** What validation can prove before a side effect
+
+The runtime computes a static plan estimate before execution.  For our fixture,
+the structural shape is seven steps, depth two, and three tool calls.  The
+fixture then supplies exactly those maxima.  If we lower =max_depth= to one,
+validation returns a structured =budget_exceeded= error before any trusted tool
+runs.
+
+Likewise, if we remove =tool(study_verify)= from the capability list while
+leaving the verifier installed, validation returns =capability_denied=.  The
+installed closure does not rescue the unauthorized plan.
+
+The companion test suite pins both negative cases.  At the time this draft was
+written, those assertions were authored into the repository's fail-closed
+deterministic corpus; their pass/fail status must be taken from the exact-head
+CI run, not inferred from this prose.
+
+** A typed verifier instead of an answer-shaped string
+
+The verifier does not return "looks good."  It returns data:
+
+#+begin_src prolog
+verification{
+    accepted:Accepted,
+    topic:Topic,
+    missing:Missing
+}
+#+end_src
+
+The deterministic fixture constructs a required set and an observed set, then
+computes =Missing=.  Acceptance is true exactly when =Missing == []=.
+
+This is intentionally simple.  The important pattern is that *acceptance is a
+relation over explicit evidence*, not a style judgment over prose.  Later
+projects can replace the toy evidence with retrieved documents, constraint
+solutions, source observations, or domain-specific assertions without changing
+that architectural rule.
+
+** What this chapter has implemented -- and what it has not
+
+The current capstone slice implements and exposes these concrete behaviors:
+
+| Claim | Status in this chapter |
+|-
+| A closed typed plan can express one nested RLM step | IMPLEMENTED in companion PR |
+| Tool names are separated from trusted callable closures | IMPLEMENTED |
+| Missing tool capability is rejected during validation | REGRESSION AUTHORED; CI is execution evidence |
+| Recursion depth can be rejected statically | REGRESSION AUTHORED; CI is execution evidence |
+| Nested execution shares the runtime accounting state | IMPLEMENTED by the existing runtime; exercised by fixture |
+| A real provider performs useful recursive reasoning | NOT CLAIMED |
+| Recursive execution beats a direct baseline | NOT CLAIMED |
+| Any latency, token, or quality benchmark | NOT MEASURED |
+
+That last group of non-claims is part of the architecture.  A trustworthy
+system is not only explicit about what it can do.  It is explicit about what
+has not been demonstrated.
+
+** Lab: interrogate the boundary
+
+From a checkout containing the companion implementation, run the deterministic
+study plan:
+
+#+begin_src sh
+swipl -q -g "use_module('examples/prolog_rlm_study'), study_run('prolog-rlm', Outcome), portray_clause(Outcome), halt"
+#+end_src
+
+Then request the two validation failures:
+
+#+begin_src sh
+swipl -q -g "use_module('examples/prolog_rlm_study'), study_capability_failure(Outcome), portray_clause(Outcome), halt"
+
+swipl -q -g "use_module('examples/prolog_rlm_study'), study_depth_failure(Outcome), portray_clause(Outcome), halt"
+#+end_src
+
+Do not merely check that the commands "fail."  Inspect the phase, kind, and
+attached structured fields.  A good control runtime should make the reason for
+rejection useful to a caller without turning the rejected plan into executable
+code.
+
+** Design rule to carry forward
+
+A recursive model can be creative about *what to try next*.  It should not be
+creative about the meaning of =tool/3=, how many calls remain, whether a
+capability exists, or whether a verifier accepted the result.
+
+Those are machine semantics.  In this capstone, Prolog owns them.
