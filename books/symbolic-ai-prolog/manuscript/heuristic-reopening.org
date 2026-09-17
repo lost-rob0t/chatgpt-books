@@ -1,0 +1,169 @@
+** 9.35 Admissible Does Not Mean “Expand Every State Once”
+:PROPERTIES:
+:ID:       3e531b84-8440-4706-9723-6398670e3ff4
+:END:
+
+The finite audit gave us a deliberately awkward but useful case: a heuristic can be admissible on every audited state and still be inconsistent on an edge. There is one more operational consequence worth making executable before we leave Chapter 9.
+
+What happens if a state has already been expanded and a cheaper path to that same canonical state appears later?
+
+A careless graph-search implementation often answers by accident:
+
+#+begin_quote
+“It is already in CLOSED, so ignore it.”
+#+end_quote
+
+That rule is safe only under stronger conditions than “we have seen this state before.” Our current search kernel deliberately stores the *best discovered accumulated cost* for each canonical state. A newly generated path with a strictly smaller =g= is not a duplicate to throw away; it is new evidence that the previous path was worse.
+
+Dechter and Pearl's generalized best-first presentation makes this mechanism explicit: when a better path reaches a node already in CLOSED, their algorithm moves the node back to OPEN. The same paper later notes that consistent heuristics give A* the stronger no-reopening property [cite:@dechter-pearl-astar-1985]. We will not import their entire algorithm as authority for our implementation. We will use the distinction to test the mechanism we already wrote.
+
+** 9.36 Build a Fixture That Forces the Issue
+:PROPERTIES:
+:ID:       2055075a-ffb8-487b-89d8-609bba19b923
+:END:
+
+Use five states:
+
+#+begin_example
+start --2--> a --2--> c --5--> goal
+   
+   \--1--> b --1--/
+#+end_example
+
+The two complete routes cost 9 and 7:
+
+#+begin_example
+start -> a -> c -> goal = 2 + 2 + 5 = 9
+start -> b -> c -> goal = 1 + 1 + 5 = 7
+#+end_example
+
+The exact remaining costs are therefore:
+
+#+begin_example
+h*(start)=7  h*(a)=7  h*(b)=6  h*(c)=5  h*(goal)=0
+#+end_example
+
+Now choose this table:
+
+#+begin_example
+H(start)=0  H(a)=0  H(b)=6  H(c)=0  H(goal)=0
+#+end_example
+
+Every entry is at or below the exact remaining cost. The table is admissible on the completed five-state fixture.
+
+But it is not consistent. On the cost-1 edge from =b= to =c= the consistency inequality becomes:
+
+#+begin_example
+6 =< 1 + 0
+#+end_example
+
+which is false.
+
+That one edge is enough to make the expansion order interesting. Because =H(a)=0= while =H(b)=6=, A* expands =a= before =b= even though =b= lies on the cheaper final route.
+
+** 9.37 Watch the Same Canonical State Expand Twice
+:PROPERTIES:
+:ID:       51f39373-1b1b-40a7-a0d2-f9d64b01e5b4
+:END:
+
+With =to_a= declared before =to_b=, the frontier evolves like this:
+
+#+begin_example
+expand start, g=0
+  queue a: g=2, f=2
+  queue b: g=1, f=7
+
+expand a, g=2
+  queue c: g=4, f=4
+
+expand c, g=4
+  queue goal: g=9, f=9
+
+expand b, g=1
+  improve c: old g=4 -> new g=2, f=2
+  queue c again
+
+expand c, g=2
+  improve goal: old g=9 -> new g=7, f=7
+
+expand goal, g=7
+#+end_example
+
+The important line is not merely =improve c=. The same canonical =c= state was already expanded once. It must be eligible for expansion again because the newly discovered path has a strictly smaller =g=.
+
+The current kernel already has exactly the needed distinction:
+
+#+begin_src prolog
+(   CandidateG < OldG
+->  put_assoc(State, Best0, CandidateG, Best1),
+    queue_state(...)
+;   ... dominated ...
+)
+#+end_src
+
+and, when an old heap entry is eventually popped:
+
+#+begin_src prolog
+(   G > BestG
+->  ... stale ...
+;   ... expanded ...
+)
+#+end_src
+
+There is no permanent “expanded once” bit. =BestG= is the authority for cost dominance. A state whose newly popped =G= equals the current best remains eligible for expansion even if the same canonical state appeared in an earlier =expanded/4= event with a worse cost.
+
+The regression freezes that contract by requiring the =c= expansion costs to appear in order as:
+
+#+begin_example
+[4, 2]
+#+end_example
+
+It also requires the explicit improvement event:
+
+#+begin_src prolog
+improved(CState, 4, 2, 2, step(b_to_c, b_to_c))
+#+end_src
+
+That is stronger than merely checking the final answer. A refactor could still stumble onto cost 7 while silently changing the trace/reopening semantics. The trace assertion says what mechanism must remain observable.
+
+** 9.38 Failure Lab H -- Add CLOSED Forever
+:PROPERTIES:
+:ID:       3e5d7ac4-26c1-406d-b274-ca58c803cf38
+:END:
+
+Mutate the search kernel so that the first expansion of a canonical state inserts it into a permanent closed set. Reject every later successor whose state is already closed, regardless of its =CandidateG=.
+
+On this fixture the mutation looks plausible for several steps:
+
+1. =c= is first expanded at =g=4=;
+2. the cost-9 goal is queued;
+3. =b= later discovers =c= at the better =g=2=;
+4. the permanent closed set says “already expanded” and discards the improvement.
+
+The search has now confused *state identity* with *path dominance*. It can no longer use the cheaper route through the same state.
+
+Do not repair this by special-casing the fixture. Repair the invariant:
+
+#+begin_example
+same state + worse/equal g  -> dominated
+queued obsolete worse path -> stale when popped
+same state + strictly lower g -> replace best g and queue again
+#+end_example
+
+A consistency guarantee can justify stronger no-reopening behavior in an appropriately matched A* graph-search design. This chapter's public heuristic boundary does not assume that guarantee. The finite audit can *report* consistency for a fixture, but the search kernel accepts admissible, inconsistent, and even overestimating tables as closed data. Its runtime semantics therefore must not smuggle in a consistency premise that the input contract never required.
+
+** 9.39 Exercises
+:PROPERTIES:
+:ID:       9e2d916c-f662-4a1c-b37c-e6dfa2405576
+:END:
+
+1. Compute =g=, =h=, and =f= for every queued node in the five-state fixture before running the regression.
+2. Use the finite audit to identify the exact inconsistency on =b -> c=. Explain why the table is still admissible.
+3. Change =H(b)= from 6 to 1. Predict whether =c= still needs to reopen and explain the new frontier order.
+4. Keep the heuristic table fixed but swap the costs of =start -> a= and =start -> b=. Recompute the expected expansion sequence before editing a test.
+5. Implement the “CLOSED forever” mutant locally and identify the first trace event that disappears. Do not weaken the expected final cost to make the mutant pass.
+6. Explain the difference among =dominated/4=, =stale/3=, and reopening after a strict improvement. Give one concrete trace situation for each.
+7. Construct an inconsistent heuristic that does *not* cause a reopen on this graph. Why does that counterexample prevent the claim “inconsistent means reopen”?
+8. Construct a different graph where a state is improved while still in the heap, before its first expansion. Contrast that with the stronger regression in this section.
+9. Suppose a future optimization stores a separate expanded-state map. State the invariant that map would need to preserve so it cannot suppress a strictly better =g= path.
+10. Explain why the new test is repository TESTED evidence for this finite implementation contract, not a new proof of A* correctness for arbitrary graphs.

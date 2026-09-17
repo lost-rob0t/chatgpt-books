@@ -134,6 +134,35 @@ Detailed evidence and teaching decisions: [[file:meta-capability-boundary.org][m
 
 Downstream: final model-free Chapter 6 mechanism / Project 1 milestone E. A typed model gateway remains a later project and requires fresh provider/schema/deadline/provenance research.
 
+* 2026-09-16 -- Project 2A typed provider-neutral gateway boundary
+Questions:
+- what does JSON syntax validation prove, and which application checks remain separate from parsing;
+- how does current SWI-Prolog represent JSON through =library(http/json)= and =atom_json_dict/3=;
+- what do current provider structured-output/tool interfaces actually guarantee about schema shape versus semantic correctness or application authorization;
+- which current =lost-rob0t/prolog-rlm= provider/completion-runtime boundaries are relevant architectural evidence without copying product implementation into the book;
+- how should request correlation and provenance ownership be represented so model-controlled JSON cannot self-assert trusted identity or execution authority?
+
+Search/source paths inspected 2026-09-16:
+- RFC 8259, =https://www.rfc-editor.org/rfc/rfc8259=;
+- current SWI-Prolog =library(http/json)= documentation, =https://www.swi-prolog.org/pldoc/doc/_SWI_/library/ext/json/json.pl=;
+- OpenAI, =Introducing Structured Outputs in the API=, =https://openai.com/index/introducing-structured-outputs-in-the-api/=;
+- Anthropic, =Tool use with Claude= and =Strict tool use= under current platform documentation;
+- read-only =lost-rob0t/prolog-rlm= main at exact revision =51d2530f0e18c84cff860b7c0bf3afcc3c488057=: =docs/providers.md=, =docs/completion-runtime.md=, =prolog/rlm_closed_data.pl=, and =test/support/fake_model_provider.pl=;
+- repository-local accepted Project 1 =task_capability.pl= boundary and Project 2A implementation/tests for claim-to-code consistency.
+
+Result:
+- DOCUMENTED: RFC 8259 supplies JSON syntax/interchange semantics only; successful JSON parsing does not establish application schema validity, request correlation, provenance, semantic truth, or execution authority.
+- DOCUMENTED, SWI-SPECIFIC: current =library(http/json)= exposes dict conversion through =atom_json_dict/3=; Project 2A therefore parses to data first and applies exact envelope/schema/correlation/capability/argument checks separately.
+- DOCUMENTED / PROVIDER-REPORTED: current OpenAI and Anthropic structured/tool interfaces can constrain output/tool-input shape to declared schemas in their documented strict modes, but schema-conforming values can still be wrong and application authorization remains host policy.
+- DOCUMENTED from current read-only source evidence: =prolog-rlm= keeps provider completion, envelope/plan parsing, structural validation, capability/budget checks, and execution as host-owned phases; its fake provider is test-only and production code is not supposed to import it. Project 2A uses these facts only as architecture evidence and does not duplicate the runtime.
+- REPOSITORY DESIGN: the book gateway keeps =provider=, =model=, and =response_id= in a trusted adapter envelope; model JSON carries only the closed proposal fields. Host-held request identity must match before closed capability dispatch can occur.
+- TESTED on the editor-reviewed pre-ledger-fix head =a5ae65b3de86285f40f3dddd13caa67113650b99=: focused =prolog-llms-book= run =35160640661= and generic =books-ci= run =35160640689= completed SUCCESS. This ledger edit moves the head, so these runs become historical evidence and fresh exact-head gates are required before handoff.
+- UNTESTED / NOT CLAIMED: live-provider behavior, provider conformance rates, timeout/cancellation handling, retry/repair loops, replay persistence, production Prolog-RLM execution, benchmarks, or a general security-sandbox guarantee.
+
+Detailed evidence, exact source inventory, and teaching contract: [[file:typed-gateway-boundary.org][typed-gateway-boundary.org]].
+
+Downstream: Chapters 7--8 / Project 2A. Later Project 2 work must research deadline/cancellation, duplicate/stale completion handling, and live-provider adapters separately before promoting those behaviors to DOCUMENTED or TESTED.
+
 * Next research sessions
 - Current structured-output and tool-call documentation for any provider used in runnable examples.
 - Primary neuro-symbolic systems beyond RLM and evaluation methodology for verifier-assisted/recursive systems.

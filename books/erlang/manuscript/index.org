@@ -32,4 +32,14 @@
 
 #+include: "chapter-12.org"
 
+#+include: "chapter-13.org"
+
+* Part III -- Advanced Design, Integration, and Failure
+
+#+include: "chapter-14.org"
+
+#+include: "chapter-15.org"
+
+#+include: "chapter-16.org"
+
 #+include: "next.org"

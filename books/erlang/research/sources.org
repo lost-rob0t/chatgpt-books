@@ -199,3 +199,86 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Used for :: Chapter 14 terminology and the boundary between a release package and an installed/operated target system.
 - Result :: OTP distinguishes ordinary development installs from tailored target systems and documents =lib/=, =releases/=, runtime/bin, and boot-file roles. The same document covers upgrades, but Chapter 14 does not use those upgrade procedures.
 - Claim status :: DOCUMENTED for target-system concepts only; cross-host installation remains UNTESTED in this book slice.
+
+* Inspected 2026-09-16 -- Project 3 pass 06
+** =supervisor= source documentation at tag =OTP-29.1=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.1/lib/stdlib/src/supervisor.erl
+- Authority :: Official Erlang/OTP source repository, immutable tag.
+- Retrieved :: 2026-09-16.
+- Relevant sections :: dynamic children with =start_child/2=; child-spec =restart= semantics; temporary-child cleanup.
+- Used for :: Chapter 15 and Project 3 checkpoint A dynamic worker ownership.
+- Result :: Ordinary supervisors can add a dynamic child from a supplied child specification. A =temporary= child is never restarted, and when it terminates its child specification is deleted automatically. The child start function is responsible for starting and linking the child process to the supervisor.
+- Claim status :: DOCUMENTED. These lifecycle rules do not define logical job retry.
+
+** =queue= source documentation at tag =OTP-29.1=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.1/lib/stdlib/src/queue.erl
+- Authority :: Official Erlang/OTP source repository, immutable tag.
+- Retrieved :: 2026-09-16.
+- Relevant sections :: module overview; FIFO operations; complexity notes for =len/1=.
+- Used for :: Chapter 15 explicit pending-work queue and capacity bookkeeping.
+- Result :: STDLIB =queue= is an opaque double-ended FIFO queue. The front is the item that has waited longest, so =in/2= and =out/1= provide the project pending order. =len/1= is documented as O(n) because length is not stored; the project therefore tracks =pending_len= separately for its per-submission capacity check.
+- Claim status :: DOCUMENTED. No throughput result is inferred.
+
+** Processes reference manual at tag =OTP-29.1=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.1/system/doc/reference_manual/ref_man_processes.md
+- Authority :: Official Erlang/OTP source repository, immutable tag.
+- Retrieved :: 2026-09-16.
+- Relevant sections :: signals; message queue; signal ordering; monitors.
+- Used for :: Chapter 15 worker-attempt correlation and the monitor-versus-retry boundary.
+- Result :: A process monitor is a one-way observation relationship. When the monitored process terminates, the corresponding down signal is converted to a correlated =DOWN= message while the monitor remains active. The reference distinguishes received signals from mailbox messages and retains the priority-message caveat introduced in the earlier chapters.
+- Claim status :: DOCUMENTED. A monitor reports process termination; it does not determine whether replaying application work is safe.
+
+* Inspected 2026-09-17 -- Project 4 pass 07 provenance reconciliation
+** Distributed Erlang reference manual at tag =OTP-29.1=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.1/system/doc/reference_manual/distributed.md
+- Authority :: Official Erlang/OTP source repository, immutable tag.
+- Retrieved :: 2026-09-17.
+- Relevant sections :: Distributed Erlang System; Nodes; Node Connections; Security.
+- Used for :: Chapter 16 and Project 4 node/process identity, remote registered-name addressing, connection behavior, and security boundary.
+- Result :: A distributed Erlang system consists of communicating runtime systems called nodes. Pid-based messaging, links, and monitors extend across nodes, while registered names remain local and require a node-qualified address. Node identity is =name@host=. Referring to a remote node can trigger a connection attempt. Default distribution without =-proto_dist inet_tls= is explicitly warned against on untrusted networks; the cookie mechanism is not cryptographically secure and ordinary communication is clear text.
+- Claim status :: DOCUMENTED. No cross-host, availability, TLS-deployment, or WAN behavior is inferred.
+
+** Kernel application configuration at tag =OTP-29.1=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.1/lib/kernel/doc/kernel_app.md
+- Authority :: Official Erlang/OTP source repository, immutable tag.
+- Retrieved :: 2026-09-17.
+- Relevant sections :: =connect_all=; =dist_auto_connect=.
+- Used for :: Chapter 16 distinction between =global='s full-connect behavior and automatic distribution connection establishment.
+- Result :: =connect_all=true= controls whether =global= actively connects to all nodes known to it. =dist_auto_connect= separately controls automatic node connection establishment; =never= requires explicit connection, and =once= stops automatic reconnection after a node has gone down. The settings are not interchangeable.
+- Claim status :: DOCUMENTED.
+
+** =net_kernel= source documentation at tag =OTP-29.1=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.1/lib/kernel/src/net_kernel.erl
+- Authority :: Official Erlang/OTP source repository, immutable tag.
+- Retrieved :: 2026-09-17.
+- Relevant sections :: explicit connection APIs; =monitor_nodes/1,2=; node-event ordering; =connection_id=; =nodedown_reason=.
+- Used for :: Chapter 16 connection observation and reconnect-incarnation semantics.
+- Result :: =monitor_nodes/2= reports =nodeup=/=nodedown= separately from process monitors. OTP documents =nodeup= before signals from the new connection, =nodedown= after signals from the old connection, and =nodedown= before a subsequent =nodeup= for a replacement connection to the same node. The =connection_id= option identifies the connection incarnation and =nodedown_reason= can supply diagnostic context.
+- Claim status :: DOCUMENTED. These are connection-observation guarantees, not durable-membership or consensus guarantees.
+
+** =erlang:monitor/2= source documentation at tag =OTP-29.1=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.1/erts/preloaded/src/erlang.erl
+- Authority :: Official Erlang/OTP source repository, immutable tag.
+- Retrieved :: 2026-09-17.
+- Relevant sections :: =monitor/2= process-monitor semantics; =DOWN= object/info fields; registered remote process identifiers.
+- Used for :: Chapter 16 =noproc= versus =noconnection= reasoning and the negative-liveness claim.
+- Result :: A process monitor fires when the target terminates, was absent at monitor creation, or its connection is lost. OTP explicitly says that after connection loss Erlang does not know whether the remote entity still exists. =DOWN= uses the process exit reason, =noproc=, or =noconnection= accordingly, and a remote registered process may be identified as ={RegisteredName, Node}=.
+- Claim status :: DOCUMENTED. =noconnection= does not prove remote process or VM death.
+
+** STDLIB =peer= documentation and implementation at tag =OTP-29.1=
+- URLs :: https://github.com/erlang/otp/blob/OTP-29.1/lib/stdlib/doc/src/peer.md ; https://github.com/erlang/otp/blob/OTP-29.1/lib/stdlib/src/peer.erl
+- Authority :: Official Erlang/OTP source repository, immutable tag.
+- Retrieved :: 2026-09-17.
+- Relevant sections :: origin/peer/control connection; alternative TCP/standard-I/O control; =connection => standard_io=.
+- Used for :: Project 4 test-harness boundary that keeps peer control independent of ordinary Erlang Distribution.
+- Result :: =peer= can use Erlang Distribution or an alternative TCP/standard-I/O control connection. Its documentation explicitly describes the alternative channel as a way to execute remote calls while Erlang Distribution is unavailable so distribution itself can be tested. The implementation defines =standard_io= as an alternative control connection.
+- Claim status :: DOCUMENTED. This is test infrastructure, not an application-transport recommendation.
+
+** Secure Coding Guidelines at tag =OTP-29.1=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.1/system/doc/design_principles/secure_coding.md
+- Authority :: Official Erlang/OTP source repository, immutable tag.
+- Retrieved :: 2026-09-17.
+- Relevant sections :: threat model for connected Erlang nodes; secure distribution guidance; rule =DEP-001=.
+- Used for :: Chapter 16 production-security boundary around the synthetic same-host test cookie.
+- Result :: OTP's threat model treats all nodes connected through Erlang Distribution as trusted and warns that connected nodes have unrestricted access to each other. For communication over an unsecured network it directs operators to TLS with client-certificate verification; =DEP-001= says not to expose default Erlang Distribution on untrusted networks.
+- Claim status :: DOCUMENTED. The same-host fixture does not demonstrate a production TLS/PKI deployment.

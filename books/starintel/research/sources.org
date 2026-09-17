@@ -8,24 +8,36 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 * Inspected sources
 ** StarIntel Server current source snapshot
 - URL :: https://github.com/lost-rob0t/starintel-server
-- Current revision rechecked :: =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=
+- Current revision rechecked :: =e49c67d88d60dbcc0fcba1b4ba76c1a0a6d6655c=
+- Project 3 executable/reference pin :: =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=
 - Earlier failure-path revision :: =d48fa939402abf701fa1cc4079dfb8bedfad8d4a=
 - Earlier full ingest audit revision :: =d4e8447c6049eaed65a93e81668ae1ec4b65c25c=
-- Retrieved/rechecked :: 2026-09-16
+- Retrieved/rechecked :: 2026-09-17
 - Authority :: Current implementation repository for the Common Lisp StarIntel backend service.
 - Inspected at the full ingest snapshot :: README; ASDF load graph; v0.9 runtime/document docs; architecture; active HTTP authorization runtime; HTTP boundary/authorization/publish source; producer/actor publish path; active Rabbit consumer/retry path; CouchDB outbox; consumer tests; canonical test systems; messaging documentation.
 - Rechecked at =d48fa939...= :: commit delta from =d4e8447...=; =source/ids.lisp=; =source/runtime-lifecycle.lisp=; =source/consumers/retry-policy.lisp=; =source/starintel-gserver.asd=; the merged #187/#188 quarantine failure/repair delta.
-- Rechecked at current head :: merge delta from =d48fa939...=; =source/frontends/http-bulk-jobs.lisp=; issue #189 / PR #190 terminal bulk-job payload-lifetime repair; =scripts/stack-test.sh= and current disposable Compose-stack lifecycle used by Service Trace Pass 05.
-- Used by :: Chapters 1--6, 8--9, 14 and debugging material; Projects 1--2 and book-side failure-analysis/service-trace labs. Later actor/search/deployment chapters must recheck current head.
+- Rechecked at =1ac298b...= for Project 2 :: merge delta from =d48fa939...=; =source/frontends/http-bulk-jobs.lisp=; issue #189 / PR #190 terminal bulk-job payload-lifetime repair; =scripts/stack-test.sh= and disposable Compose-stack lifecycle used by Service Trace Pass 05.
+- Rechecked at =1ac298b...= for the Project 3 executable pin :: =source/starintel-gserver.asd= actor/target/runtime load order; =source/actors.lisp= registry, historical target router and =define-actor= macro; =source/target-recovery.lisp=; =source/target-dispatch.lisp=; =source/target-dispatch-fixes.lisp=; =source/runtime-lifecycle.lisp=; =source/package.lisp= exported target API; =t/target-routing-test.lisp=; =t/package.lisp=; =t/test-runner.lisp=; =t/run-tests.lisp=; =starintel-gserver-tests.asd=; =flake.nix= exact Sento/test-runner pin; =doc/actors.org=, =doc/architecture.org=, =doc/index.org=, and generated =doc/api/star-actors.org=.
+- Rechecked at current head =e49c67d...= for Project 3 currency :: compared the full eleven-commit delta from =1ac298b...= and re-inspected =source/starintel-gserver.asd=, =source/target-recovery.lisp=, =source/target-dispatch.lisp=, and =source/runtime-lifecycle.lisp=. The delta is confined to observability, authorization, configuration, Compose, and their tests; none of the actor/target/runtime files used by milestone A changed. The later-loaded runtime =start-actors= still omits =recover-persisted-targets= while the earlier recovery-layer definition still calls it.
+- Used by :: Chapters 1--9 and 14 plus debugging material; Projects 1--3 and book-side failure-analysis/service-trace/actor-runtime labs. Later search/deployment chapters must recheck current head.
 
 ** StarIntel Server disposable stack harness
 - URL :: https://github.com/lost-rob0t/starintel-server/blob/1ac298b797bd4bc0e71cfde083c6a59af55ccc6f/scripts/stack-test.sh
 - Revision :: =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=
 - Retrieved :: 2026-09-16
-- Authority :: Current upstream integration harness for the Nix-built authenticated StarIntel Compose stack.
+- Authority :: Pinned upstream integration harness used by the Project 2 service-backed experiment.
 - Inspected :: temporary credential/port setup, image loading, Compose validation/start, administrator bootstrap, authorization/search checks, stack restart, persistence checks, diagnostics, final success boundary, and teardown. The script's search fixtures are inserted directly into CouchDB, which is why the book adds a separate valid HTTP-ingest/read-back probe rather than treating the upstream stack test as Project 2's missing end-to-end evidence.
 - Used by :: Service Trace Pass 05 and the Project 2 real-stack debugging lab.
-- Evidence status :: harness behavior is DOCUMENTED from current source. Any baseline/fault/recovery result remains UNTESTED until the book workflow actually executes the pinned harness plus probe.
+- Evidence status :: harness behavior is DOCUMENTED at the recorded pin. The merged Project 2 service-backed workflow independently TESTED its bounded baseline/broker-outage/explicit-recovery observations; claims outside that trace remain separately labelled.
+
+** Sento / cl-gserver actor runtime pinned by StarIntel Server
+- URL :: https://github.com/mdbergmann/cl-gserver
+- Revision :: =6a510c5b58469e72e6363bd3a6059d80b9a5c320=
+- Retrieved :: 2026-09-16
+- Authority :: Exact upstream Common Lisp actor runtime revision pinned by the Project 3 StarIntel Server test pin for the =sento= ASDF system.
+- Inspected :: StarIntel flake pin plus the pinned README sections for actor systems/contexts, =actor-of=, asynchronous =tell=/ask semantics, actor lookup, lifecycle operations, and shared versus pinned dispatchers.
+- Used by :: Chapter 7 and Project 3 milestone A to define the generic actor/message boundary actually used by the pinned StarIntel runtime.
+- Evidence status :: the inspected Sento API/semantics are DOCUMENTED from the exact pinned upstream source. StarIntel-specific actor crash/restart behavior is UNTESTED in Project 3 milestone A and is not inferred from generic actor terminology.
 
 ** StarIntel Server issue #187 -- concurrent quarantine ID collision
 - URL :: https://github.com/lost-rob0t/starintel-server/issues/187
@@ -56,10 +68,10 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - URL :: https://github.com/lost-rob0t/starintel-server/pull/190
 - Merge revision :: =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=
 - Retrieved :: 2026-09-16
-- Authority :: Merged current repair and verification record for issue #189.
-- Inspected :: current =source/frontends/http-bulk-jobs.lisp= plus the merged diff/test description: stable stored total, terminal =unwind-protect= cleanup, release of =documents= and request-only =service-context=, retained status/count metadata.
+- Authority :: Merged repair and verification record for issue #189; later server commits do not change the inspected bulk-job file in this pass.
+- Inspected :: =source/frontends/http-bulk-jobs.lisp= plus the merged diff/test description: stable stored total, terminal =unwind-protect= cleanup, release of =documents= and request-only =service-context=, retained status/count metadata.
 - Used by :: Bulk Lifetime Pass 04 and Project 2 lifecycle/debugging teaching.
-- Evidence status :: merged code is DOCUMENTED from current source; RED baseline and unit/integration/doc-coverage/Nix/stack-test results are UPSTREAM-REPORTED until independently reproduced by this book.
+- Evidence status :: merged code is DOCUMENTED from the recorded revision; RED baseline and unit/integration/doc-coverage/Nix/stack-test results are UPSTREAM-REPORTED until independently reproduced by this book.
 
 ** StarIntel Python document binding
 - URL :: https://github.com/lost-rob0t/starintel-doc

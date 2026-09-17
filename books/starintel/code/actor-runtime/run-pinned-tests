@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+server_root="${1:?usage: run-pinned-tests PATH-TO-PINNED-STARINTEL-SERVER}"
+pin="1ac298b797bd4bc0e71cfde083c6a59af55ccc6f"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+actual="$(git -C "$server_root" rev-parse HEAD)"
+if [[ "$actual" != "$pin" ]]; then
+  printf 'expected StarIntel Server %s, got %s\n' "$pin" "$actual" >&2
+  exit 2
+fi
+
+if ! git -C "$server_root" diff --quiet \
+  || ! git -C "$server_root" diff --cached --quiet \
+  || [[ -n "$(git -C "$server_root" ls-files --others --exclude-standard)" ]]; then
+  printf 'expected a clean pinned StarIntel Server checkout before injection\n' >&2
+  exit 3
+fi
+
+python3 "$script_dir/inject_upstream_test.py" "$server_root"
+
+# Nix's Git-flake source snapshot includes tracked/staged paths, not arbitrary
+# untracked files.  Stage only the disposable book test injection so the exact
+# actor/test files are visible to the Nix build without committing or writing
+# anything back to the StarIntel product repository.
+git -C "$server_root" add \
+  starintel-gserver-tests.asd \
+  t/run-tests.lisp \
+  t/book-actor.lisp \
+  t/book-actor-test.lisp
+
+(
+  cd "$server_root"
+  nix run .#star-unit-tests
+)

@@ -1,0 +1,103 @@
+#+title: Symbolic AI in Prolog Research 09 -- A* Reopening Under an Admissible but Inconsistent Heuristic
+:PROPERTIES:
+:ID:       ecfdc81e-ac85-4b4f-8bc8-ca531c37d89b
+:END:
+
+* Scope
+Project 2 milestone C already distinguishes heuristic representation validity, finite admissibility evidence, finite consistency evidence, and runtime search behavior. This pass asks one narrower implementation question: does the current graph-search kernel actually preserve a strictly better path to a state *after that same state has already been expanded*?
+
+Retrieval/recheck date: 2026-09-17.
+
+* Question 1 -- Why is reopening a real graph-search mechanism rather than an implementation footnote?
+DOCUMENTED, PRIMARY SOURCE: Dechter and Pearl's 1985 treatment of generalized best-first search gives an explicit best-first algorithm whose duplicate handling compares a newly generated path with the path already associated with a node; when the new value is lower and the matching node is already in CLOSED, the algorithm moves that node back to OPEN [cite:@dechter-pearl-astar-1985]. The same paper later notes that under a consistent heuristic A* does not reopen closed nodes [cite:@dechter-pearl-astar-1985].
+
+Those statements are useful here because they separate two ideas that a teaching implementation can otherwise blur:
+
+1. graph duplicate detection says two paths reached the same state;
+2. dominance policy decides whether a newly found path is better enough to replace the old one, including after prior expansion.
+
+The course implementation is not claimed to be a line-for-line implementation of Dechter and Pearl's BF* pseudocode. Its dominance key is the canonical planning state and its replacement test is a strictly smaller accumulated cost =g=. The source is used for the historical/mechanistic point that reopening is an explicit part of best-first graph-search design and that consistency changes the reopening story.
+
+* Question 2 -- What current repository behavior should be frozen by regression?
+TEST TARGET: =cost_search.pl= stores the best discovered =g= for each canonical state. When a successor has =CandidateG < OldG=, =relax_state/14= updates the map and queues a new node even if that state was expanded earlier. A popped entry is skipped as =stale/3= only when its =g= is greater than the currently recorded best =g=.
+
+There is intentionally no permanent “expanded once forever” closed set in the current kernel. That matters for an admissible-but-inconsistent heuristic: a state can be expanded on a worse path and later rediscovered on a cheaper path.
+
+The existing tests prove cheaper replacement *before* a queued state is first expanded. They do not yet prove reopening after expansion. This pass adds that missing semantic oracle rather than adding another search engine.
+
+* Question 3 -- What smallest fixture forces a reopen while keeping the heuristic admissible?
+Use five canonical states and five directed actions:
+
+#+begin_example
+start --2--> a --2--> c --5--> goal
+   
+   \--1--> b --1--/
+#+end_example
+
+The minimum remaining costs are:
+
+#+begin_example
+h*(goal)  = 0
+h*(c)     = 5
+h*(a)     = 7
+h*(b)     = 6
+h*(start) = 7
+#+end_example
+
+Choose the finite heuristic table:
+
+#+begin_example
+H(start)=0, H(a)=0, H(b)=6, H(c)=0, H(goal)=0
+#+end_example
+
+Every value is a lower bound on its state's exact remaining cost, so the completed finite audit should report =admissible_on_audited_states=. But the edge =b --1--> c= violates consistency because =6 =< 1 + 0= is false.
+
+With schema order =to_a= before =to_b=, the current A* kernel must expose this sequence:
+
+1. expand =a= first at =g=2, then discover =c= at =g=4=;
+2. expand =c= at =g=4= and discover a goal at =g=9=;
+3. expand =b= at =g=1= and strictly improve =c= from 4 to 2;
+4. queue and expand =c= a second time, now at =g=2=;
+5. improve the goal from 9 to 7 and return the optimal cost-7 plan through =b=.
+
+This is a deterministic course fixture, not a benchmark and not a claim that every admissible-but-inconsistent heuristic causes reopenings.
+
+* Question 4 -- What bug does the regression prevent?
+A tempting “optimization” is to add a permanent expanded-state set and reject every later occurrence of a state. On this fixture that policy would suppress the better =g=2= occurrence of =c= after =c= had already been expanded at =g=4=. The chapter uses that mutant as a failure lab.
+
+The correct invariant for this kernel is narrower: a canonical state may be expanded again when a strictly better =g= becomes the current best. Obsolete worse heap entries may still be skipped as stale. These are different operations and should remain different trace events.
+
+* Executable contract to verify
+Do not promote the new behavior to TESTED until exact-head execution establishes all of the following:
+
+1. reachable closure is exactly five states and five edges;
+2. the finite audit reports admissible but inconsistent, retaining the concrete =b -> c= consistency counterexample;
+3. A* returns the cost-7 plan =start -> b -> c -> goal=;
+4. the same canonical =c= state appears in =expanded/4= first at =g=4= and later at =g=2=;
+5. the trace contains =improved(CState,4,2,2,step(b_to_c,b_to_c))=;
+6. all prior Project 1/2 regressions and publication gates remain green.
+
+* Claim boundary
+DOCUMENTED:
+- Dechter and Pearl 1985 explicitly model improved duplicate paths and reopening in best-first graph search and separately discuss the consistent-heuristic no-reopening case.
+
+UNTESTED until exact-head execution:
+- the five-state/five-edge closure count;
+- the exact two expansions of =c=;
+- the exact improved trace and cost-7 result;
+- combined manuscript/publication gates after this pass.
+
+NOT CLAIMED:
+- that admissibility alone always forces a reopen;
+- that inconsistency always forces a reopen;
+- a new proof of A* admissibility or optimal efficiency;
+- complexity, benchmark, or production-performance results;
+- equivalence between this teaching kernel and every A* graph-search variant;
+- PDDL, temporal/probabilistic planning, LLM/neuro-symbolic, or Prolog-RLM behavior.
+
+* Search record
+Query/theme: primary-source basis for reopening in best-first/A* graph search and a deterministic admissible-but-inconsistent fixture that tests the repository's existing strict-best-=g= semantics.
+
+Sources inspected: Rina Dechter and Judea Pearl, “Generalized Best-First Search Strategies and the Optimality of A*,” =Journal of the ACM= 32(3), 505--536 (1985), author-hosted primary PDF at UCI plus ACM bibliographic metadata, inspected 2026-09-17.
+
+Result: add one finite regression that requires an already-expanded state to be expanded again after a strict =g= improvement, plus a manuscript failure lab that distinguishes reopening from stale-entry rejection. No new planner policy is invented.

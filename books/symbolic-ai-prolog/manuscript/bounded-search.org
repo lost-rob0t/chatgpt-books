@@ -1,0 +1,141 @@
+** 9.21 A Bound Is an Outcome, Not a Synonym for Failure
+:PROPERTIES:
+:ID:       8e3dbdc1-ff63-4d2f-a9a7-b820c624d618
+:END:
+
+Cost is not the only resource a caller may bound. A planner exposed to an interactive tool, CI job, or larger symbolic reasoner may be told: search no deeper than =L= actions.
+
+That sounds simple until the limit is reached.
+
+Suppose a depth-first search reaches depth 2, the current state is not a goal, and a legal successor exists at depth 3. If the caller chose =L = 2=, the search has learned something operational: *this branch was stopped by policy before its deeper consequences were explored*. It has not learned that the planning problem is impossible.
+
+Returning =exhausted(Goals)= in that situation would convert a resource decision into a logical conclusion. The distinction is the same one Project 1 made between an exhausted rule budget and an unsupported object goal.
+
+The bounded Project 2 interface therefore has three result classes:
+
+#+begin_src prolog
+found(plan(Steps, States))
+cutoff(Goals, Limit)
+exhausted(Goals)
+#+end_src
+
+=found/1= means a goal state was reached. =cutoff/2= means at least one live branch reached the caller's depth boundary. =exhausted/1= means every simple branch explored under this project's path-local cycle policy ended without a goal *and* without a depth cutoff.
+
+That last clause matters. A leaf at the exact depth limit is not automatically a cutoff. If it has no legal successor outside the current path, there is nothing deeper for the limit to hide.
+
+** 9.22 Derive Depth-Limited DFS From the Planner We Already Own
+:PROPERTIES:
+:ID:       3f8ac3b1-acde-4c1f-94cb-7a7d07aeadf0
+:END:
+
+We do not add another action language. =depth_limited_plan/6= reuses Chapter 8's =applicable/3= and =apply_instance/3= contracts. Its new state is search state, not world state:
+
+#+begin_example
+current planning state
+reverse action path
+reverse state path
+current depth
+caller limit
+states on the current path
+#+end_example
+
+The last item is a deliberate control policy. This depth-first search prunes a successor when the same canonical ground state already appears on the current path. It does *not* keep one global visited set across every DFS branch.
+
+Why? The remaining depth budget belongs to the path by which a state was reached. A global "seen once" bit can discard a later occurrence that arrives shallower and therefore has more budget left. Path-local cycle rejection blocks immediate looping while allowing a state to be reconsidered in a different branch.
+
+This is not a universal recipe for graph search. If path history itself changes future legality, then the planning state is incomplete and duplicate-state reasoning must be redesigned. Here the state is intentionally treated as the complete world-state key for this teaching planner.
+
+At each node the algorithm follows this order:
+
+1. test the goal before applying the depth boundary;
+2. generate legal successors through the existing schema semantics;
+3. if the node is at the limit, determine whether any non-cycle successor remains unexplored;
+4. return =cutoff/2= only when such a live successor exists;
+5. below the limit, explore children depth-first in deterministic schema/grounding order;
+6. if no child succeeds, propagate =cutoff/2= if any child was cut off; otherwise return =exhausted/1=.
+
+The goal-before-cutoff order gives the useful zero-step contract: a start state that already satisfies the goal succeeds even when the limit is zero.
+
+** 9.23 Why a Low Depth Limit Cannot Prove Impossibility
+:PROPERTIES:
+:ID:       679f5f31-068d-4faf-a298-ad3f31997796
+:END:
+
+Richard Korf's 1985 treatment of depth-first iterative deepening describes the ordinary depth-first tradeoff directly: without a cutoff and duplicate handling, search may not terminate; with a cutoff chosen too low, a solution can be missed [cite:@korf-dfid-1985]. The paper then restarts depth-first search at successively deeper limits [cite:@korf-dfid-1985].
+
+We borrow that mechanism, not every theorem around it.
+
+Korf's shortest-length and asymptotic results are stated for the tree-search model and assumptions developed in that paper. The same paper explicitly warns that arbitrary graphs create a different path-explosion problem [cite:@korf-dfid-1985]. Our planner is graph-shaped, grounds relational action schemas, and prunes cycles by canonical state on the current path. Therefore the book does not paste the paper's complexity theorem onto this implementation.
+
+The executable claim here is narrower:
+
+- on the synthetic field-service fixture, limit 2 returns =cutoff([restored(node7)],2)= because the known repair needs three actions;
+- limit 3 returns the concrete three-action repair;
+- a finite two-state cycle with no goal returns =exhausted/1= once every non-cycle continuation is actually explored.
+
+These bounded claims are TESTED at implementation head =3e6967f02c6f9189ebd7bc7793f621f5e6837c7d= by =symbolic-ai-prolog-book= run =35160005325= under SWI-Prolog 10.0.2. They remain fixture-level repository evidence, not a transfer of Korf's tree-search theorem to arbitrary planning graphs.
+
+** 9.24 Iterative Deepening Is Repeated Evidence, Not One Infinite Promise
+:PROPERTIES:
+:ID:       5dba92e5-c439-499d-b919-ab423c05c9d6
+:END:
+
+An unbounded iterative-deepening API would itself be capable of running forever on an infinite unsolved state space. That is a bad default for a teaching boundary whose entire lesson is explicit resource semantics.
+
+=iterative_deepening_plan/6= therefore accepts a *maximum requested depth*. It runs depth-limited DFS at limits =0, 1, 2, ... MaxDepth= and records each iteration:
+
+#+begin_src prolog
+iteration(Limit, cutoff, IterationTrace)
+iteration(Limit, exhausted, IterationTrace)
+iteration(Limit, found, IterationTrace)
+#+end_src
+
+There are three stopping rules:
+
+- =found=: return the plan immediately;
+- =exhausted=: stop early because that iteration encountered no hidden deeper live branch under the same transition/cycle semantics;
+- =cutoff= at =MaxDepth=: return =cutoff(Goals,MaxDepth)=, preserving the fact that the caller stopped before search had semantic evidence of exhaustion.
+
+On the bundled field-service fixture the tested iteration summary is:
+
+#+begin_example
+0 -> cutoff
+1 -> cutoff
+2 -> cutoff
+3 -> found
+#+end_example
+
+The implementation keeps the per-iteration traces instead of pretending those repeated expansions never happened. Repeated work is part of the algorithm and useful debugging evidence.
+
+** 9.25 Failure Lab F -- Change One Word and Invent a False Conclusion
+:PROPERTIES:
+:ID:       94dff4aa-6dde-40c5-8db4-12933d586292
+:END:
+
+A dangerously small refactor is to replace every boundary result with =exhausted(Goals)=.
+
+Run the field-service problem at limit 2. The goal still requires three actions. The mutant now reports the same result shape as a planner that has actually enumerated the finite reachable space and shown that no goal state occurs in it.
+
+The program has not become incomplete merely because it has a bound. The *API has become dishonest* because it erased why search stopped.
+
+Debug this class of error by asking two questions separately:
+
+1. Did the algorithm run out of states permitted by its transition and duplicate policy?
+2. Did the caller stop the algorithm before all such states could be considered?
+
+Only the first supports =exhausted/1=. The second is =cutoff/2=.
+
+The same principle will return later in bounded abduction and hybrid reasoning. Resource exhaustion belongs in the result algebra whenever callers might otherwise mistake it for a logical negative.
+
+** 9.26 Exercises
+:PROPERTIES:
+:ID:       19ab2922-967d-4576-80e7-a13a50e42e80
+:END:
+
+1. Trace the field-service planner at depth limits 0 through 3. Mark the exact state that justifies each =cutoff/2= rather than merely writing "too shallow."
+2. Modify the depth-2 implementation so every boundary is called =exhausted=. Write a regression that demonstrates the resulting false impossibility claim.
+3. Construct a graph in which the same state is reached first by a deeper route and later by a shallower route. Explain why a global visited set keyed only by state can be wrong for a depth-limited DFS.
+4. Replace path-local cycle pruning with no duplicate policy on the two-state cycle fixture. Predict which limit still forces termination and what changes if the limit is removed.
+5. Extend the iteration trace with counts of expanded and cycle-pruned nodes. Keep the counts diagnostic; do not turn them into a performance claim until an experiment has actually been designed and run.
+6. Explain why =cutoff/2= is not equivalent to Prolog failure and why =exhausted/1= is not automatically equivalent to a theorem of domain impossibility when the world model itself may be incomplete.
+7. Design a cost-bounded analogue of this API for uniform-cost search. Specify how a caller-imposed maximum =g= should differ from frontier exhaustion and from rejection of an invalid negative action cost.
