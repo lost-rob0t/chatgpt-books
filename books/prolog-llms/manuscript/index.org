@@ -10,6 +10,7 @@
 #+include: "chapter-06-meta.org"
 #+include: "chapter-07-08-typed-gateway.org"
 #+include: "chapter-20-neurosymbolic-taxonomy.org"
+#+include: "chapter-20a-2026-directions.org"
 #+include: "chapter-21-formalization-bottleneck.org"
 #+include: "chapter-22-symbolic-feedback.org"
 #+include: "chapter-23-prolog-runtime-provenance.org"
