@@ -31,8 +31,12 @@ validate_claim_list(RequiredIds, Claims, Outcome) :-
     ;   Validation = error(invalid_claim_list)
     ),
     (   Validation = ok
+    ->  validate_claim_identity_set(Claims, IdentityValidation)
+    ;   IdentityValidation = Validation
+    ),
+    (   IdentityValidation = ok
     ->  validate_coverage(RequiredIds, Claims, Outcome)
-    ;   Outcome = Validation
+    ;   Outcome = IdentityValidation
     ).
 
 validate_claims(_, [], ok).
@@ -57,6 +61,21 @@ validate_claim(RequiredIds,
     ;   Outcome = error(invalid_claim_identity)
     ).
 validate_claim(_, _, error(invalid_claim_shape)).
+
+validate_claim_identity_set(Claims, Outcome) :-
+    (   first_duplicate_claim_id(Claims, Duplicate)
+    ->  Outcome = error(duplicate_claim_id(Duplicate))
+    ;   Outcome = ok
+    ).
+
+first_duplicate_claim_id(Claims, Duplicate) :-
+    member(claim(Duplicate, _, _, _), Claims),
+    findall(1,
+            member(claim(Duplicate, _, _, _), Claims),
+            Matches),
+    length(Matches, Count),
+    Count > 1,
+    !.
 
 validate_requirement(duration(Task, Minutes), Outcome) :-
     !,
