@@ -44,6 +44,7 @@ jobs:
           dot -Tsvg books/expert-systems/assets/rete-positive.dot -o /tmp/rete-positive.svg
           dot -Tsvg books/expert-systems/assets/truth-maintenance.dot -o /tmp/truth-maintenance.svg
           dot -Tsvg books/expert-systems/assets/assumption-contradiction.dot -o /tmp/assumption-contradiction.svg
+          dot -Tsvg books/expert-systems/assets/explanation-provenance.dot -o /tmp/explanation-provenance.svg
 
       - name: Build Expert Systems book
         run: make book BOOK=expert-systems
