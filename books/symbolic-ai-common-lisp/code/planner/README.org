@@ -1,19 +1,22 @@
-#+title: Symbolic Planner -- Project 3 Milestone A
+#+title: Symbolic Planner -- Project 3
 :PROPERTIES:
 :ID:       758215ad-bb74-492b-8ca4-0ad83fc8493a
 :END:
 
 * Purpose
-This directory contains the first executable Symbolic Planner slice for /Symbolic AI in Common Lisp/.  It derives planning from the book's already-accepted Search Library and Pattern Matcher/Unifier instead of importing an opaque planner framework.
+This directory contains the evolving Symbolic Planner for /Symbolic AI in Common Lisp/.  It derives planning from the book's accepted Search Library and Pattern Matcher/Unifier instead of importing an opaque planner framework.
 
-The implemented language is deliberately small: finite ground fact-set states; positive-precondition action schemas; add/delete effects; nonnegative action costs; deterministic grounding through the public unifier/substitution interface; and state-space solving through the public BFS/UCS/A* search interface.
+The action language remains deliberately small: finite ground fact-set states; positive-precondition action schemas; add/delete effects; nonnegative action costs; deterministic grounding through the public unifier/substitution interface; and state-space solving through the public BFS/UCS/A* search interface.
 
-It is a course-local STRIPS-style subset, not a PDDL implementation or a claim of full historical STRIPS equivalence.
+Milestone A established action/state semantics.  Milestone B adds a bounded delete-relaxation =h_max=-style analysis, inspectable relaxed fact-cost support, an A*-compatible heuristic adapter, and fail-closed replay of found plans into grounded step explanations.  None of those additions widen the action language.
+
+This remains a course-local STRIPS-style subset, not a PDDL implementation or a claim of full historical STRIPS equivalence.
 
 * Files
 - =package.lisp= -- public planner teaching interface.
 - =planner.lisp= -- schemas, grounding, state canonicalization, effects, Search adapter, and solver dispatch.
-- =tests.lisp= -- semantic regressions and the warehouse/logistics scenario.
+- =heuristics.lisp= -- bounded delete-relaxation analysis, support records, A* heuristic adapter, and plan-trace explanation replay.
+- =tests.lisp= -- semantic regressions, heuristic/evidence checks, and the warehouse/logistics scenario.
 - =run-tests.lisp= -- direct SBCL entry point.
 - =symbolic-ai-planner.asd= -- ASDF systems for the implementation and tests.
 
@@ -31,4 +34,8 @@ For the ASDF test operation, load the Search, Pattern/Unifier, and Planner ASD f
 #+end_src
 
 * Evidence boundary
-The source and tests are not evidence merely because they exist.  Record behavior as TESTED only after the exact branch head's executable suite has completed successfully.  No performance benchmark, PDDL conformance, arbitrary planning completeness result, or production claim belongs to this milestone without separate evidence.
+A =RELAXED-ANALYSIS= has three statuses.  =:REACHED= means the bounded propagation reached a fixpoint and assigned costs to every goal.  =:UNREACHABLE= means the same propagation reached a fixpoint without doing so.  =:BOUNDED= means the caller's iteration limit stopped propagation first; it is not a dead-end result.
+
+Relaxed support records explain the calculation of the heuristic estimate.  They are not proof that a support action occurs in the actual plan.  =EXPLAIN-PLAN-RESULT= addresses a different question: it replays every recorded Search transition against the supplied action schemas and returns a grounded explanation only when exactly one action instance accounts for that state change.  Missing or ambiguous matches fail rather than fabricating provenance.
+
+The source and tests are not evidence merely because they exist.  Record behavior as TESTED only after the exact branch head's executable suite has completed successfully.  No performance benchmark, PDDL conformance, arbitrary planning-completeness result, production-planner claim, or general proof of heuristic admissibility belongs to this milestone without separate evidence.

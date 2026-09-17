@@ -1,0 +1,40 @@
+digraph PlannerHeuristicExplanation {
+  rankdir=LR;
+  graph [fontname="sans-serif", labelloc=t,
+         label="Project 3 milestone B: relaxed guidance vs checked explanation"];
+  node [shape=box, fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  state [label="ground planner state"];
+  schemas [label="positive-precondition\naction schemas"];
+  relax [label="bounded delete relaxation"];
+  costs [label="best fact costs\n+ relaxed supports"];
+  status [shape=diamond, label="fixpoint before bound?"];
+  hmax [label="h_max-style estimate"];
+  zero [label="safe numeric fallback: 0"];
+  astar [label="existing A* search"];
+  result [label="real path + action labels"];
+  replay [label="replay each action under\nreal delete/add semantics"];
+  unique [shape=diamond, label="exactly one grounded match?"];
+  explain [label="plan-step explanation\npreconditions/effects/cost/states"];
+  fail [label="explicit invalid/ambiguous\nprovenance condition"];
+
+  state -> relax;
+  schemas -> relax;
+  relax -> costs;
+  costs -> status;
+  status -> hmax [label="yes, goals costed"];
+  status -> zero [label="bounded / no goal cost"];
+  hmax -> astar;
+  zero -> astar;
+  state -> astar [label="real semantics"];
+  schemas -> astar;
+  astar -> result;
+  result -> replay;
+  schemas -> replay;
+  replay -> unique;
+  unique -> explain [label="yes"];
+  unique -> fail [label="0 or >1"];
+
+  costs -> replay [style=dashed, label="not plan provenance"];
+}

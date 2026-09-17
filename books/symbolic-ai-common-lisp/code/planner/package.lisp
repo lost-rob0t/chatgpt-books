@@ -3,8 +3,15 @@
   (:export
    #:action-schema
    #:action-schema-name
+   #:ambiguous-plan-step
+   #:ambiguous-plan-step-action
+   #:ambiguous-plan-step-before
+   #:ambiguous-plan-step-after
+   #:ambiguous-plan-step-matches
+   #:analyze-hmax-relaxation
    #:apply-ground-action
    #:canonical-state
+   #:explain-plan-result
    #:goal-satisfied-p
    #:ground-action
    #:ground-action-add-effects
@@ -15,8 +22,35 @@
    #:ground-action-schema-name
    #:ground-action-substitution
    #:instantiate-applicable-actions
+   #:invalid-plan-trace
+   #:invalid-plan-trace-action
+   #:invalid-plan-trace-before
+   #:invalid-plan-trace-after
    #:make-action-schema
+   #:make-hmax-heuristic
    #:make-planning-problem
+   #:plan-step-explanation
+   #:plan-step-explanation-action-name
+   #:plan-step-explanation-schema-name
+   #:plan-step-explanation-cost
+   #:plan-step-explanation-preconditions
+   #:plan-step-explanation-add-effects
+   #:plan-step-explanation-delete-effects
+   #:plan-step-explanation-before-state
+   #:plan-step-explanation-after-state
+   #:relaxed-analysis
+   #:relaxed-analysis-status
+   #:relaxed-analysis-estimate
+   #:relaxed-analysis-iterations
+   #:relaxed-analysis-fact-costs
+   #:relaxed-analysis-supports
+   #:relaxed-support
+   #:relaxed-support-fact
+   #:relaxed-support-cost
+   #:relaxed-support-source
+   #:relaxed-support-schema-name
+   #:relaxed-support-action-name
+   #:relaxed-support-preconditions
    #:solve-plan
    #:ungrounded-action
    #:ungrounded-world-fact))
