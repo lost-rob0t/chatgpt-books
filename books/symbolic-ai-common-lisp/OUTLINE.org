@@ -53,15 +53,7 @@ Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
 
 * Part II -- Building Useful Systems
-** Chapter 7 -- Heuristics
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for heuristics.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 8 -- Unification
+** Chapter 7 -- Unification
 Goal: develop working intuition, precise terminology, and an implementation/debugging angle for unification before later systems consume substitutions.
 Dependencies: Pattern Matching plus the Search Library foundations.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
@@ -69,14 +61,22 @@ Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modific
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 9 -- Planning
+** Chapter 8 -- Planning
 Goal: develop working intuition, precise terminology, and an implementation/debugging angle for planning.
-Dependencies: Search, heuristics, pattern matching, and unification.
+Dependencies: Search, pattern matching, and unification.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
 Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 9 -- Planner Heuristics and Checked Explanation
+Goal: derive planner-specific heuristic guidance and explanation only after the reader has the explicit action/state planner available to simplify, instrument, and replay.
+Dependencies: Search/A*, Pattern Matching, Unification, and Planning.
+Examples: delete-relaxation fact-cost propagation, exact relaxed-vs-real cost comparisons, bounded-analysis failure cases, and fail-closed plan replay tied to Project 3.
+Exercises: distinguish relaxed support from real-plan provenance, diagnose weak/unfinished heuristic evidence, and extend controlled fixtures without widening the action language accidentally.
+Visuals: relaxed-cost/support flow, three-cost comparison, and checked real-plan explanation traces.
+Expected code: the tested Project 3 heuristic analyzer, finite relaxed oracle fixtures, A* adapter, and checked explanation/replay boundary.
+Research: Hart/Nilsson/Raphael 1968, Bonet/Geffner 2001, and current implementation documentation where comparison claims are version-sensitive; do not transfer upstream theorems across changed assumptions.
 ** Chapter 10 -- Production Systems
 Goal: develop working intuition, precise terminology, and an implementation/debugging angle for production systems.
 Dependencies: previous chapter.
