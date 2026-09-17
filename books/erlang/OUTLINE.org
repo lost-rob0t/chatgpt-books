@@ -119,7 +119,15 @@ Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modific
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 15 -- Distribution
+** Chapter 15 -- Bounded Work And Dynamic Workers
+Goal: derive bounded admission, an explicit FIFO, dynamic temporary workers, monitor-correlated attempts, and logical retry ownership for Project 3. Make overload and volatile-ledger loss executable rather than hiding work in an unbounded mailbox.
+Dependencies: applications/releases plus the earlier process, monitor, gen_server, and supervisor chapters.
+Examples: one active + one queued capacity rejection; FIFO dispatch; deliberate worker crash/retry; retry exhaustion; queue-process restart while a sibling worker remains alive.
+Exercises: ★ admission/ownership explanation, ★★ cancellation/deadline modifications, ★★★ alternate supervision/recovery designs.
+Visuals: admission/FIFO -> dynamic supervisor -> temporary worker -> completion/DOWN/retry trace, with the queue-restart persistence boundary shown explicitly.
+Expected code: executable Project 3 checkpoint A modules and EUnit tests on strict OTP 29.1.
+Research: immutable OTP 29.1 =supervisor=, =queue=, and process-reference sources; distinguish documented runtime mechanics from course-local retry/backpressure policy.
+** Chapter 16 -- Distribution
 Goal: develop working intuition, precise terminology, and an implementation/debugging angle for distribution.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
@@ -127,15 +135,15 @@ Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modific
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 16 -- Fault Tolerance
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for fault tolerance.
+** Chapter 17 -- Fault Tolerance
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for fault tolerance, including an explicit persistence/recovery boundary for accepted work.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
 Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 17 -- Debugging And Tracing
+** Chapter 18 -- Debugging And Tracing
 Goal: develop working intuition, precise terminology, and an implementation/debugging angle for debugging and tracing.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
@@ -143,7 +151,7 @@ Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modific
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 18 -- Testing
+** Chapter 19 -- Testing
 Goal: develop working intuition, precise terminology, and an implementation/debugging angle for testing.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
@@ -151,15 +159,15 @@ Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modific
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 19 -- Performance
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for performance.
+** Chapter 20 -- Performance
+Goal: develop working intuition, precise terminology, and an implementation/debugging angle for performance, including measured mailbox and backpressure experiments rather than inferred throughput claims.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
 Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 20 -- Networking
+** Chapter 21 -- Networking
 Goal: develop working intuition, precise terminology, and an implementation/debugging angle for networking.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
@@ -171,7 +179,7 @@ Research: verify primary definitions, current APIs, and non-obvious historical c
 * Project integration map
 - Project 1 (Process-Based Messaging System) begins after the foundations it needs and reappears in later chapters for extension/testing.
 - Project 2 (OTP Worker Service) begins after the foundations it needs and reappears in later chapters for extension/testing.
-- Project 3 (Supervised Job Processor) begins after the foundations it needs and reappears in later chapters for extension/testing.
+- Project 3 (Supervised Job Processor) begins in Chapter 15 with bounded local work/retry ownership and reappears in distribution, persistence/recovery, tracing/testing, and measured backpressure chapters.
 - Project 4 (Distributed Erlang Service) begins after the foundations it needs and reappears in later chapters for extension/testing.
 - Project 5 (Fault-Tolerant Distributed Application) begins after the foundations it needs and reappears in later chapters for extension/testing.
 * Capstone
