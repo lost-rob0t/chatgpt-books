@@ -1,0 +1,504 @@
+* Chapter 23 -- Prolog as Reasoning Runtime: Proofs, Provenance, and Bounded Control
+:PROPERTIES:
+:ID:       32edbfba-9cb4-4611-9db1-81d16aa68125
+:END:
+
+So far Part V has treated the symbolic component generically: interpreter,
+satisfiability solver, theorem prover, planner, verifier.  This chapter narrows
+the lens to Prolog itself.
+
+That matters because Prolog is not merely a Boolean checker.  A Prolog program
+can expose substitutions, proof terms, search paths, constraint residuals,
+provenance records, and structured failure outcomes if the application is
+designed to retain them.  Those artifacts can make a neuro-symbolic system more
+inspectable than a pipeline that keeps only the final answer.
+
+They do not make a mistranslated premise true.
+
+Two published systems make this boundary concrete.  /Reliable Reasoning Beyond
+Natural Language/ uses LLM-produced logical code with Prolog performing the
+explicit deductive computation [cite:@borazjanizadeh-prolog-2024].  CaRing uses
+Prolog interpreters and their intermediate search logs to produce human-readable
+reasoning proofs [cite:@yang-caring-2025].  The current
+=lost-rob0t/prolog-rlm= repository gives us a third, separate object of study: a
+Prolog-owned bounded completion/orchestration runtime with a closed plan
+language.  It is repository evidence, not a published benchmark result
+[cite:@prolog-rlm-source].
+
+** 23.1 Keep three provenance graphs separate
+
+When a model translates source material into Prolog and Prolog proves a query,
+there are at least three different provenance questions.
+
+*** Source provenance
+
+Where did each proposed premise come from?
+
+#+begin_src prolog
+claim(c17,
+      duration(normalize_terms, 2),
+      source(document(spec_v3), span(44, 91))).
+#+end_src
+
+This connects a formal statement to external evidence.
+
+*** Acceptance provenance
+
+Why was that proposed premise admitted to the symbolic knowledge base?
+
+#+begin_src prolog
+accepted_claim(
+    c17,
+    validation{
+        schema:schedule_ir_v2,
+        entity_resolution:[normalize_terms],
+        unit:minutes,
+        decision:accepted
+    }).
+#+end_src
+
+This connects the candidate to host policy.
+
+*** Proof provenance
+
+Which accepted facts/rules were used to derive the answer?
+
+#+begin_src prolog
+proof(step(rule(normalization_finishes_before_validation),
+           [fact(c17), fact(c18)],
+           conclusion(before(normalize_terms, validate_schema)))).
+#+end_src
+
+This connects the conclusion to the accepted symbolic state.
+
+Collapsing all three into one =source= field causes confusion.  A proof can be
+perfectly faithful to accepted claims while those claims themselves have bad
+source provenance.  Conversely, a source extraction can be sound while a
+particular query has no proof.
+
+** 23.2 /Reliable Reasoning Beyond Natural Language/: Prolog does the iteration
+
+Borazjanizadeh and Piantadosi describe a neuro-symbolic approach in which an LLM
+extracts relevant information from a problem into logical code statements and
+Prolog conducts the iterative deductive computation
+[cite:@borazjanizadeh-prolog-2024].
+
+For this book, the important architectural distinction is:
+
+#+begin_example
+model: choose/encode the symbolic problem
+Prolog: execute the deductive computation over that encoding
+#+end_example
+
+The paper reports performance improvements on its evaluated tasks.  Those are
+*UPSTREAM-REPORTED* here.  We have not reproduced its model calls, prompts,
+datasets, provider versions, or result tables in this repository.
+
+The design lesson is independent of those numbers.  If arithmetic, recursion,
+or deduction can be represented in a logic program, the LLM does not need to
+simulate every inference step in prose.  Prolog can perform the computation
+under explicit language semantics.
+
+But the generated “logical code” boundary needs the same scrutiny as generated
+Python in PAL.  A research prototype may execute generated logic because that is
+part of the experiment.  A production-facing system in this book should not
+interpret arbitrary model-produced Prolog source as ambient authority.  We
+instead translate model output into a closed data vocabulary and let trusted
+code compile or dispatch that vocabulary.
+
+** 23.3 Why closed rule data is stronger than generated source text
+
+Compare two interfaces.
+
+Interface A accepts a string:
+
+#+begin_example
+"eligible(X) :- score(X,S), S > 70, \+ banned(X)."
+#+end_example
+
+and consults it into the running Prolog process.
+
+Interface B accepts data:
+
+#+begin_src prolog
+candidate_rule(
+    rule_17,
+    head(eligible, [person]),
+    all([
+        relation(score, [person, score]),
+        comparison(gt, score, integer(70)),
+        not(relation(banned, [person]))
+    ])).
+#+end_src
+
+Trusted code validates the constructors, variable slots, predicate vocabulary,
+negation policy, argument types, and resource bounds before a closed interpreter
+evaluates the rule data.
+
+Both interfaces may be described informally as “the model produced logic.”
+They expose radically different authority.
+
+The first asks the Prolog reader/compiler/runtime to interpret model text as
+program source.  The second asks a host-owned interpreter to inspect data from a
+finite object language.  The second is more verbose.  That verbosity is where
+policy lives.
+
+This book's Prolog-RLM-style capstone will follow the second pattern.
+
+** 23.4 Proof terms are application artifacts, not magic debugger traces
+
+The sibling =symbolic-ai-prolog= book derives meta-interpreters and proof trees
+in depth.  Here we need only the integration lesson: if a symbolic subsystem can
+return a structured proof object, preserve it before asking a model to explain
+it.
+
+A proof term might contain:
+
+#+begin_src prolog
+proof{
+    query:eligible(ada),
+    result:true,
+    premises:[c17,c21,c44],
+    rules:[eligibility_rule_v2],
+    derivation:and([...])
+}
+#+end_src
+
+The natural-language explanation is a rendering of this artifact, not a
+replacement for it.
+
+This protects against a common neuro-symbolic failure mode: the solver reaches
+a correct answer, then the language model invents a persuasive explanation that
+does not match the actual proof.  If proof and prose are stored separately, a
+validator can compare them or regenerate prose later.
+
+Do not call every trace a proof.  A runtime trace can include failed branches,
+resource checks, retries, or operational ordering that are not logical premises
+of the successful derivation.  Conversely, a compact proof may omit the search
+work that was required to find it.
+
+** 23.5 CaRing: use Prolog search artifacts to build reasoning proofs
+
+CaRing's published architecture explicitly accesses intermediate search logs
+generated by Prolog interpreters and interprets them into human-readable
+reasoning proofs [cite:@yang-caring-2025].  The paper describes the proof claim
+under an important condition: the problem description must be correctly
+translated into the Prolog representation.
+
+That is exactly the separation from Chapter 21:
+
+#+begin_example
+source correctness       -- translation problem
+formal proof correctness -- Prolog/interpreter problem
+rendering correctness    -- explanation problem
+#+end_example
+
+A system can improve the second and third while still needing independent
+controls for the first.
+
+CaRing is therefore useful not because it lets us say “Prolog makes explanations
+true,” but because it shows a practical architecture in which explanation steps
+are downstream of actual symbolic execution rather than free-form rationale.
+
+** 23.6 Search logs can expose counterfactual failures too
+
+A successful proof tells us what supported one conclusion.  For debugging an
+LLM-generated formalization, rejected branches can be equally valuable.
+
+Suppose the model proposes a plan and a Prolog verifier rejects it because a
+precondition is missing.  Instead of only returning =false=, return:
+
+#+begin_src prolog
+verification_failure{
+    step:3,
+    action:publish_report,
+    reason:missing_precondition(review_complete),
+    state_id:s2,
+    evidence:[rule(action_publish_v4)]
+}
+#+end_src
+
+This is not a proof of the requested plan.  It is a structured counterexample
+to one candidate.
+
+Such terms are excellent repair feedback because they name the failing symbolic
+state without giving the model arbitrary execution access.
+
+** 23.7 Current =prolog-rlm=: paper evidence and repository evidence are different
+
+The Recursive Language Models paper introduces an architecture for treating
+large context as an external environment that the model can inspect
+programmatically and recursively query [cite:@zhang-rlm].
+
+The current =lost-rob0t/prolog-rlm= repository is its own implementation project.
+At this research pass, canonical =main= is exactly commit
+=51d2530f0e18c84cff860b7c0bf3afcc3c488057=.  Current repository documentation
+describes =rlm_completion/4= as a bounded supervisor whose root result is either
+a strict direct-answer envelope or a typed symbolic plan.  It documents a
+closed operation vocabulary, host-owned plan parsing/structural validation,
+capability and budget checks, and explicitly states that there is no arbitrary
+model-generated =call/1= path [cite:@prolog-rlm-source].
+
+The same source snapshot documents provider-neutral =model_complete/3= outcomes
+and treats provider/transport failure as structured data.  Provider-visible tool
+schemas are separated from trusted execution authority; compatibility settings
+are host/provider configuration rather than a model-granted capability
+[cite:@prolog-rlm-source].
+
+These are *DOCUMENTED REPOSITORY DESIGN* claims.  This book has inspected the
+source/docs snapshot read-only.  It has not rerun the live provider acceptance,
+benchmarks, or full =prolog-rlm= test suite as part of this chapter.
+
+** 23.8 Typed plans turn recursion into an object you can validate
+
+A recursive system becomes easier to reason about when recursion is represented
+explicitly before execution.
+
+A simplified plan might be data like:
+
+#+begin_src prolog
+plan([
+    context(search("constraint semantics"), bind(evidence)),
+    model(summarize(evidence), bind(summary)),
+    rlm(subproblem(check_counterexample), bind(check)),
+    final(combine(summary, check))
+]).
+#+end_src
+
+Do not read that as the exact =prolog-rlm= syntax; it is a teaching sketch.  The
+important property is that host code can inspect the operation vocabulary,
+references, child capabilities, and budgets before executing the plan.
+
+Compare that with a prompt saying:
+
+#+begin_example
+You may recursively call yourself and run tools as needed. Be careful.
+#+end_example
+
+The second describes a social expectation.  The first creates a machine-checkable
+object.
+
+** 23.9 Recursion needs authority monotonicity
+
+The current =prolog-rlm= completion documentation describes child capabilities
+as equal to or narrower than the parent's allowed set; a child does not gain new
+authority merely because recursion occurred [cite:@prolog-rlm-source].
+
+That gives us an important capstone invariant:
+
+#+begin_quote
+Recursive depth may increase; authority must not.
+#+end_quote
+
+If a root run is allowed only context search and one read-only knowledge tool, a
+child should not suddenly acquire file writes or arbitrary network access.
+
+Represent this relation explicitly:
+
+#+begin_src prolog
+child_capabilities(Parent, Requested, Child) :-
+    intersection(Parent, Requested, Child),
+    subset(Child, Parent).
+#+end_src
+
+The exact implementation may use a different data structure.  The semantic
+property is monotonic narrowing.
+
+Add a regression where a child asks for an operation absent from the parent set.
+The correct outcome is a capability rejection before execution, not a repaired
+prompt that talks the child into behaving.
+
+** 23.10 Recursion needs budgets at more than one level
+
+A recursive model system can consume resources in several dimensions:
+
+- recursion depth;
+- total model calls;
+- concurrent subcalls;
+- context operations;
+- tool calls;
+- output bytes;
+- tokens/cost where provider metadata is available;
+- wall-clock time.
+
+The current =prolog-rlm= documentation names bounded completion controls across
+these dimensions and records unknown provider usage as unknown instead of
+fabricating precision [cite:@prolog-rlm-source].
+
+That last choice is epistemically important.  A missing cost field is not zero
+cost.  A missing token count is not evidence that no tokens were consumed.
+
+In the book capstone, each recursion step will carry a budget view derived from
+host policy.  Child requests may spend or narrow remaining budget; they may not
+mint a larger budget by emitting a bigger number in model output.
+
+** 23.11 Duplicate recursive work is a semantic signal
+
+Chapter 22 used candidate hashes to detect repair oscillation.  Recursive
+systems need a related mechanism for repeated subproblems.
+
+A fingerprint can include:
+
+#+begin_example
+normalized_subproblem
+context_snapshot_id
+capability_set
+relevant_options
+#+end_example
+
+If the same subproblem reappears under the same semantic context, a controller
+can reject the cycle, reuse a cached result under an explicit policy, or count
+it against a duplicate-work budget.
+
+Be careful with context.  Two identical prompts over different evidence
+snapshots are not necessarily duplicate semantic work.
+
+The current =prolog-rlm= docs report fingerprint-based rejection of obvious
+repeated recursive subplans [cite:@prolog-rlm-source].  The capstone will study
+that mechanism as implementation evidence rather than assuming it follows from
+the RLM paper.
+
+** 23.12 Provider-native tools do not erase the host boundary
+
+Modern providers can return native tool-call structures.  That improves
+transport ergonomics, but the architecture should still normalize them into
+host-owned request data before execution.
+
+The current =prolog-rlm= provider documentation makes this separation explicit:
+provider tool-call IDs are correlation identifiers rather than capabilities or
+durable effect identities, and model-produced request data cannot widen trusted
+provider/tool compatibility policy [cite:@prolog-rlm-source].
+
+For this book, the rule is:
+
+#+begin_example
+provider-native tool call
+  -> parse/normalize
+  -> correlate
+  -> capability + argument + authorization checks
+  -> effect mediator
+  -> result envelope
+  -> provider correlation response
+#+end_example
+
+Do not make =tool_call_id= the database transaction identity.  Do not infer
+permission from the fact that the provider returned a syntactically valid tool
+call.
+
+** 23.13 Proof-carrying answers are stronger when rejection evidence survives
+
+A useful final result can contain more than =answer(Text)=:
+
+#+begin_src prolog
+answer{
+    value:approved,
+    formalization:f42,
+    proof:p19,
+    accepted_sources:[c17,c21,c44],
+    rejected_candidates:[a1,a2],
+    runtime:run_88
+}.
+#+end_src
+
+Now the human-facing explanation can say what the system concluded while the
+audit layer retains:
+
+- the source claims;
+- the exact accepted formalization;
+- the proof artifact;
+- rejected alternatives;
+- the runtime/provider metadata needed for replay.
+
+This is more valuable than asking the model to emit “confidence: 0.93.”  A
+confidence score may be useful if it has a calibrated meaning.  It cannot
+replace evidence lineage.
+
+** Lab 23.A -- Proof downstream of evidence
+
+Build a small read-only neuro-symbolic fixture from the Project 1 task domain.
+Do not call a live model yet.
+
+1. Represent three candidate facts with source IDs.
+2. Run explicit host validation that accepts two and rejects one.
+3. Load only the accepted *data* into a closed meta-interpreter or approved
+   relation layer.
+4. Ask one query with a proof term.
+5. Render the proof into a deterministic sentence template.
+6. Preserve the rejected candidate separately.
+
+Then inject these failures:
+
+- accepted fact loses its source ID;
+- proof references a non-accepted claim;
+- renderer invents one unsupported step;
+- query exhausts a symbolic budget;
+- source changes after the proof snapshot is frozen.
+
+The test should identify which provenance graph broke instead of reporting one
+generic “reasoning error.”
+
+** Lab 23.B -- Narrow authority through a recursive sketch
+
+Using only deterministic fake subcalls, define a tiny recursive controller over
+closed plan data.  The root has capabilities =[lookup, summarize]=.  A child may
+request a subset.
+
+Required regressions:
+
+1. child requests =[lookup]= -> accepted;
+2. child requests =[lookup, write_file]= -> =write_file= rejected before any
+   handler lookup;
+3. depth exceeds host maximum -> terminal resource failure;
+4. identical subproblem/context fingerprint recurs -> duplicate/cycle outcome;
+5. unknown usage metadata remains =unknown= rather than =0=;
+6. no model-produced term reaches arbitrary =call/1=.
+
+This is a teaching harness, not a claim of reproducing the current
+=prolog-rlm= implementation.
+
+** Exercises
+
+1. Give one example each of source provenance, acceptance provenance, and proof
+   provenance for the same fact.
+2. Why can a valid Prolog proof coexist with an incorrect answer to the original
+   English question?
+3. Compare an execution trace with a proof term.  What can appear in one but not
+   belong in the other?
+4. Design a proof rendering check that detects an LLM-invented premise.
+5. Why is generated Prolog source a larger authority surface than a closed rule
+   AST interpreted by trusted code?
+6. State the authority-monotonicity property for recursive child calls in your
+   own words.
+7. Why should missing provider token/cost metadata be represented as unknown?
+8. Construct two identical subproblem strings that should /not/ be deduplicated
+   because their evidence snapshots differ.
+9. Explain why a provider-native tool-call ID is correlation, not permission.
+10. Which claims in this chapter are about the RLM paper, and which are about
+    the current =lost-rob0t/prolog-rlm= repository?  Why must they remain
+    separate?
+
+** Evidence checkpoint
+
+DOCUMENTED PRIMARY RESEARCH: /Reliable Reasoning Beyond Natural Language/
+describes LLM-produced logical code with Prolog performing deductive reasoning;
+CaRing describes Prolog-interpreter search artifacts used to produce reasoning
+proofs [cite:@borazjanizadeh-prolog-2024;@yang-caring-2025].
+
+DOCUMENTED REPOSITORY DESIGN: current =lost-rob0t/prolog-rlm= source/docs at
+=51d2530f0e18c84cff860b7c0bf3afcc3c488057= describe the provider-neutral
+outcome contract, strict direct/typed-plan completion boundary, host-owned
+parsing/validation/capability/budget phases, narrowed recursive capabilities,
+duplicate-recursion checks, bounded resource controls, and no arbitrary
+model-generated =call/1= production path [cite:@prolog-rlm-source].
+
+UPSTREAM-REPORTED: all benchmark and performance results from the published
+papers and any live-acceptance results documented by upstream repositories.
+
+UNTESTED BY THIS CHAPTER: live =prolog-rlm= execution, paid-provider behavior,
+its complete test suite, reproduction of CaRing or Reliable Reasoning results,
+and Labs 23.A/B until later executable slices implement them.
+
+The final chapter of Part V turns this evidence discipline into a reproducible
+research protocol.  A neuro-symbolic system is unusually easy to overclaim
+because one deterministic component can make the whole pipeline sound more
+formal than the evidence warrants.
