@@ -1,0 +1,116 @@
+#+title: Erlang Research Pass 07 -- Distributed Identity, Connection Loss, and Remote Process Failure
+:PROPERTIES:
+:ID:       7a21ce90-b823-4eb6-81b6-aa644f69bcd8
+:END:
+
+* Status
+DOCUMENTED from immutable official Erlang/OTP 29.1 sources. The repository multi-node lab is UNTESTED until the focused =erlang-book= workflow executes it on the pinned OTP 29.1 runtime. No cross-host availability, WAN, TLS deployment, durability, consensus, or performance result is inferred from documentation or from a same-host peer-node test.
+
+* Questions
+- What exactly is a distributed Erlang node, and how does its identity differ from a process identity?
+- When does referring to another node establish a connection?
+- Which parts of local process messaging, links, and monitors extend across nodes?
+- What does a remote process monitor report when the distribution connection disappears?
+- How do =net_kernel:monitor_nodes/2= node events differ from a process monitor?
+- Which ordering guarantees exist for =nodeup=/=nodedown= events?
+- How can a test disconnect Erlang Distribution without accidentally killing the peer VM that supplies the experiment?
+- What security boundary does current OTP place around default Erlang Distribution and cookies?
+
+* Primary sources inspected
+** Distributed Erlang reference manual at immutable tag =OTP-29.1=
+URL: https://github.com/erlang/otp/blob/OTP-29.1/system/doc/reference_manual/distributed.md
+
+The reference defines a distributed Erlang system as multiple Erlang runtime systems (nodes) communicating with each other. Pid-based message passing, links, and monitors can cross node boundaries transparently, while registered names remain local and therefore require a node-qualified address such as ={Name, Node}=.
+
+Nodes are named with =-name= or =-sname= and use =name@host= identity. Long-name and short-name nodes cannot communicate with one another. Referring to a remote node can trigger a connection attempt. Visible connections are normally transitive unless that behavior is disabled; =erlang:disconnect_node/1= forces a disconnection.
+
+The same reference contains a strong security warning: ordinary distribution without =-proto_dist inet_tls= can expose complete node/cluster access to an attacker. Its cookie section explicitly says the described default security is not cryptographically secure and ordinary inter-node communication is clear text. Cookies decide which nodes may connect; they are not a substitute for encryption or a hostile-network trust boundary.
+
+Claim status: DOCUMENTED.
+
+** =net_kernel= source documentation at immutable tag =OTP-29.1=
+URL: https://github.com/erlang/otp/blob/OTP-29.1/lib/kernel/src/net_kernel.erl
+
+The module documents =net_kernel= as the system process required for distributed Erlang and exposes explicit connection and node-monitoring operations. Automatic connection can be disabled with Kernel's =dist_auto_connect= setting; explicit connections can then be established with =connect_node/1=.
+
+For =monitor_nodes/2=, OTP documents ordered connection visibility: a =nodeup= notification is delivered before signals arriving from the remote node over the newly established connection; =nodedown= is delivered after signals from that remote node over the old connection have been delivered. OTP also supports =connection_id= in the event metadata so successive connections to the same node can be distinguished, and =nodedown_reason= for diagnostic context.
+
+These guarantees concern a distribution connection. They are not a durable-membership or consensus protocol, and they do not prove whether the remote VM or a remote process is alive after the observer loses the path.
+
+Claim status: DOCUMENTED.
+
+** =erlang:monitor/2= documentation/source at immutable tag =OTP-29.1=
+URL: https://github.com/erlang/otp/blob/OTP-29.1/erts/preloaded/src/erlang.erl
+
+Current monitor documentation distinguishes three common terminal observations relevant to this chapter: a real process exit reason, =noproc= when the process/name did not exist at monitor creation, and =noconnection= when there is no connection to the node where the monitored process resides. A remote registered name can be addressed as ={RegisteredName, Node}=.
+
+The critical teaching consequence is negative: =noconnection= is evidence about the observer's distribution path, not evidence that the remote process terminated. The Chapter 16 failure lab therefore checks remote service liveness through a separate =peer= control channel while Erlang Distribution itself is disconnected.
+
+Claim status: DOCUMENTED; the same-host reproduction is separately UNTESTED until CI.
+
+** =peer= documentation/source at immutable tag =OTP-29.1=
+URLs:
+- https://github.com/erlang/otp/blob/OTP-29.1/lib/stdlib/doc/src/peer.md
+- https://github.com/erlang/otp/blob/OTP-29.1/lib/stdlib/src/peer.erl
+
+The module is designed for multi-node testing. An origin node starts a peer node and keeps a control connection to it. That control connection can be Erlang Distribution or an alternative TCP/standard-I/O channel. The documentation explicitly notes that an alternative channel can still execute control RPC while Erlang Distribution is unavailable, which makes it suitable for testing distribution itself.
+
+Project 4 checkpoint A uses =connection => standard_io= for exactly that reason. The peer VM remains controllable while the teaching test deliberately tears down the ordinary distribution connection. This is test infrastructure, not an application transport recommendation.
+
+Claim status: DOCUMENTED.
+
+** Secure Coding Guidelines at immutable tag =OTP-29.1=
+URL: https://github.com/erlang/otp/blob/OTP-29.1/system/doc/design_principles/secure_coding.md
+
+Deployment rule =DEP-001= says not to expose default Erlang Distribution on untrusted networks. This reinforces the warning in the distributed reference manual. The book therefore uses a conspicuously non-secret test cookie only on ephemeral same-host CI nodes and makes no production-security claim from successful cookie-authenticated test connections.
+
+Claim status: DOCUMENTED.
+
+* Derived experiment
+The smallest experiment that separates process failure from connection failure needs two independent channels:
+
+1. ordinary Erlang Distribution, used by the application request and by the remote process monitor;
+2. =peer='s standard-I/O control connection, used only by the test harness to ask the peer whether the service process still exists after Distribution is deliberately disconnected.
+
+The intended trace is:
+
+#+begin_example
+origin                         peer VM
+  | monitor_nodes(true)           |
+  | connect_node ---------------->|
+  |<--------- nodeup(connection A)|
+  | monitor {service, peer}       |
+  | request --------------------->| service replies
+  |<------------------------ reply|
+  |
+  | disconnect_node ------------X |   Erlang Distribution only
+  |<------ DOWN(...,noconnection) |
+  |<------ nodedown(connection A) |
+  |                               | service remains alive
+  | peer control RPC -----------> | running() = true
+  |
+  | connect_node ---------------->|
+  |<--------- nodeup(connection B)|
+  | create a fresh monitor        |
+  | request --------------------->| service replies again
+#+end_example
+
+If CI observes that trace, it demonstrates only the bounded same-host claim: one remote process can outlive one observer's distribution connection, and the old remote-process monitor terminates with =noconnection=. It does not model a real network partition, delayed packets, split brain, or failover.
+
+* Failure taxonomy used by Chapter 16
+| Observation | What the checkpoint may conclude | What it must not conclude |
+|-
+| =DOWN ... deliberate_crash= while node stays connected | monitored service instance terminated | peer node failed |
+| =DOWN ... noproc= | named process was absent at monitor creation | node is down |
+| =DOWN ... noconnection= | observer has no distribution path to monitored node | remote process/VM is dead |
+| =nodedown= from =monitor_nodes= | observed distribution connection went down | durable cluster membership changed |
+| new =nodeup= with a different connection ID | a new observed connection exists | old application state/monitor relationships were recovered |
+
+* Explicit non-claims
+- No cross-host test is performed in this checkpoint.
+- No WAN latency, packet loss, or partition-duration experiment is performed.
+- No TLS certificates, production PKI, firewall policy, or EPMD hardening is implemented.
+- No =global= naming, leader election, consensus, quorum, split-brain resolution, or service-discovery correctness claim is made.
+- No durable queue or accepted-work replay is added to Project 3.
+- No exactly-once or at-least-once effect contract is claimed.
+- No throughput, latency, availability, or recovery-time benchmark is claimed.
