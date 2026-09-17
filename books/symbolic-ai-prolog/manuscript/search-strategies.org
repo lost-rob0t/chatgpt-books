@@ -1,0 +1,471 @@
+* Chapter 9 -- Search Strategy Is Part of the Planner
+:PROPERTIES:
+:ID:       daa62848-e0c5-44c1-ade7-2cccb92d0357
+:END:
+
+Chapter 8 gave us a planner with a real symbolic transition model. A state is a canonical ground set of facts. A schema is inert =schema/5= data. Applicability freshens variables, carries one relational binding across preconditions, rejects unsafe nonground effects, and produces an explicit successor. Breadth-first search then chooses among those successors.
+
+That last sentence hides a policy choice.
+
+Breadth-first search asks a very specific optimization question: *which solution uses the fewest transitions?* If every transition represents one unit of cost, that may be the right question. If actions differ in time, money, risk, energy, operator attention, or any other additive quantity, “fewest actions” and “cheapest plan” can disagree.
+
+This chapter changes only the frontier policy. We keep Chapter 8's state and action semantics. Then we derive two cost-aware frontiers:
+
+1. *uniform-cost search*, prioritized by accumulated path cost =g=;
+2. *A*=, prioritized by =f = g + h=, where =h= is a validated heuristic estimate supplied as closed data.
+
+That separation is the point. Planning semantics answer “what successor states are legal?” Search policy answers “which legal partial plan should we examine next?” A system is easier to test when those questions are not fused into one clever predicate.
+
+The historical sources matter, but so do their conditions. Dijkstra's 1959 article frames a minimum-path problem over positive edge lengths [cite:@dijkstra-shortest-path-1959]. Hart, Nilsson, and Raphael's 1968 A* paper formalizes heuristic minimum-cost graph search [cite:@hart-nilsson-raphael-astar-1968], and the authors' later correction is part of the theorem provenance when discussing admissibility, consistency, and optimal-efficiency claims [cite:@hart-nilsson-raphael-astar-correction-1972]. We will use those ideas without writing “A* is optimal” as though the adjective survives every representation, cost function, heuristic, and duplicate-state policy automatically.
+
+** 9.1 The first counterexample: one step can cost more than two
+Consider a synthetic recovery problem. The current state contains:
+
+#+begin_src prolog
+failed(node7)
+remote_access(node7)
+tech_at(tech1, depot)
+route(depot, site_a)
+hosts(site_a, node7)
+ticket_open(inc7)
+#+end_src
+
+The goal is:
+
+#+begin_src prolog
+[restored(node7)]
+#+end_src
+
+There are two broad routes to that goal.
+
+The first is a one-action remote recovery:
+
+#+begin_example
+remote_restore(node7)       cost 12
+#+end_example
+
+The second is a two-action on-site recovery:
+
+#+begin_example
+shuttle(tech1,depot,site_a) cost 1
+onsite_restore(tech1,node7) cost 10
+                                      -----
+                                      total 11
+#+end_example
+
+A FIFO breadth-first frontier sees depths 1 and 2. It has no reason to care that 12 is larger than 11. Given the fixture's deterministic schema order, the one-step remote recovery is encountered first.
+
+A cost-aware frontier asks a different question. Its node needs one more field:
+
+#+begin_src prolog
+node(State,
+     ReverseSteps,
+     ReverseStates,
+     G,
+     Depth)
+#+end_src
+
+=Depth= is still useful diagnostic information. =G= is now the quantity that drives uniform-cost priority.
+
+This is not a flaw in breadth-first search. It is a modeling mismatch. BFS correctly answers the unit-edge objective it was designed to answer. The bug would be pretending that unit-edge objective is still our cost model after assigning different action costs.
+
+** 9.2 Keep cost outside the action schema
+Chapter 8's action representation is already doing useful work:
+
+#+begin_src prolog
+schema(Id, Action, Preconditions, Add, Delete)
+#+end_src
+
+We do not mutate that representation just because the search strategy needs weights. Instead, Chapter 9 wraps a schema as data:
+
+#+begin_src prolog
+costed(Schema, Cost)
+#+end_src
+
+For this teaching kernel, =Cost= must be a non-negative integer.
+
+That choice has three advantages.
+
+First, the meaning of =schema/5= stays stable. =applicable/3= and =apply_instance/3= remain the same tested transition boundary.
+
+Second, the search experiment becomes explicit. The same symbolic action model can be evaluated under a different cost assignment without rewriting preconditions and effects.
+
+Third, malformed cost data can fail before search starts. A negative or non-integer cost is not silently accepted and then allowed to invalidate the frontier assumptions.
+
+The restriction to integers is ours, not a historical theorem. It keeps comparisons exact and the project small. Dijkstra's original problem statement uses positive edge lengths [cite:@dijkstra-shortest-path-1959]. Our implementation additionally admits zero-cost actions, and we test the strict-improvement policy against a zero-cost cycle. That is repository behavior, not something we attribute to the 1959 paper.
+
+Negative-cost planning is a different problem. Do not “support” it by deleting a validation line from uniform-cost search.
+
+** 9.3 A queue is not enough: remember the best known =g=
+A first attempt at cost-aware search might replace the FIFO list with a priority queue and stop there:
+
+#+begin_example
+pop smallest g
+expand it
+push successors by new g
+repeat
+#+end_example
+
+That is incomplete as an implementation story because the same canonical state can be discovered more than once.
+
+Our fixture makes this deliberate. Three movement schemas have the same effects:
+
+#+begin_example
+taxi    depot -> site_a    cost 2
+shuttle depot -> site_a    cost 1
+bus     depot -> site_a    cost 1
+#+end_example
+
+All three produce the same canonical state. If =taxi= is generated first, the site state enters the heap at =g=2=. Then =shuttle= discovers that same state at =g=1=.
+
+The cheaper route must become authoritative. But inserting a new heap entry does not remove the old one automatically.
+
+We therefore keep two structures:
+
+- a *min-priority heap* containing queued path candidates;
+- a *best-known-cost map* from canonical state to the smallest discovered =g=.
+
+Current SWI-Prolog =library(heaps)= documents a min-heap interface whose minimum key is removed with =get_from_heap/4= [cite:@swi-heaps]. Current =library(assoc)= documents persistent key/value associations and requires ground keys [cite:@swi-assoc]. Chapter 8 already made every planning state canonical and ground, so those state terms fit the map contract.
+
+The algorithmic invariant is more important than either library's internal representation:
+
+#+begin_example
+Best[State] = smallest path cost discovered for State so far
+#+end_example
+
+When a candidate successor arrives:
+
+1. if the state is new, record its =g= and enqueue it;
+2. if its new =g= is strictly smaller, replace =Best[State]= and enqueue the improved path;
+3. if its new =g= is equal or larger, keep the current best and do not enqueue the candidate.
+
+Equal-cost alternatives are intentionally collapsed in this milestone. If a later chapter needs every equal-cost proof/provenance path, that is a different result contract and should be implemented deliberately rather than leaking in accidentally.
+
+** 9.4 Stale entries are normal, so make them visible
+After =taxi= queues the site state at cost 2 and =shuttle= improves it to cost 1, the old cost-2 heap entry is still physically present.
+
+We could attempt an in-place decrease-key operation. We do not need one for the teaching kernel. Instead, we use a common lazy strategy: allow the old entry to remain and reject it when popped.
+
+The check is simple:
+
+#+begin_src prolog
+get_assoc(State, Best, BestG),
+(   G > BestG
+->  % old queued path; skip expansion
+;   % this is still the best-known path; expand it
+).
+#+end_src
+
+The interesting part is not skipping it. The interesting part is returning evidence that it happened:
+
+#+begin_src prolog
+stale(State, QueuedG, BestG)
+#+end_src
+
+That diagnostic turns a performance/duplicate-policy detail into inspectable state. A reader can explain why a node appeared in the heap but was not expanded.
+
+This is exactly the sort of fact that disappears when a planner is introduced only through a finished framework API.
+
+** 9.5 Strict improvement also controls zero-cost cycles
+Now consider a tiny cycle:
+
+#+begin_src prolog
+schema(to_b, to_b, [at(a)], [at(b)], [at(a)])
+schema(to_a, to_a, [at(b)], [at(a)], [at(b)])
+#+end_src
+
+Give both actions cost 0.
+
+From =[at(a)]= we discover =[at(b)]= at =g=0=. From =[at(b)]= we can derive =[at(a)]= again at =g=0=.
+
+If equal-cost rediscoveries are always requeued, the frontier can churn forever through an otherwise finite two-state graph.
+
+Our replacement rule is *strict*:
+
+#+begin_example
+CandidateG < BestG
+#+end_example
+
+The returning path to =[at(a)]= costs 0, but the best-known cost for =[at(a)]= is already 0. The candidate is therefore recorded as dominated instead of reinserted.
+
+This does not solve every possible termination problem. An infinite state space is still infinite. A generator that invents unbounded fresh state terms can still run forever. The rule solves a narrower and testable problem: equal- or worse-cost rediscovery of the same canonical ground state does not create unbounded same-state reinsertion.
+
+** 9.6 Deterministic priorities without depending on heap accidents
+Current SWI heaps order entries by their keys [cite:@swi-heaps]. We use a ground key:
+
+#+begin_src prolog
+priority(F, Sequence)
+#+end_src
+
+Because every key has the same functor and arity, standard term ordering compares the numeric =F= first and then the numeric =Sequence=. =Sequence= increases every time we enqueue a node.
+
+The second field is not part of the optimization objective. It is a deterministic tie-break for this project so equal-priority behavior remains reproducible and testable.
+
+Uniform-cost search computes:
+
+#+begin_example
+F = G
+#+end_example
+
+A* computes:
+
+#+begin_example
+F = G + H
+#+end_example
+
+The heap never receives a variable priority. The planner also never inspects the heap's private representation. Those are useful engineering boundaries when using a language whose terms make it tempting to depend on structure that a library did not promise.
+
+** 9.7 Uniform-cost search is Chapter 8 with a different frontier contract
+Notice what *does not* change in =uniform_cost_plan/5=:
+
+- schemas are still inert terms;
+- =applicable/3= still freshens a schema and grounds it against a state;
+- =apply_instance/3= still performs the explicit delete/add state delta;
+- planning states are still canonical ground fact sets;
+- returned steps still carry =step(SchemaId,ConcreteAction)= provenance;
+- returned states still show the whole selected world-state sequence.
+
+The change is localized to selection and duplicate handling.
+
+The result is:
+
+#+begin_src prolog
+found(plan(TotalCost, Steps, States))
+#+end_src
+
+or:
+
+#+begin_src prolog
+exhausted(Goals)
+#+end_src
+
+The selected plan is different from the diagnostic trace. A trace may contain =discovered/4=, =improved/5=, =dominated/4=, =stale/3=, =no_progress/3=, and =expanded/4= events that are not members of the successful plan.
+
+That distinction repeats an idea from Project 1: *search evidence is not the same artifact as a successful proof/path*. Failed or superseded attempts are useful for debugging precisely because they are not silently rewritten as though they had been part of the winner.
+
+** 9.8 Derive A* by adding one number, not a new planner
+Once uniform-cost search exists, A* does not need a second transition engine.
+
+For a node with accumulated cost =g(n)= and heuristic estimate =h(n)=, the frontier score is:
+
+#+begin_example
+f(n) = g(n) + h(n)
+#+end_example
+
+The action model, successor generation, best-cost map, strict-improvement rule, stale-entry check, plan reconstruction, and trace representation stay the same.
+
+That reuse is pedagogically valuable. You can point at the exact mechanism introduced by heuristic search instead of comparing two unrelated implementations and guessing which differences matter.
+
+The historical theorem is conditional. Hart, Nilsson, and Raphael analyze heuristic minimum-cost graph search in a formal framework [cite:@hart-nilsson-raphael-astar-1968]. Their 1972 correction explicitly restates a lower-bound condition for admissibility and a stronger consistency condition in connection with the paper's optimal-efficiency comparison [cite:@hart-nilsson-raphael-astar-correction-1972].
+
+Our code does not prove either property for an arbitrary heuristic.
+
+That sentence belongs in the implementation contract, not in a footnote readers can miss.
+
+** 9.9 The heuristic is closed data, not ambient execution authority
+A tempting Prolog API would look like this:
+
+#+begin_src prolog
+% Not the interface used in this project.
+call(HeuristicPredicate, State, H)
+#+end_src
+
+That is convenient, but it gives the caller authority to execute whatever predicate term reaches the boundary. It also makes the finite teaching experiment harder to audit: the heuristic can now depend on hidden dynamic state, I/O, global flags, a network call, or any other host behavior.
+
+Instead, =a_star_plan/6= accepts one of two closed data forms:
+
+#+begin_src prolog
+zero
+#+end_src
+
+or:
+
+#+begin_src prolog
+table([
+  estimate(State1, H1),
+  estimate(State2, H2),
+  ...
+])
+#+end_src
+
+Every table state is canonicalized. Every =H= must be a non-negative integer. Duplicate table states are rejected. If search generates a state with no estimate, lookup fails *as an error* rather than silently substituting zero.
+
+This is intentionally strict. A missing estimate means the experiment is not the experiment the author said it was.
+
+The weighted recovery fixture has only four canonical states that can enter the cost-aware frontier:
+
+1. failed node, technician at depot;
+2. failed node, technician at site;
+3. restored node, technician at depot;
+4. restored node, technician at site.
+
+Its hand-audited table assigns:
+
+#+begin_example
+start failed/depot   -> 11
+failed/site          -> 10
+restored/depot       -> 0
+restored/site        -> 0
+#+end_example
+
+These values are fixture data. The executable regression compares A*'s returned plan cost with uniform-cost search on this finite domain. Passing that test does not create a theorem prover for future heuristic tables.
+
+** 9.10 A zero heuristic is the control experiment
+Set =h(n)= to zero for every state.
+
+Then:
+
+#+begin_example
+f(n) = g(n) + 0
+     = g(n)
+#+end_example
+
+Under the same queue and tie-breaking policy, A* should therefore reduce to uniform-cost ordering on this fixture.
+
+That gives us a useful metamorphic-style regression:
+
+#+begin_src prolog
+uniform_cost_plan(Costed, Start, Goal, UcsResult, _),
+a_star_plan(Costed, Start, Goal, zero, AStarResult, _),
+assertion(AStarResult == UcsResult).
+#+end_src
+
+This test is stronger than checking that both procedures happen to reach =restored(node7)=. It checks that our “A* is UCS plus =h=” implementation story is reflected by the code on the controlled deterministic fixture.
+
+Again, keep the boundary narrow. This is repository behavior for the finite project case, not a substitute for the classical proof conditions in the literature.
+
+** 9.11 Read a weighted-search trace
+A useful trace should let you reconstruct the frontier decisions without dumping private heap structure.
+
+For the weighted recovery fixture, the logical story is:
+
+1. expand the start state at =g=0=;
+2. discover the remote goal at =g=12=;
+3. discover the on-site state through =taxi= at =g=2=;
+4. rediscover the same on-site state through =shuttle= at =g=1= and mark the best cost improved;
+5. rediscover it through =bus= at the same =g=1= and mark that candidate dominated;
+6. expand the on-site state at =g=1=;
+7. generate the restored on-site state, eventually improving it to =g=11=;
+8. pop the older =g=2= on-site entry, observe that =Best[State]=1=, and record it as stale;
+9. pop the restored state at =g=11= and reconstruct the selected plan.
+
+The exact trace term sequence belongs to the executable suite. The conceptual distinction is what you should be able to explain at the whiteboard:
+
+- *discovered*: no previous cost existed;
+- *improved*: a strictly cheaper route replaced the recorded best;
+- *dominated*: equal/worse route, not queued;
+- *stale*: an older queued route lost after it was inserted;
+- *expanded*: the popped route is still current and is allowed to generate successors.
+
+If your debugger cannot tell those cases apart, duplicate-state behavior tends to become folklore.
+
+** 9.12 The same planner kernel under three policies
+#+caption: Chapter 8 supplies state/action semantics. Chapter 9 changes the frontier objective and adds explicit best-cost/heuristic data. Editable source: =assets/search-strategy-frontiers.dot=.
+#+ATTR_HTML: :alt Diagram showing the same Chapter 8 successor kernel feeding BFS by depth, uniform-cost search by accumulated g, and A* by g plus a validated heuristic table, with a best-known-cost map and stale queue entries.
+[[file:assets/search-strategy-frontiers.svg]]
+
+The diagram is intentionally asymmetric. BFS needs no cost map because its Chapter 8 contract was a finite unit-edge teaching search with a closed-on-expansion policy. UCS and A* are solving a different objective and therefore maintain best-known accumulated costs.
+
+Do not infer that BFS is “obsolete.” If the domain objective really is minimum number of actions and every transition is one unit, the simpler FIFO frontier is a good fit. The lesson is to make the objective visible enough that you can tell which algorithm matches it.
+
+** 9.13 Failure Lab A -- smuggle a negative cost through validation
+Try to assign =-1= to an action.
+
+If the planner accepts it, stop. The chapter's frontier assumptions no longer match its input contract.
+
+The correct behavior for this milestone is a typed error before search. Do not patch the test by changing the expected plan. Negative-weight shortest paths require a different treatment; pretending they are “just another number” is how a clean teaching invariant turns into a false claim.
+
+** 9.14 Failure Lab B -- make the heuristic incomplete
+Delete the estimate for the on-site failed state from the finite heuristic table.
+
+A permissive implementation might quietly use zero or infinity. Both choices invent semantics that were not in the data.
+
+This project throws an =existence_error= when a newly queued state has no estimate. The failure tells you the heuristic experiment is underspecified.
+
+Then compare that behavior with =zero=. =zero= is not an incomplete table; it is an explicitly selected policy that intentionally assigns zero everywhere.
+
+** 9.15 Failure Lab C -- enqueue equal-cost rediscoveries
+Change the strict replacement test from:
+
+#+begin_src prolog
+CandidateG < OldG
+#+end_src
+
+to a condition that also accepts equality. Run the zero-cost two-state cycle.
+
+The point is not merely to make a test fail. Explain *why* state identity plus non-negative cost is insufficient for termination if equal-cost rediscoveries are endlessly treated as new queue work.
+
+Then restore strict improvement.
+
+** 9.16 Failure Lab D -- execute a heuristic callback
+Sketch an alternative API that accepts a callable =Heuristic= predicate. List what authority it obtains in ordinary Prolog: database access, other predicates, side effects, exceptions, and any capabilities reachable from the current module boundary.
+
+Now compare that with the closed =table/1= form.
+
+The table is less flexible. That is the feature under examination.
+
+This failure lab is also a cross-book boundary. =prolog-llms= will later discuss typed and permissioned interfaces for model-produced data. This volume needs the same underlying discipline without importing an LLM storyline: symbolic terms supplied by another component should not become arbitrary host goals just because Prolog makes =call/1= easy.
+
+** 9.17 What this milestone proves, tests, and does not know
+Keep four categories separate.
+
+*DOCUMENTED*:
+- Dijkstra's positive-edge minimum-path problem [cite:@dijkstra-shortest-path-1959];
+- Hart/Nilsson/Raphael's heuristic minimum-cost-search lineage and the correction provenance [cite:@hart-nilsson-raphael-astar-1968;@hart-nilsson-raphael-astar-correction-1972];
+- current SWI min-heap/key behavior [cite:@swi-heaps];
+- current SWI association ground-key contract [cite:@swi-assoc].
+
+*TESTED, once the repository suite actually passes*:
+- the controlled fixture's BFS one-step choice;
+- UCS cost-11 two-step choice;
+- stale/dominated diagnostics;
+- zero-cost-cycle strict-improvement behavior;
+- A* and UCS agreement on the audited finite table;
+- zero-heuristic equivalence on that fixture;
+- fail-closed malformed cost/heuristic inputs.
+
+*UNTESTED unless a later milestone adds evidence*:
+- arbitrary-domain completeness/performance;
+- heuristic quality outside the fixture;
+- behavior on enormous or infinite state spaces;
+- portability of the exact SWI library choices to another Prolog implementation.
+
+*NOT CLAIMED*:
+- automatic proofs of heuristic admissibility or consistency;
+- support for negative costs;
+- full PDDL, temporal, probabilistic, or numeric-fluent planning;
+- production planner throughput or scaling;
+- any LLM/RLM behavior.
+
+That accounting is part of the engineering. Search algorithms are famous enough that sloppy prose can make a five-line fixture sound like a production theorem.
+
+** 9.18 Exercises
+1. Hand-simulate the weighted fixture through the first stale pop. Write the heap candidates and =Best= map after every successor.
+2. Change =remote_restore= from cost 12 to cost 10. Predict which plan UCS returns and explain how the deterministic sequence tie-break affects equal-cost candidates without changing the objective value.
+3. Add a new movement schema that reaches the same site state at cost 3. Identify whether its trace event is =discovered=, =improved=, or =dominated= given the current schema order.
+4. Reorder =taxi= and =shuttle=. Which trace events change? Which minimum-cost claim should remain unchanged?
+5. Construct a two-state zero-cost cycle and explain why strict improvement prevents same-state reinsertion.
+6. Add a duplicate state to the heuristic table. Decide whether last-write-wins is acceptable for an auditable experiment, then compare your answer with the book's fail-closed duplicate policy.
+7. Give the on-site failed state a heuristic of 100. Run the fixture and explain why one passing A* plan does not establish admissibility or optimality for that table.
+8. Remove the heuristic entry for the remote-restored state even if you expect A* not to select that plan. Explain why fail-closed generation-time lookup is stricter than “only require estimates for the final path.”
+9. Extend the trace with a stable node identifier while keeping the selected plan representation unchanged. What debugging question does the identifier answer?
+10. Add a second goal fact, =ticket_open(inc7)=. Explain why the existing unrelated-fact preservation from Chapter 8 matters to Chapter 9 even though the search policy changed.
+11. Design, but do not yet implement, a depth-limited planner result type that distinguishes “no solution in this finite exhausted graph” from “search stopped at the requested depth bound.”
+12. Design a heuristic-checking utility for a finite fully enumerated teaching graph. State exactly what property it could check and why that would still not prove correctness for an infinite or partially generated domain.
+
+** 9.19 Project checkpoint
+At this checkpoint, Project 2 has moved through three mechanisms:
+
+#+begin_example
+explicit graph frontier
+        |
+        v
+relational action schemas + explicit state transitions
+        |
+        v
+cost-aware frontier + best-g replacement + closed heuristic data
+#+end_example
+
+The next planning work still has real gaps. The full Chapter 9 curriculum also calls for bounded/depth-policy comparisons where result types distinguish exhaustion from a caller-imposed cutoff. Chapter 10 will then move constraints *inside* search rather than merely using a priority function outside it.
+
+Do not rush those together. The useful pattern so far has been one new mechanism at a time, with old mechanisms held fixed and executable counterexamples showing why the new one exists.

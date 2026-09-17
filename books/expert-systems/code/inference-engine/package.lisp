@@ -192,6 +192,25 @@
            #:assumption-network-contradictions
            #:assumption-network-consistency-status
            #:run-assumption-network
+           #:explanation-node
+           #:make-explanation-node
+           #:explanation-node-id
+           #:explanation-node-kind
+           #:explanation-node-data
+           #:explanation-edge
+           #:make-explanation-edge
+           #:explanation-edge-from
+           #:explanation-edge-to
+           #:explanation-edge-kind
+           #:explanation-graph
+           #:make-explanation-graph
+           #:explanation-graph-status
+           #:explanation-graph-roots
+           #:explanation-graph-nodes
+           #:explanation-graph-edges
+           #:explanation-graph-signature
+           #:explain-current-fact
+           #:explain-contradiction-report
            #:*service-diagnosis-facts*
            #:make-service-diagnosis-productions))
 

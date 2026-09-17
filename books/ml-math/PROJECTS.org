@@ -51,6 +51,8 @@ Failure scenarios: invalid input, boundary failure, contradictory/edge cases, an
 Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
 Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
 Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+
+Checkpoint A derives fixed-step behavior instead of beginning with an opaque optimizer animation. For the positive-curvature scalar quadratic it reduces the update to the exact error recurrence =e_(k+1) = (1 - eta*a)e_k= and uses the multiplier to distinguish monotone convergence, one-step landing, oscillatory convergence, the neutral two-cycle boundary, and divergence. It then extends the same mechanism to an axis-aligned two-dimensional quadratic whose directions have different curvature, so the reader can predict zig-zagging and direction-specific failure before later Hessian/eigenvalue machinery. The executable deliverable keeps an independent closed-form recurrence oracle, iterative trace engine, fail-closed finite-arithmetic boundary, regression tests, and deterministic accessible SVG. General non-axis-aligned quadratics, line search, momentum/adaptive optimizers, stochastic methods, Hessian/eigenvalue bounds, and performance comparisons remain later work.
 ** Project 4 -- Probability and Bayesian Inference Tool
 :PROPERTIES:
 :ID:       446bb7dd-7bb8-56ab-81de-8f20d838473c

@@ -1,0 +1,38 @@
+#+title: StarIntel Project 3 -- Actor Runtime Lab
+:PROPERTIES:
+:ID:       98c145d4-5d74-4db1-aae2-c5972d23817e
+:END:
+
+* Purpose
+This lab tests a deliberately small StarIntel actor extension against the exact
+pinned upstream StarIntel Server/Sento environment.  It does not copy the
+StarIntel router, scheduler, persistence code, or Rabbit transport into the
+book.
+
+The actor performs one observable task: accept the current
+=target-dispatch-envelope= and record a sanitized in-memory receipt.  That is
+enough to prove the local registry/delivery contract without inventing a fake
+scraper or writing investigation data.
+
+* Files
+- =book-actor.lisp= -- explicit create+register extension used by the chapter.
+- =book-actor-test.lisp= -- Three FiveAM regressions injected into the upstream
+  unit suite: local registration+delivery, unresolved remote destination
+  selection, and invalid actor-name rejection.
+- =inject_upstream_test.py= -- fail-closed test injector.  It requires exact
+  upstream ASDF/test-runner markers instead of guessing after source drift.
+- =test_injector.py= -- hermetic regressions for the injector itself.
+- =run-pinned-tests= -- refuses any StarIntel Server checkout except
+  =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= and runs upstream
+  =nix run .#star-unit-tests= after injection.
+
+* Evidence boundary
+A green pinned run TESTS that the teaching actor registers and receives the
+current local dispatch envelope in the upstream unit-test environment, that an
+unregistered actor resolves to the current canonical Rabbit destination key,
+and that invalid actor identities fail before routing.
+
+It does *not* test a Rabbit delivery to an external actor, an actor process
+crash/restart policy, persisted-target recovery after process restart, or a
+production deployment.  Those stay explicitly UNTESTED until a later fault
+slice exercises them.

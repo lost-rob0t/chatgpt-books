@@ -3,7 +3,7 @@
 :ID:       d04e0764-a154-5602-934a-1a1ce9f935d7
 :END:
 * Phase
-Foundational research and the first two project-backed runtime milestones are merged. Project 2's disposable service-backed evidence checkpoint is TESTED in PR #58 and awaits Editor-in-Chief review after final current-main reconciliation/checks. The complete 300--700 page book remains far from release-ready.
+The first two project-backed runtime milestones are merged and Project 3 milestone A is the active worker draft in PR #93. The current slice derives and tests actor registration, target-dispatch envelopes, local-versus-Rabbit destination selection, and the evidence boundary around restart/recovery behavior. The complete 300--700 page book remains far from release-ready.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
 - The bounded Chapters 1--5 / Project 1 milestone-A foundation was editorially approved and merged previously.
@@ -14,43 +14,47 @@ Foundational research and the first two project-backed runtime milestones are me
 - Project 2's hermetic adapter distinguishes HTTP publish-boundary return from later authorized read-back and contains eight tests.
 - Runtime Failure Pass 03 records the =d48fa939402abf701fa1cc4079dfb8bedfad8d4a= quarantine-ID/worker-isolation delta; the incident and upstream product checks remain UPSTREAM-REPORTED.
 - The ambiguous-bulk failure-analysis lab derives a resume offset only from a proven contiguous =verified_match= prefix followed by verified absence. It deliberately refuses to infer document equivalence, query product services, or replay work.
-- Bulk Lifetime Pass 04 rechecks StarIntel Server head =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= after issue #189 / PR #190 landed. Current source stores a stable bulk-job total and releases terminal request documents plus request-only service context while retaining pollable job metadata.
+- Bulk Lifetime Pass 04 records StarIntel Server revision =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= after issue #189 / PR #190 landed. Source at that revision stores a stable bulk-job total and releases terminal request documents plus request-only service context while retaining pollable job metadata.
 - Chapter 20 derives the distinction between bounded in-flight work and bounded retained history from that implementation, including the accepted-but-ambiguous recovery consequence.
 - The =bulk-job-lifetime= book lab audits sanitized lifecycle observations with explicit =proven= / =incomplete= / =contradicted= outcomes rather than simulating StarIntel. Its synthetic suite covers eleven lifecycle/failure cases.
-- PR #44 was editorially APPROVED and merged as =84fab98a4eb3f7ab136c99a138dc1fb1f15c0488= after exact-head focused and generic CI. HTTP publication evidence, Rabbit settlement, CouchDB outbox/at-least-once reasoning, ambiguous replay auditing, and terminal bulk-job lifetime evidence are therefore on canonical =main=.
+- PR #44 was editorially APPROVED and merged as =84fab98a4eb3f7ab136c99a138dc1fb1f15c0488= after exact-head focused and generic CI.
+- PR #58 was editorially APPROVED and merged as =316378ea8e30f94f7041c86b31842de73a16eddb=. Its disposable-stack evidence established only the bounded observations actually measured: baseline POST/read-back, broker-down POST without bounded read-back, and explicit =start RabbitMQ -> restart StarIntel= recovery. Publisher confirms, settlement redelivery, transparent reconnect, and the outbox crash window were not promoted by that merge.
 - The StarIntel manuscript is split into stable Org include modules without changing the earlier foundation/runtime content or IDs.
-- Editable Graphviz source and rendered SVG assets cover the foundation document flow and current ingest settlement/outbox model.
-* Active slice -- Service Trace Pass 05
-PR #58 reuses exact upstream StarIntel Server revision =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= and its own disposable =scripts/stack-test.sh= rather than copying deployment logic into this book. That revision is still the repository's =master= head as of the 2026-09-16 execution audit.
+- Editable Graphviz source and rendered SVG assets cover the foundation document flow, ingest settlement/outbox model, and the active actor-dispatch evidence boundary.
+* Active slice -- Actor Runtime Pass 06 / Project 3 milestone A
+PR #93's runnable Project 3 evidence is pinned to StarIntel Server revision =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= and that revision's Sento/cl-gserver pin =6a510c5b58469e72e6363bd3a6059d80b9a5c320=. Current StarIntel Server =master= was rechecked on 2026-09-17 at =e49c67d88d60dbcc0fcba1b4ba76c1a0a6d6655c=. The eleven-commit delta from the experiment pin changes observability, authorization, configuration, Compose, and their tests, not the actor/target/runtime source used by this milestone; the relevant current files were re-inspected at the new head.
 
-The book's fail-closed observation hook is TESTED against that real disposable stack. It:
-- submits a fresh synthetic Project 1 document through the current HTTP ingest route and separately requires authorized durable read-back;
-- stops RabbitMQ and verifies the container is actually not running before interpreting the fault;
-- records the client-visible fault outcome without prescribing a status code;
-- starts RabbitMQ, explicitly restarts StarIntel, waits for upstream health, and requires another fresh HTTP/read-back observation;
-- retains only sanitized evidence, never the disposable API key, bearer header, raw response body, container ID, or raw fault stderr.
+The source audit distinguishes historical code from the effective serial load graph. At the current rechecked head:
+- the target-dispatch layer resolves an exact registered actor locally and otherwise constructs canonical Rabbit route =documents.target.dispatch.<actor>= while retaining =actors.<actor>.new.target= as compatibility metadata;
+- local target delivery carries the current =target-dispatch-envelope= rather than the older raw-target message shape;
+- =define-actor= accepts =:register= but its macro expansion does not call =register-actor=, so Project 3 keeps actor creation and registry insertion adjacent in one explicit startup function;
+- a later-loaded =runtime-lifecycle.lisp= definition of =start-actors= does not contain the earlier =recover-persisted-targets= call from =target-recovery.lisp=. This is a DOCUMENTED source/load-order finding only; no restart experiment has yet established the operational consequence.
 
-Two successful service-backed executions reproduce the same qualitative boundary. In both, baseline POST returned HTTP 200 and authorized read-back later observed the fresh document; the first run observed it on read attempt 1 and the current-main rerun on attempt 2. In both broker-fault phases, RabbitMQ was verified stopped, the HTTP service remained alive, the fresh fault submission returned HTTP 200, and persistence was not observed across nine bounded reads with final status 404. In both explicit-recovery phases, =start RabbitMQ -> restart StarIntel -> wait healthy= was followed by another POST 200 and persistence observed on read attempt 1. The differing baseline poll count is an observation, not a latency benchmark or service-level guarantee.
+The teaching extension in =code/actor-runtime/book-actor.lisp= is deliberately thin: it creates and registers one Sento actor, requires the current typed dispatch envelope, and records a sanitized in-memory handler receipt. The focused test injector loads that extension into the exact pinned upstream StarIntel test system instead of copying routing, scheduling, persistence, or Rabbit implementation into the book.
 * Active research
-- Publisher confirms are still not evidenced in the inspected publish paths. The successful service traces do not substitute for a publisher-confirm-specific experiment.
-- Settlement-failure redelivery/listener survival, the CouchDB outbox crash window, concurrent quarantine-ID behavior, terminal bulk payload release under sustained backlog, and transparent broker reconnect remain separate executable questions.
-- Actor registry/discovery, Sento restart/supervision semantics, remote delivery, Quasar integration, external actors, language bindings, search/inference, deployment, security, and broader production-debugging surfaces remain later research.
-- Any later change to source paths pinned by the current research passes requires another current-head delta audit before corresponding manuscript claims are promoted.
+- Project 3 milestone A validates local create/register/envelope delivery, unresolved-name destination construction, and invalid actor identity against the exact =1ac298b...= pinned upstream runtime; those executable results are not silently generalized to newer server heads.
+- Current-source currency for the actor/target/load-order claims is DOCUMENTED separately at =e49c67d...= after a full compare and targeted reinspection.
+- Project 3 milestone B must deliberately fault the local actor boundary before the manuscript may make concrete claims about handler exceptions, component death, registry state after failure, replacement/restart policy, or queued-message survival.
+- A separate process-restart experiment is required before making a stronger claim about automatic persisted-target recovery at the current load graph.
+- Real Rabbit delivery/settlement to an external actor remains a later service-backed boundary; destination construction alone is not delivery evidence.
+- Publisher confirms, settlement-failure redelivery/listener survival, the CouchDB outbox crash window, concurrent quarantine-ID behavior, terminal bulk payload release under sustained backlog, and transparent broker reconnect remain separate executable questions.
+- Quasar integration, language bindings, search/inference, deployment, security, and broader production-debugging surfaces remain later research.
 * Verification status
-- The merged Project 1 and earlier Project 2/runtime work has successful focused and generic CI evidence recorded in PRs #37 and #44.
-- PR #58 execution head =1e0ad4e802ea390823a9a5cc04858eb03d2c8ba4= has focused =starintel-book= run =35115201190= SUCCESS: Project 1 7/7, ingest-adapter 8/8, service-trace hermetic 9/9, ambiguous-bulk 8/8, bulk-job-lifetime 11/11, =make book BOOK=starintel=, =make check BOOK=starintel=, EPUBCheck with 0 fatals / 0 errors / 0 warnings / 0 infos, and a separate successful Nix job. Its service-backed job =104858737649= emitted sanitized artifact =10454487856=.
-- Reconciled head =c09f88fdd2b9dd7df48f48777b32bbf316ba3c65= repeated the experiment in =starintel-book= run =35121092016= SUCCESS: records-and-book =104878765479= SUCCESS, service-backed trace =104878765097= SUCCESS, and Nix =104878765492= SUCCESS. Generic =books-ci= run =35121091999= also succeeded. The service-backed artifact is =10458031216= (uploaded ZIP SHA-256 =a8725dbb3e847c05108f49114a63c551242f2228abeafc9d5e3905ee0011a26d=).
-- DOCUMENTED at current upstream StarIntel Server head =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=: the prior ULID/worker-isolation repair, terminal bulk-job payload-lifetime repair, and current disposable stack-test lifecycle inspected by Pass 05.
-- UPSTREAM-REPORTED in StarIntel Server issue #187 / PR #188 and issue #189 / PR #190: the live incidents, baseline RED fixtures, operational reconciliation details, and product-repository verification not independently reproduced by this book.
+- Merged Project 1 and Project 2 evidence is recorded in PRs #37, #44, and #58.
+- PR #93's first exact-head run at =bd8a1cb940aba87faaaedc290f08e499177e665b= passed the book/example job and repository Nix check, including =make book BOOK=starintel=, =make check BOOK=starintel=, the existing Project 1/2/failure-analysis suites, the actor injector's hermetic tests, and editable-diagram validation.
+- That first head did *not* pass the pinned upstream actor job: the Nix Git-flake snapshot excluded the newly injected untracked Lisp files while the patched ASDF system referenced them. This was a test-harness packaging failure, not evidence about actor delivery. The runner now requires a clean exact-pin checkout and stages only the disposable injected files before invoking =nix run .#star-unit-tests= so the Nix source snapshot can see them. Later exact-head PR verification is authoritative.
+- DOCUMENTED at current upstream StarIntel Server head =e49c67d88d60dbcc0fcba1b4ba76c1a0a6d6655c=: the actor-target files used by milestone A are unchanged from the executable pin; current target route/envelope/destination behavior, actor registry implementation, =define-actor= registration behavior, target acceptance/scheduling separation, and the final loaded startup/recovery boundary remain as described.
+- TESTED actor-runtime claims remain bounded to the exact upstream StarIntel Server pin =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= and its recorded Sento revision.
+- UPSTREAM-REPORTED: product incidents and product-repository verification not independently reproduced by this book remain labelled as such.
 * Unverified claims
-- Publisher-confirm acceptance is not measured by the successful end-to-end traces; a local publication return plus later read-back does not identify the broker durability mechanism.
-- No book-controlled settlement-failure redelivery, outbox crash-window, concurrent ULID collision, quarantine path, or issue #189 heap-exhaustion reproduction has been run.
-- The book has not independently instrumented a real terminal bulk job to prove document/service-context release under sustained backlog load.
-- Transparent broker reconnect without an operator restart remains UNTESTED; the successful recovery deliberately included a StarIntel restart.
-- Actor dispatch/restart/registry behavior, Quasar integration, deployment guarantees, and production performance remain UNTESTED by the current book work.
+- Real Rabbit delivery to an external actor is not tested by destination construction alone.
+- Actor handler crash/restart behavior, registry state after actor death, mailbox pressure, and replacement policy remain UNTESTED.
+- Automatic persisted-target recovery after a whole process restart remains UNTESTED; only the current source/load-order boundary is documented.
+- Publisher-confirm acceptance, settlement-failure redelivery, the outbox crash window, and transparent broker reconnect remain UNTESTED by the book's current evidence.
+- Actor-generated document ingest/provenance, multi-process discovery, Quasar integration, deployment guarantees, and production performance remain UNTESTED.
 * Technical/editorial/visual review
-The two merged bounded milestones passed their own reviews. PR #58 now has repeated real service-backed evidence but must remain unmerged until final current-main reconciliation/checks are green and the Editor-in-Chief reviews the resulting manuscript/research changes. Whole-book technical/editorial/visual review has not started.
+The first two bounded projects are merged. PR #93 retains its prior Editor-in-Chief content approval; source-currency notes added by the worker do not constitute a new editorial decision. Whole-book technical/editorial/visual review has not started.
 * Next dependency-ready slice
-After the service-backed Project 2 checkpoint is editorially accepted, research the current actor registry/discovery/restart boundary before beginning Chapter 7 / Project 3. Deeper settlement/outbox fault injection remains part of the later broken-pipeline/debugging work rather than being silently treated as complete.
+After Project 3 milestone A is accepted and landed, fault the same local actor instead of creating a second toy actor: inject a handler exception, observe component and registry state, determine the actual configured Sento restart/replacement behavior, and run a bounded whole-process persisted-target recovery experiment. Only then extend the actor to a real external/Rabbit boundary and actor-generated document/provenance flow.
 * Blockers
-No known book-local implementation blocker remains in this checkpoint. PR #58 still requires final current-main reconciliation/exact-head verification and editorial review. No merge or auto-merge is authorized for this worker.
+No product implementation blocker is currently known. Project 3 milestone B remains dependency-gated on PR #93 landing. No merge or auto-merge is authorized for this worker.

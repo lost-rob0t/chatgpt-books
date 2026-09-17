@@ -4,3 +4,4 @@
 #+include: "incremental-rete-debugging.org"
 #+include: "truth-maintenance.org"
 #+include: "assumptions-contradictions.org"
+#+include: "explanation-provenance.org"

@@ -1,0 +1,348 @@
+** Chapter 7 -- Actors Are Addresses Plus Failure Boundaries
+:PROPERTIES:
+:ID:       0ef7ea54-116c-4e07-9246-41780d80efef
+:END:
+An actor is easy to romanticize: give it a mailbox, send it messages, and let the
+runtime worry about everything else.  That story is useful for ten minutes.  A
+hacker's guide needs the next layer down.
+
+In current StarIntel, a target actor is useful only when four things line up:
+
+1. an actor component exists in the local Sento actor system;
+2. a StarIntel registry name resolves to that component;
+3. the target dispatcher chooses that local component rather than the Rabbit
+   fallback;
+4. the component receives the *current dispatch envelope*, not whatever message
+   shape an old example happened to use.
+
+A fifth question sits underneath all four: what does a crash actually mean at
+this boundary?  We will *not* answer that with folklore.  This milestone derives
+what current source proves, tests the local delivery contract, and leaves
+restart semantics explicitly open for the next fault-injection slice.
+[cite:@starintel-server-20260916;@sento-starintel-pin]
+
+*** Start from the address problem
+The local StarIntel actor registry is small enough to understand completely.
+The runtime creates a Sento agent containing a dictionary.  =register-actor=
+updates that dictionary.  =get-dest-actor= reads it.  The key is a string such
+as =book-audit=; the value is the actor component that can receive a message.
+[cite:@starintel-server-20260916]
+
+That makes the registry an address book, not a magic discovery service:
+
+#+begin_example
+"book-audit"
+     |
+     v
+actor-index agent ---- lookup ----> local actor component
+#+end_example
+
+If the name is absent, current target dispatch does not immediately declare the
+target invalid.  =resolve-target-destination= produces a Rabbit destination
+instead.  Local presence changes *transport selection*.
+
+#+caption: Target resolution at the inspected StarIntel Server revision.  Acceptance/scheduling and execution are separate states; an unresolved local name selects the canonical Rabbit destination rather than proving a remote actor actually consumed the target.
+#+attr_html: :alt A target document becomes a target record and dispatch envelope, persists an acceptance, is scheduled, then resolves to either a registered local actor or a Rabbit routing key; local actor handling and remote consumer handling are later observations.
+[[file:assets/actor-dispatch.svg]]
+
+This gives us our first debugging invariant:
+
+#+begin_example
+source file exists
+  != actor component exists
+  != registry name resolves
+  != target has been dispatched
+  != actor completed useful work
+#+end_example
+
+The same evidence discipline from ingestion applies here too.
+
+*** Read the effective implementation, not the first implementation
+The current server still contains an older target router in =source/actors.lisp=.
+If you read only that function, you will learn the wrong current contract.  The
+serial ASDF load graph later loads =target-recovery.lisp=,
+=target-dispatch.lisp=, =target-dispatch-fixes.lisp=, and finally
+=runtime-lifecycle.lisp=.  Later =defun= forms replace earlier function
+bindings. [cite:@starintel-server-20260916]
+
+The older target actor publishes a missing local actor to:
+
+#+begin_example
+actors.<actor>.new.target
+#+end_example
+
+The later, currently loaded target-dispatch layer computes the canonical key:
+
+#+begin_example
+documents.target.dispatch.<actor>
+#+end_example
+
+and retains the older =actors.<actor>.new.target= form as compatibility routing
+metadata.  Some current repository prose still describes the older key as the
+active route.  That is documentation drift, not a reason to average the two
+strings together. [cite:@starintel-server-20260916]
+
+When a message disappears, strings are architecture.  Compare the exact
+exchange, queue binding, and emitted routing key from executable evidence.
+
+*** A target is no longer just a JSON object by the time a local actor sees it
+The current target path introduces two typed layers before execution.
+= parse-target-record = turns an admitted target document into a
+=target-record=.  =make-target-dispatch-envelope= then attaches execution
+metadata and an explicit destination handle. [cite:@starintel-server-20260916]
+
+The envelope carries, among other things:
+
+| Field | Why it exists |
+|-------+---------------|
+| target record | the target semantics being executed |
+| destination | explicit local component or Rabbit address |
+| schedule ID | identity of the accepted schedule |
+| execution ID | identity of this execution occurrence |
+| attempt | retry/delivery context |
+| trace ID | correlation across boundaries |
+| lease ID + fencing token | execution ownership/fencing evidence |
+| deadline | latest acceptable execution time when supplied |
+
+For a local destination, =dispatch-target-envelope-now= sends the *envelope* to
+the component.  For a Rabbit destination, it serializes the target document
+with dispatch metadata in =extensions= and emits that document on the canonical
+remote route. [cite:@starintel-server-20260916]
+
+This means an older actor example that expects a raw JSOWN object can be a valid
+historical example and still be wrong for the current target-dispatch path.
+
+*** Acceptance is not execution
+The target coordinator persists a target-acceptance record before it installs
+the timer schedule.  The acceptance contains enough identity to detect a reused
+schedule ID with different semantics.  A later-loaded fix expands the
+fingerprint over actor, target, delay, recurrence, options, and deadline instead
+of treating one schedule ID as proof that two requests mean the same thing.
+[cite:@starintel-server-20260916]
+
+After persistence, the coordinator registers either a one-shot or recurring
+callback.  That callback dispatches an occurrence.  Therefore these are
+different observations:
+
+#+begin_example
+target accepted durably
+schedule installed
+local tell returned
+actor handler observed envelope
+actor side effect completed
+#+end_example
+
+Current StarIntel's local dispatcher uses Sento =tell=.  The exact Sento
+revision pinned by the server documents =tell= as asynchronous fire-and-forget
+message passing.  A return from =tell= is not proof that arbitrary handler work
+completed. [cite:@sento-starintel-pin]
+
+Project 3's test waits for a receipt *inside* the actor handler.  That lets the
+book make a stronger claim than merely observing the send call return.
+
+*** The =define-actor= trap: creation is not registration
+Current StarIntel exports a convenient =define-actor= macro.  Its signature even
+accepts =:register=, and its docstring sounds like registration is included.
+Read the expansion before trusting the adjective.
+
+At the inspected revision, the macro:
+
+- defines a variable for the actor component;
+- defines a =START-<NAME>= function that calls Sento =actor-of=;
+- adds that start function to =*actors-start-hook*=.
+
+The =register= argument is not used, and the generated start function does not
+call =register-actor=.  Current =doc/actors.org= explicitly warns about this.
+[cite:@starintel-server-20260916]
+
+A naïve extension can therefore create a perfectly alive actor that the target
+router cannot find.
+
+Project 3 milestone A avoids two separate startup hooks.  It makes creation and
+registration one operation:
+
+#+begin_src lisp
+(defun start-book-actor (system)
+  (setf *book-actor*
+        (sento.actor-context:actor-of
+         system
+         :name (book-actor-name)
+         :receive #'record-target-envelope))
+  (star.actors:register-actor (book-actor-name) *book-actor*)
+  *book-actor*)
+#+end_src
+
+This is not a replacement actor framework.  It is an extension using the
+current StarIntel/Sento boundary.
+
+*** Project 3, milestone A -- Build an actor you can actually address
+The runnable source lives in =code/actor-runtime/book-actor.lisp=.  Its job is
+intentionally boring: accept the current =target-dispatch-envelope= and record
+only sanitized routing metadata in memory.
+
+Boring is a feature here.  If we added HTTP scraping, document generation,
+Rabbit publishing, retries, and persistence at the same time, a green test would
+not tell us which actor-runtime contract was actually working.
+
+The handler checks the message type before reading it:
+
+#+begin_src lisp
+(defun record-target-envelope (message)
+  (unless (typep message 'star.actors:target-dispatch-envelope)
+    (error "book-audit expected TARGET-DISPATCH-ENVELOPE, got ~s"
+           (type-of message)))
+  ...)
+#+end_src
+
+That turns message-shape drift into a visible failure rather than mysterious
+=nil= values later in the project.
+
+**** Why not import a private copy of StarIntel?
+The focused workflow clones the exact StarIntel Server revision recorded by the
+research pass.  A fail-closed injector copies the two book files into that
+disposable checkout, adds them to the upstream ASDF test system, adds the suite
+to the upstream required-suite list, and then runs:
+
+#+begin_src sh
+nix run .#star-unit-tests
+#+end_src
+
+The runner refuses a checkout whose HEAD differs from the recorded pin.  The
+injector requires exact source markers and fails if the upstream test layout
+has drifted.  This is deliberately annoying: a source change should trigger a
+new audit, not a fake green test against a guessed insertion point.
+
+**** Regression 1: local registration and delivery
+The first test creates the real Sento actor system used by the StarIntel test
+environment, creates the real StarIntel actor index, starts the book actor, and
+asserts that =get-dest-actor= returns the same component.
+
+It then constructs a small synthetic target record, resolves it, requires the
+destination kind to be =:local=, builds the current dispatch envelope, invokes
+the current local dispatcher, and waits for the handler's receipt.
+
+The receipt must preserve the synthetic target string, schedule identity, and
+trace identity.  No network or investigation data is involved.
+
+A green result supports this precise claim:
+
+#+begin_quote
+At the pinned StarIntel/Sento revision, the teaching extension can explicitly
+register a local actor and the current target dispatcher can deliver its typed
+envelope to that actor in the upstream unit-test environment.
+#+end_quote
+
+It does not prove how production actor crashes recover.
+
+**** Regression 2: the remote fallback is an address decision
+The second test does *not* run RabbitMQ.  It resolves an unregistered actor and
+asserts:
+
+#+begin_example
+kind = :rabbit
+canonical key = documents.target.dispatch.remote-demo
+compatibility key = actors.remote-demo.new.target
+#+end_example
+
+That proves destination construction.  It does not prove a remote consumer
+exists, a queue is bound, or a delivery was settled.  Those need a service-
+backed external-actor test later.
+
+**** Regression 3: bad actor identity fails before routing
+The canonical route helper accepts only the current actor-name character
+contract.  The test passes ="bad actor/name"= and requires an
+=invalid-target-dispatch= condition.  A routing key should not be constructed
+from an identity the runtime considers invalid.
+
+*** Failure lab: five different meanings of "actor is down"
+Suppose an operator says, "book-audit is down."  Do not restart random services.
+Collect evidence that distinguishes at least these cases:
+
+| Observation | Candidate boundary |
+|-------------+--------------------|
+| actor source file absent from loaded extension | packaging/load graph |
+| component exists but registry lookup is NIL | registration/startup hook |
+| registry resolves but dispatch chooses remote | stale/wrong registry identity or different process |
+| local send returns but no handler receipt appears | mailbox/actor execution boundary |
+| handler receipt appears but no derived document exists | actor side effect / downstream ingest |
+
+Then ask whether the actor was ever expected to survive/restart after a handler
+exception.  That question is intentionally unresolved in this milestone.
+
+*** Restart semantics: source evidence stops before the interesting question
+StarIntel pins Sento revision
+=6a510c5b58469e72e6363bd3a6059d80b9a5c320=.  Sento provides the actor system,
+actor contexts, dispatchers, lifecycle operations, and asynchronous messaging
+used here.  Current StarIntel architecture prose says actor exceptions remain
+inside the Sento boundary and actor-specific recovery policy is not centralized
+in the server. [cite:@sento-starintel-pin;@starintel-server-20260916]
+
+The inspected StarIntel source does not establish one repository-wide explicit
+restart strategy for arbitrary extension actors.  So this book does not turn
+"actors are isolated" into "actors automatically restart."  Isolation and
+restart are different properties.
+
+The next Project 3 fault slice must deliberately crash the book actor and
+observe:
+
+- whether the component remains running;
+- what the registry points to afterward;
+- whether queued messages survive;
+- whether any configured parent/restart mechanism replaces the component;
+- what happens after a whole StarIntel process restart.
+
+Until then those outcomes are UNTESTED.
+
+*** A second restart boundary: persisted target recovery
+There is an additional source-level wrinkle worth catching now.  An earlier
+=target-recovery.lisp= definition of =start-actors= calls
+=recover-persisted-targets= after actor hooks run.  Later-loaded
+=runtime-lifecycle.lisp= redefines =start-actors= and does not contain that call.
+The explicit recovery API still exists. [cite:@starintel-server-20260916]
+
+The correct statement is narrow:
+
+#+begin_quote
+At the inspected revision, automatic persisted-target recovery is not evidenced
+by the final loaded =start-actors= definition.  The book has not yet run a
+restart experiment proving the operational consequence.
+#+end_quote
+
+That is exactly the kind of distinction this hacker's guide is supposed to
+teach.  Source inspection can reveal a suspicious boundary.  Runtime evidence
+is still required before upgrading suspicion into an incident claim.
+
+*** Exercises
+- ★ Explain why =actor-of= succeeding does not imply a target can reach that
+  actor through StarIntel's registry.
+- ★ From the diagram, name the first observation that proves the local handler
+  actually ran rather than merely that =tell= returned.
+- ★★ Why is an unresolved local actor not automatically a routing error in the
+  current dispatcher?
+- ★★ Compare =documents.target.dispatch.foo= with
+  =actors.foo.new.target=.  Which is current canonical source behavior and
+  which remains compatibility metadata at the inspected revision?
+- ★★★ Rewrite the teaching actor so its handler emits a *pure* return structure
+  from the envelope without adding persistence or Rabbit side effects.  Add a
+  regression for an unexpected message type.
+- ★★★ Design the next crash probe.  Name every observation required before you
+  may claim "Sento restarted the actor" rather than merely "another component
+  later existed."
+
+*** Milestone boundary
+Project 3 milestone A is complete only when the pinned upstream actor tests,
+book build, book checks, diagram validation, and focused repository checks are
+green on the exact PR head.
+
+Even then, the following remain deliberately outside the claim:
+
+- real Rabbit delivery to an external actor;
+- mailbox saturation/backpressure behavior;
+- actor handler crash/restart policy;
+- persisted-target recovery after process restart;
+- actor-generated document ingestion and provenance;
+- multi-process actor discovery;
+- production performance.
+
+Those are not omissions to hide.  They are the dependency order for turning a
+small actor example into a serious StarIntel capability.
