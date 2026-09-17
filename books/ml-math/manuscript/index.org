@@ -14,3 +14,4 @@
 #+attr_html: :alt Four differently dashed elliptical level curves surround a marked minimum. A solid arrow from point two comma one half points up and right and is labeled as gradient approximately two comma four.
 [[file:assets/gradient_geometry.svg]]
 #+include: "chain-rule.org"
+#+include: "linear-regression-project.org"

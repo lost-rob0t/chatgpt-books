@@ -199,3 +199,31 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Used for :: Chapter 14 terminology and the boundary between a release package and an installed/operated target system.
 - Result :: OTP distinguishes ordinary development installs from tailored target systems and documents =lib/=, =releases/=, runtime/bin, and boot-file roles. The same document covers upgrades, but Chapter 14 does not use those upgrade procedures.
 - Claim status :: DOCUMENTED for target-system concepts only; cross-host installation remains UNTESTED in this book slice.
+
+* Inspected 2026-09-16 -- Project 3 pass 06
+** =supervisor= source documentation at tag =OTP-29.1=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.1/lib/stdlib/src/supervisor.erl
+- Authority :: Official Erlang/OTP source repository, immutable tag.
+- Retrieved :: 2026-09-16.
+- Relevant sections :: dynamic children with =start_child/2=; child-spec =restart= semantics; temporary-child cleanup.
+- Used for :: Chapter 15 and Project 3 checkpoint A dynamic worker ownership.
+- Result :: Ordinary supervisors can add a dynamic child from a supplied child specification. A =temporary= child is never restarted, and when it terminates its child specification is deleted automatically. The child start function is responsible for starting and linking the child process to the supervisor.
+- Claim status :: DOCUMENTED. These lifecycle rules do not define logical job retry.
+
+** =queue= source documentation at tag =OTP-29.1=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.1/lib/stdlib/src/queue.erl
+- Authority :: Official Erlang/OTP source repository, immutable tag.
+- Retrieved :: 2026-09-16.
+- Relevant sections :: module overview; FIFO operations; complexity notes for =len/1=.
+- Used for :: Chapter 15 explicit pending-work queue and capacity bookkeeping.
+- Result :: STDLIB =queue= is an opaque double-ended FIFO queue. The front is the item that has waited longest, so =in/2= and =out/1= provide the project pending order. =len/1= is documented as O(n) because length is not stored; the project therefore tracks =pending_len= separately for its per-submission capacity check.
+- Claim status :: DOCUMENTED. No throughput result is inferred.
+
+** Processes reference manual at tag =OTP-29.1=
+- URL :: https://github.com/erlang/otp/blob/OTP-29.1/system/doc/reference_manual/ref_man_processes.md
+- Authority :: Official Erlang/OTP source repository, immutable tag.
+- Retrieved :: 2026-09-16.
+- Relevant sections :: signals; message queue; signal ordering; monitors.
+- Used for :: Chapter 15 worker-attempt correlation and the monitor-versus-retry boundary.
+- Result :: A process monitor is a one-way observation relationship. When the monitored process terminates, the corresponding down signal is converted to a correlated =DOWN= message while the monitor remains active. The reference distinguishes received signals from mailbox messages and retains the priority-message caveat introduced in the earlier chapters.
+- Claim status :: DOCUMENTED. A monitor reports process termination; it does not determine whether replaying application work is safe.
