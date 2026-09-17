@@ -1,0 +1,34 @@
+digraph explanation_provenance {
+  rankdir=LR;
+  graph [fontname="sans-serif", labelloc="t", label="Current explanation graph from exact support identities"];
+  node [shape=box, fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  conclusion [label="fact occurrence\nneeds-investigation(frontend)\n(:derived)"];
+  rule2 [label="justification\nrule.investigate-degraded-dependent"];
+  impact [label="fact occurrence\ndependency-impact(frontend, api)\n(:derived)"];
+  degraded [label="fact occurrence\nservice-state(frontend, degraded)\n(:evidence)"];
+  degraded_source [label="source\nobservation provenance", shape=ellipse];
+  rule1 [label="justification\nrule.dependency-impact"];
+  api_failed [label="fact occurrence\nservice-state(api, failed)\n(:evidence)"];
+  depends [label="fact occurrence\ndepends-on(frontend, api)\n(:evidence)"];
+  failed_source [label="source\nobservation provenance", shape=ellipse];
+  depends_source [label="source\ntopology provenance", shape=ellipse];
+
+  contradiction [label="contradiction\nspec + provenance\n(unit, epoch)", shape=diamond];
+  active [label="fact occurrence\nactive @ epoch 42\n(:evidence)"];
+  failed_assumption [label="fact occurrence\nfailed @ epoch 42\n(:assumption)"];
+
+  conclusion -> rule2 [label="supported-by"];
+  rule2 -> impact [label="uses"];
+  rule2 -> degraded [label="uses"];
+  degraded -> degraded_source [label="grounded-by"];
+  impact -> rule1 [label="supported-by"];
+  rule1 -> api_failed [label="uses"];
+  rule1 -> depends [label="uses"];
+  api_failed -> failed_source [label="grounded-by"];
+  depends -> depends_source [label="grounded-by"];
+
+  contradiction -> active [label="counterevidence"];
+  contradiction -> failed_assumption [label="counterevidence"];
+}

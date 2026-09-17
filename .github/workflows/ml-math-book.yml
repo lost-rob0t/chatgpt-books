@@ -49,6 +49,10 @@ jobs:
         working-directory: books/ml-math/code/linear_regression
         run: python -m unittest -v test_linear_regression.py
 
+      - name: Run Project 3 gradient-descent regime suite
+        working-directory: books/ml-math/code/gradient_descent
+        run: python -m unittest -v test_gradient_descent.py
+
       - name: Regenerate deterministic teaching figures
         shell: bash
         run: |
@@ -64,6 +68,9 @@ jobs:
           cd ../linear_regression
           python plot_regression_fit.py
           git diff --exit-code -- ../../assets/linear_regression_fit.svg
+          cd ../gradient_descent
+          python plot_gradient_descent_regimes.py
+          git diff --exit-code -- ../../assets/gradient_descent_regimes.svg
 
       - name: Compile teaching Python
         shell: bash
@@ -77,7 +84,9 @@ jobs:
             books/ml-math/code/calculus/plot_calculus_secants.py \
             books/ml-math/code/calculus/plot_gradient_geometry.py \
             books/ml-math/code/linear_regression/linear_regression.py \
-            books/ml-math/code/linear_regression/plot_regression_fit.py
+            books/ml-math/code/linear_regression/plot_regression_fit.py \
+            books/ml-math/code/gradient_descent/gradient_descent.py \
+            books/ml-math/code/gradient_descent/plot_gradient_descent_regimes.py
 
       - name: Structural validation
         run: ./tools/check-structure

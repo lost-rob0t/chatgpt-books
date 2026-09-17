@@ -1,0 +1,382 @@
+#+title: Chapter 14 -- Applications, Releases, and Booting the System You Meant
+:PROPERTIES:
+:ID:       5d3d6f55-469e-4d62-b5e4-b1485717ec84
+:END:
+
+* From a supervised service to a named system component
+At the end of Chapter 13 we have something respectable: compiled LFE modules, an ordinary =gen_server= callback, a supervisor, explicit failure tests, and a test architecture that knows which layer owns which claim.
+
+We still do *not* have an OTP application.
+
+That distinction matters because a module, a process, a supervision tree, an application, and a release answer different questions:
+
+| Layer | Question it answers |
+|-
+| module | What code and functions exist? |
+| process | What isolated execution/state identity exists now? |
+| supervision tree | Who owns process lifecycle and restart policy? |
+| application | What reusable OTP component owns this supervision tree? |
+| release | What exact ERTS and application versions make up the whole system? |
+
+If those layers are blurred together, packaging becomes folklore: “run this shell command and hope the right beams are on the code path.” We are going to derive the next two layers instead.
+
+The official OTP application model describes an application as a component that can be started and stopped as a unit. For the usual supervision-tree form, the application callback's =start/2= starts the top supervisor and returns its PID. [cite:@erlang-application-29] A release then composes exact application versions with an exact ERTS version and is used to generate boot artifacts and release packages. [cite:@erlang-release-structure-29;@erlang-rel-29]
+
+That gives us a clean progression:
+
+#+caption: Project 3 checkpoint C turns the existing compiled LFE service into an OTP application, then composes that application into a release and proves a fresh BEAM can boot the generated system.
+#+attr_html: :alt LFE source compiles to BEAM modules described by otp_router.app. The application controller starts the existing supervisor and worker. A release file and application metadata feed systools, which emits boot files used by a fresh VM and a separately inspected release package.
+[[file:assets/release-boot.svg]]
+
+The runnable lab for this chapter is =../code/otp-router/run-release-tests=. Read it with the chapter. It deliberately constructs everything from a temporary directory so stale artifacts from Chapter 13 cannot make the release test pass accidentally.
+
+* An application callback should be boring
+Our existing Project 3 tree is already divided correctly:
+
+- =event-rules= owns the pure routing semantics;
+- =otp-router= owns service state and request handling;
+- =otp-router-sup= owns worker lifecycle policy.
+
+The application callback does not need to invent a fourth implementation of any of those concerns. Its startup job is to hand ownership of the tree to OTP:
+
+#+begin_src lfe
+(defmodule otp-router-app
+  (export (start 2)
+          (stop 1))
+  (behaviour application))
+
+(defun start (_start-type _start-args)
+  (otp-router-sup:start_link (event-rules:sample-rules)))
+
+(defun stop (_state)
+  'ok)
+#+end_src
+
+The important line is not the parentheses. It is the ownership boundary. The application controller invokes =start/2= because the application's resource metadata names this callback. =start/2= returns the top supervisor's PID. From there, the same supervisor/worker tree we already tested in Chapters 11--13 runs underneath an application master. [cite:@erlang-application-29]
+
+Notice what =stop/1= does *not* do. It does not call =otp-router-sup:stop/0=. OTP stops the application's supervision tree as part of application shutdown before the callback's final cleanup hook is complete. A second ad-hoc shutdown protocol would create two lifecycle authorities.
+
+This is a recurring systems rule: once a higher layer owns a lifecycle, lower layers should not secretly maintain a competing lifecycle for the same resource.
+
+* The application resource is part of the program's contract
+The callback module alone is insufficient. OTP applications are described by an application resource file named after the application and placed in its =ebin= directory. [cite:@erlang-app-resource-29]
+
+Project 3 now has this source resource:
+
+#+begin_src erlang
+{application, otp_router,
+ [{description, "LFE teaching OTP router"},
+  {vsn, "0.1.0"},
+  {modules, ['event-rules', 'otp-router',
+             'otp-router-sup', 'otp-router-app']},
+  {registered, ['otp-router', 'otp-router-sup']},
+  {applications, [kernel, stdlib]},
+  {mod, {'otp-router-app', []}}]}.
+#+end_src
+
+This looks like metadata because it *is* metadata. Calling it “just metadata,” however, understates its operational role.
+
+The resource declares:
+
+- application identity: =otp_router=;
+- application version: =0.1.0=;
+- modules belonging to this component;
+- registered process names the component uses;
+- OTP applications that must already be running;
+- the callback module that starts the component.
+
+The application controller reads this information when loading/starting the component. =systools= reads it again when constructing releases. [cite:@erlang-app-resource-29;@erlang-systools-29]
+
+So there are now two kinds of consistency to maintain:
+
+1. *code consistency* -- do the BEAM modules implement the expected callbacks and semantics?
+2. *system-description consistency* -- do =.app= and later =.rel= accurately describe the code and dependency closure?
+
+A program can pass the first and fail the second.
+
+** Why the application name uses an underscore while modules use hyphens
+LFE module names in this project are atoms such as ='otp-router'= and ='otp-router-app'=. Erlang syntax has to quote atoms containing hyphens. The application identity is =otp_router=, an ordinary Erlang atom that does not require quoting.
+
+Nothing magical translates between them. The =mod= entry explicitly says that application =otp_router= starts callback module ='otp-router-app'=. The =modules= list explicitly names each module that belongs to the component.
+
+This is a good example of why BEAM interoperability is stronger than textual similarity: LFE and Erlang source notations differ, but the runtime identities are ordinary atoms and modules.
+
+* Prove application ownership before talking about releases
+A release adds another layer. Before adding it, checkpoint C first proves the application boundary by itself.
+
+The lab compiles the LFE modules into a disposable =ebin= directory, copies =otp_router.app= there, then starts a fresh Erlang runtime with that directory on its code path:
+
+#+begin_src erlang
+ok = application:load(otp_router),
+ok = application:start(otp_router),
+Worker = whereis('otp-router'),
+Sup = whereis('otp-router-sup'),
+Route = 'otp-router':route('event-rules':sample-event(), 1000).
+#+end_src
+
+The acceptance boundary is stronger than “=application:start/1= returned =ok=.” It requires all of these facts at once:
+
+- the supervisor name resolves to a PID;
+- the worker name resolves to a PID;
+- a real route request returns ={ok,pager}=;
+- =application:get_application(Worker)= reports ={ok,otp_router}=.
+
+That last check matters. It demonstrates that the same LFE worker we built earlier now belongs to the OTP application component.
+
+Then the lab stops the application and checks that neither registered name remains. We are testing ownership, not merely startup syntax.
+
+* Release files describe the whole system, not one project directory
+An OTP release is a complete system definition. Its resource file contains:
+
+- release name and release version;
+- the ERTS version;
+- exact versions for the applications included in the system.
+
+Kernel and STDLIB are mandatory members of the release. [cite:@erlang-release-structure-29;@erlang-rel-29]
+
+A simplified Project 3 release resource looks like this:
+
+#+begin_src erlang
+{release,
+ {"lfe_router_release", "0.1.0"},
+ {erts, "...observed ERTS version..."},
+ [{kernel, "...observed kernel version..."},
+  {stdlib, "...observed stdlib version..."},
+  {otp_router, "0.1.0"}]}.
+#+end_src
+
+Do not copy the ellipses into a real file. More importantly, do not replace them with the book's *documentation* baseline.
+
+Current official Erlang/OTP is OTP 29.1, released 2026-09-16, with ERTS 17.1, Kernel 11.0.4, and STDLIB 8.1. [cite:@erlang-otp-29-1-release] The focused book workflow may execute on a different installed runtime. Previous verified runs used Ubuntu's OTP 25 packages.
+
+A release built by that runner must describe *that runner's actual component versions*, not the versions from a web page we happened to read while writing the chapter.
+
+The lab therefore asks the runtime:
+
+#+begin_src erlang
+erlang:system_info(version).
+application:get_key(kernel, vsn).
+application:get_key(stdlib, vsn).
+#+end_src
+
+This is a small but important reproducibility rule:
+
+#+begin_quote
+Use documentation to understand the contract. Use the system under test to discover the exact versions that the generated artifact claims to contain.
+#+end_quote
+
+* From .rel to .script and .boot
+=systools:make_script/2= is the construction gate. It reads the =.rel= file and the participating =.app= resources, checks them, and emits two artifacts: [cite:@erlang-systools-29]
+
+- =lfe_router_release.script= -- a readable Erlang term describing startup instructions;
+- =lfe_router_release.boot= -- the binary boot representation consumed by the runtime.
+
+For the first proof we use the documented =local= option:
+
+#+begin_src erlang
+systools:make_script(
+  RelBase,
+  [{path, [AppEbin]},
+   local,
+   no_warn_sasl,
+   warnings_as_errors,
+   silent]).
+#+end_src
+
+The =local= choice is deliberate. Official release documentation explains that it keeps the actual application directories in the generated boot script, making it useful for testing a generated script locally. [cite:@erlang-release-structure-29]
+
+That is exactly our claim:
+
+*TESTED claim:* this branch can construct and boot its release in the CI environment from a clean temporary build.
+
+It is *not* this claim:
+
+*UNTESTED claim:* this boot file can be copied to an arbitrary host and run there.
+
+The absolute/local path boundary is not an annoying footnote. It is the reason the test is honest.
+
+* The fresh-VM test is the real checkpoint
+Generating files is not enough. A malformed boot sequence might be written successfully yet fail when the runtime consumes it. So the lab starts a new runtime:
+
+#+begin_src sh
+erl -noshell -boot "$REL_BASE" -eval '...verification...'
+#+end_src
+
+This process is not the =erl= invocation that called =systools=. It starts from the generated boot file.
+
+Inside the fresh VM the verifier checks:
+
+1. =application:which_applications/0= contains =otp_router= at version =0.1.0=;
+2. ='otp-router-sup'= resolves to a PID;
+3. ='otp-router'= resolves to a PID;
+4. the worker reports =otp_router= as its owning application;
+5. a real sample event still routes to =pager=.
+
+Why test the route again? Because packaging is allowed to fail in ways that leave code present but application startup incomplete. The route is a tiny end-to-end witness that the booted release reached the project semantics, not merely the application controller.
+
+* Failure lab 1: make the release lie about the application version
+Suppose =otp_router.app= says:
+
+#+begin_src erlang
+{vsn, "0.1.0"}
+#+end_src
+
+but the release resource says:
+
+#+begin_src erlang
+{otp_router, "9.9.9"}
+#+end_src
+
+The release is describing a component version that its application resource does not provide.
+
+The lab creates exactly that broken =.rel=. It does *not* pass merely because =systools:make_script/2= returned some error. The oracle requires ={error,systools_make,Errors}= and searches =Errors= for the structured reason ={error_reading,{otp_router,{no_valid_version,_}}}=. Current tagged OTP 29.1 =systools_make= code and the upstream =systools_SUITE= use this semantic category; the research pass also checked the corresponding OTP 25.3.2.8 implementation used to bound compatibility with the older CI lineage. [cite:@erlang-systools-make-source-29;@erlang-systools-suite-29]
+
+We intentionally do not assert the human-formatted =format_error/1= text. Diagnostic prose can improve without changing the important contract: construction must fail *because the requested application version is unavailable*, not because an unrelated path or syntax bug happened first.
+
+This test teaches a general rule for failure assertions:
+
+- assert a stable semantic failure category when one exists;
+- assert the subject of the failure when the structure exposes it;
+- do not freeze incidental prose unless the prose itself is the public contract.
+
+* Failure lab 2: make the application require a dependency the release omits
+Next, keep the release unchanged but alter a disposable copy of the application resource:
+
+#+begin_src erlang
+{applications, [kernel, stdlib, crypto]}
+#+end_src
+
+The release still contains only Kernel, STDLIB, and =otp_router=.
+
+Now the component declaration and whole-system declaration disagree about the dependency closure. The lab requires =systools:make_script/2= to return ={error,systools_make,{undefined_applications,Apps}}= *and* requires =crypto= to be a member of =Apps=. The tagged OTP implementation research supports that structured category; the test therefore cannot go green because of some unrelated release-construction error. [cite:@erlang-systools-29;@erlang-systools-make-source-29]
+
+This is more useful than memorizing “put crypto in the release if you use crypto.” The mechanism is the lesson:
+
+1. the application resource declares component dependencies;
+2. the release declares whole-system composition;
+3. release construction validates the relationship;
+4. a missing member is a construction error, before we ship a half-described system.
+
+Later, when Project 4 adds distributed Erlang or a persistence boundary, their OTP applications belong in this same reasoning chain.
+
+* Local boot testing versus relocatable packaging
+After the fresh local-boot proof, the lab generates the release again *without* the =local= option and invokes =systools:make_tar/2=. Official documentation describes this as the release-package path: application code is arranged under =lib/App-Vsn/ebin= and release artifacts under =releases=. [cite:@erlang-release-structure-29;@erlang-systools-29]
+
+The test inspects the archive and requires entries for:
+
+#+begin_example
+lib/otp_router-0.1.0/ebin/otp_router.app
+lib/otp_router-0.1.0/ebin/event-rules.beam
+lib/otp_router-0.1.0/ebin/otp-router-app.beam
+releases/0.1.0/start.boot
+releases/0.1.0/lfe_router_release.rel
+releases/lfe_router_release.rel
+#+end_example
+
+This proves package *construction* and package *shape*.
+
+It does not prove:
+
+- the package has been installed as a target system;
+- another machine has a compatible runtime/environment;
+- ERTS has been bundled into the package;
+- OS service configuration exists;
+- configuration/secrets have been supplied;
+- upgrades work;
+- rollback works;
+- networking/firewall/distribution settings work.
+
+Those are real engineering problems. Calling a tarball “production-ready” would merely hide them under a filename.
+
+* What happened to Lisp?
+At this point the release lab contains a lot of Erlang-format resource files and OTP tooling. That is not LFE disappearing from the book. It is LFE succeeding at its stated job.
+
+The interesting implementation modules remain Lisp:
+
+#+begin_example
+event-rules.lfe
+otp-router.lfe
+otp-router-sup.lfe
+otp-router-app.lfe
+#+end_example
+
+After compilation, OTP sees BEAM modules and ordinary application/release metadata. The application controller does not need an “LFE adapter.” =systools= does not need an “LFE release mode.” A fresh =erl -boot= VM does not care which accepted BEAM language authored the callback.
+
+That is the interoperability lesson in a stronger form than Chapter 8's direct function calls:
+
+#+begin_quote
+A BEAM language participates most deeply when its code can inhabit the platform's ordinary lifecycle, supervision, application, and release mechanisms without inventing parallel equivalents.
+#+end_quote
+
+The Lisp-specific work is still important: data-oriented design, macro surfaces, symbolic source transformation, and the way we structure the code. But once the system crosses into OTP lifecycle, the platform contract should remain visible.
+
+* Debugging release construction systematically
+When a release does not build or boot, do not immediately edit random path flags. Walk the dependency chain in order.
+
+** 1. Can the modules compile from a clean directory?
+If not, you have a source/compiler problem, not a release problem.
+
+** 2. Can OTP load the .app resource?
+Check that =otp_router.app= is on the code path and parses as one application term.
+
+** 3. Can application:start/1 start and stop the component?
+If not, inspect =mod=, dependencies, callback return values, registered-name collisions, and top-supervisor startup.
+
+** 4. Does .rel agree with .app?
+Compare application identity, version, and dependencies. The two failure labs exist because these mismatches are common enough to deserve explicit tests.
+
+** 5. Does make_script succeed without warnings?
+Our executable gate treats unexpected warnings as failures. A book should not demonstrate “green enough” release construction while ignoring diagnostics.
+
+** 6. Does the generated boot file start a fresh VM?
+If construction succeeds but boot fails, inspect the readable =.script= before staring at the binary =.boot=.
+
+** 7. Does the running application own the expected processes?
+A booted shell alone does not prove your component started. Query applications and registered processes, then exercise one semantic request.
+
+This sequence narrows the fault domain instead of mixing source, metadata, release, and runtime failures into one giant shell transcript.
+
+* Historical/current version discipline
+This chapter uses two version axes on purpose.
+
+The *current documentation/research baseline* is OTP 29.1, released 2026-09-16. [cite:@erlang-otp-29-1-release] The public documentation renderer may still show 29.0.x on individual pages while the release/download pages have already advanced. We record what each source actually says instead of silently rewriting its page title.
+
+The *test runtime* is whatever the focused CI job reports when it executes. The release lab discovers that runtime's ERTS/Kernel/STDLIB versions dynamically.
+
+These are not contradictory facts. One says, “what is current upstream?” The other says, “what exact runtime produced this artifact?” A technical book needs both.
+
+* Project checkpoint C
+After this chapter, the Project 3 line should have evidence for all of the following:
+
+- LFE callback modules compile into ordinary BEAM code;
+- =otp_router.app= defines application identity, version, modules, names, dependencies, and application callback;
+- =application:start(otp_router)= starts the existing supervision tree;
+- a worker PID reports =otp_router= as its owning application;
+- application stop tears the owned tree down;
+- a =.rel= is constructed from the runtime's actual ERTS/Kernel/STDLIB versions;
+- =systools:make_script/2= produces nonempty =.script= and =.boot= artifacts;
+- a fresh =erl -boot= VM starts the application and routes a real event;
+- a =.rel= /=.app= version mismatch is rejected with the expected =no_valid_version= category for =otp_router=;
+- a dependency declared by =.app= but omitted by =.rel= is rejected as an undefined application and names =crypto= in the injected failure case;
+- =systools:make_tar/2= emits a package with the expected application/release shape.
+
+Checkpoint C still does *not* claim distribution, persistence, hot upgrades, target installation on another host, bundled-runtime portability, OS integration, production configuration, or performance.
+
+That restraint is the setup for Chapter 15. Distribution is much easier to reason about once each node's application and boot boundary is explicit.
+
+* Exercises
+1. ★ Explain, in one sentence each, the responsibility of =otp-router=, =otp-router-sup=, =otp-router-app=, =otp_router.app=, and =lfe_router_release.rel=.
+2. ★ Why does =otp-router-app:stop/1= not manually stop the supervisor in this project?
+3. ★ Inspect =otp_router.app= and identify which fields are descriptive, which participate in lifecycle, and which participate in dependency/release validation.
+4. ★★ Add a harmless new compiled helper module to the project. Update the application resource so the =modules= declaration remains truthful, then rerun the release lab.
+5. ★★ Break the =mod= entry so it names a nonexistent callback module. Predict whether the failure occurs at source compilation, application load, application start, release construction, or fresh boot. Then verify.
+6. ★★ Change the application version to =0.2.0= without changing the release resource generated by the lab. Explain why the correct repair is to make both descriptions agree rather than suppress the error.
+7. ★★ Add a real dependency on an OTP application of your choice. Update both the application resource and release closure, then explain why =application:start/1= and =application:ensure_all_started/1= answer different dependency-start questions. [cite:@erlang-application-29]
+8. ★★★ Modify the lab to save and inspect the generated human-readable =.script=. Locate where the application is loaded and started. Do not commit generated temporary paths as canonical documentation.
+9. ★★★ Build a release package that includes ERTS using the documented =systools= options in a disposable environment. State exactly what additional portability claim that proves and what it still does not prove. [cite:@erlang-systools-29]
+10. ★★★ Design the acceptance gate you would require before calling a release “deployable on another Linux host.” Include runtime, filesystem/layout, configuration, secrets, service manager, startup, health, failure, and rollback evidence. Do not implement it in this checkpoint.
+
+* Source checkpoint
+Release/Packaging Pass 06 is grounded in the official OTP 29.1 release record, the official application, =app=, release-structure, =rel=, and =systools= documentation, plus tagged OTP 29.1 =systools_make= implementation/regression evidence for the structured negative-test oracles. [cite:@erlang-otp-29-1-release;@erlang-application-29;@erlang-app-resource-29;@erlang-release-structure-29;@erlang-rel-29;@erlang-systools-29;@erlang-systools-make-source-29;@erlang-systools-suite-29]
+
+The detailed claim/evidence ledger is in =../research/release-06.org=. Executable claims become *TESTED* only when the focused branch runs the actual LFE/application/release lab; documentation alone never upgrades them.

@@ -41,7 +41,7 @@ Authority: official Python documentation.
 URL: https://docs.python.org/3.14/tutorial/floatingpoint.html
 Version at retrieval: Python 3.14.7 documentation.
 Inspected material: binary representation error, per-operation rounding, =math.fsum= as a more accurate summation tool, and the statement that almost all current platforms map Python =float= to IEEE 754 binary64 values.
-Used by: the Project 1 matrix numerical-failure lab separating exact real-number associativity from finite-precision execution behavior, the calculus finite-difference step-size/cancellation failure discussion, and Project 2's fail-closed finite-arithmetic boundary.
+Used by: the Project 1 matrix numerical-failure lab separating exact real-number associativity from finite-precision execution behavior, the calculus finite-difference step-size/cancellation failure discussion, Project 2's fail-closed finite-arithmetic boundary, and Project 3's explicit distinction between an exact recurrence over the reals and bounded floating-point execution evidence.
 
 ** MIT OpenCourseWare 18.01SC -- Single Variable Calculus
 Authority: MIT OpenCourseWare course taught by Prof. David Jerison.
@@ -67,8 +67,11 @@ Inspected material: official book scope and contents establishing least-squares 
 Used by: Project 2's least-squares/model-fitting context. The centered one-feature derivation and executable fixture in this repository are original teaching material.
 
 ** Boyd and Vandenberghe -- /Convex Optimization/
-Authority: author-maintained Stanford site for the Cambridge University Press book and official Chapter 9 teaching material.
-URL: https://web.stanford.edu/~boyd/cvxbook/
-Publication: Cambridge University Press, 2004.
-Inspected material: Chapter 9 / unconstrained-minimization material describing descent methods as a direction-plus-step-size update with an explicit stopping criterion; gradient descent as an instance of this family.
-Used by: Project 2's bounded gradient-descent algorithm boundary. The project does not claim a general convergence theorem, line-search implementation, or convex-optimization benchmark.
+Authority: author-maintained Stanford site for the Cambridge University Press book, the book's Chapter 9 PDF material, and the author-maintained lecture slides.
+URLs:
+- https://web.stanford.edu/~boyd/cvxbook/
+- https://web.stanford.edu/~boyd/cvxbook/bv_cvxbook.pdf
+- https://web.stanford.edu/~boyd/cvxbook/bv_cvxslides.pdf
+Publication: Cambridge University Press, 2004; author-maintained lecture slides inspected in their current 2023-updated form.
+Inspected material: Chapter 9 / unconstrained-minimization material describing descent methods as direction-plus-step-size updates with stopping criteria; gradient descent as the negative-gradient instance; and the chapter's documented convergence discussion under stated convexity/smoothness assumptions.
+Used by: Project 2's bounded gradient-descent algorithm boundary and Project 3's general method/context boundary. Project 3's scalar threshold table is derived directly from its stated quadratic recurrence; the book does not attribute that table to a general-purpose theorem, claim a line-search implementation, or claim a convex-optimization benchmark.
