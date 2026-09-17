@@ -163,6 +163,42 @@ Detailed evidence, exact source inventory, and teaching contract: [[file:typed-g
 
 Downstream: Chapters 7--8 / Project 2A. Later Project 2 work must research deadline/cancellation, duplicate/stale completion handling, and live-provider adapters separately before promoting those behaviors to DOCUMENTED or TESTED.
 
+* 2026-09-17 -- architecture case studies: what crosses the neural/symbolic boundary?
+Questions:
+- what intermediate artifact do representative LLM+symbolic systems ask a model to produce;
+- what runtime, solver, theorem prover, or planner consumes that artifact;
+- which component owns computation/search/proof/planning;
+- what kind of correctness is established relative to the emitted formal representation, and what semantic-translation risk remains;
+- which mechanisms can be made executable in this Prolog book without implementing sibling-book engines or allowing model-generated source to become ambient authority?
+
+Search/source paths inspected 2026-09-17:
+- Gao et al., =PAL: Program-aided Language Models=, arXiv:2211.10435;
+- Chen et al., =Program of Thoughts Prompting=, arXiv:2211.12588;
+- Lyu et al., =Faithful Chain-of-Thought Reasoning=, arXiv:2301.13379;
+- Ye et al., =SatLM: Satisfiability-Aided Language Models Using Declarative Prompting=, official NeurIPS 2023 proceedings / DOI =10.52202/075280-1974=;
+- Pan et al., =Logic-LM=, arXiv:2305.12295;
+- Olausson et al., =LINC=, arXiv:2310.15164;
+- Liu et al., =LLM+P=, arXiv:2304.11477;
+- Zhang, Kraska, Khattab, =Recursive Language Models=, arXiv:2512.24601;
+- read-only =lost-rob0t/prolog-rlm= main, rechecked at exact revision =51d2530f0e18c84cff860b7c0bf3afcc3c488057=;
+- repository-local Project 1 capability dispatcher and CLP(FD) schedule worksheet as the already-accepted execution mechanisms available to a model-free teaching workbench.
+
+Result:
+- DOCUMENTED: PAL and Program of Thoughts make a generated program the handoff artifact and delegate execution/computation to an external runtime. Correct execution of the program does not independently prove that the program faithfully represents the source problem.
+- DOCUMENTED: Faithful CoT explicitly separates translation into a symbolic reasoning chain from deterministic solving of that chain. Its answer can therefore be a faithful consequence of an emitted chain while the chain itself remains a model-produced translation.
+- DOCUMENTED: SatLM moves the handoff from imperative program to declarative task specification and explicitly scopes solver correctness to the parsed specification.
+- DOCUMENTED: Logic-LM and LINC formalize natural-language logical problems for external symbolic solvers/theorem provers; Logic-LM additionally feeds solver error messages into self-refinement. Semantic-parser errors remain separate from solver correctness.
+- DOCUMENTED: LLM+P formalizes natural-language planning problems as PDDL, delegates search to a classical planner, and translates the returned plan back to natural language. Planning-engine depth belongs to =books/symbolic-ai-prolog= here.
+- DOCUMENTED: RLM externalizes the prompt as an environment the model may inspect/decompose and introduces recursive sub-model calls; recursive inference therefore needs explicit host accounting and stopping rules in any serious implementation.
+- DOCUMENTED from read-only source recheck: current Prolog-RLM main remains =51d2530f0e18c84cff860b7c0bf3afcc3c488057=. Issue #129 still treats its runtime as source evidence, not local TESTED behavior.
+- UPSTREAM-REPORTED: every named paper's benchmark/accuracy/cost result. No paper benchmark was reproduced in this session.
+- REPOSITORY DESIGN / UNTESTED pending CI: issue #129's =symbolic-handoff= workbench uses one closed artifact vocabulary. Existing Project 1 capability requests and one CLP(FD) constraint artifact may execute through repository-authored paths; generated programs stay opaque; logic theories/planning problems/recursive subproblems return explicit unsupported outcomes instead of fake executions.
+
+Detailed source/claim matrix: [[file:neurosymbolic-handoff-architectures.org][neurosymbolic-handoff-architectures.org]].
+
+Downstream: the architecture case-study chapter sequence and the later bounded repair/evaluation/RLM-capstone work. Fixed-revision implementation inspections and evaluation methodology remain separate future research tasks.
+
 * Next research sessions
-- Current structured-output and tool-call documentation for any provider used in runnable examples.
-- Primary neuro-symbolic systems beyond RLM and evaluation methodology for verifier-assisted/recursive systems.
+- Current structured-output and tool-call documentation for any live provider used in runnable examples.
+- Fixed-revision implementation repositories for architecture case studies when code-specific behavior becomes manuscript-relevant.
+- Evaluation methodology for semantic-translation error, false acceptance, verifier rejection, repair success, and provenance completeness.
