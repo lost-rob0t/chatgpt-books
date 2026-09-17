@@ -24,10 +24,13 @@ Expected deliverable: runnable implementation, tests, design notes, diagrams, ex
 :ID:       74177fb5-740c-50cb-a8c4-345e1fea11bb
 :END:
 Purpose: Build a substantial Linux/server/distributed-service diagnosis KB with provenance, contradictions, temporal observations, and regression scenarios.
+
+Milestone A is tracked by issue #120 and is deliberately stacked on Project 1 milestone F while its explanation API is under Editor-in-Chief review. It replaces the early synthetic =depends-on= teaching abstraction with a first source-backed systemd dependency slice: requirement kind remains separate from ordering, activation attempt and configuration generation are explicit join keys, observations and rule-source provenance remain distinct, and current explanation graphs expose both. The bounded rules model documented v261.3 =Requires= + =After= + failed-required-unit behavior plus the =Wants= failure boundary; they do not claim a complete systemd model or real-host collection.
+
 Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
 Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
 Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
-Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
+Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith. Project 2 domain code consumes the Project 1 public engine/explanation APIs rather than duplicating matcher, truth-maintenance, or explanation internals.
 Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
 External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
 Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
