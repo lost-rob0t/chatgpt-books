@@ -94,8 +94,10 @@ jobs:
             -s books/starintel/code/actor-runtime \
             -p 'test_*.py' -v
           python3 -m py_compile \
+            books/starintel/code/actor-runtime/check_recovery_load_order.py \
             books/starintel/code/actor-runtime/inject_upstream_test.py \
-            books/starintel/code/actor-runtime/test_injector.py
+            books/starintel/code/actor-runtime/test_injector.py \
+            books/starintel/code/actor-runtime/test_recovery_load_order.py
           bash -n books/starintel/code/actor-runtime/run-pinned-tests
 
       - name: Validate editable diagram sources
@@ -103,6 +105,7 @@ jobs:
           dot -Tsvg books/starintel/assets/document-flow.dot -o /tmp/starintel-document-flow.svg
           dot -Tsvg books/starintel/assets/ingest-settlement.dot -o /tmp/starintel-ingest-settlement.svg
           dot -Tsvg books/starintel/assets/actor-dispatch.dot -o /tmp/starintel-actor-dispatch.svg
+          dot -Tsvg books/starintel/assets/actor-failure-boundary.dot -o /tmp/starintel-actor-failure-boundary.svg
 
       - name: Build StarIntel book
         run: make book BOOK=starintel
