@@ -86,7 +86,7 @@ This pass supports Chapter 14 and issue #91. It derives the next system boundary
 The accepted release lab compiles =otp_worker_app=, derives a release from the runtime's real ERTS/Kernel/STDLIB versions, boots a fresh VM from a generated local boot file, rejects deliberate version/dependency defects, and inspects the release package. Final worker head =bb0b9bcf094e54e62740e02b4dd732f124e4154a= passed focused =erlang-book= run =35147489891= and generic =books-ci= run =35147489687= before PR #94 merged as =b850d6ec981e7dbc5be09b235188ed93f067cead=. These are bounded construction/boot/package observations, not cross-host deployment, availability, persistence, or upgrade evidence.
 
 ** Project 3 pass 06 -- bounded work, dynamic children, and retry ownership
-Status: DOCUMENTED + EXECUTION VERIFIED at implementation head; current-main final handoff gate pending.
+Status: DOCUMENTED + EXECUTION VERIFIED; Chapter 15 / Project 3 checkpoint A was editorially APPROVED and merged through PR #108.
 
 Primary-source scope: official Erlang/OTP source at immutable tag =OTP-29.1= for =supervisor= and =queue= plus the immutable processes reference manual. Detailed notes and exact execution evidence live in [[file:job-processor-pass-06.org][job-processor-pass-06.org]].
 
@@ -98,13 +98,25 @@ This pass supports Chapter 15 and issue #106 / PR #108. It establishes these bou
 - retries are re-enqueued at the FIFO rear as an explicit fairness policy;
 - restarting =job_processor= restores the process role but does not reconstruct its volatile accepted-work ledger.
 
-Implementation head =fd8f9489cfcb53f2adda755654dc2a8f8e7058e9= passed focused =erlang-book= run =35154089887= and generic =books-ci= run =35154089855=. The focused run successfully executed foundations, OTP worker/application, release, and bounded job-processor tests; validated Chapters 13--15 diagrams; built and checked the Erlang book; verified Chapters 13--15 are physically present in the rendered EPUB; and passed the separate Nix evaluation. Canonical =main= advanced afterward, so the branch was normally reconciled and must receive a fresh exact-head gate before editor handoff.
+Final exact PR head =7de52c5b2a1787ec7c42ae75a20553176520108a= passed focused =erlang-book= run =35162692570= and generic =books-ci= run =35162692577= before PR #108 merged as =02d9cac66330fcd0d90f62452a9d03a98514f991=. No throughput, latency, durability, exactly-once, distributed-failover, external-broker, or production security claim is inferred.
 
-No throughput, latency, durability, exactly-once, distributed-failover, external-broker, or production security claim is inferred.
+** Project 4 pass 07 -- distributed identity, connection loss, and remote-process failure
+Status: DOCUMENTED; execution UNTESTED until the focused workflow runs the new multi-node lab.
+
+Primary-source scope: official Erlang/OTP source at immutable tag =OTP-29.1= for Distributed Erlang, =net_kernel=, =erlang:monitor/2=, STDLIB =peer=, and Secure Coding Guidelines. Detailed notes live in [[file:distribution-pass-07.org][distribution-pass-07.org]].
+
+This pass supports Chapter 16 and issue #127. It deliberately separates:
+- node identity from process identity and node-local registered names;
+- remote process-monitor outcomes (=real exit=, =noproc=, =noconnection=) from connection-level =nodeup=/=nodedown= observations;
+- one connection incarnation from a later connection to the same node through =connection_id=;
+- the application transport (ordinary Erlang Distribution) from the test harness's =peer= standard-I/O control channel;
+- a same-host local multi-node experiment from any claim about real WAN partitions, cross-host availability, TLS deployment, or production failover.
+
+The critical claim under test is intentionally negative: =noconnection= establishes loss of the observer's distribution path, not proof that the remote service process or VM died. The same-host lab uses the independent peer control channel to verify service liveness while Erlang Distribution is deliberately disconnected, then reconnects, observes a new connection ID, installs a fresh process monitor, and issues a new request.
 
 * Open research queue
 - Release upgrades, =appup=/=relup=, and release-handler boundaries.
-- Distributed Erlang connectivity, security/TLS, partitions, and failure visibility.
-- Persistence boundaries and restart recovery semantics for accepted Project 3 work.
+- Persistence boundaries and restart recovery semantics for accepted Project 3 work after local/remote process or connection failure.
 - EUnit/Common Test, tracing, logger/telemetry, Observer/runtime tools, production debugging.
+- Multi-host/TLS distribution operation, EPMD exposure/hardening, service discovery, and real partition experiments; do not infer these from the same-host peer lab.
 - Performance experiments for mailbox pressure and selective receive; do not substitute anecdotes for measurements.
