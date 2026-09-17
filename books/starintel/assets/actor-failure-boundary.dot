@@ -1,0 +1,25 @@
+digraph starintel_actor_failure_boundary {
+  rankdir=LR;
+  graph [fontname="sans-serif", labelloc="t", label="Project 3 milestone B: observed handler-failure boundary"];
+  node [shape=box, fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  registry [label="StarIntel registry\nbook-audit -> actor A"];
+  fail_send [label="valid typed envelope F\n(fault armed)"];
+  actor [label="same Sento actor A\nmailbox / actor-cell"];
+  caught [label="Sento actor-cell boundary\ncatches serious-condition\n(source finding)"];
+  after_send [label="valid typed envelope N\n(after failure)"];
+  receipt [label="sanitized receipt N\n(test observation)"];
+  final [label="post-fault assertions\nactor A running\nregistry -> same A"];
+  recovery [shape=note, label="Separate question:\nwhole-process target recovery\nstill UNTESTED"];
+
+  registry -> actor [label="resolve local"];
+  fail_send -> actor [label="tell"];
+  actor -> caught [label="handler raises"];
+  after_send -> actor [label="queued next"];
+  actor -> receipt [label="handler records"];
+  receipt -> final;
+  registry -> final [style=dashed, label="identity check"];
+  caught -> final [style=dashed, label="no restart inferred"];
+  final -> recovery [style=dotted, label="does not prove"];
+}
