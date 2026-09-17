@@ -35,7 +35,10 @@ jobs:
       - name: Run inference-engine tests
         run: sbcl --script books/expert-systems/code/inference-engine/run-tests.lisp
 
-      - name: Validate editable engine diagrams
+      - name: Run Project 2 service-KB tests
+        run: sbcl --script books/expert-systems/code/service-kb/run-tests.lisp
+
+      - name: Validate editable engine and KB diagrams
         shell: bash
         run: |
           set -euo pipefail
@@ -45,6 +48,7 @@ jobs:
           dot -Tsvg books/expert-systems/assets/truth-maintenance.dot -o /tmp/truth-maintenance.svg
           dot -Tsvg books/expert-systems/assets/assumption-contradiction.dot -o /tmp/assumption-contradiction.svg
           dot -Tsvg books/expert-systems/assets/explanation-provenance.dot -o /tmp/explanation-provenance.svg
+          dot -Tsvg books/expert-systems/assets/systemd-dependency-diagnosis.dot -o /tmp/systemd-dependency-diagnosis.svg
 
       - name: Build Expert Systems book
         run: make book BOOK=expert-systems
