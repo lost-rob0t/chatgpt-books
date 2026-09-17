@@ -75,3 +75,18 @@ Inspected:
 Result: Project 2 checkpoint A keeps the teaching fit independent of NumPy. It derives the one-feature centered stationary solution, implements explicit full-batch gradient-descent updates with an auditable history and bounded stopping condition, and uses pinned NumPy 2.5.0 =linalg.lstsq= only as an external oracle on the ordinary finite fixture. The manuscript keeps the six-row training fit separate from the three-row held-out calculation and treats that holdout as an engineering evaluation boundary rather than statistical evidence.
 
 Claim boundary: this research pass does not establish a general gradient-descent convergence theorem, a universal learning-rate threshold, statistical generalization, a probabilistic residual model, multivariate or regularized regression, solver-performance equivalence, or a benchmark. Those remain later curriculum work.
+
+** 2026-09-16 -- Project 3 fixed-step gradient-descent regimes
+Questions: What authoritative source should bound the general gradient-descent claims? What can be derived exactly from a simple objective instead of importing a finished convergence theorem? How can the visualizer demonstrate direction-dependent failure before the book introduces Hessians and eigenvalues?
+
+Inspected:
+- Boyd and Vandenberghe, /Convex Optimization/ (2004), author-maintained Chapter 9 material and current author-maintained lecture slides. The inspected material presents gradient descent as the negative-gradient instance of a descent method, with step-size selection and a stopping criterion, and gives convergence results only under stated assumptions;
+- the already-recorded official Python 3.14.7 floating-point tutorial for representation/rounding boundaries in the executable trace.
+
+Derivation performed in this book: for =q(theta)=q_* + (a/2)(theta-theta_*)^2= with =a>0= and fixed positive learning rate =eta=, the update reduces exactly to =e_(k+1)=(1-eta*a)e_k=. The sign and magnitude of this multiplier give the monotone, one-step, oscillatory, neutral, and divergent scalar regimes. For the axis-aligned two-dimensional quadratic, the two coordinate errors obey separate copies of the same recurrence, which is enough to construct a convergent zig-zag case and a case where one direction contracts while the steeper direction diverges.
+
+Executable development check: before repository CI, the new standard-library regime suite passed 13/13 local =unittest= cases covering value/gradient formulas, iterative-vs-closed-form recurrence agreement, all scalar regime boundaries, two-dimensional coordinate recurrences, zig-zagging loss decrease, direction-specific divergence, and fail-closed invalid/non-finite inputs. The deterministic SVG generator also completed locally. These are DEVELOPMENT observations only; repository CI on the exact PR head is the authoritative TESTED gate.
+
+Result: Project 3 checkpoint A is a mechanism-first optimizer visualizer. It uses the source for general method context, but the threshold table is the manuscript's own bounded quadratic derivation and the implementation checks itself against a separately expressed closed-form recurrence. The two-dimensional example intentionally stays axis-aligned so it does not smuggle later eigenvalue/Hessian machinery into an earlier project.
+
+Claim boundary: no universal fixed-learning-rate threshold, arbitrary-objective convergence theorem, non-axis-aligned quadratic theorem, line-search result, momentum/adaptive-optimizer comparison, stochastic-training result, neural-network training claim, or benchmark is established by this pass.

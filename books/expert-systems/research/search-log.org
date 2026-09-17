@@ -58,3 +58,14 @@ Inspected:
 - current systemd Unit D-Bus API documentation for =ActiveState= and =SubState=; upstream documentation was cross-checked on 2026-09-16. =ActiveState= is the high-level unit state property, while =SubState= is finer grained.
 
 Result: milestone E deliberately remains smaller than an ATMS. It marks exact current base occurrences as explicit assumptions, declares stable provenance-bearing contradiction pattern pairs, preserves both grounded sides as counterevidence, and gives callers an explicit =:halt= or =:report-only= execution policy. The technical lab models =(unit-active-state unit state epoch)= and carries =epoch= across both contradiction patterns so a legitimate transition at a later observation is not treated as simultaneous inconsistency. The epoch is course-local context, not a systemd field. No automatic source preference, uncertainty score, ATMS environment/nogood machinery, or benchmark is inferred.
+
+** 2026-09-16 -- explanation and provenance from exact supports
+Questions: Why is a firing history insufficient as an explanation? Which represented distinctions must survive into a support graph? How should historical reasons be prevented from masquerading as current support? What current provenance vocabulary is useful without falsely claiming standards conformance?
+
+Inspected:
+- William J. Clancey, /The Epistemology of a Rule-Based Expert System -- A Framework for Explanation/, /Artificial Intelligence/ 20(3), 215--251, 1983, DOI 10.1016/0004-3702(83)90008-5. The author/editor-hosted Chapter 29 reproduction in /Rule-Based Expert Systems/ was inspected, including the MYCIN WHY/HOW description and the discussion of missing rule-justification/strategy knowledge.
+- Janice S. Aikins, /Representation of Control Knowledge in Expert Systems/, /Proceedings of AAAI-80/, pp. 121--123. The official AAAI proceedings artifact was inspected, including its argument that implicit control knowledge damages maintainability and explanation.
+- W3C Recommendation /PROV-DM: The PROV Data Model/, 30 April 2013, current Recommendation page inspected 2026-09-16 for entity/activity, derivation, agent/responsibility, bundle, specialization/alternate, and collection concepts.
+- Doyle 1979 was reused for the existing recorded-reasons/explanation lineage already established by milestone D.
+
+Result: milestone F is a read-only explanation layer over accepted reasoning state. It distinguishes current support proof from historical execution; keys every support path to exact occurrence stamps; preserves multiple independent reasons and mixed base+derived support; carries fact/rule/constraint provenance without converting provenance into confidence; and returns typed =:absent= or =:stale= outcomes rather than manufacturing stories. The graph is course-local and is not a PROV-DM serialization/conformance implementation. Why-not/failed-rule explanation remains deferred until partial-match/workbench semantics exist.

@@ -1,0 +1,561 @@
+#+title: Project 3 -- Gradient Descent Visualizer: When a Step Size Changes the Story
+:PROPERTIES:
+:ID:       ee8fd8f9-4c5d-4cca-bfa4-0dc8ce399b6c
+:END:
+
+* Why one successful learning rate is not a theory
+
+Project 2 trained one affine model successfully with a fixed learning rate. That was useful, but it left an obvious question unanswered:
+
+#+begin_quote
+Why did that learning rate work, and what exactly changes when the step is too small, large enough to zig-zag, or large enough to diverge?
+#+end_quote
+
+The answer is not “because gradient descent usually works.” That is a slogan, not a mechanism.
+
+This project starts with an objective simple enough to solve exactly. We will derive the gradient-descent update, turn it into an error recurrence, predict every iterate without running the optimizer, and then make the implementation prove that its trace agrees with that prediction. Only after the one-dimensional mechanism is visible will we add a second direction with different curvature.
+
+Gradient descent is a standard unconstrained-minimization method built from a descent direction, a step size, an update, and a stopping condition [cite:@boyd2004convex]. General convergence results need assumptions about the objective and the step-selection rule. This checkpoint does something narrower: it proves the exact behavior of **fixed-step gradient descent on the particular quadratic objectives we define here**. Later chapters can generalize from a mechanism the reader already owns.
+
+This is **Project 3 checkpoint A**. It does not yet implement line search, momentum, Adam, minibatches, Hessians, eigenvalue analysis, or a general optimizer library.
+
+* Start with the quadratic we can completely understand
+
+Let
+
+\[
+q(\theta)
+=
+q_\star + \frac{a}{2}(\theta-\theta_\star)^2,
+\qquad a>0.
+\]
+
+The constants have distinct jobs:
+
+- \(\theta_\star\) is the parameter value at the minimum;
+- \(q_\star\) is the objective value at that minimum;
+- \(a\) controls how quickly the objective rises as we move away from the minimum.
+
+Differentiate:
+
+\[
+q'(\theta)=a(\theta-\theta_\star).
+\]
+
+A fixed-step gradient-descent update with learning rate \(\eta>0\) is
+
+\[
+\theta_{k+1}
+=
+\theta_k-\eta q'(\theta_k).
+\]
+
+Substitute the gradient:
+
+\[
+\theta_{k+1}
+=
+\theta_k-\eta a(\theta_k-\theta_\star).
+\]
+
+That equation already runs the algorithm, but the important behavior is still hiding inside it. The trick is to stop tracking the absolute parameter and instead track its **error relative to the optimum**.
+
+Define
+
+\[
+e_k=\theta_k-\theta_\star.
+\]
+
+Subtract \(\theta_\star\) from both sides of the update:
+
+\[
+\theta_{k+1}-\theta_\star
+=
+\theta_k-\theta_\star-\eta a(\theta_k-\theta_\star).
+\]
+
+Therefore,
+
+\[
+\boxed{e_{k+1}=(1-\eta a)e_k.}
+\]
+
+The whole scalar optimizer has collapsed to repeated multiplication by one number.
+
+Call that number
+
+\[
+m=1-\eta a.
+\]
+
+Then
+
+\[
+e_k=m^k e_0.
+\]
+
+This is not an approximation. For this objective, in exact arithmetic, it is the exact iterate recurrence.
+
+* Read optimizer behavior directly from the multiplier
+
+Once the recurrence is visible, “learning-rate behavior” stops being mysterious.
+
+| condition | multiplier \(m=1-\eta a\) | behavior |
+|-----------+-----------------------------+----------|
+| \(0<\eta a<1\) | \(0<m<1\) | error keeps its sign and shrinks |
+| \(\eta a=1\) | \(m=0\) | one update lands at the minimum |
+| \(1<\eta a<2\) | \(-1<m<0\) | error changes sign and shrinks |
+| \(\eta a=2\) | \(m=-1\) | two-cycle; magnitude does not shrink |
+| \(\eta a>2\) | \(m<-1\) | sign alternates while magnitude grows |
+
+There is also the useless \(\eta=0\) case, where \(m=1\) and nothing moves. The executable project rejects non-positive learning rates rather than pretending “do nothing forever” is a training strategy.
+
+Notice what the table says and what it does **not** say.
+
+It says that the product \(\eta a\) completely determines the scalar quadratic recurrence. It does not say that every differentiable function has a universal “learning rate below two” rule. The number \(a\) is the curvature of this particular quadratic, and later objectives need their own analysis.
+
+** Worked trace: monotone convergence
+
+Take \(a=2\), \(\theta_\star=0\), \(\theta_0=1\), and \(\eta=0.25\). Then
+
+\[
+m=1-(0.25)(2)=0.5.
+\]
+
+So
+
+\[
+e_k=(0.5)^k.
+\]
+
+The first few parameters are therefore
+
+\[
+1,\ \frac12,\ \frac14,\ \frac18,\ldots
+\]
+
+They stay on the same side of the minimum and move closer every time.
+
+** Worked trace: oscillatory convergence
+
+Keep \(a=2\) and \(\theta_0=1\), but change \(\eta\) to \(0.75\):
+
+\[
+m=1-(0.75)(2)=-0.5.
+\]
+
+Now
+
+\[
+e_k=(-0.5)^k,
+\]
+
+so the iterates are
+
+\[
+1,\ -\frac12,\ \frac14,\ -\frac18,\ldots
+\]
+
+The sign flip is not random optimizer noise. The step deliberately crosses the minimum each time. Because \(|m|<1\), each crossing is smaller than the previous one.
+
+** Worked trace: the neutral boundary
+
+At \(\eta=1\) with \(a=2\),
+
+\[
+m=-1.
+\]
+
+Starting from \(1\),
+
+\[
+1,-1,1,-1,\ldots
+\]
+
+The gradient is nonzero away from the minimum, the algorithm keeps updating, and yet it makes no net progress. This is a useful debugging case because “parameters are changing” is not evidence of convergence.
+
+** Worked trace: divergence
+
+At \(\eta=1.1\) with \(a=2\),
+
+\[
+m=1-(1.1)(2)=-1.2.
+\]
+
+Then
+
+\[
+|e_k|=1.2^k|e_0|.
+\]
+
+The updates still alternate directions, but each overshoot is 20 percent larger in magnitude than the previous one. A trace can look energetic while becoming steadily worse.
+
+* Loss behavior follows from the same recurrence
+
+For the scalar quadratic,
+
+\[
+q(\theta_k)-q_\star
+=
+\frac{a}{2}e_k^2.
+\]
+
+Substitute \(e_k=m^ke_0\):
+
+\[
+q(\theta_k)-q_\star
+=
+\frac{a}{2}m^{2k}e_0^2.
+\]
+
+So when \(|m|<1\), the excess objective shrinks geometrically. When \(|m|=1\), it is constant. When \(|m|>1\), it grows geometrically.
+
+This explains a subtle point from the oscillatory case. The parameter may alternate signs while the objective decreases every step, because the objective depends on \(e_k^2\), not the sign of \(e_k\).
+
+The repository tests check both parameter behavior and objective behavior. A plot that only shows loss can hide the zig-zag. A plot that only shows parameters can hide whether the objective is improving. We want both views.
+
+* Make the implementation answer to the algebra
+
+The teaching module at =code/gradient_descent/gradient_descent.py= has two scalar paths on purpose.
+
+The first path, =trace_quadratic_1d=, literally performs the update:
+
+\[
+\theta \leftarrow \theta-\eta q'(\theta).
+\]
+
+The second path, =closed_form_parameter=, computes
+
+\[
+\theta_k
+=
+\theta_\star+(1-\eta a)^k(\theta_0-\theta_\star).
+\]
+
+The test suite compares every iterative trace point with the independently written closed-form expression.
+
+That gives us a stronger regression than “the final value looks small.” If an indexing bug, sign bug, or update-order bug enters the loop, the exact recurrence should disagree immediately.
+
+The module also records immutable trace points with
+
+- update number,
+- parameter,
+- parameter error,
+- objective value,
+- gradient.
+
+Every public numerical boundary accepts finite real inputs and rejects non-finite results. That is an implementation contract, not a claim that binary floating point behaves like the real numbers. Python's documentation explicitly warns that binary floating-point operations are approximations and incur rounding [cite:@python314float]. The recurrence is an exact mathematical statement; equality to floating-point traces is TESTED only on the bounded fixtures and tolerances in this repository.
+
+* Curvature and learning rate are inseparable here
+
+The recurrence depends on \(\eta a\), not on \(\eta\) alone.
+
+Suppose \(\eta=0.1\).
+
+For \(a=1\),
+
+\[
+m=0.9.
+\]
+
+For \(a=10\),
+
+\[
+m=0.
+\]
+
+For \(a=19\),
+
+\[
+m=-0.9.
+\]
+
+For \(a=21\),
+
+\[
+m=-1.1.
+\]
+
+The same learning-rate number can mean slow monotone motion, one-step landing, oscillatory convergence, or divergence depending on curvature.
+
+That is the first important bridge back to machine learning. “Try learning rate 0.001” is not mathematical advice until we know something about the scale and curvature of the objective being optimized.
+
+* Add a second direction without hiding the mechanism
+
+Now consider an axis-aligned quadratic bowl:
+
+\[
+q(x,y)
+=
+q_\star
++
+\frac{a_x}{2}(x-x_\star)^2
++
+\frac{a_y}{2}(y-y_\star)^2,
+\qquad
+a_x,a_y>0.
+\]
+
+The gradient is
+
+\[
+\nabla q(x,y)
+=
+\left(
+a_x(x-x_\star),
+a_y(y-y_\star)
+\right).
+\]
+
+A fixed-step gradient update gives
+
+\[
+x_{k+1}
+=
+x_k-\eta a_x(x_k-x_\star),
+\]
+
+\[
+y_{k+1}
+=
+y_k-\eta a_y(y_k-y_\star).
+\]
+
+Define coordinate errors
+
+\[
+e^x_k=x_k-x_\star,
+\qquad
+e^y_k=y_k-y_\star.
+\]
+
+Then
+
+\[
+e^x_{k+1}=(1-\eta a_x)e^x_k,
+\]
+
+\[
+e^y_{k+1}=(1-\eta a_y)e^y_k.
+\]
+
+We have not invented a new algorithm. We have two copies of the scalar mechanism running at once with different multipliers.
+
+** A bowl that zig-zags
+
+The visualizer uses
+
+\[
+q(x,y)=\frac12x^2+5y^2.
+\]
+
+This means
+
+\[
+a_x=1,
+\qquad
+a_y=10.
+\]
+
+With \(\eta=0.18\),
+
+\[
+m_x=1-0.18=0.82,
+\]
+
+while
+
+\[
+m_y=1-(0.18)(10)=-0.8.
+\]
+
+The \(x\) error shrinks without changing sign. The \(y\) error shrinks while changing sign every update.
+
+On a contour plot, the path therefore walks inward while repeatedly crossing the long axis of the valley. That familiar “zig-zag” picture is not decorative folklore here; it drops directly out of two scalar recurrences.
+
+** One stable direction cannot save one unstable direction
+
+Increase the same global rate to \(\eta=0.22\):
+
+\[
+m_x=0.78,
+\qquad
+m_y=-1.2.
+\]
+
+The \(x\) coordinate still contracts. The \(y\) coordinate diverges. The total objective eventually grows because one unstable direction dominates the run.
+
+This is the key lesson of the two-dimensional checkpoint:
+
+#+begin_quote
+A global step must satisfy the dangerous direction, not merely the friendly one.
+#+end_quote
+
+Later Chapter 20 will formalize optimization more broadly, and Chapter 21 will give us eigenvalues for rotated quadratic geometry. We intentionally stop before importing that machinery here. For an axis-aligned bowl, the coordinate-wise recurrence lets us see the mechanism first.
+
+* The visualizer is an evidence tool, not an animation toy
+
+The deterministic renderer =code/gradient_descent/plot_gradient_descent_regimes.py= consumes the same trace objects tested by the project.
+
+Its left panel overlays three runs on the same scalar objective:
+
+- a solid path for monotone convergence;
+- a long-dashed path for oscillatory convergence;
+- a short-dashed path for divergence.
+
+The paths also use different marker shapes, so the distinction does not depend on color.
+
+The right panel draws level curves for the axis-aligned bowl and compares
+
+- a solid \(\eta=0.18\) trace whose two coordinate multipliers both have magnitude below one;
+- a dashed \(\eta=0.22\) trace whose high-curvature multiplier is \(-1.2\).
+
+The SVG is generated offline and committed. CI reruns the renderer and requires a clean diff. If someone changes the update rule without updating the figure—or hand-edits the figure without changing the mechanism—the deterministic asset gate catches the mismatch.
+
+* Connect back to the affine-regression project
+
+Project 2 optimized
+
+\[
+L(w,b)
+=
+\frac1n
+\sum_i(wx_i+b-y_i)^2.
+\]
+
+For a fixed finite training set, this objective is quadratic in \(w\) and \(b\). That is why its gradient is affine in the parameters and why the accepted project could converge smoothly on its chosen fixture.
+
+But this checkpoint does **not** retroactively claim that Project 2's learning rate is universally safe.
+
+The regression objective has coupled \(w\) and \(b\) geometry. Its safe and efficient fixed-step behavior depends on more than the one-dimensional number \(a\) used in our scalar derivation. We will need later linear-algebra machinery to describe that geometry cleanly.
+
+What transfers immediately is the debugging discipline:
+
+1. record the parameter trace;
+2. record the objective trace;
+3. inspect whether coordinates cross the minimum or grow;
+4. treat a finite step budget as a boundary, not a convergence proof;
+5. distinguish a fixture-specific observation from a theorem.
+
+* Failure lab 1 -- “the loss went down once”
+
+A single improving update proves almost nothing about the rest of a run.
+
+For the scalar quadratic, the recurrence tells us the entire future from \(m\). If \(|m|>1\), every nonzero error magnitude grows immediately. On more complicated objectives, a first step can improve the loss and later steps can still fail.
+
+Debugging rule: inspect a trace, not a screenshot of one step.
+
+* Failure lab 2 -- moving forever at the neutral boundary
+
+At \(\eta a=2\), the scalar iterate changes every step while the objective stays constant.
+
+A naive monitor that treats “parameter changed” as “optimizer is making progress” lies to you.
+
+A stronger monitor asks whether a meaningful quantity—error, loss, gradient norm, or another declared stopping measure—is actually approaching its target.
+
+* Failure lab 3 -- rescaling the objective changes the step regime
+
+Suppose
+
+\[
+q(\theta)=\frac12(\theta-\theta_\star)^2.
+\]
+
+With \(\eta=0.5\), \(\eta a=0.5\): monotone convergence.
+
+Now multiply the objective by ten:
+
+\[
+\tilde q(\theta)=5(\theta-\theta_\star)^2.
+\]
+
+The minimum is in the same place, but the curvature is now \(a=10\). The unchanged \(\eta=0.5\) gives
+
+\[
+\eta a=5,
+\]
+
+which is divergent in this scalar model.
+
+Same minimizer. Same parameter units. Different gradient scale. Completely different fixed-step behavior.
+
+* Failure lab 4 -- the steep direction wins
+
+For \(a_x=1\), \(a_y=10\), and \(\eta=0.22\), one coordinate satisfies \(|m_x|<1\) and the other satisfies \(|m_y|>1\).
+
+If a debugging view only tracks \(x\), the run looks healthy. The full state says otherwise.
+
+This is why real optimizer instrumentation should expose the whole relevant state or a mathematically justified summary, not whichever scalar happened to be convenient to graph.
+
+* Failure lab 5 -- floating-point overflow is not “very fast divergence”
+
+The teaching implementation fails closed when an intermediate parameter, gradient, error, or objective becomes non-finite.
+
+An infinity is not a valid larger version of a finite training trace. It means the finite-arithmetic contract has broken.
+
+The tests deliberately construct a large-but-finite input whose update overflows and require a =ValueError=. We do not serialize =inf= into the plot and pretend the experiment completed.
+
+* What is DOCUMENTED, TESTED, and still open
+
+** DOCUMENTED
+- Gradient descent is an unconstrained-minimization method based on the negative gradient, step selection, updates, and a stopping criterion [cite:@boyd2004convex].
+- Python floating point is finite binary arithmetic with representation and rounding limitations [cite:@python314float].
+
+** DERIVED IN THIS BOOK
+- For \(q(\theta)=q_\star+\frac a2(\theta-\theta_\star)^2\), fixed-step gradient descent obeys
+  \(e_{k+1}=(1-\eta a)e_k\).
+- The scalar monotone/oscillatory/neutral/divergent regimes follow directly from the magnitude and sign of \(1-\eta a\).
+- For the axis-aligned two-dimensional quadratic used here, the two coordinate errors obey independent copies of the scalar recurrence.
+
+** TESTED BY THIS PROJECT
+- iterative scalar traces agree with the independently evaluated closed-form recurrence on the regression fixtures;
+- monotone, one-step, oscillatory, neutral, and divergent scalar cases exhibit the predicted bounded behavior;
+- the \(a_x=1,a_y=10,\eta=0.18\) trace zig-zags in the high-curvature direction while loss decreases;
+- the same bowl with \(\eta=0.22\) contracts in \(x\) and diverges in \(y\);
+- invalid and non-finite arithmetic fails closed;
+- the checked-in SVG is regenerated deterministically from the tested trace implementation.
+
+** UNTESTED / OUT OF SCOPE FOR THIS CHECKPOINT
+- a universal fixed learning-rate theorem for arbitrary objectives;
+- general non-axis-aligned quadratic analysis;
+- Hessian/eigenvalue-based step-size bounds;
+- line-search implementations;
+- stochastic or minibatch gradient descent;
+- momentum, RMSProp, Adam, or optimizer comparisons;
+- performance benchmarks;
+- claims about training modern neural networks.
+
+Those are not omissions to hide. They are the dependency boundary that keeps the derivation honest.
+
+* Project architecture
+
+The checkpoint stays deliberately small:
+
+#+begin_example
+Quadratic objective
+      |
+      +--> analytic gradient
+      |
+      +--> exact error recurrence --------+
+      |                                   |
+      +--> iterative fixed-step trace ----+--> regression tests
+                                          |
+                                          +--> deterministic SVG
+#+end_example
+
+The exact recurrence and the iterative loop are separate evidence paths. The renderer consumes trace data; it does not recompute optimizer semantics in drawing code.
+
+That separation is a tiny version of an important ML engineering habit: the thing that visualizes an experiment should not secretly be the thing that defines the experiment.
+
+* Exercises
+
+1. ★ For \(a=4\) and \(\eta=0.1\), compute \(m\) and classify the scalar regime before calculating any iterates.
+2. ★ For \(a=4\), find the positive learning rate that lands at the minimum in one step.
+3. ★ Explain why a negative multiplier does not automatically mean divergence.
+4. ★★ Starting from the error recurrence, derive the recurrence for excess loss \(q(\theta_k)-q_\star\).
+5. ★★ Add a test for the \(\eta a=2\) neutral boundary starting from a nonzero center \(\theta_\star\). Verify that the cycle is symmetric around the center rather than around zero.
+6. ★★ Change the two-dimensional bowl to \(a_x=2,a_y=8\). Choose one learning rate that makes both coordinates monotone and another that makes only \(y\) oscillate while both still converge. Predict the multipliers before running the trace.
+7. ★★ Extend the SVG with a fourth scalar trace for the one-step case. Use a line/marker pattern distinct from the existing three without relying on color.
+8. ★★★ Construct a rate for the \(a_x=1,a_y=10\) bowl that makes \(x\) monotone while \(y\) sits exactly on its neutral boundary. Write the predicted coordinate recurrences, then test them.
+9. ★★★ Rescale the scalar objective by a positive constant while keeping its minimizer fixed. Derive how the learning rate must change to preserve the same multiplier \(m\).
+10. ★★★ The regression objective from Project 2 is quadratic in \((w,b)\), but its coordinates are coupled. Write down what additional mathematical object you would need to generalize the “different directions have different curvature” argument. Do not implement it yet; explain why Chapter 21's eigenvalue machinery is the natural dependency.
