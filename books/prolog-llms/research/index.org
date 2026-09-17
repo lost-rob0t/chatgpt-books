@@ -23,6 +23,7 @@ Every research pass records:
 - [[file:meta-capability-boundary.org][Meta-programming and capability-boundary research pass]] -- current SWI =call/N=, ISO/SWI term inspection and construction boundaries, runtime predicate reflection, and the repository design rule that closed capability policy must be resolved before any meta-call.
 - [[file:typed-gateway-boundary.org][Typed gateway boundary research pass]] -- RFC 8259, current SWI JSON dict conversion, current official provider structured-output/tool contracts, and a read-only recheck of current =prolog-rlm= provider/completion/fake-provider boundaries for Project 2A.
 - [[file:neurosymbolic-architecture-landscape.org][Neuro-symbolic architecture landscape research pass]] -- primary PAL, Faithful CoT, SatLM, LINC, Logic-LM, LLM+P, Explanation-Refiner, LLM-Modulo, Prolog-backed reasoning/proof systems, RLM, and current read-only =prolog-rlm= architecture evidence for Chapters 20--24. Published benchmark results remain UPSTREAM-REPORTED.
+- [[file:current-2026-neurosymbolic-directions.org][2026 adaptive-solver and NeuroProlog follow-up]] -- EACL 2026 dynamic logical solver composition plus the NeuroProlog preprint's Prolog-program generation/execution-guided-repair direction. Numerical results remain UPSTREAM-REPORTED and generated-Prolog execution is not adopted as the book's production authority boundary.
 
 * Priority queues
 ** Prolog foundation
@@ -32,16 +33,17 @@ Project 1 is now merged through the bounded meta-call/reflection capability boun
 Project 2A is editorially accepted in substance in PR #105 but remains subject to its current-main merge gate. It provides the deterministic provider-neutral response-data, exact schema/correlation validation, host-owned provenance, and closed Project 1 capability-dispatch boundary on which later integration work depends. Timeouts/cancellation, replay handling, repair loops and live provider adapters remain later executable milestones.
 
 ** Neuro-symbolic systems
-Issue #124 now supplies the first substantial primary-literature baseline for Part V. The manuscript classifies systems by authority transition, derives the formalization bottleneck and bounded verifier-feedback loop, studies Prolog proof/provenance architectures, and defines a replication protocol. Next work should implement dependency-ready teaching labs and select a narrowly pinned Project 5 reproduction target rather than collecting more papers indiscriminately.
+Issue #124 now supplies the first substantial primary-literature baseline for Part V. The manuscript classifies systems by authority transition, adds a current-2026 interlude on adaptive solver routing and Prolog compilation/repair, derives the formalization bottleneck and bounded verifier-feedback loop, studies Prolog proof/provenance architectures, and defines a replication protocol. Next work should implement dependency-ready teaching labs and select a narrowly pinned Project 5 reproduction target rather than collecting more papers indiscriminately.
 
 ** Evaluation
-Methods for comparing direct generation, retrieval augmentation, symbolic verification, repair loops, and recursive orchestration without benchmark leakage or post-hoc metric selection. Track exact datasets/prompts/providers/versions for any measured result. Chapters 20--24 now require translation fidelity, solver correctness, repair attempts, proof quality, operational failures, and upstream-vs-local evidence to remain separable.
+Methods for comparing direct generation, retrieval augmentation, symbolic verification, repair loops, and recursive orchestration without benchmark leakage or post-hoc metric selection. Track exact datasets/prompts/providers/versions for any measured result. Chapters 20--24 plus Interlude 20A require routing, translation fidelity, solver correctness, repair attempts, proof quality, operational failures, and upstream-vs-local evidence to remain separable.
 
 * Files
 - [[file:search-log.org][search-log.org]] -- dated queries/retrievals and research-session notes.
 - [[file:sources.org][sources.org]] -- verified source inventory and provenance.
 - [[file:neurosymbolic-architecture-landscape.org][neurosymbolic-architecture-landscape.org]] -- issue #124 primary-system ledger and cross-system synthesis.
+- [[file:current-2026-neurosymbolic-directions.org][current-2026-neurosymbolic-directions.org]] -- current EACL 2026 adaptive solver composition and NeuroProlog evidence.
 - =../references.bib= -- bibliographic metadata promoted only after verification.
 
 * Current state
-DOCUMENTED research now supports the standalone Chapters 1--6 Prolog foundation, Project 2A typed model-data boundary, and a substantial primary-source Part V architecture baseline. Chapters 20--24 are manuscript drafts, not editorially approved final chapters. Repository-specific TESTED status is recorded only after actual SWI/build/CI execution. Published neuro-symbolic benchmark claims, live-provider behavior, and live Prolog-RLM execution remain UPSTREAM-REPORTED or UNTESTED unless later experiments explicitly promote them.
+DOCUMENTED research now supports the standalone Chapters 1--6 Prolog foundation, Project 2A typed model-data boundary, a substantial primary-source Part V architecture baseline, and a current-2026 follow-up on solver routing and Prolog compilation/repair. Chapters 20--24 and Interlude 20A are manuscript drafts, not editorially approved final chapters. Repository-specific TESTED status is recorded only after actual SWI/build/CI execution. Published neuro-symbolic benchmark claims, live-provider behavior, model-generated Prolog execution, and live Prolog-RLM execution remain UPSTREAM-REPORTED or UNTESTED unless later experiments explicitly promote them.
