@@ -1,0 +1,27 @@
+digraph SystemdDependencyDiagnosis {
+  rankdir=LR;
+  graph [fontname="sans-serif", labelloc="t", label="Source-backed systemd dependency diagnosis (Project 2 milestone A)"];
+  node [shape=box, fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  req [label="unit-requirement\n:requires | :wants\n+ config generation"];
+  order [label="unit-ordering\n:after\n+ config generation"];
+  attempt [label="activation-attempt\nunit + attempt + generation"];
+  outcome [label="activation-outcome\ndependency + attempt + generation\n:failed"];
+
+  join [shape=diamond, label="same unit/dependency\nsame attempt/generation\nsource-backed rule"];
+  hypothesis [label="diagnostic-hypothesis\nrequired dependency blocked startup"];
+  boundary [label="diagnostic-boundary\nwanted failure alone does not\ninvalidate transaction"];
+  explain [label="milestone-F explanation graph\nexact observation provenance\n+ rule/source provenance"];
+
+  req -> join [label=":requires"];
+  order -> join [label=":after"];
+  attempt -> join;
+  outcome -> join;
+  join -> hypothesis [label="all four match"];
+  req -> boundary [label=":wants"];
+  attempt -> boundary;
+  outcome -> boundary;
+  hypothesis -> explain;
+  boundary -> explain;
+}

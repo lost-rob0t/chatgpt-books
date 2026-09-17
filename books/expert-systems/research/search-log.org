@@ -69,3 +69,12 @@ Inspected:
 - Doyle 1979 was reused for the existing recorded-reasons/explanation lineage already established by milestone D.
 
 Result: milestone F is a read-only explanation layer over accepted reasoning state. It distinguishes current support proof from historical execution; keys every support path to exact occurrence stamps; preserves multiple independent reasons and mixed base+derived support; carries fact/rule/constraint provenance without converting provenance into confidence; and returns typed =:absent= or =:stale= outcomes rather than manufacturing stories. The graph is course-local and is not a PROV-DM serialization/conformance implementation. Why-not/failed-rule explanation remains deferred until partial-match/workbench semantics exist.
+
+** 2026-09-16 -- source-backed systemd dependency diagnosis
+Questions: Which current systemd dependency semantics are precise enough for the first real Project 2 KB rules? Which concepts must remain separate? What machine-facing evidence boundary does current systemctl documentation recommend?
+
+Inspected:
+- upstream =systemd/systemd= release v261.3, published 2026-09-10, =man/systemd.unit.xml= at the v261.3 tag. The =Wants==, =Requires==, and =Before=/=After== sections were inspected directly.
+- upstream =systemd/systemd= =man/systemctl.xml= at v261.3, especially =status= and =show=.
+
+Result: Project 2 milestone A keeps requirement and ordering relations distinct instead of retaining the early synthetic =depends-on= abstraction. The positive teaching rule models only the documented conjunction where a required unit fails to activate and the configuring unit has =After== ordering on that failing unit. A separate =Wants== boundary rule records that wanted-unit start failure alone does not invalidate the transaction as a whole. Configuration generation and activation attempt are course-local explicit join keys so stale observations cannot silently combine. Fixture observations remain synthetic and carry their own provenance; production provenance pins v261.3 and the documented claim. The current =systemctl= source also confirms that =status= is human-readable and directs machine consumers to =show=, so no brittle =systemctl status= text parser is introduced. Real-host collectors, =Result== interpretation, journal parsing, other dependency types, uncertainty, persistence, and operational-accuracy claims remain deferred.

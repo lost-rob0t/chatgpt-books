@@ -82,3 +82,17 @@ URL: https://docs.kernel.org/filesystems/proc.html
 Retrieved: 2026-09-16.
 Inspected material: documented =/proc= interfaces, including load-average field meaning.
 Used by: later technical KB research. No load threshold is inferred from the source.
+
+** systemd.unit v261.3 -- requirement and ordering dependencies
+Authority: upstream systemd repository, pinned stable release source.
+URL: https://github.com/systemd/systemd/blob/v261.3/man/systemd.unit.xml
+Release: v261.3, published 2026-09-10; retrieved 2026-09-16.
+Inspected material: =Wants==, =Requires==, =Before==/=After== and surrounding dependency semantics. The source documents =Wants== as a weak requirement whose failed/cannot-add target does not invalidate the transaction as a whole; =Requires== as stronger and, with =After== on a required unit that fails activation, preventing the configuring unit from starting; and requirement dependencies as not determining ordering, which =Before==/=After== configure independently. The same source explicitly calls ordering dependencies independent/orthogonal to requirement dependencies.
+Used by: Project 2 milestone A source-backed dependency rules and manuscript. The course relation names, activation-attempt key, configuration-generation key, stable IDs, and diagnostic-hypothesis/boundary vocabulary are local modeling choices, not claimed systemd data structures.
+
+** systemctl v261.3 -- machine-facing collection boundary
+Authority: upstream systemd repository, pinned stable release source.
+URL: https://github.com/systemd/systemd/blob/v261.3/man/systemctl.xml
+Release: v261.3, published 2026-09-10; retrieved 2026-09-16.
+Inspected material: =status= and =show=. The source describes =status= as human-readable runtime status with recent journal data and explicitly directs computer-parsable consumers to =show=. It also distinguishes the current/most recent retained invocation from older invocations/previous boots, which should be retrieved through journal queries; =show= exposes unit/job/manager properties.
+Used by: Project 2 milestone A collection-boundary discussion. No real collector or =systemctl status= parser is implemented in this milestone.
