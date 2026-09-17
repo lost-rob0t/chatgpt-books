@@ -1,0 +1,227 @@
+* Research Interlude 20A -- 2026: Route the Solver, Compile to Prolog
+:PROPERTIES:
+:ID:       08ac3d52-d122-4d66-b4bb-64ba9726ca2c
+:END:
+
+The systems in Chapter 20 mostly make one symbolic backend part of the
+architecture: a program runtime, a theorem prover, a planner, or Prolog.  Two
+2026 works push on different seams of that picture.
+
+/Adaptive LLM-Symbolic Reasoning via Dynamic Logical Solver Composition/ treats
+the choice of symbolic reasoning strategy itself as part of the problem
+[cite:@xu-adaptive-symbolic-2026].  /NeuroProlog/ trains a model to compile
+mathematical problems into executable Prolog programs and uses execution
+feedback during repair [cite:@zunjare-neuroprolog-2026].
+
+Neither changes our core rule: a symbolic component establishes properties of
+the formal object it actually receives.  They do show that modern
+neuro-symbolic systems are moving beyond a single fixed “LLM then solver”
+pipeline.
+
+** 20A.1 Dynamic solver selection is another authority boundary
+
+Xu, Beckmann, Valentino, and Freitas describe an adaptive architecture that
+identifies the reasoning strategy required by a natural-language problem and
+selects specialized logical solvers through autoformalization interfaces
+[cite:@xu-adaptive-symbolic-2026].
+
+That adds a routing decision before formalization and inference:
+
+#+begin_example
+natural-language problem
+  -> strategy / solver routing
+  -> solver-specific formalization
+  -> selected symbolic solver
+  -> result
+#+end_example
+
+A fixed LINC-style architecture can ask, “Did the model translate the problem
+correctly into first-order logic?”  An adaptive architecture must ask two
+questions first:
+
+1. Did the router choose an appropriate symbolic regime?
+2. Given that regime, did the formalizer produce the right representation for
+   the selected solver?
+
+The new stage creates a new failure class.  A formalization may be perfectly
+valid for the selected solver while the selected solver is wrong for the
+problem family.
+
+For a reproducible system, record at least:
+
+#+begin_example
+routing_input_id
+router/model revision
+candidate strategy set
+selected strategy
+selection evidence or score, if exposed
+formalizer revision
+solver identity/version
+formal artifact hash
+solver result
+#+end_example
+
+Do not hide routing errors inside “reasoning accuracy.”  They are diagnosable
+architecture failures.
+
+The EACL 2026 paper reports routing and benchmark results.  Those measurements
+are *UPSTREAM-REPORTED* in this book.  We have not run the authors' models,
+benchmarks, or solver-composition pipeline.
+
+** 20A.2 Dynamic composition does not make every solver interchangeable
+
+A solver has semantics, accepted syntax, completeness/decidability boundaries,
+and operational behavior.  Choosing among solvers is not like choosing among
+formatters.
+
+Suppose a router can select among:
+
+- a first-order theorem prover;
+- a finite-domain constraint solver;
+- a planner;
+- a Prolog relation/query runtime.
+
+The same source statement may need materially different formalizations for each
+backend.  A scheduling sentence might become CLP(FD) constraints; a causal
+entailment statement might become logical premises and a query; a planning
+request needs a state/action model.
+
+Therefore the route should be host-visible data, not an invisible provider-side
+decision.  The system should be able to say:
+
+#+begin_example
+selected_backend(clpfd_scheduler)
+reasoning_contract(schedule_ir_v2)
+#+end_example
+
+before the formal artifact is admitted.
+
+A later project can test solver routing with synthetic fixtures without asking a
+live model to choose.  That separates the routing contract from model quality.
+
+** 20A.3 NeuroProlog: compile a problem into Prolog, then repair from execution
+
+/NeuroProlog: Multi-Task Fine-Tuning for Neurosymbolic Mathematical Reasoning
+via the Cocktail Effect/ is a 2026 preprint that makes Prolog the execution
+language of a mathematical reasoning pipeline [cite:@zunjare-neuroprolog-2026].
+The paper describes model training over related translation/alignment tasks,
+compilation of natural-language math problems into executable Prolog programs,
+and execution-guided repair using errors from the generated program.
+
+This is directly relevant to the course because it demonstrates a current
+research direction in which Prolog is not merely a verifier attached after a
+language model.  It is the generated intermediate program and execution
+runtime.
+
+But research architecture and production authority are different questions.
+The book deliberately does *not* infer this rule:
+
+#+begin_quote
+A paper successfully executes model-generated Prolog, therefore arbitrary
+model-generated Prolog should be consulted in our application process.
+#+end_quote
+
+Our production-facing teaching boundary remains narrower:
+
+#+begin_example
+model output
+  -> closed data / AST vocabulary
+  -> host validation and authorization
+  -> trusted compiler/interpreter/dispatcher
+  -> Prolog reasoning
+#+end_example
+
+A research reproduction of NeuroProlog may need to execute generated programs
+because that behavior is part of the claim under study.  Such execution belongs
+in an isolated experiment harness with explicit resource and filesystem/network
+boundaries.  It is not the default application interface taught by this book.
+
+** 20A.4 Execution-guided repair can fix executability without fixing meaning
+
+Execution feedback is useful.  A Prolog parser/runtime can expose malformed
+syntax, undefined predicates, instantiation/type errors, failed tests, and other
+structured evidence.  Feeding those failures back to a model can make a program
+runnable.
+
+But “now it runs” and “now it formalizes the original problem correctly” are
+different claims.
+
+For example, a repair could remove a difficult constraint that caused failure.
+The resulting Prolog program may execute and return an answer while representing
+a weaker problem.  Chapter 22's frozen-requirement and coverage rules therefore
+apply to execution-guided program repair too.
+
+A useful evaluation separates:
+
+- syntactic/execution repair success;
+- semantic source-coverage retention;
+- answer correctness;
+- Prolog execution correctness relative to the repaired program;
+- repair cost/attempt count.
+
+The NeuroProlog paper reports model and repair improvements; all such numbers
+remain *UPSTREAM-REPORTED* here until a pinned reproduction is executed.
+
+** 20A.5 What changed from 2023 to 2026?
+
+The useful progression is architectural, not chronological hype:
+
+#+begin_example
+fixed model -> fixed symbolic backend
+          |
+          +-> symbolic error -> bounded repair
+          |
+          +-> route among symbolic backends
+          |
+          +-> train specifically for formal-program generation and repair
+#+end_example
+
+The later systems move more of the interface itself into the research problem:
+which formalism, which backend, which repair signal, and how the model learns to
+emit executable formal artifacts.
+
+That makes the host contract more important, not less.  Every adaptive choice
+creates another item that must be logged, bounded, and evaluated separately.
+
+** Lab 20A -- Route without a model
+
+Create a deterministic teaching router over three typed input descriptors:
+
+#+begin_src prolog
+problem_kind(entailment).
+problem_kind(schedule).
+problem_kind(plan).
+#+end_src
+
+Map them to closed backends such as =fol_prover=, =clpfd_scheduler=, and
+=classical_planner=.  Then test:
+
+1. every supported problem kind has exactly one permitted default backend;
+2. an unknown problem kind is rejected, not routed to a generic executable
+   fallback;
+3. a backend request outside the host allowlist is rejected;
+4. the route identity is attached to the formalization record;
+5. changing the route creates a new attempt identity rather than mutating an
+   existing solver result.
+
+This tests the architecture boundary only.  It does not test whether an LLM can
+classify real natural-language problems.
+
+** Evidence checkpoint
+
+DOCUMENTED: the adaptive EACL 2026 architecture dynamically identifies/selects
+logical reasoning strategies/solvers through autoformalization interfaces
+[cite:@xu-adaptive-symbolic-2026].  The NeuroProlog 2026 preprint describes
+natural-language mathematical problem compilation into executable Prolog plus
+execution-guided repair [cite:@zunjare-neuroprolog-2026].
+
+UPSTREAM-REPORTED: routing accuracy, benchmark improvements, repair rates, model
+comparisons, and all other numerical results from those works.
+
+REPOSITORY DESIGN: the host-visible routing record, closed backend allowlist,
+production closed-data boundary, and Lab 20A are this book's derived teaching
+architecture.  They are not attributed to the papers unless explicitly cited.
+
+UNTESTED: reproduction of either 2026 system, live model-based solver routing,
+model-generated Prolog execution, and the Lab 20A router until implemented by a
+later focused project slice.
