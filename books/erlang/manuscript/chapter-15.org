@@ -1,0 +1,391 @@
+** Chapter 15 -- Bounded Work: Admission, Dynamic Workers, and Retry Ownership
+:PROPERTIES:
+:ID:       718ce359-a98f-49df-aa19-0eed5cc62c29
+:END:
+
+Chapters 10--14 gave us conventional OTP component structure: a =gen_server=
+can own serial state transitions, a supervisor can own child-process lifetime,
+an application can own a component lifecycle, and a release can own system
+composition. None of those layers answers a question that appears as soon as a
+service receives more work than it can execute at once:
+
+#+begin_quote
+What happens to accepted work when every worker is busy?
+#+end_quote
+
+"Spawn another process" is not an answer. An unbounded number of processes is
+still an unbounded resource commitment. "Let the mailbox hold it" is not an
+answer either. That merely hides the queue inside a process whose memory and
+latency now grow with load.
+
+Project 3 begins by making the missing policy explicit. We will build a small
+/supervised job processor/ with four deliberately separate responsibilities:
+
+1. an admission process decides whether new work is accepted;
+2. an explicit FIFO pending queue remembers accepted work that cannot run yet;
+3. a dynamic supervisor owns one-shot worker process lifetime;
+4. the admission process owns job identity, attempt count, retry budget, and
+   delivery of the final result.
+
+The separation is the lesson. OTP gives us process and supervision mechanisms.
+It does not decide our overload policy or our retry semantics for us.
+
+*** A queue is a policy boundary, not a container choice
+
+The teaching implementation stores pending jobs with STDLIB's =queue= module.
+OTP 29.1 documents =queue= as an opaque double-ended FIFO queue. It also calls
+out an easily missed cost detail: =queue:len/1= is O(n), because the internal
+representation does not keep an explicit length; callers that need cheap length
+checks can track the count themselves. [cite:@erlang-queue-29-1]
+
+That is exactly what our admission process does. Its state contains both the
+opaque queue and a =pending_len= counter:
+
+#+begin_src erlang
+#{pending => queue:new(),
+  pending_len => 0,
+  active => #{},
+  max_active => 2,
+  max_queued => 4,
+  max_attempts => 2}
+#+end_src
+
+This is not a micro-optimization exercise. Capacity is part of the public
+protocol, so asking whether the system is full must not itself require walking
+the entire pending queue.
+
+For this checkpoint, /outstanding work/ means:
+
+#+begin_example
+outstanding = active workers + pending accepted jobs
+capacity    = max_active + max_queued
+#+end_example
+
+When =outstanding >= capacity=, =submit/1= returns ={error, overloaded}=. The
+caller learns immediately that this process did not accept ownership of the
+job.
+
+That last sentence is more important than the atom name. Backpressure begins
+with a truthful ownership boundary. If the service silently accepted the term
+into an unbounded mailbox and later ran out of memory, the caller would have no
+useful point at which to choose retry, shedding, or another route.
+
+*** Why the =gen_server= mailbox is not our job queue
+
+A =gen_server= already has a mailbox, so why add =queue= at all?
+
+Because the two structures answer different questions.
+
+The mailbox belongs to the process runtime. It contains protocol traffic for
+that process: calls, casts, monitor notifications, system messages, and any
+other messages delivered to it. The pending-job FIFO is application state. We
+need to inspect its size, apply a capacity rule, decide retry placement, and
+replace the entire ledger deliberately when the queue process restarts.
+
+Hiding application backlog in the mailbox makes those policies implicit. It
+also mixes control traffic with work. Chapter 5 already established that a
+mailbox is ordered according to message-signal semantics rather than according
+to a business-level work contract. OTP 29.1 continues to document signal and
+message-queue ordering precisely, including the priority-message caveat.
+[cite:@erlang-processes-29-1]
+
+Project 3 therefore uses the mailbox to carry protocol events and a separate
+FIFO value to represent admitted but not-yet-started jobs.
+
+*** Dynamic children: supervise process lifetime without pretending jobs are children
+
+A static supervisor child specification is a good fit for =otp_worker=: one
+logical service should exist continuously. Jobs are different. They arrive and
+finish dynamically.
+
+OTP's supervisor API supports this directly. For ordinary =one_for_one=,
+=one_for_all=, and =rest_for_one= supervisors, =supervisor:start_child/2=
+accepts a new child specification and starts that child. OTP 29.1 also specifies
+that a =temporary= child is never restarted and that its child specification is
+deleted when the process terminates. [cite:@erlang-supervisor-29-1]
+
+Our worker supervisor begins with no children:
+
+#+begin_src erlang
+init([]) ->
+    {ok, {#{strategy => one_for_one,
+            intensity => 5,
+            period => 10}, []}}.
+#+end_src
+
+When the queue dispatches job =42= on attempt =1=, it creates a child spec whose
+identity includes both values:
+
+#+begin_src erlang
+#{id => {job_worker, 42, 1},
+  start => {job_worker, start_link,
+            [QueuePid, 42, 1, Payload]},
+  restart => temporary,
+  shutdown => 5000,
+  type => worker,
+  modules => [job_worker]}.
+#+end_src
+
+The worker is a supervised process, but /the job is not the supervisor child/.
+That distinction lets us ask the two policy questions separately:
+
+| Question | Owner in Project 3 |
+|-
+| Should this worker process be cleaned up with the worker subtree? | dynamic supervisor |
+| Should this logical job get another attempt after a worker crash? | admission/queue process |
+
+If we used a =permanent= child as our retry mechanism, the supervisor would
+restart a process because a child died. It would not know whether the operation
+was safe to repeat, how many logical attempts had already occurred, which
+client owns the result, or whether the job had partially affected an external
+system. Those are job semantics, not generic child-lifecycle semantics.
+
+*** Start, monitor, then run
+
+A small race appears when a worker can finish immediately. If we start it with
+all input and let =init/1= perform the job, it can terminate before the queue has
+installed its monitor and active-ledger entry.
+
+The project avoids that race by splitting construction from execution:
+
+#+begin_example
+queue                    worker supervisor             worker
+  | start_child(spec)            |                       |
+  |----------------------------->| start_link(...)       |
+  |                              |---------------------->|
+  |<-----------------------------| {ok, WorkerPid}       |
+  | monitor(WorkerPid)                                   |
+  | record active entry                                  |
+  | cast run ------------------------------------------->|
+#+end_example
+
+The worker's =init/1= only stores immutable job metadata. The queue installs a
+process monitor and records the attempt before sending =run=. A worker crash is
+therefore correlated with one active ledger entry through the monitor reference.
+OTP's process reference documents monitors as unidirectional relationships whose
+termination signal becomes a correlated =DOWN= message while the monitor is
+active. [cite:@erlang-processes-29-1]
+
+This is still not a durable transaction. It merely closes a local startup race
+inside one VM.
+
+*** Success is a protocol event, not an exit reason
+
+A one-shot worker could encode success as a normal process exit and force the
+queue to infer that "normal" means the job completed. We deliberately do not do
+that.
+
+The worker sends a typed completion event first:
+
+#+begin_src erlang
+Owner ! {job_finished, JobId, Attempt, self(), {ok, Value}}.
+#+end_src
+
+The queue verifies that the PID, job ID, and attempt still match its active
+entry, removes the monitor with =[flush]=, stops the finished worker normally,
+and delivers:
+
+#+begin_src erlang
+{job_result, JobId, {ok, Value}}
+#+end_src
+
+to the client that submitted the job.
+
+The worker keeps a short self-stop timer as a cleanup fallback. If its queue
+owner disappears after the result is computed, the one-shot worker does not
+live forever waiting for an acknowledgement that can never arrive. This
+fallback is cleanup, not result durability: a message sent to a dead queue PID
+is still lost.
+
+*** Crash is observation; retry is policy
+
+On abnormal worker termination, the queue receives the monitor's =DOWN= and
+looks up the exact active attempt. The rule for this checkpoint is intentionally
+small:
+
+#+begin_example
+if Attempt < MaxAttempts:
+    enqueue the same logical job at the FIFO rear with Attempt + 1
+else:
+    report {error, {worker_exit, Reason}}
+#+end_example
+
+Requeueing at the rear matters. A repeatedly failing job does not jump ahead of
+every job already waiting. This is one fairness policy, not an Erlang guarantee.
+A production scheduler might use priorities, deadlines, per-tenant queues,
+exponential delay, idempotency keys, or a dead-letter path. Those belong in
+later designs only after their requirements are explicit.
+
+The example payload ={crash_until, N, Value}= exists solely for deterministic
+failure injection. Attempt =1= can be forced to die and attempt =2= can be
+allowed to finish. No manuscript example claims that real failures conveniently
+announce how many retries they need.
+
+*** Failure lab 1: overload must be visible at admission
+
+Configure one active slot and one waiting slot:
+
+#+begin_src erlang
+#{max_active => 1,
+  max_queued => 1,
+  max_attempts => 2}
+#+end_src
+
+The first test job blocks on a gate inside its worker. The second job is
+accepted into the pending FIFO. A third submission must return:
+
+#+begin_src erlang
+{error, overloaded}
+#+end_src
+
+while the first worker remains active and the second job remains queued. Once
+the gate opens, the first result arrives, then the queued second job is
+dispatched.
+
+This is a correctness test for the admission contract. It is /not/ a throughput
+benchmark. We make no claim about how many jobs per second the implementation
+can sustain.
+
+*** Failure lab 2: the retry budget belongs to the logical job
+
+With =max_attempts = 2=, a payload configured to crash only attempt 1 should
+complete on attempt 2. The queue's counters record one retry and one completion.
+A payload configured to crash every attempt should produce one retry followed by
+one failed logical job.
+
+Notice what we test: job identity survives the replacement worker, while worker
+identity does not. That is the first step from "restart a process" toward
+"recover a unit of work."
+
+It is still volatile recovery. The ledger lives only in the queue process.
+
+*** Failure lab 3: kill the queue, not the worker
+
+The most important Project 3 test deliberately kills =job_processor= while a
+gated worker is active.
+
+The top supervisor uses =one_for_one=. The dynamic-worker supervisor is a sibling
+of the queue process, so the queue is restarted while the already-running worker
+can remain alive. The replacement queue initializes an empty pending FIFO and an
+empty active map.
+
+That produces an uncomfortable but accurate state:
+
+#+begin_example
+old queue PID: dead
+new queue PID: alive, empty ledger
+old worker:    still alive under worker supervisor
+job result:    still addressed to the dead old queue PID
+#+end_example
+
+When the worker is released, the client does not receive a recovered job result.
+The test then waits for the temporary worker to disappear.
+
+This is why "my supervisor restarted it" is not the same sentence as "my system
+recovered the work." The supervisor restored a /process role/. It did not
+reconstruct the dead process's application state. To cross that boundary we
+need an external persistence/replay contract and idempotency decisions. Those
+are intentionally deferred rather than faked with another in-memory map.
+
+#+caption: Project 3 checkpoint A separates admission and logical retry from dynamic worker lifetime. Capacity rejection happens before ownership is accepted; temporary workers are monitored by the queue and supervised for lifecycle cleanup, while a queue restart demonstrates the volatile-ledger boundary.
+#+attr_html: :alt "Diagram showing clients submitting to a bounded job processor, which either rejects overload or stores jobs in a FIFO. The processor dispatches jobs through a dynamic worker supervisor to temporary workers, monitors their completion or crash, requeues bounded retries, and loses its volatile ledger if the queue process itself restarts."
+[[file:assets/job-processor-flow.svg]]
+
+The editable source is =../assets/job-processor-flow.dot=.
+
+*** Read the supervision tree as ownership
+
+Project 3 checkpoint A has this local shape:
+
+#+begin_example
+job_processor_sup (one_for_one)
+  |
+  +-- job_worker_sup (dynamic temporary children)
+  |     +-- job_worker(JobId, Attempt)
+  |     +-- ...
+  |
+  +-- job_processor (admission + FIFO + volatile ledger + retry policy)
+#+end_example
+
+Why are the two children siblings rather than placing the queue above the worker
+supervisor? Because the checkpoint wants queue restart to expose its missing
+recovery contract. A different tree shape would encode a different failure
+assumption. Supervision structure is executable architecture, not decorative
+indentation.
+
+Later we may choose that queue and workers should fail together, or that durable
+work should be rediscovered after either process dies. We should make that
+change because the recovery contract demands it, not because a supervisor tree
+looks more symmetrical in a diagram.
+
+*** Debug from ownership outward
+
+When a submitted job does not finish, inspect in this order:
+
+1. Did =submit/1= return ={ok, JobId}= or ={error, overloaded}=?
+2. Does =job_processor:stats/0= show the job consuming active or queued capacity?
+3. Does =supervisor:count_children(job_worker_sup)= show a temporary worker?
+4. Did the queue monitor that PID and record the matching attempt?
+5. Did the worker report =job_finished= or terminate with a =DOWN= reason?
+6. Did the retry budget requeue the logical job or exhaust it?
+7. Did =job_processor= itself restart and lose the volatile ledger?
+
+Do not begin with the worker's business function if the admission process never
+accepted the job. Do not begin with persistence if the active attempt is still
+running. The point of explicit layers is that each failure belongs somewhere.
+
+*** Project 3 checkpoint A contract
+:PROPERTIES:
+:ID:       3b871f7c-2630-47a6-b704-45db27a26e6f
+:END:
+
+This checkpoint is complete only when executable tests establish all of these
+bounded behaviors on the pinned OTP runtime:
+
+- one active slot plus one pending slot rejects a third submission before
+  accepting ownership;
+- pending jobs dispatch in FIFO order with one active worker;
+- a deliberate first-attempt crash is retried under the same logical job ID and
+  succeeds on the second attempt;
+- repeated worker crashes stop at the configured attempt budget;
+- completed temporary workers leave no retained child specifications;
+- killing the queue process causes the top supervisor to replace it, while the
+  replacement queue starts with no recovered active/pending ledger and cannot
+  deliver the old in-flight result.
+
+The checkpoint does *not* claim durable queues, exactly-once effects, distributed
+failover, external broker semantics, production telemetry, or measured
+backpressure performance. Those require different evidence.
+
+*** Exercises
+
+1. ★ Explain why =max_queued= is an admission rule rather than a supervisor
+   setting.
+2. ★ Explain why =temporary= is appropriate for these worker processes even
+   though failed logical jobs can still be retried.
+3. ★★ Change retry placement from FIFO rear to FIFO front. Write a test that
+   demonstrates the fairness difference and explain which policy you prefer.
+4. ★★ Add a =cancel(JobId)= protocol for /pending/ jobs only. Make the ownership
+   transition explicit when cancellation races dispatch.
+5. ★★ Add per-job deadlines without using a sleep in the admission process.
+6. ★★★ Replace the synthetic payload language with a callback module while
+   preserving the closed job protocol and testability.
+7. ★★★ Change the top supervisor to =one_for_all=. Predict and then test what
+   happens to an active worker when the queue crashes. Does that improve job
+   recovery, or merely make loss happen in a different shape?
+8. ★★★ Design a durable ledger interface that could reconstruct accepted jobs
+   after queue restart. Specify when an acceptance may be acknowledged to the
+   caller and which writes require idempotency keys. Do not implement storage
+   until the contract is precise.
+
+*** What we have earned
+
+The system can now say "busy" before silently accumulating arbitrary accepted
+work. It can distinguish a worker process crash from a logical job retry. It can
+bound retry attempts. And, most importantly, it has a test that proves exactly
+where supervision stops helping because the work ledger is volatile.
+
+That is enough foundation for the next outward step. Distribution will make
+process location and connection failure explicit; persistence will later make
+accepted-work recovery explicit. Neither should be added until this local
+ownership model is boring enough to debug.

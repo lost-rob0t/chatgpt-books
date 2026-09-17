@@ -4,7 +4,7 @@
 :END:
 #+bibliography: ../references.bib
 
-* Chapter 7 -- Heuristics Are Claims About a Simpler Problem
+* Chapter 9 -- Heuristics Are Claims About a Simpler Problem
 :PROPERTIES:
 :ID:       ab899607-55ee-462f-98cb-492d2bca3947
 :END:
@@ -21,7 +21,7 @@ Bonet and Geffner's heuristic-search planning work makes this connection explici
 
 The important word is *derive*.  We will not import a planner and then point at its heuristic API.  We will change one semantic assumption, propagate consequences, record the evidence, and feed the result back into the existing A* implementation.
 
-** 7.1 Start with the real transition system
+** 9.1 Start with the real transition system
 
 Our accepted planner transition is:
 
@@ -56,7 +56,7 @@ This is not the open-world assumption, probabilistic uncertainty, or “facts ne
 #+attr_html: :alt Real ground state and existing action schemas enter a delete-relaxation analysis. Facts receive best costs and support records. A converged h-max estimate may guide the existing A-star search. The returned real path is separately replayed against original add-delete semantics, yielding a grounded explanation or an explicit ambiguity/failure.
 [[file:assets/planner-heuristic-explanation.svg]]
 
-** 7.2 Relaxation is useful only if its boundary stays visible
+** 9.2 Relaxation is useful only if its boundary stays visible
 
 The implementation does not modify =APPLY-GROUND-ACTION=.  That function keeps its real delete-then-add semantics.  Relaxation lives in a separate analysis function:
 
@@ -76,7 +76,7 @@ The analyzer still reuses the accepted grounding mechanism.  It calls =INSTANTIA
 
 A symbolic system becomes easier to trust when alternate semantics are represented as alternate components rather than as invisible switches.
 
-** 7.3 Give each reachable fact a cost
+** 9.3 Give each reachable fact a cost
 
 The relaxed analysis maintains one best known cost for each ground fact.
 
@@ -105,7 +105,7 @@ Bonet and Geffner describe the same basic forward-propagation shape for atom cos
 
 This distinction is not pedantry.  Citation laundering happens when an implementation changes assumptions and then cites a theorem as if nothing changed.  Here the source motivates the mechanism; executable checks establish bounded facts about our implementation; stronger claims wait for stronger evidence.
 
-** 7.4 Why maximum instead of sum?
+** 9.4 Why maximum instead of sum?
 
 Suppose a goal requires facts =A= and =B=.  If achieving =A= costs 3 and achieving =B= costs 4, summing gives 7.  But perhaps one four-cost action sequence achieves both.  A sum can double-count shared work.
 
@@ -121,7 +121,7 @@ Weakness is not a bug we should hide.  A heuristic trades computational effort a
 
 This milestone records no timing or scalability benchmark.  The point is to get the semantics right before measuring anything.
 
-** 7.5 Walk the warehouse relaxation by hand
+** 9.5 Walk the warehouse relaxation by hand
 
 Recall the real initial warehouse state:
 
@@ -173,7 +173,7 @@ The laboratory later in this chapter keeps all three quantities visible: =h_max=
 
 The permanent suite requires these fixture values.  They count as TESTED evidence only on an exact revision whose recorded test run actually passed; source assertions by themselves are not observed results.
 
-** 7.6 An estimate should carry its derivation
+** 9.6 An estimate should carry its derivation
 
 A bare number is hostile to debugging.
 
@@ -198,7 +198,7 @@ provenance is always provenance of a particular computation
 
 A heuristic support explains the heuristic calculation.  It is not automatically a causal explanation of the final real plan.
 
-** 7.7 Termination is an assumption until you make it a result
+** 9.7 Termination is an assumption until you make it a result
 
 It is tempting to say: “Delete relaxation is monotone, therefore propagation terminates.”
 
@@ -229,7 +229,7 @@ Only =:UNREACHABLE= says that this completed relaxed closure did not reach the g
 
 The A* adapter has a narrower interface: it must return a finite nonnegative number.  =MAKE-HMAX-HEURISTIC= therefore returns the converged estimate only for =:REACHED= and falls back to zero for =:UNREACHABLE= or =:BOUNDED=.  Zero is weak but safe for the Search Library's numeric boundary.  Call the analyzer directly when the evidence status matters.
 
-** 7.8 Test lower-bound behavior where we can know the answer
+** 9.8 Test lower-bound behavior where we can know the answer
 
 A citation about a heuristic family is not a test of our code.
 
@@ -254,7 +254,7 @@ Notice what we do *not* assert:
 
 Tests become stronger when their claim surface is smaller and explicit.
 
-** 7.9 The search result still does not contain enough provenance
+** 9.9 The search result still does not contain enough provenance
 
 The planner passes each grounded action name into the Search Library as a transition label:
 
@@ -278,7 +278,7 @@ A bad explanation system would choose the first matching rule and print a confid
 
 This project refuses to do that.
 
-** 7.10 Derive a real explanation by replay
+** 9.10 Derive a real explanation by replay
 
 =EXPLAIN-PLAN-RESULT= accepts the schema set and a successful Search Library result.  For every adjacent pair of path states, it:
 
@@ -298,7 +298,7 @@ More than one match raises =AMBIGUOUS-PLAN-STEP=.  The system does not invent pr
 
 That last failure is a feature.  It tells us when the representation needs a stronger identity in a later milestone.
 
-** 7.11 Explanation is validation plus retained structure
+** 9.11 Explanation is validation plus retained structure
 
 There is a broader symbolic-AI lesson here.
 
@@ -314,7 +314,7 @@ The natural-language layer can summarize those records.  It should not replace t
 
 This is also where Common Lisp is particularly pleasant as a teaching language.  We can retain symbolic structures directly instead of serializing every intermediate object to strings and reparsing it later.
 
-** 7.12 Failure lab -- make the heuristic lie
+** 9.12 Failure lab -- make the heuristic lie
 
 Run:
 
@@ -333,7 +333,7 @@ Then make one change at a time.
 
 Every failure corresponds to a different category of bug: heuristic unsoundness, semantic mismatch, evidence-status collapse, numeric-interface abuse, provenance fabrication, and stale trace/domain mismatch.
 
-** 7.13 Exercises
+** 9.13 Exercises
 
 1. ★ For precondition costs 2, 5, and 3 with unit action cost, compute the =h_max=-style candidate support cost by hand.
 2. ★ Explain why ignoring deletes creates an easier model without making the relaxed facts descriptions of a physically possible world.
@@ -346,7 +346,7 @@ Every failure corresponds to a different category of bug: heuristic unsoundness,
 9. ★★★ Propose a property-based generator for tiny finite planner domains and an oracle that compares the relaxed estimate with exact UCS cost.  Define the finite term vocabulary so the generator itself cannot create an unbounded closure.
 10. ★★★ Research =h_add=, =h^+=, and one stronger admissible heuristic.  For each, identify what information it preserves or throws away compared with this chapter's =h_max=-style mechanism.  Do not implement one until its claim and test boundary are written down.
 
-** 7.14 Checkpoint: what we actually know
+** 9.14 Checkpoint: what we actually know
 
 Exact-head passing tests are what upgrade the concrete fixture/API assertions in this chapter from authored expectations to bounded TESTED evidence.  The primary sources establish the historical/theoretical context for heuristic search and delete-relaxation planning [cite:@hart1968;@bonetgeffner2001].
 
