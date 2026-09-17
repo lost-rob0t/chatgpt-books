@@ -143,4 +143,4 @@ The manuscript also has an editable Graphviz source =assets/chapter-06-regressio
 - NOT CLAIMED: real analyst effort model, production accuracy, production throughput, cross-platform equivalence, causal interpretation of coefficients, a measured near-collinearity stability result, robustness to arbitrary shift/outliers, deployment integration, or StarIntel runtime behavior.
 
 * Next evidence gate
-The worker-side Chapter 6 hardening is TESTED. PR #113 still requires Editor-in-Chief review and is not editorially APPROVED or DONE. Chapter 7 remains dependency-gated on that editorial decision; do not stack it prematurely.
+The Editor-in-Chief has APPROVED the bounded Chapter 6 / Pass 18 content. PR #113 remains NOT DONE until it is merged and the repository's post-merge definition of done is satisfied. Merge requires successful exact-head focused/generic gates on the status-reconciled current-main integration head. Chapter 7 remains dependency-gated until PR #113 actually lands; do not stack it prematurely.
