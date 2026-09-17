@@ -4,7 +4,7 @@
 :END:
 
 * Status
-DOCUMENTED from immutable official Erlang/OTP 29.1 sources. The repository multi-node lab is UNTESTED until the focused =erlang-book= workflow executes it on the pinned OTP 29.1 runtime. No cross-host availability, WAN, TLS deployment, durability, consensus, or performance result is inferred from documentation or from a same-host peer-node test.
+DOCUMENTED from immutable official Erlang/OTP 29.1 sources. The repository multi-node lab remains UNTESTED until a focused =erlang-book= workflow executes the corrected test code on the pinned OTP 29.1 runtime. Focused run =35167710182= is preserved as FAILED: strict =-Werror= compilation rejected two uses of the deprecated =catch Expr= syntax in test cleanup before any new distribution scenario executed. The cleanup was rewritten with =try ... catch ... end= rather than suppressing the warning. No cross-host availability, WAN, TLS deployment, durability, consensus, or performance result is inferred from documentation or from a same-host peer-node test.
 
 * Questions
 - What exactly is a distributed Erlang node, and how does its identity differ from a process identity?
@@ -53,7 +53,7 @@ URLs:
 - https://github.com/erlang/otp/blob/OTP-29.1/lib/stdlib/doc/src/peer.md
 - https://github.com/erlang/otp/blob/OTP-29.1/lib/stdlib/src/peer.erl
 
-The module is designed for multi-node testing. An origin node starts a peer node and keeps a control connection to it. That control connection can be Erlang Distribution or an alternative TCP/standard-I/O channel. The documentation explicitly notes that an alternative channel can still execute control RPC while Erlang Distribution is unavailable, which makes it suitable for testing distribution itself.
+The module is designed for multi-node testing. An origin node starts a peer node and keeps a control connection to it. That control connection can be Erlang Distribution or an alternative TCP/standard-I/O channel. The documentation explicitly notes that an alternative channel can still execute remote procedure calls even when Erlang Distribution is unavailable, which makes it suitable for testing distribution itself.
 
 Project 4 checkpoint A uses =connection => standard_io= for exactly that reason. The peer VM remains controllable while the teaching test deliberately tears down the ordinary distribution connection. This is test infrastructure, not an application transport recommendation.
 
@@ -105,6 +105,10 @@ If CI observes that trace, it demonstrates only the bounded same-host claim: one
 | =DOWN ... noconnection= | observer has no distribution path to monitored node | remote process/VM is dead |
 | =nodedown= from =monitor_nodes= | observed distribution connection went down | durable cluster membership changed |
 | new =nodeup= with a different connection ID | a new observed connection exists | old application state/monitor relationships were recovered |
+
+* Failure record
+** Focused run =35167710182= -- FAILED before execution
+The first focused CI attempt used strict Erlang/OTP 29.1 / BEAM 17.1 and passed all previously accepted Erlang tests plus the separate Nix evaluation. The new distributed-service step stopped at compilation because =erlc -Werror= reports the legacy =catch Expr= syntax as deprecated in OTP 29.1. No distribution scenario ran, so this attempt supplies no runtime evidence for Chapter 16. The test cleanup now uses explicit =try ... catch ... end= helpers; no warning suppression was added.
 
 * Explicit non-claims
 - No cross-host test is performed in this checkpoint.
