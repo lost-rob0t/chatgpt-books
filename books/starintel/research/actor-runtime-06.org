@@ -4,10 +4,21 @@
 :END:
 
 * Scope and evidence policy
-This pass supports Chapter 7 and Project 3 milestone A.  It was researched on
-2026-09-16 against =lost-rob0t/starintel-server= revision
+This pass supports Chapter 7 and Project 3 milestone A.  The executable project
+remains pinned to =lost-rob0t/starintel-server= revision
 =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= and the Sento/cl-gserver revision
 pinned by that server, =6a510c5b58469e72e6363bd3a6059d80b9a5c320=.
+
+On 2026-09-17, StarIntel Server =master= was rechecked at
+=e49c67d88d60dbcc0fcba1b4ba76c1a0a6d6655c=.  The eleven-commit delta from
+the experiment pin changes observability, authorization, configuration, Compose,
+and their tests; it does not change =source/actors.lisp=,
+=source/target-recovery.lisp=, =source/target-dispatch.lisp=,
+=source/target-dispatch-fixes.lisp=, =source/runtime-lifecycle.lisp=, or the
+serial actor/target load order in =source/starintel-gserver.asd=.  Those current
+files were re-inspected at the new head.  Therefore the actor-routing and
+load-order findings below remain current source findings, while the runnable
+milestone deliberately stays TESTED only at its recorded =1ac298b...= pin.
 
 The pass separates four kinds of evidence:
 - DOCUMENTED :: directly inspected current source/load graph or pinned upstream
@@ -54,16 +65,16 @@ producer agent, timers, CouchDB actors, actor index, target actor, then runs
 =*actors-start-hook*= and returns =*sys*=; it does not call
 =recover-persisted-targets=.
 
-Repository search at the pinned revision finds the recovery function in
+Repository search at the current rechecked head finds the recovery function in
 =target-recovery.lisp= and as an exported API, but no later default-runtime call
 that restores the omitted call.
 
 Evidence status: DOCUMENTED source/load-order finding.  It is *not* a claim that
 persisted target recovery has been live-fault-tested and shown broken.  The safe
 book statement is narrower: automatic recovery is not evidenced by the final
-loaded =start-actors= definition at this revision, while explicit
-=recover-persisted-targets= remains present.  A restart/fault experiment is
-required before stronger operational claims.
+loaded =start-actors= definition at the rechecked current revision, while
+explicit =recover-persisted-targets= remains present.  A restart/fault experiment
+is required before stronger operational claims.
 
 * The actor registry is an address book, not actor discovery magic
 The current local registry is =*actor-index-agent*=, a Sento agent whose value
@@ -171,12 +182,12 @@ The pinned upstream test TESTS that the teaching start function leaves the
 actor resolvable through =get-dest-actor=.
 
 * Sento supervision: do not invent an OTP story
-The StarIntel server pins mdbergmann/cl-gserver (Sento) revision
-=6a510c5b58469e72e6363bd3a6059d80b9a5c320=.  Its documentation establishes
-actor systems, actor contexts, asynchronous =tell=, shared/pinned dispatchers,
-and actor lifecycle primitives.  Current StarIntel architecture prose says
-actor exceptions remain inside the Sento actor boundary and actor-specific
-recovery policy is not centralized in StarIntel Server.
+The StarIntel server pin used by this milestone pins mdbergmann/cl-gserver
+(Sento) revision =6a510c5b58469e72e6363bd3a6059d80b9a5c320=.  Its documentation
+establishes actor systems, actor contexts, asynchronous =tell=, shared/pinned
+dispatchers, and actor lifecycle primitives.  Current StarIntel architecture
+prose says actor exceptions remain inside the Sento actor boundary and
+actor-specific recovery policy is not centralized in StarIntel Server.
 
 The StarIntel source audit did not find a repository-wide explicit supervisor
 strategy for arbitrary project actors.  That absence is not permission to
