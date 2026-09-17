@@ -37,6 +37,9 @@ jobs:
       - name: Test Project 2 typed gateway
         run: swipl -q -s books/prolog-llms/code/typed-gateway/run_tests.pl
 
+      - name: Test symbolic handoff workbench
+        run: swipl -q -s books/prolog-llms/code/symbolic-handoff/run_tests.pl
+
       - name: Structural validation
         run: ./tools/check-structure
 
