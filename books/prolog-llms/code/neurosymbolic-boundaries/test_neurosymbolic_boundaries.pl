@@ -58,6 +58,18 @@ test(rejects_negative_duration) :-
     validate_formalization([r_duration], Claims, Outcome),
     assertion(Outcome == error(invalid_duration(normalize_terms, -1))).
 
+test(rejects_duplicate_claim_id) :-
+    Claims = [claim(c_duplicate,
+                    r_duration,
+                    duration(normalize_terms, 2),
+                    source(spec_span_1)),
+              claim(c_duplicate,
+                    r_order,
+                    before(normalize_terms, validate_schema),
+                    source(spec_span_2))],
+    validate_formalization([r_duration, r_order], Claims, Outcome),
+    assertion(Outcome == error(duplicate_claim_id(c_duplicate))).
+
 test(rejects_duplicate_requirement) :-
     Claims = [claim(c_duration_a,
                     r_duration,
