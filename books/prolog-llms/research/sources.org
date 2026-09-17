@@ -23,17 +23,37 @@ Only sources actually inspected for a concrete research question belong here. Re
 - =SWI-Prolog Reference Manual: Meta-Call Predicates= -- official current manual, retrieved 2026-09-16. Used for =call/1= runtime goal invocation and =call/N= closure semantics that append extra arguments before invocation. Project 1 milestone E uses those mechanics only after a closed source-authored capability mapping.
 - =SWI-Prolog Reference Manual: Analysing and Constructing Terms= -- official current manual, retrieved 2026-09-16. Used for ISO =functor/3=, =arg/3=, and ==../2= semantics plus SWI-specific =compound_name_arguments/3= and zero-arity-compound behavior.
 - =SWI-Prolog Reference Manual: Examining the program= -- official current manual, retrieved 2026-09-16. Used for =current_predicate/1= and =predicate_property/2= reflection semantics. Project 1 explicitly does not equate runtime predicate visibility with request authorization.
+- =SWI-Prolog library(http/json)= -- official current source documentation, retrieved 2026-09-16. Used by Project 2A for parse-to-dict behavior including =atom_json_dict/3=; parsing is not treated as application authorization.
+
+** Structured-data and provider boundary sources
+- IETF RFC 8259, =The JavaScript Object Notation (JSON) Data Interchange Format= -- inspected 2026-09-16 for the syntax/interchange boundary only.
+- OpenAI, =Introducing Structured Outputs in the API= -- official provider documentation, retrieved 2026-09-16. Used only for the provider-reported distinction between schema-constrained output and semantic correctness.
+- Anthropic, =Tool use with Claude= and =Strict tool use= -- official provider documentation, retrieved 2026-09-16. Used only for current tool-input/schema contracts; application authorization remains host policy in the book.
 
 ** Constraint-programming primary source
 - Markus Triska. =The Finite Domain Constraint Solver of SWI-Prolog=. FLOPS 2012, LNCS 7294, pages 307--316. Primary paper PDF at =https://www.metalevel.at/swiclpfd.pdf=, inspected 2026-09-16. Used for historical/implementation context: scheduling/planning/allocation motivation, terminating propagation, large integer domains, and reification DSL. Its reported performance observations are UPSTREAM-REPORTED here, not current-book benchmark evidence. Bibliographic metadata follows the citation recommended by the current SWI CLP(FD) manual.
 
-** Recursive-language-model primary sources
-- Zhang, Alex L.; Kraska, Tim; Khattab, Omar. =Recursive Language Models=. arXiv:2512.24601, first submitted 2025-12-31. Inspected 2026-09-16. Architecture claims are DOCUMENTED; reported benchmark/cost results are UPSTREAM-REPORTED unless independently reproduced later.
-- =alexzhang13/rlm= -- authors' reference implementation repository, inspected 2026-09-16 for implementation context. No benchmark result reproduced in this book pass.
+** Program/interpreter handoff primary sources
+- Luyu Gao et al. =PAL: Program-aided Language Models=. arXiv:2211.10435, inspected 2026-09-17. Used for the architecture in which an LLM generates programmatic intermediate reasoning and an interpreter/runtime executes it. All benchmark results remain UPSTREAM-REPORTED.
+- Wenhu Chen et al. =Program of Thoughts Prompting: Disentangling Computation from Reasoning for Numerical Reasoning Tasks=. arXiv:2211.12588, inspected 2026-09-17. Used for the model-program/external-computation split. Reported performance remains UPSTREAM-REPORTED.
+- Qing Lyu et al. =Faithful Chain-of-Thought Reasoning=. arXiv:2301.13379, inspected 2026-09-17. Used for its two-stage Translation -> symbolic reasoning chain -> deterministic Problem Solving architecture and the distinction between answer faithfulness to the emitted chain versus correctness of the translation. Reported benchmark results remain UPSTREAM-REPORTED.
+
+** Declarative and theorem-prover handoff primary sources
+- Xi Ye, Qiaochu Chen, Isil Dillig, Greg Durrett. =SatLM: Satisfiability-Aided Language Models Using Declarative Prompting=. NeurIPS 2023, DOI =10.52202/075280-1974=, official proceedings page inspected 2026-09-17. Used for declarative task specification plus automated theorem-prover/constraint-solving handoff and the paper's explicitly scoped correctness-relative-to-parsed-specification statement. Benchmark results remain UPSTREAM-REPORTED.
+- Liangming Pan, Alon Albalak, Xinyi Wang, William Yang Wang. =Logic-LM: Empowering Large Language Models with Symbolic Solvers for Faithful Logical Reasoning=. arXiv:2305.12295, inspected 2026-09-17. Used for natural-language -> symbolic formulation -> deterministic solver plus solver-error-guided self-refinement. Reported results remain UPSTREAM-REPORTED.
+- Theo X. Olausson et al. =LINC: A Neurosymbolic Approach for Logical Reasoning by Combining Language Models with First-Order Logic Provers=. arXiv:2310.15164, inspected 2026-09-17. Used for LLM semantic parsing to first-order logic followed by external theorem proving. Reported results remain UPSTREAM-REPORTED.
+
+** Planning handoff primary source
+- Bo Liu et al. =LLM+P: Empowering Large Language Models with Optimal Planning Proficiency=. arXiv:2304.11477, inspected 2026-09-17. Used for natural-language planning problem -> PDDL -> classical planner -> natural-language plan architecture. Planner implementation depth remains in =books/symbolic-ai-prolog=. Reported benchmark/optimality results remain UPSTREAM-REPORTED here.
+
+** Recursive-language-model primary source
+- Zhang, Alex L.; Kraska, Tim; Khattab, Omar. =Recursive Language Models=. arXiv:2512.24601, first submitted 2025-12-31; re-inspected 2026-09-17. Architecture claims about externalizing long prompts and recursive subcalls are DOCUMENTED; reported long-context quality/cost results are UPSTREAM-REPORTED unless independently reproduced later.
+- =alexzhang13/rlm= -- authors' reference implementation repository, previously inspected for implementation context. No benchmark result reproduced in this book pass.
 
 ** Current Prolog-RLM implementation context
-- =lost-rob0t/prolog-rlm= main commit =51d2530f0e18c84cff860b7c0bf3afcc3c488057=, inspected 2026-09-16. README, typed-plan docs, =prolog/rlm_plan.pl=, =prolog/rlm_completion.pl=, and plan tests were read. This is read-only source evidence for later capstone chapters. Its runtime tests/benchmarks were not executed by this book pass.
+- =lost-rob0t/prolog-rlm= main commit =51d2530f0e18c84cff860b7c0bf3afcc3c488057=, rechecked 2026-09-17. The repository remains at the same exact revision inspected for provider/completion/closed-data/fake-provider boundaries. This is read-only source evidence for later capstone chapters. Its runtime tests, recursive experiments, provider integrations, and benchmarks were not executed by issue #129.
 
 * Still unresearched
-- provider-specific structured outputs/tool calls used in future examples;
-- broader neuro-symbolic architecture/evaluation literature.
+- fixed-revision implementation details for PAL/PoT/SatLM/Logic-LM/LINC/LLM+P beyond what their primary papers establish;
+- evaluation methodology deep enough for Project 5 false-acceptance, semantic-translation, repair, and provenance metrics;
+- live-provider timeout/cancellation/retry semantics for any provider adapter used later.
