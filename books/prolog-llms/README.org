@@ -34,7 +34,9 @@ Every major idea enters through a system that currently fails in an understandab
 * Current implementation slice
 Project 1's standalone foundation is editorially accepted and merged through bounded meta-programming. It covers relations/unification, recursion and cycle-safe dependency traversal, explicit multi-answer backtracking versus a named first-answer =once/1= boundary, module/API composition, PL-Unit contracts, provenance-bearing explanations, a closed DCG task-command language, a model-free CLP(FD) scheduling worksheet, and a closed capability table whose repository-authored mapping is the only route to =call/N=. Project 1 milestone E was merged via PR #96 as =ba95566b19988cdb0a844b4d1396f337b3584636=; that merge accepts the bounded symbolic foundation, not the complete book.
 
-Project 2A is the active typed-gateway draft. It keeps model-controlled JSON as data through parsing, exact application-shape validation, request correlation, closed capability selection, argument validation, and host-owned provenance attachment before reusing Project 1's accepted =execute_capability/2= boundary. Its deterministic fake provider performs no network I/O and supports fixture tests only. Live provider/API behavior, timeout/cancellation semantics, retries/repair, persistence, provider conformance, and Prolog-RLM runtime execution remain outside this milestone. Exact TESTED status belongs to the current PR revision's recorded CI evidence; moving the branch head invalidates earlier exact-head evidence until rerun.
+Project 2A's typed provider-neutral gateway is also editorially accepted and merged through PR #105 as =ca3c716866aeaab8de525b87f8b1c5fd5484638f=. The accepted boundary keeps model-controlled JSON as data through parsing, exact application-shape validation, request correlation, closed capability selection, argument validation, and host-owned provenance attachment before reusing Project 1's =execute_capability/2= boundary. Its deterministic fake provider performs no network I/O. Live provider/API behavior, timeout/cancellation semantics, retries/repair, persistence, provider conformance, and live/full-suite Prolog-RLM behavior remain outside that accepted milestone.
+
+Issue #124 / PR #128 is the active Part V research/manuscript slice. It compares published neuro-symbolic systems by the artifact and authority transition between the model and symbolic component, then derives the formalization, repair, provenance, and reproduction obligations used by later projects. The book-owned =neurosymbolic-boundaries= fixture tests only selected deterministic boundary invariants; it is not a reproduction of any cited paper. Chapters 20--24 are intentionally being developed ahead of unfinished Parts III--IV as a research-backed architecture block, so their presence does not imply that Chapters 9--19, Projects 3--5, the capstone, or the whole book are complete.
 
 * Research and evidence
 Current behavior of SWI-Prolog, model APIs, structured-output facilities, tool protocols, and any named neuro-symbolic system must be verified against primary sources/current implementations before version-sensitive prose is promoted. Record queries and retrieval dates in =research/search-log.org= and verified source metadata in =research/sources.org= / =references.bib=. Never fabricate model output, benchmark numbers, or execution results.
@@ -45,8 +47,9 @@ From repository root:
 #+begin_src sh
 swipl -q -s books/prolog-llms/code/relational-task-solver/run_tests.pl
 swipl -q -s books/prolog-llms/code/typed-gateway/run_tests.pl
+swipl -q -s books/prolog-llms/code/neurosymbolic-boundaries/run_tests.pl
 make book BOOK=prolog-llms
 make check BOOK=prolog-llms
 #+end_src
 
-Exact TESTED status belongs to recorded CI/runtime evidence for the current head. Passing one Project milestone does not imply that later live-provider, neuro-symbolic, or RLM claims have been executed.
+Exact TESTED status belongs to recorded CI/runtime evidence for the current head. Passing one Project milestone or one deterministic boundary fixture does not imply that later live-provider, neuro-symbolic, or RLM claims have been executed.
