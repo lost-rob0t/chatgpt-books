@@ -1,12 +1,14 @@
-#+title: LFE Project 3 -- OTP Router checkpoints A/B
+#+title: LFE Project 3 -- OTP Router checkpoints A/B/C
 
-This directory is the executable teaching implementation for Chapters 11--13.
+This directory is the executable teaching implementation for Chapters 11--14.
 
 It deliberately reuses the accepted Project 1 semantic kernel at
 =../event-rules/src/event-rules.lfe=. The LFE module =otp-router= implements the
 ordinary Erlang =gen_server= callback contract; =otp-router-sup= implements the
-ordinary Erlang =supervisor= callback contract. There is no book-specific OTP
-runtime.
+ordinary Erlang =supervisor= callback contract; and =otp-router-app= implements
+the ordinary OTP =application= callback. The =otp_router.app.src= resource
+identifies the component and its dependency/lifecycle metadata. There is no
+book-specific OTP runtime or release wrapper.
 
 Run from the repository root after =lfec= and =erl= are available:
 
@@ -14,16 +16,21 @@ Run from the repository root after =lfec= and =erl= are available:
 bash books/lfe/code/otp-router/run-tests
 #+end_src
 
-The gate compiles the same LFE callback modules and exercises three complementary
-test boundaries:
+The gate compiles the same LFE callback modules and exercises four complementary
+boundaries:
 
 - =otp-router-tests.lfe= checks routing, state replacement/readback, =sys=
   visibility, tagged domain rejection, and clean stop from LFE;
 - =otp_router_eunit_tests.erl= uses standard EUnit =foreach= fixtures so each
-  service-contract case receives a fresh compiled LFE server and cleanup removes
-  the registered process before the next case;
+  service-contract case receives a fresh compiled LFE server, while ownership
+  regressions ensure the fixture never silently kills an ambient or transferred
+  registered process;
 - =otp_router_interop_tests.erl= keeps cross-language and failure/lifecycle
-  scenarios explicit rather than hiding them behind unit-test helpers.
+  scenarios explicit rather than hiding them behind unit-test helpers;
+- =run-release-tests= starts from a clean temporary tree, compiles the LFE
+  application callback, tests =application:start/1= ownership, constructs a
+  release, boots a fresh VM from the generated =.boot= file, injects two
+  construction failures, and inspects the generated release package.
 
 Across those boundaries the runner checks:
 
@@ -35,18 +42,27 @@ Across those boundaries the runner checks:
 - one-for-one replacement after an intentional callback crash;
 - the replacement starts from the supervisor's original child-spec arguments,
   proving restart is not state recovery;
-- clean supervisor shutdown through the project helper, including child
-  termination and name cleanup on the observed OTP runner;
+- clean supervisor shutdown through the project helper;
 - restart-intensity escalation shuts the supervisor down after the configured
-  budget is exceeded.
+  budget is exceeded;
+- the OTP application controller owns the existing supervisor/worker tree and
+  a worker reports =otp_router= as its owning application;
+- a =.rel= built from the actual runner ERTS/Kernel/STDLIB versions produces
+  nonempty =.script= and =.boot= artifacts;
+- a fresh =erl -boot= process starts =otp_router= and routes a real event;
+- =.rel=/=.app= version disagreement and a missing release dependency are
+  rejected during construction;
+- =systools:make_tar/2= produces the expected OTP application/release layout.
 
 The supervisor helper deliberately uses =gen_server:stop/1=. Current OTP 29
 adds =supervisor:stop/1= as a convenience API, but the executable book gate has
-also run on older OTP releases; this checkpoint tests the compatibility helper
-it actually ships instead of presenting an OTP-29-only call as universal.
+also run on older OTP releases; this project tests the compatibility helper it
+actually ships instead of presenting an OTP-29-only call as universal.
 
-The crash calls exist only for failure injection. EUnit success is regression
-evidence for the declared service contracts, not a claim of production
-availability, race freedom, persistence, or useful performance. This checkpoint
-still does not add application packaging, releases, distribution, persistence,
-or a production registry/tracing policy. Those belong to later project slices.
+The release lab distinguishes local boot evidence from portability. Its
+=local= boot script intentionally contains build paths and proves only that a
+fresh VM in the tested environment can consume the generated boot file. The
+later non-local =make_tar/2= check proves package construction and expected
+archive shape; it does not prove cross-host installation, bundled ERTS,
+release upgrades, rollback, distribution, persistence, production availability,
+or useful performance. Those claims require their own project slices.
