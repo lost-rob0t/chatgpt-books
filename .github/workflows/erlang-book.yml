@@ -47,6 +47,9 @@ jobs:
       - name: Run bounded job processor tests
         run: bash ./books/erlang/code/job-processor/run-tests.sh
 
+      - name: Run distributed service tests
+        run: bash ./books/erlang/code/distributed-service/run-tests.sh
+
       - name: Validate Chapter 13 lifecycle diagram source
         shell: bash
         run: |
@@ -81,6 +84,18 @@ jobs:
           grep -q 'overloaded' /tmp/job-processor-flow.svg
           grep -q 'no persisted ledger' /tmp/job-processor-flow.svg
 
+      - name: Validate Chapter 16 distributed failure diagram source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s books/erlang/assets/distributed-service-failure.dot
+          test -s books/erlang/assets/distributed-service-failure.svg
+          dot -Tsvg books/erlang/assets/distributed-service-failure.dot > /tmp/distributed-service-failure.svg
+          grep -q 'erlang_book_dist_service' /tmp/distributed-service-failure.svg
+          grep -q 'monitor_nodes' /tmp/distributed-service-failure.svg
+          grep -q 'disconnect_node' /tmp/distributed-service-failure.svg
+          grep -q 'standard-I/O control' /tmp/distributed-service-failure.svg
+
       - name: Build Erlang book
         run: make book BOOK=erlang
 
@@ -98,6 +113,7 @@ jobs:
               "Applications: Give the Supervision Tree a System Boundary",
               "Releases: Turn Applications into a Bootable System",
               "Bounded Work: Admission, Dynamic Workers, and Retry Ownership",
+              "Distribution: Nodes, Connections, and the Failure You Cannot See Through",
           ]
           with zipfile.ZipFile(epub) as archive:
               chunks = []
@@ -108,8 +124,8 @@ jobs:
           normalized = " ".join(text.split())
           missing = [heading for heading in expected if heading not in normalized]
           if missing:
-              raise SystemExit(f"production EPUB is missing accepted chapter(s): {missing}")
-          print("production EPUB contains Chapters 13, 14, and 15")
+              raise SystemExit(f"production EPUB is missing accepted/draft chapter(s): {missing}")
+          print("production EPUB contains Chapters 13 through 16")
           PY
 
       - name: Validate Erlang book
