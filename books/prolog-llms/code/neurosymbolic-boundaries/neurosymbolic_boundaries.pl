@@ -4,14 +4,17 @@
             validate_proof_provenance/3
           ]).
 
-known_task(collect_sources).
-known_task(normalize_terms).
-known_task(validate_schema).
-known_task(verify_provenance).
-known_task(publish_report).
+known_task(Task) :-
+    memberchk(Task,
+              [ collect_sources,
+                normalize_terms,
+                validate_schema,
+                verify_provenance,
+                publish_report
+              ]).
 
-known_resource(verifier).
-known_resource(parser).
+known_resource(Resource) :-
+    memberchk(Resource, [verifier, parser]).
 
 validate_formalization(RequiredIds, Claims, Outcome) :-
     (   valid_id_list(RequiredIds)
