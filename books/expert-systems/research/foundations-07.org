@@ -1,0 +1,158 @@
+#+title: Expert Systems Research -- Source-Backed systemd Dependency Diagnosis
+:PROPERTIES:
+:ID:       75c160f0-16dc-4967-9088-340ea7e904a1
+:END:
+
+* Scope
+This record supports Project 2 milestone A only: a source-backed teaching knowledge base for a narrow slice of systemd unit dependency diagnosis. It consumes the accepted inference, truth-maintenance, assumption, and explanation APIs. It does not modify engine semantics and it does not claim to model all of systemd.
+
+Retrieval/inspection date: 2026-09-16.
+Pinned current release inspected: systemd v261.3, published 2026-09-10.
+
+The executable fixtures remain synthetic. Upstream documentation supplies rule semantics; it does not supply fictional observations about =frontend.service= or =api.service=.
+
+* Why this slice exists
+The early book used a deliberately synthetic =depends-on= relation because its job was to teach matching. That abstraction is too weak for a real technical knowledge base. In systemd, requirement and ordering dependencies answer different questions. Collapsing them into one edge produces exactly the sort of confident-but-wrong diagnosis an expert system must avoid.
+
+Project 2 therefore starts by replacing the vague teaching idea “A depends on B” with explicit source-backed relations and explicit observation identity.
+
+* Current primary source: systemd.unit v261.3
+Source: upstream systemd repository, tag =v261.3=, =man/systemd.unit.xml= [cite:@systemd-unit-v2613].
+
+** DOCUMENTED -- Wants= is a weak requirement, not an ordering relation
+The v261.3 manual defines =Wants== as a weak requirement dependency. Units listed there are started when the configuring unit is started, but failure to start a wanted unit (or failure to add it to the transaction) does not invalidate the transaction as a whole. The configuring unit may still be started [cite:@systemd-unit-v2613].
+
+The same section explicitly says requirement dependencies do not determine startup/shutdown order; order is configured separately with =After== or =Before== [cite:@systemd-unit-v2613].
+
+Course consequence: a failed wanted unit must not be fed into the same “required dependency blocked startup” rule used for =Requires==. The milestone emits a separate diagnostic-boundary fact so the near miss is inspectable without turning it into a causal diagnosis.
+
+** DOCUMENTED -- Requires= becomes startup-blocking with the documented After= case
+The v261.3 manual defines =Requires== as a stronger requirement dependency. When the configuring unit is activated, required units are activated as well. If a required unit fails to activate *and* the configuring unit has an =After== ordering dependency on that failing unit, the configuring unit is not started [cite:@systemd-unit-v2613].
+
+The manual also warns that =Requires== alone does not mean the required unit must remain active forever; stronger lifecycle coupling uses other dependency types such as =BindsTo== in appropriate cases. This milestone deliberately stops before those semantics.
+
+Course consequence: the positive diagnosis rule requires all of these modeled facts to join under the same context:
+
+#+begin_example
+(unit-requirement UNIT DEPENDENCY :requires GENERATION)
+(unit-ordering UNIT DEPENDENCY :after GENERATION)
+(activation-attempt UNIT ATTEMPT GENERATION)
+(activation-outcome DEPENDENCY ATTEMPT GENERATION :failed)
+#+end_example
+
+Only that bounded conjunction derives:
+
+#+begin_example
+(diagnostic-hypothesis
+ :required-dependency-blocked-startup
+ UNIT DEPENDENCY ATTEMPT GENERATION)
+#+end_example
+
+The relation name says =hypothesis= on purpose. The rule is source-backed, but the observations in the book fixture are synthetic and the KB is not a complete model of every reason a unit may fail to start.
+
+** DOCUMENTED -- Before=/After= are orthogonal to requirement dependencies
+The =Before==/=After== section states that ordering settings are independent of and orthogonal to requirement dependencies such as =Requires== and =Wants== [cite:@systemd-unit-v2613]. =After== means that when both units are being started, the listed unit is fully started before the configuring unit starts. It does not itself say that the listed unit is pulled into the transaction.
+
+Course consequence:
+- =Requires== without =After== does not prove the startup ordering needed by this diagnosis rule;
+- =After== without a requirement edge does not prove the dependency is pulled into the transaction;
+- the KB stores requirement kind and ordering relation separately instead of inventing one =depends-on= edge.
+
+* Current primary source: systemctl v261.3
+Source: upstream systemd repository, tag =v261.3=, =man/systemctl.xml= [cite:@systemctl-v2613].
+
+** DOCUMENTED -- status is human-readable, show is the machine-oriented boundary
+The =status= command displays runtime status followed by recent journal data. The v261.3 manual explicitly says this output is intended for humans and directs callers wanting computer-parsable output to =show= instead [cite:@systemctl-v2613].
+
+The same section notes that =status= covers the current or most recent invocation retained in memory, while earlier invocations and previous boots belong in journal queries. The =show= command exposes properties of units/jobs/the manager [cite:@systemctl-v2613].
+
+Course consequence: this milestone does not add a =systemctl status= text parser. A future collector should use structured properties or another documented machine interface, attach capture time/boot/attempt/configuration identity, and keep journal evidence separate. This slice begins at the normalized observation boundary.
+
+* Knowledge model
+** Requirement relation
+#+begin_example
+(unit-requirement UNIT DEPENDENCY KIND GENERATION)
+#+end_example
+
+=KIND= is currently =:requires= or =:wants=. The type is data, not prose hidden in provenance. =GENERATION= is course-local configuration identity. It may correspond in a real collector to a content hash, deployment revision, unit-file generation, or another explicit snapshot identity. This milestone does not prescribe that collector design.
+
+** Ordering relation
+#+begin_example
+(unit-ordering UNIT OTHER :after GENERATION)
+#+end_example
+
+This is separate from requirement identity because systemd itself documents the concepts separately.
+
+** Activation attempt and outcome
+#+begin_example
+(activation-attempt UNIT ATTEMPT GENERATION)
+(activation-outcome UNIT ATTEMPT GENERATION OUTCOME)
+#+end_example
+
+=ATTEMPT= and =GENERATION= are explicit join keys. They prevent an old dependency failure from being borrowed into a later startup attempt, and they prevent a dependency declaration from one configuration generation from silently joining observations made under another.
+
+These fields are course-local observation/context identity, not claims that systemd exposes properties with these exact names.
+
+* Provenance contract
+The source-backed KB keeps two provenance classes separate.
+
+** Observation provenance
+Fixture observations carry:
+- =:status :synthetic=;
+- scenario identity;
+- a source ID naming the fixture record;
+- the marker =book-fixture=.
+
+A real collector would replace that payload with capture-specific provenance. The upstream manual must not be written into a fact as though the manual observed the machine.
+
+** Rule provenance
+Each production carries:
+- upstream project =systemd=;
+- pinned release =v261.3=;
+- source path =man/systemd.unit.xml=;
+- publication/retrieval dates;
+- source URL;
+- an explicit documented-claim keyword;
+- =:course-status :source-backed-teaching-rule=.
+
+The milestone-F explanation graph already copies production provenance onto current justification nodes. Project 2 therefore gets end-to-end lineage without adding a second explanation system.
+
+* Required reasoning cases
+** TESTED target -- Requires + After + failure under one attempt/generation
+The four positive facts above should derive one bounded blocked-startup hypothesis. Its explanation must include the four exact support occurrences, their synthetic provenance, the rule identity, and pinned upstream rule provenance.
+
+** TESTED target -- Requires without After
+No blocked-startup hypothesis. This is not proof that the unit starts successfully; it means this particular source-backed conjunction is absent.
+
+** TESTED target -- After without a requirement edge
+No blocked-startup hypothesis. Ordering alone does not establish transaction pull-in.
+
+** TESTED target -- failed Wants=
+No =Requires== diagnosis. Instead the separate boundary production records that wanted-unit startup failure alone does not invalidate the transaction as a whole under the documented =Wants== semantics.
+
+** TESTED target -- cross-generation evidence
+Configuration from generation 0 and activation observations from generation 1 do not join.
+
+** TESTED target -- cross-attempt evidence
+A dependency failure from attempt 0 does not support a hypothesis about attempt 1.
+
+** TESTED target -- non-failure outcome
+A dependency outcome such as =:active= does not satisfy the =:failed= condition. Absence of this diagnostic hypothesis is not a declaration of system health.
+
+* Why the near misses matter
+A brittle expert system is often most dangerous where a rule *almost* matches. The current engine has no negative conditional elements or full why-not debugger, so this slice does not fake one. Instead it makes the most important semantic near miss (=Wants== versus =Requires==) an explicit positive boundary fact and uses typed =:absent= explanation results for the other deliberate non-matches.
+
+The later knowledge-engineering workbench can build proper partial-match diagnostics over these stable rule identities.
+
+* Claim-state ledger
+- DOCUMENTED: systemd v261.3 =Wants== is a weak requirement; failure of a wanted unit does not invalidate the transaction as a whole; requirement dependencies do not determine ordering.
+- DOCUMENTED: systemd v261.3 =Requires== is stronger; with =After== on a required unit that fails to activate, the configuring unit is not started.
+- DOCUMENTED: =Before==/=After== are ordering dependencies independent/orthogonal to requirement dependencies.
+- DOCUMENTED: systemctl v261.3 =status= is human-readable runtime output with recent journal data and directs machine consumers to =show=; older invocation history belongs in journal queries.
+- COURSE-LOCAL: fact relation names, attempt/generation context fields, stable rule IDs, diagnostic-hypothesis/boundary relation names, and fixture provenance layout.
+- TESTED only after exact-head verification: all seven reasoning cases above, preservation of rule/observation provenance in explanation graphs, and all prior inference-engine regressions.
+- UNTESTED / NOT IMPLEMENTED: real host collection, =Result== interpretation, journal parsing, automatic reconstruction of activation transactions, =BindsTo=/=PartOf=/=Requisite= semantics, negative conditional elements, uncertainty scores, persistence, concurrency, deployment, or production diagnosis quality.
+- NO BENCHMARK CLAIM: no timing, throughput, allocation, precision/recall, incident-resolution, or scaling result is claimed.
+
+* Verification plan
+Run the complete existing Common Lisp inference/explanation suites unchanged, then the separated Project 2 service-KB tests. Validate the editable dependency-diagnosis diagram. Build and validate the book with =make book BOOK=expert-systems= and =make check BOOK=expert-systems=. Run the focused Expert Systems workflow including Nix plus generic =books-ci=. Record only exact-head observed results.
