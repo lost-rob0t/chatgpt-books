@@ -16,11 +16,13 @@ known_task(Task) :-
 known_resource(Resource) :-
     memberchk(Resource, [verifier, parser]).
 
+%! validate_formalization(+RequiredIds, +Claims, -Outcome) is det.
 validate_formalization(RequiredIds, Claims, Outcome) :-
     (   valid_id_list(RequiredIds)
     ->  validate_claim_list(RequiredIds, Claims, Outcome)
     ;   Outcome = error(invalid_required_ids)
-    ).
+    ),
+    !.
 
 validate_claim_list(RequiredIds, Claims, Outcome) :-
     (   is_list(Claims),
@@ -137,6 +139,7 @@ first_uncovered_requirement([Required|_], Claims, Required) :-
 first_uncovered_requirement([_|Rest], Claims, Missing) :-
     first_uncovered_requirement(Rest, Claims, Missing).
 
+%! narrow_capabilities(+Parent, +Requested, -Outcome) is det.
 narrow_capabilities(Parent, Requested, Outcome) :-
     (   valid_capability_list(Parent),
         valid_capability_list(Requested)
@@ -148,7 +151,8 @@ narrow_capabilities(Parent, Requested, Outcome) :-
     ;   Check = error(capability_widening(Missing))
     ->  Outcome = error(capability_widening(Missing))
     ;   Outcome = Check
-    ).
+    ),
+    !.
 
 first_missing_capability([], _, _, ok).
 first_missing_capability([Capability|_], Parent, Capability,
@@ -158,11 +162,13 @@ first_missing_capability([Capability|_], Parent, Capability,
 first_missing_capability([_|Rest], Parent, Missing, Outcome) :-
     first_missing_capability(Rest, Parent, Missing, Outcome).
 
+%! validate_proof_provenance(+AcceptedClaimIds, +Proof, -Outcome) is det.
 validate_proof_provenance(AcceptedClaimIds, Proof, Outcome) :-
     (   valid_id_list(AcceptedClaimIds)
     ->  validate_proof_shape(AcceptedClaimIds, Proof, Outcome)
     ;   Outcome = error(invalid_accepted_claim_ids)
-    ).
+    ),
+    !.
 
 validate_proof_shape(AcceptedClaimIds,
                      proof(QueryId, PremiseIds),
