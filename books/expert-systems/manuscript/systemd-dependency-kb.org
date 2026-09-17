@@ -393,7 +393,7 @@ Each support fact in turn has its own source node carrying the synthetic observa
 #+name: fig:expert-systemd-dependency-diagnosis
 #+caption: Requirement, ordering, attempt, and outcome evidence join under one context. =Wants== takes a separate boundary path. Both conclusions reuse the accepted explanation graph so observation provenance and rule provenance stay distinct.
 #+attr_html: :alt Source-backed systemd dependency diagnosis showing separate requirement and ordering facts, attempt and outcome identity, a source-backed join, diagnosis or Wants boundary output, and the explanation graph.
-[[file:../assets/systemd-dependency-diagnosis.svg]]
+[[file:assets/systemd-dependency-diagnosis.svg]]
 
 This is why Project 1 invested in exact occurrence identity before we wrote a real KB. If a premise is retracted and the hypothesis loses its final grounded justification, truth maintenance can remove it. If the same stable premise ID later reappears under a new occurrence stamp, the old explanation cannot silently attach itself to the new evidence.
 
