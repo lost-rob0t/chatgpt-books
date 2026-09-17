@@ -3,7 +3,7 @@
 :ID:       810b5809-da3a-57bd-9b33-8776012c7c45
 :END:
 * Phase
-Foundational research + progressive implementation. Project 1 milestones A, B, C, D, and E are editorially approved and merged. Milestone F -- current explanation/provenance graphs derived from exact support and contradiction identity -- is worker-TESTED and awaiting Editor-in-Chief review in issue #115 / PR #117. Project 2 milestone A -- the first source-backed systemd dependency-diagnosis KB slice -- is an active stacked worker draft in issue #120. Only the Editor-in-Chief may mark these active slices APPROVED or DONE. The full book remains far from release-ready and is not DONE.
+Foundational research + progressive implementation. Project 1 milestones A, B, C, D, and E are editorially approved and merged. Milestone F -- current explanation/provenance graphs derived from exact support and contradiction identity -- is worker-TESTED and awaiting Editor-in-Chief review in issue #115 / PR #117. Project 2 milestone A -- the first source-backed systemd dependency-diagnosis KB slice -- is worker-TESTED in stacked PR #123 and awaiting Editor-in-Chief review after its parent dependency. Only the Editor-in-Chief may mark these active slices APPROVED or DONE. The full book remains far from release-ready and is not DONE.
 * Completed
 - Purpose, audience, prerequisites, project map, roadmap, and substantial chapter outline initialized.
 - Foundation research record A added for production-system semantics, literal matching, variables/bindings, multi-condition joins, and the technical-diagnosis fixture boundary.
@@ -33,8 +33,8 @@ Foundational research + progressive implementation. Project 1 milestones A, B, C
 - =manuscript/explanation-provenance.org= drafts Chapter 20 / Project Lab F.1, deriving firing-history-versus-current-proof, typed graph identities, alternative reasons, stale identity, provenance boundaries, contradiction explanation, the why-not boundary, failure labs, and exercises.
 - =assets/explanation-provenance.dot= plus SVG provide the editable current-support/counterevidence graph figure.
 - Exact head =bd4bc5712b3d8e5432eecc8f906c78777c2219e0= passed focused =expert-systems-book= run =35160897355= and generic =books-ci= run =35160897275=. Worker claim state: TESTED / OBJECTIVE GATES GREEN / AWAITING EDITOR-IN-CHIEF REVIEW / NOT APPROVED / NOT MERGED.
-* Active stacked worker draft -- Project 2 milestone A
-- Issue #120 tracks the first source-backed technical troubleshooting KB slice. The branch is deliberately stacked on PR #117 so it can consume the proposed read-only explanation API without copying it. Stacking does not imply milestone-F editorial acceptance.
+* Project 2 milestone A -- tested, stacked, awaiting Editor-in-Chief review
+- Issue #120 / PR #123 track the first source-backed technical troubleshooting KB slice. The branch is deliberately stacked on PR #117 so it can consume the proposed read-only explanation API without copying it. Stacking does not imply milestone-F editorial acceptance.
 - =research/foundations-07.org= pins current systemd v261.3 source for =Wants==, =Requires==, and =Before=/=After== semantics plus the =systemctl status=/=show= machine-facing boundary. Rule semantics and collection boundaries are separated from synthetic fixture observations.
 - =code/service-kb/= is a separate domain package that consumes the Project 1 fact/production/TMS/assumption/explanation APIs. It does not modify matcher, RETE-like, truth-maintenance, contradiction, or explanation internals.
 - The normalized teaching model separates =(unit-requirement ... KIND GENERATION)= from =(unit-ordering ... :after GENERATION)= instead of preserving the old vague =depends-on= fixture abstraction.
@@ -45,7 +45,9 @@ Foundational research + progressive implementation. Project 1 milestones A, B, C
 - Service-KB regressions cover the positive Requires/After case, missing ordering, ordering without a requirement, the =Wants== boundary, cross-generation evidence, cross-attempt evidence, non-failure outcome, and preservation of observation/rule provenance in the explanation graph.
 - =manuscript/systemd-dependency-kb.org= is a substantial Project 2 project chapter with worked joins, collection-boundary reasoning, explanation use, four failure/debugging labs, source-upgrade discussion, and 12 exercises.
 - =assets/systemd-dependency-diagnosis.dot= plus SVG show the separate requirement/order/attempt/outcome inputs, the source-backed join, the =Wants== boundary, and explanation flow.
-- Focused CI now runs the separated service-KB suite in addition to all prior inference-engine tests and validates the new editable graph. Worker claim state before exact-head CI: IMPLEMENTED / NEEDS_VERIFICATION / STACKED ON PR #117.
+- The first focused run on implementation head =8822ea2b477c9cf70be99b4081d7e86474cbede9= proved all Common Lisp and diagram checks but exposed a publication-relative SVG path error during =make check=. That failure was retained as evidence and repaired rather than hidden.
+- Repaired implementation head =20419649d664fef217344de840396408eb46b3d1= passed focused =expert-systems-book= run =35166137320=: 64 core engine, 42 incremental-matching, 64 truth-maintenance, 36 assumption/contradiction, 31 explanation/provenance, and 16 source-backed service-KB checks; all editable diagrams; book build/check; EPUBCheck with 0 fatals / 0 errors / 0 warnings / 0 infos; and =nix flake check -L=. Generic =books-ci= run =35166137532= also completed SUCCESS through structure, Org/Pandoc, deterministic assets, EPUB, publication/citation regressions, ERT, real Org-roam DB sync, and artifact upload.
+- Worker claim state: TESTED / OBJECTIVE GATES GREEN / STACKED ON PR #117 / READY FOR EDITOR-IN-CHIEF REVIEW / NOT APPROVED / NOT MERGED.
 * Verification status
 - Milestone A remains the merged semantic baseline for literal matching -> variables/bindings -> deterministic multi-condition joins with support identities.
 - Milestone B final reviewed head =2efa5df7d3d1de9c319b3187a19c4760af3d0917= passed focused =expert-systems-book= run =35124448371=: the Common Lisp inference-engine suite reported 64 checks passing, both editable engine diagrams validated, =make book BOOK=expert-systems= and =make check BOOK=expert-systems= succeeded, EPUBCheck 5.3.0 reported 0 fatals / 0 errors / 0 warnings / 0 infos, and the dedicated =nix flake check -L= job succeeded. Generic =books-ci= run =35124448377= also completed SUCCESS on that exact head.
@@ -53,7 +55,7 @@ Foundational research + progressive implementation. Project 1 milestones A, B, C
 - Milestone D accepted head =479ba768615b8e65b8153dcf40ab8bf4cf63a8bc= passed focused =expert-systems-book= run =35146610209= and generic =books-ci= run =35146610166= before the Editor-in-Chief merged it as =c340e5843981e33fe240d19797d9ef1354ed247d=.
 - Milestone E passed its final exact-head review gates before the Editor-in-Chief merged PR #102 as =d8131c4d1485d02eba228d6be13be4e15654d8d1=. The merge commit is the canonical source of its accepted state.
 - Milestone F exact head =bd4bc5712b3d8e5432eecc8f906c78777c2219e0= passed focused run =35160897355= and generic run =35160897275=. This verifies the worker draft; it does not grant editorial approval.
-- Project 2 milestone A exact-head Common Lisp/build/Nix verification is pending. No test result is claimed until the stacked PR workflows execute successfully.
+- Project 2 milestone A implementation head =20419649d664fef217344de840396408eb46b3d1= passed focused run =35166137320= and generic run =35166137532=. This verifies the stacked worker draft; it does not grant editorial approval or satisfy the parent PR #117 editorial dependency.
 * Unverified / deliberately deferred
 - No RETE, truth-maintenance, contradiction, explanation, or Project 2 KB performance benchmark has been run or claimed.
 - Negative/existential conditional elements, shared-node optimization, TREAT implementation, ATMS labels/environments/nogoods, automatic contradiction winner selection, calibrated uncertainty/counterevidence weighting, why-not/partial-match explanations, workbench, persistence, and production deployment remain future work.
@@ -70,9 +72,9 @@ Foundational research + progressive implementation. Project 1 milestones A, B, C
 - Project 1 milestone D: editorially APPROVED and merged as the bounded justification/truth-maintenance milestone after the mixed-support repair.
 - Project 1 milestone E: editorially APPROVED and merged as the bounded assumptions/contradictions/consistency-gate milestone.
 - Project 1 milestone F: worker TESTED / OBJECTIVE GATES GREEN / awaiting Editor-in-Chief decision in PR #117; not approved or merged.
-- Project 2 milestone A: worker IMPLEMENTED / NEEDS_VERIFICATION / stacked on PR #117; editorial review has not started.
+- Project 2 milestone A: worker TESTED / OBJECTIVE GATES GREEN / stacked on PR #117 / ready for Editor-in-Chief review; not approved or merged.
 - Whole-book technical/editorial/visual review has not started; the book remains in progress.
 * Next dependency-ready slice
-Verify Project 2 milestone A on its exact stacked head. If green, submit the bounded systemd KB slice for Editor-in-Chief review while preserving the explicit dependency on PR #117. Do not broaden into certainty/fuzzy scoring by attaching arbitrary numbers to evidence. Later Project 2 work should add independently researched evidence families/counterevidence and real collector contracts one source boundary at a time.
+Hold Project 2 milestone A at the tested review boundary while PR #117 is unresolved. Do not broaden into certainty/fuzzy scoring by attaching arbitrary numbers to evidence. After the parent explanation API and this source-backed KB slice receive editorial direction, continue Project 2 with independently researched Linux/distributed-service evidence families, counterevidence, and real collector contracts one source boundary at a time.
 * Blockers
 No known book-internal design blocker. Project 2 milestone A depends editorially on PR #117's proposed explanation API and therefore remains stacked until the Editor-in-Chief decides that parent slice. It is not waiting on StarLang or any other paused campaign.
