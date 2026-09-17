@@ -60,7 +60,8 @@ validate_requirement(duration(Task, Minutes), Outcome) :-
     !,
     (   known_task(Task)
     ->  (   integer(Minutes),
-            between(0, 1440, Minutes)
+            Minutes >= 0,
+            Minutes =< 1440
         ->  Outcome = ok
         ;   Outcome = error(invalid_duration(Task, Minutes))
         )
@@ -82,7 +83,8 @@ validate_requirement(release(Task, Minute), Outcome) :-
     !,
     (   known_task(Task)
     ->  (   integer(Minute),
-            between(0, 1440, Minute)
+            Minute >= 0,
+            Minute =< 1440
         ->  Outcome = ok
         ;   Outcome = error(invalid_release(Task, Minute))
         )
