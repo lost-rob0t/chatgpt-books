@@ -8,3 +8,6 @@
 #+include: "chapter-06-dcg.org"
 #+include: "chapter-06-clpfd.org"
 #+include: "chapter-06-meta.org"
+#+include: "chapter-29-prolog-rlm-architecture.org"
+#+include: "chapter-30-recursive-execution.org"
+#+include: "chapter-31-comparative-experiments.org"

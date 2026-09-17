@@ -1,0 +1,348 @@
+* Chapter 30 -- Recursive Execution With Explicit Invariants
+:PROPERTIES:
+:ID:       e812ac13-222a-4d02-8186-b0adcf4b8cce
+:STATUS:   DRAFT
+:END:
+
+Recursion is easy to draw and hard to operate.
+
+A diagram can show a parent model splitting a problem into three children, each
+child splitting again, and the leaves returning answers upward.  The diagram
+usually omits every question that turns the picture into a runtime:
+
+- Who owns the remaining call budget?
+- Can a child use a tool the parent could not use?
+- What state survives when a nested scope returns?
+- How do we know which provider response belonged to which recursive branch?
+- Does retry mean "try the same effect again" or "create a new attempt"?
+- What stops a model from recursing forever because decomposition feels useful?
+
+This chapter treats recursion as an accounting and authority problem before it
+treats it as an intelligence technique.
+
+** The recursive step is small; its consequences are not
+
+In the typed plan language, nesting looks almost trivial:
+
+#+begin_src prolog
+rlm(
+    plan([
+        tool(study_normalize, var(evidence), claim),
+        tool(study_verify, var(claim), verdict),
+        final(var(verdict))
+    ]),
+    verified)
+#+end_src
+
+The outer plan gives the child a plan and a binding name.  The child executes,
+returns one final value, and the parent binds that value as =verified=.
+
+But the production implementation does not run that child as a disconnected
+mini-program.  It starts the nested execution from the current execution state,
+changes trace context for the child, and then restores only the lexical parent
+scope when the child finishes [cite:@prolog-rlm-source].
+
+That design gives us the first invariant.
+
+#+begin_quote
+A recursive child may have a new lexical scope, but it does not get a fresh
+unaccounted budget.
+#+end_quote
+
+** Static cost is checked before dynamic cost is spent
+
+The plan validator computes a structural estimate before execution.  For each
+operation it tracks at least:
+
+- total steps;
+- maximum depth;
+- maximum parallel width;
+- model calls;
+- tool calls;
+- context operations.
+
+A nested =rlm/2= adds a wrapper step and estimates the child at one greater
+depth.  A =retry/3= multiplies the estimated child work by the maximum number of
+attempts.  Parallel branches contribute their work while also increasing the
+parallel-width estimate.  The resulting estimate is compared with the declared
+budget before execution begins [cite:@prolog-rlm-source].
+
+For the deterministic study plan from Chapter 29, the arithmetic is visible by
+inspection:
+
+#+begin_example
+parent retrieve                         1 step, 1 tool
+rlm wrapper                             1 step
+  child normalize                      1 step, 1 tool
+  child verify                         1 step, 1 tool
+  child final                          1 step
+parent checkpoint                       1 step
+parent final                            1 step
+----------------------------------------------------
+total                                   7 steps, 3 tools
+maximum depth                           2
+#+end_example
+
+The companion fixture chooses exactly those structural maxima.  That is not a
+recommendation for production budgets; it is a teaching device that makes an
+unexpected extra operation immediately observable.
+
+** Runtime accounting uses one decreasing balance
+
+Static validation is necessary, but it is not enough.  A runtime must also
+charge what actually happens.
+
+The =rlm_plan= execution state carries a =remaining= budget.  Every plan step
+consumes a step.  Model, tool, and context operations consume their associated
+counters.  Values bound into the plan and final values consume output-byte
+budget.  A top-level wall-time limit encloses execution [cite:@prolog-rlm-source].
+
+When the executor enters our nested =rlm/2= plan, it passes forward the current
+state.  The child therefore spends from the same remaining counters.  When the
+child returns, the parent gets the post-child state back.
+
+This is the difference between *recursive syntax* and *recursive accounting*.
+If each child received a fresh budget, a depth limit would not protect the other
+resource dimensions.  A parent with ten units could spawn children that each
+believed they also had ten units.  The tree would mint budget out of recursion.
+
+The shared-state design forbids that.
+
+** Lexical state and execution history are different things
+
+A child should not normally leak its temporary variable names into its parent.
+Our child uses =claim= and =verdict=.  The parent only needs =verified=.
+
+The runtime therefore snapshots the parent's variable dictionary before nested
+execution and restores that lexical dictionary when the child returns.  It then
+binds the one child result named by the =rlm/2= step.
+
+If the runtime restored *the whole execution state*, however, it would erase
+real history.  Tool use, provider responses, consumed budget, and trace events
+would disappear whenever a child returned.
+
+The implementation deliberately separates those concerns.  Scope restoration
+restores lexical variables and trace positioning; accounting and append-only
+model observations survive the return [cite:@prolog-rlm-source].
+
+This is a general pattern for recursive agent runtimes:
+
+#+begin_example
+restore:     local names, local cursor, local presentation context
+preserve:    spent budget, durable effects, observations, provenance, lineage
+#+end_example
+
+"Return from a function" is not the same operation as "rewind the world."
+
+** Trace lineage must be authored at execution time
+
+Suppose a root planner calls a model, a nested plan calls another model, and a
+retry calls the nested model again.  After the fact, a flat list of response
+texts cannot reliably reconstruct the tree.
+
+The current runtime records model events while execution is happening.  Each
+record contains sequence, identity, parent identity, depth, reason, provider,
+and the provider response.  Entering nested execution increments trace depth
+and chooses a parent from the current trace lineage [cite:@prolog-rlm-source].
+
+The important lesson is not the exact dict field names.  It is *when* lineage is
+captured.
+
+#+begin_quote
+If a fact is needed to explain execution, record it at the moment the runtime
+knows it authoritatively.  Do not hope to infer it later from final prose.
+#+end_quote
+
+Our deterministic study fixture has no model responses, so its model-event list
+is empty by design.  It still returns ordered plan transitions.  When provider
+calls are introduced later, the same execution substrate can carry model-event
+lineage without changing the meaning of the plan steps.
+
+** Capability inheritance is not one universal rule
+
+"Children inherit fewer capabilities" is a good default for agent systems, but
+we need to be precise about which child mechanism we mean.
+
+For a nested =rlm(SubPlan, Bind)= in the current typed-plan validator, the child
+plan is validated against the same plan capability list as the parent.  The
+nested plan cannot invent a capability that is absent from that list, but
+=rlm/2= itself does not construct a narrower child list [cite:@prolog-rlm-source].
+
+Supervised *agent* spawning is a different subsystem and is designed around
+capability scoping/narrowing.  Do not read an agent-supervision guarantee into
+plain lexical plan nesting.
+
+For our study plan, the simple rule is enough: the root receives exactly the
+five capabilities required by the authored plan, and the child can only use the
+subset of those names that occurs in its steps.
+
+A future study harness that lets a model author arbitrary child plans should
+consider an explicit per-child capability projection rather than relying only
+on "same list, smaller plan."
+
+** Fail closed before the verifier runs
+
+The companion implementation includes a negative capability experiment:
+
+#+begin_src prolog
+Restricted = [
+    tool(study_retrieve),
+    rlm,
+    tool(study_normalize),
+    checkpoint
+],
+plan_validate(Plan, Restricted, Budget, Outcome).
+#+end_src
+
+The verifier remains installed in the tool registry.  Only its capability is
+removed.
+
+The correct result is not "run until the verifier step and then discover the
+problem."  Validation walks the full nested plan first and returns a structured
+=capability_denied(tool(study_verify))= error.
+
+This is an important recursive invariant: *deep authority errors should be
+visible before shallow side effects begin whenever the plan is statically
+available*.
+
+A planner that puts an unauthorized operation three levels deep has still
+submitted an unauthorized plan.
+
+** Fail closed on depth before entering depth
+
+The second negative experiment changes only the budget:
+
+#+begin_src prolog
+study_budget(Budget0),
+put_dict(max_depth, Budget0, 1, Budget),
+plan_validate(Plan, Capabilities, Budget, Outcome).
+#+end_src
+
+The plan's estimated depth is two, so a maximum depth of one is rejected before
+execution.
+
+This seems obvious for a literal nested plan.  Provider-driven recursion is
+harder because the next child may not exist until a model proposes it.  That is
+why a production RLM needs both:
+
+1. validation of every concrete plan fragment before it executes; and
+2. a shared dynamic budget that cannot be reset by generating a new fragment.
+
+Static and dynamic enforcement are complementary, not competing designs.
+
+** Retry is recursion's dangerous cousin
+
+A recursive child explores a subordinate computation.  A retry repeats work
+after a failure.  Both can multiply cost, but retries become especially risky
+when tools have external effects.
+
+The typed plan language includes bounded =retry(Attempts, Plan, Bind)= and
+charges its static estimate by the maximum attempts [cite:@prolog-rlm-source].
+That does *not* mean arbitrary externally effectful work is safe to repeat.
+
+The broader =prolog-rlm= architecture places effectful execution behind a
+durable effect boundary: admission, identity, dispatch intent, external adapter,
+and conservative reconciliation are distinct from ordinary Prolog backtracking.
+A transport failure is not proof that a remote effect never happened.
+
+For the book fixture we avoid this issue entirely: all three host tools are pure
+or deterministic in-memory transformations.  When we later introduce effectful
+tools, "retry" must be specified in terms of attempt identity and provider
+idempotency rather than hand-waved as another loop.
+
+** Duplicate binding is implemented; duplicate subproblem detection is not magic
+
+The plan validator rejects duplicate lexical binding names.  That prevents one
+class of accidental state overwrite.
+
+It does not follow that the runtime automatically knows two semantically
+identical recursive subproblems are duplicates.  Generic duplicate-state
+detection requires a domain-relevant identity: a canonical query, frozen input
+fingerprint, task ID, evidence revision, or another trusted signature.
+
+This capstone will not pretend otherwise.
+
+For a future dynamic recursive experiment, define something like:
+
+#+begin_src prolog
+subproblem_key(FrozenSpec, ContextRevision, Query, Key) :-
+    canonical_query(Query, Canonical),
+    term_hash(subproblem(FrozenSpec, ContextRevision, Canonical), Key).
+#+end_src
+
+and then make the runtime policy explicit: reject, reuse a completed result,
+join an in-flight task, or create a new attempt.  The key must not be derived
+from a model's assertion that two tasks are "the same."
+
+Our fixed study plan does not generate duplicate subproblems dynamically, so no
+such mechanism is claimed as implemented here.
+
+** Stopping rules are executable policy
+
+"Stop when the model is satisfied" is not a stopping rule.
+
+A useful recursive runtime can stop for several independent reasons:
+
+- the plan reaches its unique =final/1=;
+- a structural budget would be exceeded;
+- the dynamic budget reaches zero;
+- wall time expires;
+- the host cancels execution;
+- validation or preflight fails;
+- a verifier rejects a candidate and policy chooses not to repair;
+- a supervised parent ends a child.
+
+The key word is *independent*.  The model does not get to waive a hard resource
+limit because it thinks one more call would be useful.
+
+The public =prolog-rlm= facade is even more conservative about deep
+provider-backed recursion: the repository documents depth greater than one as
+an explicit experiment requiring an opt-in flag, rather than something enabled
+merely by raising a number [cite:@prolog-rlm-source].  That public policy is
+separate from the fact that the lower-level typed-plan executor can represent a
+depth-two deterministic plan like ours.
+
+** Lab: prove the accounting path
+
+Run the recursive fixture and inspect =budget_remaining=:
+
+#+begin_src sh
+swipl -q -g "use_module('examples/prolog_rlm_study'), study_run('prolog-rlm', Outcome), portray_clause(Outcome), halt"
+#+end_src
+
+With the exact teaching budget, successful execution should consume all seven
+step slots and all three tool-call slots while consuming zero model calls.  The
+ordered transitions should expose the child operations before the parent
+=rlm= transition records the child's returned value.
+
+Then change one invariant at a time:
+
+- lower =max_depth=;
+- remove =tool(study_verify)=;
+- remove the tool from the runtime registry but keep the capability;
+- lower =max_output_bytes=;
+- duplicate a binding name in the child plan.
+
+Classify each failure by phase: normalize, validate, preflight, or execute.  If
+you cannot tell which phase owns a failure, the runtime boundary is not yet
+clear enough in your head.
+
+** The recursive invariant set
+
+For the rest of this capstone, keep this checklist nearby:
+
+1. Plan syntax is closed data.
+2. Every concrete child plan is validated before it runs.
+3. Nested execution cannot mint a fresh global budget.
+4. Lexical scope may be restored; authoritative history may not be erased.
+5. Trace lineage is captured during execution.
+6. Availability does not imply capability.
+7. Generic plan nesting and supervised child-agent narrowing are different
+   mechanisms.
+8. Retry does not erase external-effect identity.
+9. Duplicate semantic work needs an explicit trusted identity scheme.
+10. A verifier or hard runtime rule, not model confidence, decides acceptance
+    and stopping.
+
+Recursion becomes much less mystical once every one of those statements has a
+place in the program.
