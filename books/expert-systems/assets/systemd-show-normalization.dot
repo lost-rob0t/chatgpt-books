@@ -1,0 +1,36 @@
+digraph systemd_show_normalization {
+  rankdir=LR;
+  graph [label="Project 2 milestone B: machine-facing systemd evidence boundary", labelloc=t];
+  node [shape=box];
+
+  capture [label="captured systemctl show\nKEY=VALUE text"];
+  parser [label="first '=' parser\nno shell execution"];
+  gate [label="required-property gate\nunique keys + expected Id"];
+  reject [shape=octagon, label="reject capture\nmalformed / duplicate / missing / mismatch"];
+  facts [label="provenance-bearing\nnormalized facts"];
+  invocation [label="unit-local InvocationID\nkept as identity"];
+  context [label="caller activation context\n+ configuration generation"];
+  state [label="ActiveState / SubState\nResult / main-exit evidence"];
+  outcome [label="activation-outcome :failed\nonly when ActiveState=failed"];
+  boundary [shape=note, label="ExecMainStatus != 0\nis NOT a failure rule"];
+  config [label="Requires + After\nconfiguration facts"];
+  join [label="existing source-backed\ndependency rule"];
+  hypothesis [label="bounded diagnostic hypothesis"];
+  explain [label="exact-support explanation graph\ncollector + rule provenance"];
+
+  capture -> parser -> gate;
+  gate -> reject [label="validation failure"];
+  gate -> facts [label="accepted snapshot"];
+  facts -> invocation;
+  facts -> context;
+  facts -> state;
+  state -> outcome [label="ActiveState=failed"];
+  state -> boundary [label="raw main status"];
+  context -> outcome [label="explicit correlation"];
+  config -> join;
+  outcome -> join;
+  context -> join;
+  join -> hypothesis -> explain;
+  facts -> explain [label="source lineage"];
+  config -> explain [label="configuration lineage"];
+}

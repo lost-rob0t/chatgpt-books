@@ -1,0 +1,437 @@
+* Project 2 Milestone B -- Machine-Facing Evidence: From =systemctl show= to Explainable Facts
+:PROPERTIES:
+:ID:       5b376ae3-8611-47e6-be9d-4094b81d0001
+:END:
+
+Milestone A started with normalized synthetic facts. That was intentional. Before writing a collector, we needed to know what the reasoning layer actually required.
+
+Now we can move one boundary outward.
+
+The goal is still *not* “run a shell command and grep until the demo works.” The goal is to take a bounded machine-facing systemd snapshot, reject malformed or incomplete evidence before it enters working memory, preserve the identities that matter, and show exactly how the resulting facts support a diagnosis.
+
+This is knowledge engineering, not log scraping.
+
+The evidence path is:
+
+#+begin_example
+captured systemctl show text
+        |
+        v
+syntax parser
+        |
+        v
+required-property + identity gate
+        |
+        v
+provenance-bearing normalized facts
+        |
+        v
+source-backed Project 2 rules
+        |
+        v
+truth maintenance + explanation graph
+#+end_example
+
+Every arrow is a place where a bug can manufacture certainty. We are going to make those boundaries explicit.
+
+The pinned source is systemd v261.3. The collection interface is grounded in =systemctl(1)=, the state/exit semantics in =systemd.service(5)=, and the exposed Unit property surface in =org.freedesktop.systemd1= [cite:@systemctl-v2613;@systemd-service-v2613;@systemd-dbus-v2613].
+
+** P2.B.1 Human status is not a data contract
+Milestone A already refused to parse =systemctl status=. Keep that rule.
+
+=status= is designed for humans. It mixes formatted state, process information, and recent journal material. That is useful at a terminal. It is a rotten foundation for a long-lived parser.
+
+The pinned =systemctl= documentation points programs toward =show= for machine-parsable property output [cite:@systemctl-v2613]. So our input looks like this:
+
+#+begin_example
+Id=api.service
+InvocationID=22222222222222222222222222222222
+ActiveState=failed
+SubState=failed
+Result=exit-code
+ExecMainCode=1
+ExecMainStatus=1
+#+end_example
+
+Notice what this project does *not* do:
+
+#+begin_src sh
+systemctl show api.service
+#+end_src
+
+The executable book code does not launch that command. It consumes captured text. This keeps privilege, transport, host selection, timeout, locale, SSH, and subprocess semantics outside the inference lesson until we deliberately research them.
+
+That is not avoiding reality. It is keeping two interfaces from being accidentally welded together.
+
+** P2.B.2 Parsing is a semantic boundary
+A parser bug can become a reasoning bug.
+
+Suppose a property value contains another equals sign:
+
+#+begin_example
+StatusText=alpha=beta=gamma
+#+end_example
+
+Splitting on every equals sign corrupts the value. The parser therefore splits each non-empty line on the *first* equals sign only:
+
+#+begin_example
+name  = StatusText
+value = alpha=beta=gamma
+#+end_example
+
+Completely empty lines are ignored. A non-empty line without an equals sign is rejected. An empty property name is rejected. Duplicate names are rejected.
+
+Why reject duplicates instead of “last one wins”?
+
+Because we have not established that duplicate keys are meaningful for this capture format. Silently choosing one value would invent a conflict-resolution policy in the input layer. Failing closed makes the ambiguity visible.
+
+The parser itself does not know which properties matter. That is the next gate.
+
+#+begin_src lisp
+(parse-systemctl-show captured-text)
+#+end_src
+
+returns an ordered association list. It has done syntax work, not domain inference.
+
+** P2.B.3 Required fields are checked explicitly
+For this milestone the normalizer requires exactly these fields:
+
+#+begin_example
+Id
+InvocationID
+ActiveState
+SubState
+Result
+ExecMainCode
+ExecMainStatus
+#+end_example
+
+This list is a *course contract*, not a universal systemd schema.
+
+Why check fields explicitly if the command that produced the capture returned success?
+
+Because process success and evidence completeness are different questions. An upstream systemd issue reports that =systemctl show --property= can omit an unknown requested property while still exiting zero. The report was made against 259-rc2 and remains *UPSTREAM-REPORTED* here; we did not reproduce it on v261.3 [cite:@systemd-show-issue-40046].
+
+The important engineering lesson does not depend on the bug surviving forever:
+
+#+begin_quote
+Validate the evidence contract you need. Do not infer “all requested evidence exists” from an unrelated transport/process status.
+#+end_quote
+
+If =InvocationID= is missing, the normalizer throws a typed missing-property condition. If it exists but is empty, it throws a typed empty-property condition. No reasoning facts are emitted.
+
+If the caller says it captured =api.service= but =Id== says =frontend.service=, the capture is rejected before working memory sees it.
+
+That check catches a surprisingly ugly class of operational mistakes: copied output from the wrong unit, stale shell variables, confused multiplexed collectors, and tests that accidentally feed one fixture under another name.
+
+** P2.B.4 One identity is not enough
+Here is the trap in this milestone.
+
+Milestone A used one =ATTEMPT= value across these facts:
+
+#+begin_src lisp
+(activation-attempt frontend.service attempt-7 generation-1)
+(activation-outcome api.service attempt-7 generation-1 :failed)
+#+end_src
+
+That shared value is a *cross-unit correlation key* in our teaching model. It says these observations belong to the same modeled activation context.
+
+Then we discover a real property named =InvocationID=.
+
+It is tempting to replace =attempt-7= with =InvocationID= and declare victory.
+
+Do not.
+
+=InvocationID= is exposed on the Unit object [cite:@systemd-dbus-v2613]. The frontend unit and API unit have their own unit-local invocation identities. We do not have evidence that one unit's =InvocationID= is a systemd transaction identifier for all units involved in the same higher-level activation.
+
+So the normalized model keeps both:
+
+#+begin_src lisp
+(unit-invocation
+ "frontend.service"
+ "11111111111111111111111111111111"
+ "activation-context-7"
+ "generation-1")
+
+(unit-invocation
+ "api.service"
+ "22222222222222222222222222222222"
+ "activation-context-7"
+ "generation-1")
+#+end_src
+
+The two invocation IDs are distinct. The shared =activation-context-7= is explicit caller-supplied correlation data.
+
+Likewise =generation-1= remains a course-local configuration identity. We are not pretending systemd emitted it.
+
+This gives us a useful rule for all future collectors:
+
+#+begin_quote
+Never promote a convenient identifier into a stronger semantic role than its source establishes.
+#+end_quote
+
+*** Failure lab -- turn InvocationID into a fake transaction ID
+Modify the normalizer so =activation-context= is replaced by the observed =InvocationID=.
+
+Now normalize two captures from two units in the same synthetic scenario.
+
+Questions:
+1. Does the milestone-A dependency rule still join?
+2. If you force both fixtures to share one fake InvocationID, what real distinction did you erase?
+3. Could the explanation graph tell the difference between a truthful correlation key and a forged one?
+
+The last answer is “no.” Explanation preserves represented provenance; it cannot make an unjustified modeling decision valid.
+
+** P2.B.5 Main-process exit status is not service result
+Another classic shortcut is:
+
+#+begin_example
+ExecMainStatus != 0 -> service failed
+#+end_example
+
+That is wrong.
+
+The pinned =systemd.service= manual documents =SuccessExitStatus==. A service can configure additional numeric statuses or signals that count as successful termination. The manual explicitly says this changes how a status propagates to the service state while leaving the raw numeric mapping intact [cite:@systemd-service-v2613].
+
+The v261.3 source tree also contains a regression test where =Result= is =success= while =ExecMainStatus= is greater than zero.
+
+Therefore the normalizer preserves these as separate observations:
+
+#+begin_src lisp
+(service-result-observation
+ "worker.service" "success" INVOCATION CONTEXT GENERATION)
+
+(service-main-exit-observation
+ "worker.service" "1" "75" INVOCATION CONTEXT GENERATION)
+#+end_src
+
+It does *not* derive =:failed= from ="75"=.
+
+For this bounded milestone, the only adapter into milestone A's failure vocabulary is:
+
+#+begin_example
+ActiveState == "failed"
+  -> activation-outcome ... :failed
+#+end_example
+
+This is intentionally narrow. We are not claiming that =ActiveState= tells us the cause, that every historical failure remains in that state forever, or that =Result= is irrelevant. We are choosing one explicit high-level state boundary for the current inference rule while preserving the lower-level evidence for future reasoning.
+
+*** Failure lab -- the seductive nonzero status
+Normalize this synthetic snapshot:
+
+#+begin_example
+Id=worker.service
+InvocationID=33333333333333333333333333333333
+ActiveState=inactive
+SubState=dead
+Result=success
+ExecMainCode=1
+ExecMainStatus=75
+#+end_example
+
+The correct normalized result contains a main-exit observation and a service-result observation. It contains *no* =activation-outcome ... :failed= fact.
+
+If your engine derives failure anyway, the bug is not RETE. It is not truth maintenance. It is not conflict resolution. It is the domain adapter.
+
+That distinction is exactly why the book keeps domain code outside the inference engine.
+
+** P2.B.6 Provenance belongs on normalization output
+A normalized fact is not raw evidence. It is the result of a transformation.
+
+So each fact records provenance like:
+
+#+begin_src lisp
+(:kind :systemd-show-capture
+ :status :synthetic
+ :capture-id "api-capture"
+ :collector-id "book-systemctl-show-normalizer"
+ :source-interface "systemctl show"
+ :systemd-release "v261.3"
+ :properties ("Id" "InvocationID" "ActiveState" "Result")
+ :raw-properties (...))
+#+end_src
+
+For the book fixtures, =:status= defaults to =:synthetic=. A caller must deliberately choose another source status.
+
+This prevents a subtle provenance lie. The fact does not say “systemd documentation observed api.service failing.” Documentation defines property semantics. The capture supplies an observation. The normalizer transforms that observation. The rule supplies a source-backed relation among facts.
+
+Those are four different provenance roles.
+
+** P2.B.7 End-to-end: two snapshots, one bounded hypothesis
+Now build a complete synthetic case.
+
+Configuration generation 1 contains:
+
+#+begin_src lisp
+(unit-requirement
+ "frontend.service" "api.service" :requires "generation-1")
+
+(unit-ordering
+ "frontend.service" "api.service" :after "generation-1")
+#+end_src
+
+The caller groups two captures under one explicit activation context:
+
+#+begin_example
+activation-context-1
+#+end_example
+
+The frontend snapshot has:
+
+#+begin_example
+Id=frontend.service
+InvocationID=11111111111111111111111111111111
+ActiveState=activating
+SubState=start
+Result=success
+ExecMainCode=0
+ExecMainStatus=0
+#+end_example
+
+The API snapshot has:
+
+#+begin_example
+Id=api.service
+InvocationID=22222222222222222222222222222222
+ActiveState=failed
+SubState=failed
+Result=exit-code
+ExecMainCode=1
+ExecMainStatus=1
+#+end_example
+
+Normalization yields, among other facts:
+
+#+begin_src lisp
+(activation-attempt
+ "frontend.service" "activation-context-1" "generation-1")
+
+(activation-outcome
+ "api.service" "activation-context-1" "generation-1" :failed)
+#+end_src
+
+Now the existing milestone-A rule can join those observations with =Requires== and =After== under the same generation/context.
+
+The conclusion remains bounded:
+
+#+begin_src lisp
+(diagnostic-hypothesis
+ :required-dependency-blocked-startup
+ "frontend.service"
+ "api.service"
+ "activation-context-1"
+ "generation-1")
+#+end_src
+
+Nothing in this path claims that the API's process exit code caused the failure. Nothing claims the frontend and API share an InvocationID. Nothing claims the activation context came from systemd.
+
+That is what a trustworthy small rule looks like: every join key has a stated source.
+
+#+name: fig:expert-systemd-show-normalization
+#+caption: A captured =systemctl show= snapshot crosses a syntax and required-property gate before becoming provenance-bearing facts. Unit-local =InvocationID= remains separate from the caller's cross-unit activation context. Raw main-process status is evidence, not a failure predicate; only the bounded =ActiveState=failed= adapter feeds the existing dependency rule.
+#+attr_html: :alt Captured systemctl show key value text flows through parsing and validation into normalized facts, separate invocation and activation-context identities, a bounded failed-state adapter, the existing source-backed dependency rule, and an explanation graph.
+[[file:assets/systemd-show-normalization.svg]]
+
+** P2.B.8 Failure lab -- missing evidence is not empty evidence
+Delete the =Result== line from a capture.
+
+A weak parser may return =NIL= for an absent lookup. A weak normalizer may then serialize =NIL= as though the source explicitly reported an empty result.
+
+Those are different states:
+
+#+begin_example
+property absent       != property present with empty value
+unknown/not captured  != captured empty string
+#+end_example
+
+Milestone B rejects missing required properties with a typed condition.
+
+Why keep =Result== required if the current failure adapter uses =ActiveState==?
+
+Because the project is building an inspectable evidence record, not the minimum tuple necessary to make one rule fire. Preserving adjacent evidence prevents later rules from reconstructing history out of whatever happened to survive the first implementation.
+
+** P2.B.9 Failure lab -- context mismatch should kill the join
+Keep the configuration and frontend capture in:
+
+#+begin_example
+generation-1 / activation-context-current
+#+end_example
+
+Put the API failure in:
+
+#+begin_example
+generation-1 / activation-context-old
+#+end_example
+
+The dependency hypothesis must stay absent.
+
+Then repeat with the same activation context but a different configuration generation. It must stay absent again.
+
+These are not performance tests. They are ontology tests. They prove that the rule cannot silently borrow a failure from a different modeled world.
+
+** P2.B.10 Debugging the evidence boundary
+When a diagnosis looks wrong, do not start by staring at the final rule. Walk backward.
+
+1. *Was a hypothesis actually derived?* Query its exact fact ID and explanation status.
+2. *Which activation context and generation were bound?* Inspect the justification bindings.
+3. *Which exact support occurrences were used?* Follow =:uses= edges.
+4. *Which support came from a systemd-show capture?* Inspect source-node provenance.
+5. *Does the capture contain the property you think it does?* Read =:raw-properties=.
+6. *Was the unit ID checked?* Confirm the normalized =Id== and expected unit agree.
+7. *Are you confusing InvocationID with the shared activation context?* They occupy different positions in the normalized facts.
+8. *Are you treating ExecMainStatus as service failure?* Check for an actual bounded =activation-outcome ... :failed= fact.
+9. *Did configuration generation match?* The join should fail if it does not.
+10. *Did the input gate accept incomplete data?* Missing required fields should never create facts.
+
+This debugging path is why a source-backed knowledge base needs more than “rules that return the right answer on one fixture.”
+
+** P2.B.11 What this still does not prove
+We have crossed one interface boundary, not solved systemd diagnosis.
+
+Still unimplemented:
+- executing =systemctl= on a host;
+- D-Bus collection;
+- authentication/privilege policy;
+- timeout/retry semantics;
+- boot identity and historical invocation lookup;
+- journal correlation;
+- automatic discovery of a cross-unit transaction or causal context;
+- parsing =Result== into a complete failure taxonomy;
+- =ExecCondition=, =ExecStartPre=, watchdog, timeout, signal, OOM, and resource-control failure families;
+- =BindsTo==, =PartOf==, =Requisite==, socket activation, and many other dependency semantics;
+- uncertainty calibration;
+- persistence;
+- concurrent evidence ingestion;
+- operational precision/recall;
+- performance benchmarks.
+
+That list is not an apology. It is the roadmap.
+
+A serious expert system grows one researched evidence family at a time, with counterexamples and provenance at every seam.
+
+** P2.B.12 Exercises
+1. Add a parser regression where a value contains three equals signs. Explain why splitting on every equals sign changes evidence.
+2. Add a carriage-return-terminated fixture and verify the parser handles the line ending without altering property values.
+3. Remove =InvocationID=. Which typed condition should be raised, and why is manufacturing a synthetic invocation ID inside the parser wrong?
+4. Change =expected-unit= so it disagrees with =Id==. Trace where the failure happens relative to working-memory construction.
+5. Add a second successful snapshot for =api.service= under a new activation context. Prove the old failure cannot join with the new frontend attempt.
+6. Give frontend and API the same synthetic InvocationID while keeping the activation context explicit. Why should the inference rule still join on context rather than InvocationID?
+7. Add a test for =Result=success= and =ExecMainStatus=75=. Prove no =:failed= outcome is emitted.
+8. Change only =ActiveState= to =failed= in that fixture. Which facts change, and which raw exit evidence remains identical?
+9. Remove =Result== but leave every field used directly by the current rule. Explain why fail-closed validation is still preferable for this evidence contract.
+10. Extend provenance with a raw artifact hash *without* changing inference semantics. Where should the hash live?
+11. Design a later journal collector contract that can relate a journal record to a unit invocation without pretending every journal message is causal evidence.
+12. Propose a source-backed rule for one additional systemd failure family. Before writing code, list the exact primary documentation/source, required observations, negative cases, correlation keys, counterevidence, and claims you would refuse to make.
+
+** P2.B.13 Checkpoint
+The system now has a real, testable evidence boundary:
+
+#+begin_example
+syntax -> validation -> identity -> provenance -> facts -> rule -> explanation
+#+end_example
+
+The important result is not that we parsed seven lines.
+
+The important result is that malformed or incomplete input cannot quietly become belief, unit-local identity is not confused with cross-unit correlation, process status is not confused with service result, and the explanation graph can carry the evidence transformation all the way to a bounded source-backed hypothesis.
+
+That is the standard the rest of Project 2 has to meet.
