@@ -101,7 +101,7 @@ This pass supports Chapter 15 and issue #106 / PR #108. It establishes these bou
 Final exact PR head =7de52c5b2a1787ec7c42ae75a20553176520108a= passed focused =erlang-book= run =35162692570= and generic =books-ci= run =35162692577= before PR #108 merged as =02d9cac66330fcd0d90f62452a9d03a98514f991=. No throughput, latency, durability, exactly-once, distributed-failover, external-broker, or production security claim is inferred.
 
 ** Project 4 pass 07 -- distributed identity, connection loss, and remote-process failure
-Status: DOCUMENTED; execution UNTESTED until the focused workflow runs the new multi-node lab.
+Status: DOCUMENTED + EXECUTION VERIFIED for the bounded same-host checkpoint-A lab; Chapter 16 remains a worker draft pending editorial review.
 
 Primary-source scope: official Erlang/OTP source at immutable tag =OTP-29.1= for Distributed Erlang, =net_kernel=, =erlang:monitor/2=, STDLIB =peer=, and Secure Coding Guidelines. Detailed notes live in [[file:distribution-pass-07.org][distribution-pass-07.org]].
 
@@ -113,6 +113,8 @@ This pass supports Chapter 16 and issue #127. It deliberately separates:
 - a same-host local multi-node experiment from any claim about real WAN partitions, cross-host availability, TLS deployment, or production failover.
 
 The critical claim under test is intentionally negative: =noconnection= establishes loss of the observer's distribution path, not proof that the remote service process or VM died. The same-host lab uses the independent peer control channel to verify service liveness while Erlang Distribution is deliberately disconnected, then reconnects, observes a new connection ID, installs a fresh process monitor, and issues a new request.
+
+Execution evidence: implementation head =1b0e876524d8e9053efa7c5a0ec4f83f45fd1ef8= passed focused =erlang-book= run =35168078390=, including the distributed-service runtime step, Chapter 16 diagram gate, production book build/check path, accepted-chapter EPUB assertion, and separate Nix evaluation. Generic =books-ci= run =35168078458= also completed successfully on that head. Earlier failed attempts remain documented in [[file:distribution-pass-07.org][distribution-pass-07.org]]. Exact-current-head/current-main merge evidence is maintained on PR #130 after evidence-only reconciliations.
 
 * Open research queue
 - Release upgrades, =appup=/=relup=, and release-handler boundaries.
