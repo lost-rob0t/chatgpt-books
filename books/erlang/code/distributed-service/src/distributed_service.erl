@@ -37,7 +37,7 @@ request(Node, Payload, Timeout)
     Target ! {request, self(), Request, Payload},
     receive
         {dist_service_reply, Request, Reply} ->
-            true = erlang:demonitor(Monitor, [flush]),
+            erlang:demonitor(Monitor, [flush]),
             {ok, Reply};
         {'DOWN', Monitor, process, _Object, noproc} ->
             {error, noproc};
@@ -46,7 +46,7 @@ request(Node, Payload, Timeout)
         {'DOWN', Monitor, process, _Object, Reason} ->
             {error, {remote_exit, Reason}}
     after Timeout ->
-        true = erlang:demonitor(Monitor, [flush]),
+        erlang:demonitor(Monitor, [flush]),
         {error, timeout}
     end.
 
