@@ -73,6 +73,11 @@ Acceptance contracts authored in this slice:
 
 At authoring time these four are *UNTESTED* until the focused workflow executes them.
 
+* FAILED -- first focused attempt exposed a missing CI package
+Focused =lfe-book= run =35171445385= on authored head =736be89240b02a927998acc1624bc6050eb91625= failed before compiling LFE. The runner was Ubuntu 24.04.5 with Erlang/OTP 25.3.2.8. The workflow installed =erlang-nox= and =erlang-dev=, the =peer= preflight was available, but =code:ensure_loaded(ct)= returned ={error,nofile}= because Ubuntu packages Common Test separately rather than pulling it into this =erlang-nox= set.
+
+This failure is infrastructure evidence, not Project 4 behavior evidence: none of the distributed test cases ran, so they remain UNTESTED. The workflow correction explicitly installs =erlang-common-test= and retains the =ct= preflight. The independent Nix job on the failed run completed SUCCESS, and generic =books-ci= run =35171445461= on the same authored head completed SUCCESS; neither substitutes for the missing distributed execution.
+
 * Failure semantics to teach
 1. *A remote name has two coordinates.* ='otp-router'= alone means a local registration. ={'otp-router',Node}= names a registration on a specific remote node.
 2. *Distribution failure is not a domain error.* =#(error no-route)= is application data. An exit containing ={nodedown,Node}= says the transport/node boundary failed before a normal server reply completed.
