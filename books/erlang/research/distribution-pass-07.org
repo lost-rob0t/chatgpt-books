@@ -4,7 +4,7 @@
 :END:
 
 * Status
-DOCUMENTED from immutable official Erlang/OTP 29.1 sources. The repository multi-node lab remains UNTESTED as a complete publication checkpoint until a corrected focused =erlang-book= workflow reaches the build/check gates on the pinned OTP 29.1 runtime. Focused run =35167710182= is preserved as FAILED: strict =-Werror= compilation rejected two uses of deprecated =catch Expr= syntax before any new distribution scenario executed. Focused run =35167820773= is also preserved as FAILED overall even though all four new multi-node EUnit scenarios passed: the Chapter 16 diagram gate searched rendered Graphviz XML for a literal hyphen, while Graphviz escaped that hyphen as =&#45;=. The gate now matches the rendered text without depending on XML entity spelling. No cross-host availability, WAN, TLS deployment, durability, consensus, or performance result is inferred from documentation or from a same-host peer-node test.
+DOCUMENTED from immutable official Erlang/OTP 29.1 sources and EXECUTION VERIFIED for the bounded same-host Project 4 checkpoint-A lab. Focused =erlang-book= run =35168078390= completed successfully at implementation head =1b0e876524d8e9053efa7c5a0ec4f83f45fd1ef8=: the distributed-service step passed after all previously accepted Erlang regressions, the Chapter 16 diagram gate passed, the production book build and validation passed, and the separate Nix evaluation passed. Generic =books-ci= run =35168078458= also completed successfully on that head. Earlier focused runs =35167710182= and =35167820773= remain preserved below as FAILED rather than rewritten as success. Exact-current-head/current-main merge evidence is maintained on PR #130 because recording a final head SHA inside this source file would itself create a new head. No cross-host availability, WAN, TLS deployment, durability, consensus, or performance result is inferred from documentation or from a same-host peer-node test.
 
 * Questions
 - What exactly is a distributed Erlang node, and how does its identity differ from a process identity?
@@ -33,6 +33,8 @@ URL: https://github.com/erlang/otp/blob/OTP-29.1/lib/kernel/src/net_kernel.erl
 
 The module documents =net_kernel= as the system process required for distributed Erlang and exposes explicit connection and node-monitoring operations. Automatic connection can be disabled with Kernel's =dist_auto_connect= setting; explicit connections can then be established with =connect_node/1=.
 
+The lab instead sets the Kernel =connect_all=false= application parameter. OTP 29.1 documents that parameter as disabling =global='s active effort to connect every known node; it is distinct from =dist_auto_connect=, which controls automatic connection attempts such as those triggered by a send. The lab therefore calls =net_kernel:connect_node/1= explicitly for a legible trace, but readers should not mistake =connect_all=false= for a general disable-auto-connect recipe.
+
 For =monitor_nodes/2=, OTP documents ordered connection visibility: a =nodeup= notification is delivered before signals arriving from the remote node over the newly established connection; =nodedown= is delivered after signals from that remote node over the old connection have been delivered. OTP also supports =connection_id= in the event metadata so successive connections to the same node can be distinguished, and =nodedown_reason= for diagnostic context.
 
 These guarantees concern a distribution connection. They are not a durable-membership or consensus protocol, and they do not prove whether the remote VM or a remote process is alive after the observer loses the path.
@@ -46,7 +48,7 @@ Current monitor documentation distinguishes three common terminal observations r
 
 The critical teaching consequence is negative: =noconnection= is evidence about the observer's distribution path, not evidence that the remote process terminated. The Chapter 16 failure lab therefore checks remote service liveness through a separate =peer= control channel while Erlang Distribution itself is disconnected.
 
-Claim status: DOCUMENTED; the same-host reproduction is separately UNTESTED until a complete focused workflow passes.
+Claim status: DOCUMENTED + EXECUTION VERIFIED by the bounded same-host lab; this is not cross-host liveness evidence.
 
 ** =peer= documentation/source at immutable tag =OTP-29.1=
 URLs:
@@ -72,7 +74,7 @@ The smallest experiment that separates process failure from connection failure n
 1. ordinary Erlang Distribution, used by the application request and by the remote process monitor;
 2. =peer='s standard-I/O control connection, used only by the test harness to ask the peer whether the service process still exists after Distribution is deliberately disconnected.
 
-The intended trace is:
+The observed bounded trace is:
 
 #+begin_example
 origin                         peer VM
@@ -95,7 +97,7 @@ origin                         peer VM
   | request --------------------->| service replies again
 #+end_example
 
-If a complete focused workflow observes that trace, it demonstrates only the bounded same-host claim: one remote process can outlive one observer's distribution connection, and the old remote-process monitor terminates with =noconnection=. It does not model a real network partition, delayed packets, split brain, or failover.
+The successful focused workflow demonstrates only the bounded same-host claim: one remote process can outlive one observer's distribution connection, and the old remote-process monitor terminates with =noconnection=. It does not model a real network partition, delayed packets, split brain, or failover.
 
 * Failure taxonomy used by Chapter 16
 | Observation | What the checkpoint may conclude | What it must not conclude |
@@ -112,6 +114,9 @@ The first focused CI attempt used strict Erlang/OTP 29.1 / BEAM 17.1 and passed 
 
 ** Focused run =35167820773= -- FAILED after the new runtime scenarios passed
 The corrected code compiled under strict OTP 29.1 / BEAM 17.1. Foundations passed 14/14, the OTP worker/application suite passed 10/10, the release lab passed, Project 3 passed 5/5, and the new Project 4 distributed-service suite passed 4/4. The focused workflow then failed its Chapter 16 diagram-source validation because Graphviz serializes the hyphen in =standard-I/O control= as the XML entity =&#45;=; the gate incorrectly searched for the literal rendered phrase in raw XML. No manuscript build/check result is claimed from this run because those later steps were skipped. The gate now uses =standard.*I/O control= so it checks semantic label presence without depending on Graphviz's XML entity spelling.
+
+** Focused run =35168078390= -- SUCCESS
+At implementation head =1b0e876524d8e9053efa7c5a0ec4f83f45fd1ef8=, the corrected focused workflow completed successfully. Its Erlang job passed the foundations, OTP worker/application, release-construction, bounded job-processor, and distributed-service steps; all four Chapter 13--16 diagram gates; the production book build; the production-EPUB chapter-presence assertion; and book validation. The separate Nix-evaluation job also completed successfully. Generic =books-ci= run =35168078458= completed successfully on the same head through structural validation, Pandoc Org-reader validation, deterministic assets, EPUBCheck, publication/citation regressions, ERT with real Org-roam synchronization, and artifact upload.
 
 * Explicit non-claims
 - No cross-host test is performed in this checkpoint.
