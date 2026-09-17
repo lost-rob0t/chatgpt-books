@@ -1,0 +1,108 @@
+#+title: LFE Release and Boot Construction Pass 06
+:PROPERTIES:
+:ID:       c5f1c30c-54b6-40f7-ae77-58d4cf80291a
+:END:
+
+* Scope
+This pass owns the first packaging boundary for Project 3. It asks a narrow question: after Chapters 11--13 have a tested LFE =gen_server=, supervisor, and layered test harness, what must be added before that same code is an OTP *application* and can participate in an OTP *release*?
+
+It does not own distributed Erlang, release upgrades/relup, persistence, operating-system service integration, container images, cross-host deployment, bundled ERTS target installation, or production restart/upgrade policy. Those remain later slices.
+
+* Current source baseline
+- *LFE implementation:* v2.2.2, tag =v2.2.2=, pinned by the focused book workflow. The successful checkpoint-C run resolved that tag to upstream commit =dae7489ebf9588e5f746a34cd4f8ff83d1469eef=.
+- *Current Erlang/OTP release:* OTP 29.1, released 2026-09-16. The official patch page reports ERTS 17.1, Kernel 11.0.4, STDLIB 8.1, Common Test 1.31.2 and the other changed application versions. [cite:@erlang-otp-29-1-release]
+- *Executable CI runtime:* focused =lfe-book= run =35155310266= executed the integration tree on Ubuntu 24.04.5 / OTP 25 and observed ERTS 13.2.2.5, Kernel 8.5.4.2, and STDLIB 4.3.1.3. This evidence is intentionally separate from the current OTP 29.1 documentation baseline.
+
+* Primary-source findings
+** An OTP application is an ownership/lifecycle component, not a synonym for a module
+The =application= behaviour describes a component that can be started and stopped as a unit. When an application is structured as a supervision tree, its =start/2= callback starts the top supervisor and returns its PID. The application controller creates an application master and invokes the configured callback module from the application's resource metadata. [cite:@erlang-application-29]
+
+For this project that means the LFE callback should not reimplement the routing service or supervision policy. Its only substantive startup action is delegating to =otp-router-sup:start_link/1=. The existing supervisor remains the owner of worker lifecycle policy, and the existing =otp-router= callback remains the owner of service semantics.
+
+** The .app file is executable metadata
+The official =app= format requires one application resource file named after the application and located in its =ebin= directory. The resource identifies application version, modules, registered names, dependencies, and the optional =mod= callback used to start the application. The application controller reads this file at load/start time, and =systools= reads it while constructing releases. [cite:@erlang-app-resource-29]
+
+This gives the book a useful boundary: the Lisp source can compile correctly while the system description is still wrong. A missing dependency, wrong application version, or incomplete module list belongs to the packaging contract rather than to the routing algorithm.
+
+** A release composes applications plus one ERTS version
+Official release documentation defines a release as a complete system described by a =.rel= resource containing a release name/version, the ERTS version, and exact application versions. Kernel and STDLIB must be included. [cite:@erlang-release-structure-29;@erlang-rel-29]
+
+This is a stronger claim than “my app starts in a developer shell.” The release declaration says which component versions constitute the system.
+
+** systools validates the release/application closure before emitting boot artifacts
+=systools:make_script/2= reads the release and application resources and validates their relationship before generating a human-readable =.script= and binary =.boot=. A =local= script embeds the actual application directories and is explicitly useful for local testing. A non-local script is suitable for building a relocatable release package layout. =systools:make_tar/2= packages the applications and release artifacts. [cite:@erlang-systools-29;@erlang-release-structure-29]
+
+The Project 3 lab therefore needs both positive and negative evidence:
+- construct a valid release from the current runtime's actual ERTS/Kernel/STDLIB versions;
+- boot a *fresh* VM from the generated boot file;
+- prove the expected OTP application owns the same supervisor/worker tree used in earlier chapters;
+- corrupt the application version in =.rel= and require construction failure;
+- inject an undeclared release dependency into =.app= and require construction failure;
+- produce and inspect a release package without claiming this proves deployment to another machine.
+
+** Negative tests need semantic error categories, not any error tuple
+Self-review found that the first version of both failure labs accepted any ={error,_,_}= result. That was too weak: a typo, path problem, or unrelated release error could make the lesson appear green.
+
+The official tagged OTP 29.1 =systools_make= implementation represents an unavailable application version under an =error_reading= entry with =no_valid_version=, and the tagged OTP 29.1 =systools_SUITE= regression suite pattern-matches that category. The same implementation category was also checked in OTP 25.3.2.8, matching the older runtime lineage used by the focused runner. A release dependency absent from the closure is represented as ={undefined_applications, Apps}=. [cite:@erlang-systools-make-source-29;@erlang-systools-suite-29]
+
+The executable oracle therefore requires:
+- the injected =otp_router= version mismatch to contain ={error_reading,{otp_router,{no_valid_version,_}}}= inside the =systools_make= error list;
+- the missing-dependency case to return ={undefined_applications, Apps}= with =crypto= present.
+
+Human-formatted =format_error/1= text is deliberately not part of the contract. The stable semantic category and subject are.
+
+* LFE-specific boundary
+LFE source does not create a second application model. The callback module is compiled to ordinary BEAM code and declares the standard OTP =application= behaviour in the same style that earlier chapters used =gen_server= and =supervisor=. The executable proof is more important than a language-specific recipe: Erlang's application controller loads the generated =otp_router.app=, invokes the compiled LFE callback, and later a fresh =erl -boot= runtime starts the same application from generated release artifacts.
+
+Status after focused verification for this pass: *TESTED* for the bounded application/release construction claims below. The run does not upgrade any excluded deployment, distribution, persistence, release-upgrade, performance, or production-availability claim.
+
+* Claim/evidence ledger
+| Claim | Status after focused CI | Evidence |
+|-
+| OTP 29.1 is current on 2026-09-16 | DOCUMENTED | official OTP 29.1 patch/download pages |
+| Application =start/2= starts the top supervision tree | DOCUMENTED | official =application= behaviour |
+| =.app= identifies modules, dependencies, registered names, version and startup callback | DOCUMENTED | official =app= format |
+| =.rel= composes exact ERTS/application versions | DOCUMENTED | official release structure + =rel= |
+| =make_script/2= emits =.script=/=.boot= and validates release resources | DOCUMENTED | official =systools= |
+| =no_valid_version= and =undefined_applications= are the relevant structured negative-test categories | DOCUMENTED | tagged OTP 29.1 implementation + upstream regression suite; OTP 25.3.2.8 implementation also inspected |
+| Compiled LFE callback can be started by =application:start(otp_router)= | TESTED | focused =lfe-book= run =35155310266= |
+| Generated local boot file starts =otp_router= in a fresh VM | TESTED | focused =lfe-book= run =35155310266=; observed release lab PASS |
+| Version mismatch is rejected specifically as =no_valid_version= for =otp_router= | TESTED | focused =lfe-book= run =35158522772= hardened failure-injection gate |
+| Missing =crypto= release dependency is rejected via =undefined_applications= naming =crypto= | TESTED | focused =lfe-book= run =35158522772= hardened failure-injection gate |
+| =make_tar/2= package has the expected OTP directory/artifact shape | TESTED | focused =lfe-book= run =35158522772= package inspection gate |
+| Package is deployable on another host | UNTESTED / NOT CLAIMED | requires a target-system/deployment slice |
+| Upgrade/relup behavior is correct | UNTESTED / NOT CLAIMED | later release-management work |
+
+* Verified execution evidence
+Focused =lfe-book= run =35155310266= completed SUCCESS on the PR integration tree after the branch was reconciled with then-current =main=. It built pinned LFE v2.2.2, reran Projects 1 and 2, passed all five EUnit Project 3 contracts, exercised the existing timeout/restart/restart-intensity failure scenarios, then reported:
+
+#+begin_example
+otp-router-release: PASS (ERTS 13.2.2.5, kernel 8.5.4.2, stdlib 4.3.1.3)
+otp-router: callbacks, EUnit contracts, sys state, Erlang interop, supervision, application ownership, release construction, and fresh boot passed
+#+end_example
+
+The same focused run validated all six LFE teaching DOT sources, completed =make book BOOK=lfe=, completed =make check BOOK=lfe= with EPUBCheck 5.3.0 reporting 0 fatals / 0 errors / 0 warnings / 0 infos, and its separate Nix job completed =nix flake check -L=. Generic =books-ci= run =35155310278= also completed SUCCESS on the same integration tree. This is execution evidence for checkpoint C only; it is not evidence for later distribution or deployment claims.
+
+A later recovery review tightened both negative oracles as described above. Hardening head =f8b6ca48a2255fd97725ccb51b7e9ab1f9df36d2= passed focused =lfe-book= run =35158522772= and generic =books-ci= run =35158522774=. That focused run reran Projects 1--3, the structured =no_valid_version=/=undefined_applications= failure checks, all six diagrams, =make book BOOK=lfe=, =make check BOOK=lfe=, and its independent =nix flake check -L= job. This evidence supersedes the weaker generic-error acceptance boundary for the two negative labs.
+
+* Failure semantics to teach
+1. *Source success, metadata failure.* BEAM files can exist while =.app= or =.rel= is inconsistent. Packaging failures are not compiler failures.
+2. *Application identity is not PID identity.* Starting an application creates an owned supervision tree; worker PIDs may change under supervision without changing application identity.
+3. *A local boot script is intentionally host/build-path specific.* Passing =erl -boot= against a =local= script proves construction and startup on the tested environment, not portability.
+4. *A release package is not a deployment result.* Seeing expected files in =make_tar/2= output proves package construction only.
+5. *Version closure is deliberate.* The lab discovers ERTS/Kernel/STDLIB versions from the runtime rather than hard-coding the documentation baseline into an OTP-25 CI runner.
+6. *A negative test must fail for the intended reason.* Accepting any error tuple is a false-green risk; the oracle names the semantic category and, where available, the affected application.
+
+* Sources
+- Erlang/OTP 29.1 patch release, 2026-09-16: https://www.erlang.org/patches/OTP-29.1
+- Erlang/OTP downloads/current release: https://www.erlang.org/downloads
+- Release structure: https://www.erlang.org/doc/system/release_structure.html
+- =application= behaviour: https://www.erlang.org/doc/apps/kernel/application.html
+- =app= resource format: https://www.erlang.org/doc/apps/kernel/app.html
+- =rel= resource format: https://www.erlang.org/doc/apps/sasl/rel.html
+- =systools=: https://www.erlang.org/doc/apps/sasl/systools.html
+- OTP 29.1 =systools_make= implementation: https://github.com/erlang/otp/blob/OTP-29.1/lib/sasl/src/systools_make.erl
+- OTP 29.1 =systools_SUITE=: https://github.com/erlang/otp/blob/OTP-29.1/lib/sasl/test/systools_SUITE.erl
+- OTP 25.3.2.8 =systools_make= compatibility check: https://github.com/erlang/otp/blob/OTP-25.3.2.8/lib/sasl/src/systools_make.erl
+
+Retrieved/verified 2026-09-16 for the release/docs baseline and 2026-09-17 for structured failure-category implementation evidence. Where the online reference renderer still labels an individual page 29.0.x, the OTP 29.1 patch/download pages are the authority for the current release/version tree; this pass does not silently relabel a page's own displayed version.
