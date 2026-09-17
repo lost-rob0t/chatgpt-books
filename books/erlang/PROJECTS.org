@@ -39,18 +39,18 @@ Expected deliverable: runnable OTP worker application, executable lifecycle test
 :PROPERTIES:
 :ID:       6d9afccc-5159-5527-9caf-447701fc748e
 :END:
-Purpose: Add supervisors, workers, restart strategies, queueing, backpressure, and telemetry.
-Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
-Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
-Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
-Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
-Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
-External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
-Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
-Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
-Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
-Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
-Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+Purpose: Turn the earlier supervision lessons into a bounded work system whose overload, worker-crash, retry, and state-loss behavior is explicit before distribution or persistence is introduced.
+Learning outcomes: distinguish runtime mailbox traffic from an application work queue; define the point at which =submit/1= accepts ownership; use dynamic =temporary= supervisor children for one-shot worker lifetime; correlate worker attempts with monitors; keep logical job identity/retry budget outside generic supervisor restart policy; explain why a restarted queue process does not reconstruct its volatile ledger.
+Prerequisites: Chapters 1--14, including the merged OTP application and release boundaries.
+Relevant chapters: Chapter 15 introduces checkpoint A; later distribution, persistence/recovery, tracing/testing, and measured-backpressure chapters extend the same project rather than replacing it.
+Architecture: =job_processor_sup= has =job_worker_sup= and =job_processor= as =one_for_one= siblings. =job_processor= owns bounded admission, explicit FIFO pending state, client/job identity, active monitor ledger, and attempt budget. =job_worker_sup= owns dynamic temporary worker process lifetime. =job_worker= executes one synthetic test payload per attempt. Checkpoint A is intentionally volatile: no durable queue/replay contract exists yet.
+Implementation language/tooling: Erlang/OTP 29.1 in the focused workflow; STDLIB =queue=; EUnit scenario tests; editable Graphviz execution/failure diagram.
+External dependencies: official immutable Erlang/OTP 29.1 source/documentation plus repository publication tooling only.
+Tests: bounded one-active/one-queued overload rejection; FIFO pending order; first-attempt crash followed by second-attempt success; retry-budget exhaustion; automatic removal of temporary child specs after completion; queue-process kill/restart proving that the replacement process has an empty ledger and does not recover the old in-flight result.
+Failure scenarios: explicit overload, deliberate worker crash, repeated worker crash, and queue-process loss while a sibling temporary worker is still alive.
+Visuals: =job-processor-flow.dot/svg= shows admission, FIFO, dynamic supervisor/worker, completion/DOWN retry paths, and the separate volatile-ledger loss after queue restart.
+Research requirements: immutable OTP 29.1 =supervisor=, =queue=, and processes reference manual. Treat capacity, retry placement, and attempt budget as course-local policy, not OTP guarantees. Preserve a hard boundary between observed local behavior and later durability/distribution claims.
+Expected deliverable: Chapter 15, runnable checkpoint-A modules/tests, research pass 06, editable diagram, a production-EPUB regression that keeps accepted Chapters 13--15 in the canonical include path, and a dependency-ready handoff to distribution/persistence work.
 ** Project 4 -- Distributed Erlang Service
 :PROPERTIES:
 :ID:       103b12a9-2303-52f3-850e-19e0f7043d30

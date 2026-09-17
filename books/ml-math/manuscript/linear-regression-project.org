@@ -1,0 +1,340 @@
+#+title: Project 2 -- Linear Regression From the Math: Fit the Line You Can Audit
+:PROPERTIES:
+:ID:       3e0b796a-d92e-480d-83fe-5079622f3ce0
+:END:
+
+* The project boundary
+Chapters 9--12 gave us the machinery to talk about change: derivatives, partial derivatives, gradients, and the chain rule. They deliberately stopped one step before training a model. Now we will cross that boundary in the smallest setting where every moving part still fits on one page of algebra.
+
+We will fit an affine model with one input feature:
+
+\[
+\hat y = wx + b.
+\]
+
+The project has four independent pieces of evidence:
+
+1. derive the mean-squared-error gradient by hand;
+2. implement full-batch gradient descent without hiding the update in an ML library;
+3. derive a centered closed-form least-squares solution as an independent mathematical checker;
+4. compare the result with NumPy's documented least-squares solver on the same ordinary finite fixture [cite:@numpy250].
+
+That separation matters. If the optimizer, the closed-form checker, and the external numerical oracle all agree, we have stronger debugging evidence than if three functions share the same implementation. Agreement is still not a proof that every future dataset, step size, or floating-point scale is safe.
+
+This is **Project 2 checkpoint A**, not the end of regression or optimization. We keep one feature so the geometry, algebra, code, and failure traces remain inspectable. Multivariate regression, regularization, stochastic/minibatch updates, probabilistic noise models, confidence intervals, and broad optimizer comparisons remain later work.
+
+* From a prediction rule to an objective
+For sample \(i\), let
+
+\[
+\hat y_i = wx_i + b
+\]
+
+and define the residual with one consistent sign convention:
+
+\[
+r_i = \hat y_i-y_i.
+\]
+
+A positive residual means the model predicted too high; a negative residual means it predicted too low. Squaring removes the sign before aggregation. For \(n\) samples, the mean squared error is
+
+\[
+L(w,b) = \frac{1}{n}\sum_{i=1}^{n}(wx_i+b-y_i)^2.
+\]
+
+This is the same affine MSE introduced in Chapters 10--12. Here it becomes the objective we actually minimize.
+
+** Why optimize a loss at all?
+A model has parameters, but a dataset by itself does not tell us which parameter pair to choose. The loss turns that choice into a numerical question: among candidate \((w,b)\), which pair makes the residual squares collectively small?
+
+Do not smuggle a statistical interpretation into that sentence. At this point MSE is an explicit deterministic objective on a finite fixture. Probability arrives later in the book.
+
+* Derive the gradient before writing the update
+The chain-rule derivation is short enough that there is no excuse to treat the gradient as a magic callback. For one residual,
+
+\[
+r_i(w,b)=wx_i+b-y_i.
+\]
+
+Its partial derivatives are
+
+\[
+\frac{\partial r_i}{\partial w}=x_i,
+\qquad
+\frac{\partial r_i}{\partial b}=1.
+\]
+
+Apply the chain rule to \(r_i^2\):
+
+\[
+\frac{\partial r_i^2}{\partial w}=2r_i x_i,
+\qquad
+\frac{\partial r_i^2}{\partial b}=2r_i.
+\]
+
+Linearity of finite sums then gives
+
+\[
+\frac{\partial L}{\partial w}=\frac{2}{n}\sum_i r_i x_i,
+\qquad
+\frac{\partial L}{\partial b}=\frac{2}{n}\sum_i r_i.
+\]
+
+Those two numbers form the gradient
+
+\[
+\nabla L(w,b)=
+\left(
+\frac{\partial L}{\partial w},
+\frac{\partial L}{\partial b}
+\right).
+\]
+
+Chapter 11 showed that the gradient points in the direction of greatest local increase. So the simplest local move that aims downhill is the opposite direction:
+
+\[
+(w,b) \leftarrow (w,b)-\eta\nabla L(w,b),
+\]
+
+where \(\eta>0\) is the learning rate. This is the full-batch gradient-descent update used by the project implementation. Gradient descent is a standard method for unconstrained minimization; later optimization chapters will examine its assumptions, rates, conditioning, and alternatives rather than pretending one update rule solves every problem [cite:@boyd2004convex].
+
+** One update by hand
+Suppose the current model is \(w=0,b=0\) and our first two samples are \((0,1)\) and \((1,3)\). Then the residuals are \(-1\) and \(-3\). With \(n=2\),
+
+\[
+\frac{\partial L}{\partial w}
+=\frac{2}{2}\left((-1)(0)+(-3)(1)\right)=-3,
+\]
+
+\[
+\frac{\partial L}{\partial b}
+=\frac{2}{2}(-1-3)=-4.
+\]
+
+With \(\eta=0.05\), one update produces
+
+\[
+w_1=0-0.05(-3)=0.15,
+\qquad
+b_1=0-0.05(-4)=0.20.
+\]
+
+Nothing in this update knows that the model should eventually look like a line with slope near two. It only knows the local gradient of the objective at the current parameters.
+
+* A fixed fixture with an untouched evaluation split
+The executable project uses a tiny deterministic fixture so readers can reproduce every number and plot without a download:
+
+| split | x | y |
+|-------+---+------|
+| train | 0 | 1.1 |
+| train | 1 | 2.9 |
+| train | 2 | 5.2 |
+| train | 3 | 6.8 |
+| train | 4 | 9.1 |
+| train | 5 | 10.9 |
+| eval  | 6 | 13.2 |
+| eval  | 7 | 14.8 |
+| eval  | 8 | 17.1 |
+
+The optimizer and closed-form checker see only the six training rows. The three evaluation rows are used only after fitting. That makes the interface honest: training chooses parameters; evaluation measures the already-chosen parameters on untouched rows.
+
+This tiny holdout is a **TESTED engineering boundary**, not evidence for a population-level generalization claim. We have not yet developed the probability needed to make that kind of statement responsibly.
+
+* Build an optimizer that leaves a trace
+The implementation in =code/linear_regression/linear_regression.py= exposes the pieces separately:
+
+- =predict= computes \(wx+b\);
+- =residuals= preserves the project sign convention;
+- =mean_squared_error= computes the objective;
+- =mse_gradient= computes the derived analytic gradient;
+- =fit_batch_gradient_descent= performs explicit parameter updates and records every state;
+- =fit_centered_closed_form= supplies an independent algebraic fit.
+
+The optimizer returns a =FitResult= containing the final model, final loss, number of update steps, a =converged= flag, and the entire immutable history. Each =FitStep= records \(w\), \(b\), MSE, and gradient norm.
+
+That trace is not decorative bookkeeping. It lets us ask debugging questions that a single final pair cannot answer:
+
+- Did the loss actually decrease?
+- Did the gradient norm shrink?
+- Did a large learning rate make the objective explode?
+- Did the run merely hit its step budget?
+- Which parameter update first became non-finite?
+
+The stopping rule in this checkpoint is deliberately simple: stop when
+
+\[
+\lVert \nabla L \rVert_2 \le \tau,
+\]
+
+or return =converged=False= when the finite step budget is exhausted. A small gradient norm is a local numerical stopping condition, not a universal certificate of model quality.
+
+* Derive an independent centered solution
+Least-squares fitting is a standard applied linear-algebra problem; Boyd and Vandenberghe develop least-squares methods and model fitting as part of that matrix-methods sequence [cite:@boyd2018vmls]. A good teaching project should not validate gradient descent with another copy of gradient descent. For one-feature affine least squares we can solve the stationary equations directly.
+
+Set the bias derivative to zero:
+
+\[
+0=\sum_i (wx_i+b-y_i).
+\]
+
+Divide by \(n\) and use the sample means \(\bar x\) and \(\bar y\):
+
+\[
+0=w\bar x+b-\bar y,
+\]
+
+so
+
+\[
+b=\bar y-w\bar x.
+\]
+
+Now set the weight derivative to zero and substitute that bias:
+
+\[
+0=\sum_i x_i\left(wx_i+\bar y-w\bar x-y_i\right).
+\]
+
+It is cleaner to center both variables. Let
+
+\[
+dx_i=x_i-\bar x,
+\qquad
+dy_i=y_i-\bar y.
+\]
+
+After collecting terms, the stationary weight satisfies
+
+\[
+w\sum_i dx_i^2=\sum_i dx_i dy_i.
+\]
+
+When the feature has nonzero spread,
+
+\[
+w=\frac{\sum_i (x_i-\bar x)(y_i-\bar y)}
+        {\sum_i (x_i-\bar x)^2},
+\qquad
+b=\bar y-w\bar x.
+\]
+
+This derivation also exposes a real failure boundary. If every \(x_i\) is identical, then every \(x_i-\bar x=0\), so the denominator is zero. The data can constrain the prediction at that single feature value, but it cannot identify one unique slope/intercept pair. The project rejects that case instead of dividing by zero or silently inventing a slope.
+
+* A third checker: least squares as a matrix problem
+There is another way to write the same finite training problem. Construct the design matrix
+
+\[
+A=
+\begin{bmatrix}
+ x_1 & 1\\
+ x_2 & 1\\
+ \vdots & \vdots\\
+ x_n & 1
+\end{bmatrix},
+\qquad
+\theta=
+\begin{bmatrix}
+w\\b
+\end{bmatrix},
+\qquad
+ y=
+\begin{bmatrix}y_1\\ \vdots\\ y_n\end{bmatrix}.
+\]
+
+Then predictions are \(A\theta\), and affine least squares asks for parameters minimizing the Euclidean residual norm. NumPy 2.5 documents =numpy.linalg.lstsq= as returning a least-squares solution that minimizes \(\lVert b-Ax\rVert_2\), with a minimum-norm solution when multiple minimizers exist [cite:@numpy250].
+
+Our implementation does **not** call =lstsq= to fit the teaching model. The test suite constructs the two-column design matrix independently and uses pinned NumPy 2.5.0 only as an external oracle for the ordinary finite fixture. That keeps “implemented from the math” distinct from “checked against a mature numerical library.”
+
+* What the deterministic figure actually proves
+The project generator fits the fixed six-row training fixture and emits =assets/linear_regression_fit.svg=. The left panel shows the training samples, untouched evaluation samples, fitted line, and training residual segments. The right panel shows the recorded MSE trajectory on a logarithmic vertical scale.
+
+#+caption: Project 2 checkpoint A fits a one-feature affine model to six deterministic training samples. Filled circles are training data, open squares are untouched evaluation rows, and dashed vertical segments are training residuals. The right panel is generated from the optimizer's recorded full-batch gradient-descent history; it is a fixture trace, not a convergence benchmark.
+#+attr_html: :alt Two-panel affine regression figure. Left: six filled training points, three open held-out evaluation squares, a fitted line, and dashed vertical residual segments. Right: log-base-ten mean squared error decreases over recorded full-batch gradient-descent steps to the final point.
+[[file:assets/linear_regression_fit.svg]]
+
+A single decreasing trace cannot establish a general convergence theorem. It establishes only that this implementation, parameterization, fixture, step size, and stopping condition behaved as recorded in the tested environment.
+
+* Failure lab A -- learning rate is part of the algorithm
+The update contains \(\eta\) for a reason. If it is very small, progress can be painfully slow. If it is too large for the curvature and parameter scaling of the objective, each update can jump past the low-loss region and land farther away.
+
+The regression suite includes a bounded counterexample on the fixed fixture: with the project's larger finite learning rate and an eight-step budget, the run remains finite but ends with a larger MSE than it started with. The assertion is intentionally fixture-specific. We do not infer a universal threshold from it.
+
+The API separately rejects zero and negative learning rates because they violate this optimizer's declared contract.
+
+* Failure lab B -- finite inputs can still produce non-finite arithmetic
+A list containing only finite values is not enough to guarantee that every multiplication, square, prediction, gradient, or update fits in a binary floating-point value. Large finite feature scales and a huge finite learning rate can overflow intermediate arithmetic.
+
+The project therefore checks outputs at important boundaries and raises instead of returning an apparently meaningful =nan= or infinity. This is fail-closed behavior, not a claim that the implementation is numerically optimal. Later numerical-stability work will revisit scaling, conditioning, and better solvers.
+
+* Failure lab C -- “not converged” is a result, not an exception
+A finite run can reach its step budget without satisfying the requested gradient tolerance. The result then carries =converged=False= together with the history it actually observed.
+
+That distinction prevents a classic reporting bug: code that returns the last parameters and downstream prose that casually calls them “the converged model.” A failed stopping condition must remain visible all the way into the narrative.
+
+* Evaluation without pretending we already know statistics
+After fitting on the training rows, the project computes MSE on both training and held-out evaluation rows. This teaches three useful habits before the probability chapters:
+
+1. do not update parameters using the evaluation rows;
+2. keep the metric implementation shared so train/eval numbers mean the same thing;
+3. report exactly what was measured instead of calling a tiny deterministic holdout “proof of generalization.”
+
+Later chapters will give us the language to discuss random variables, distributions, likelihood, uncertainty, and sampling. Until then, the honest claim is simply that the fixed held-out calculation ran and produced a finite nonnegative MSE.
+
+* Read the tests as an executable specification
+The Project 2 regression suite checks more than one final decimal answer. It covers:
+
+- prediction and residual sign convention;
+- MSE against an independent NumPy expression;
+- analytic gradient against the existing finite-difference calculus lab;
+- centered closed-form parameters against =numpy.linalg.lstsq=;
+- gradient-descent agreement with the independent centered solution on the fixed fixture;
+- initial/final optimization-history semantics;
+- train/evaluation metric execution;
+- rejection of a constant-feature closed-form fit;
+- dimension, non-finite, Boolean, and learning-rate contract failures;
+- a bounded large-learning-rate divergence trace;
+- fail-closed non-finite arithmetic.
+
+These tests are evidence for the stated interfaces and fixtures. They are not performance benchmarks and do not establish behavior outside the tested domain.
+
+* Project checklist
+A reader-complete checkpoint should be able to answer all of these without hand-waving:
+
+- What does the residual sign mean?
+- Why does squaring residuals produce the MSE objective used here?
+- Where do the factors \(2/n\) in the gradient come from?
+- Why does gradient descent subtract the gradient?
+- What does the learning rate change?
+- What stopping condition did the implementation actually use?
+- Why is the centered closed-form calculation independent evidence?
+- Why does a constant feature destroy unique slope identification?
+- Why is =numpy.linalg.lstsq= an oracle rather than the implementation?
+- Which rows influenced the fitted parameters, and which did not?
+
+If any answer is “because the library did it,” go back one section.
+
+* Exercises
+1. ★ For model \(\hat y=2x+1\), compute the residuals for \((x,y)=(0,2)\) and \((2,4)\) using the project's sign convention. Which prediction is too high?
+2. ★ Derive \(\partial L/\partial b\) from the MSE definition without looking at the formula above.
+3. ★★ Starting at \((w,b)=(0,0)\), perform one full-batch gradient step by hand for the first three training rows with \(\eta=0.01\). Then add a test for your expected parameters.
+4. ★★ Add a test proving that the centered closed-form residuals sum to approximately zero on the non-degenerate training fixture. Explain why that follows from the stationary bias equation.
+5. ★★ Change only the step budget so a normally well-behaved run returns =converged=False=. Write code that reports that state without calling it a converged fit.
+6. ★★ Construct a constant-feature dataset with different targets. Show algebraically why infinitely many \((w,b)\) pairs can make the same prediction at that one feature value.
+7. ★★★ Search for two positive learning rates on the fixed fixture: one that decreases loss monotonically for the first twenty updates and one that increases it. Record the trace; do not claim your thresholds generalize.
+8. ★★★ Rebuild the two-column design matrix by hand and compare the centered solution to =numpy.linalg.lstsq=. Explain why agreement is useful even though both methods solve the same mathematical objective.
+9. ★★★ Create a rescaled copy of the training feature (for example multiply every \(x\) by a large finite constant). Observe how a previously convenient learning rate behaves. Keep any claim bounded to the exact experiment you ran.
+10. ★★★ Replace gradient-norm stopping with a second, explicitly named stopping policy in your own branch. Write a fixture where the two policies stop at different steps and explain what each policy can and cannot certify.
+
+* Checkpoint A boundary
+This project checkpoint is intentionally narrow. It does not claim:
+
+- a probabilistic model of residuals;
+- confidence intervals, hypothesis tests, or population generalization;
+- multivariate or polynomial regression;
+- regularization;
+- stochastic or minibatch gradient methods;
+- feature-standardization guidance;
+- a universal learning-rate rule or convergence rate;
+- a performance comparison with NumPy, BLAS/LAPACK, or ML frameworks.
+
+Those omissions are not missing polish. They preserve the dependency order of the book. We have now built the first complete “derive objective -> derive gradient -> optimize -> independently check -> evaluate -> inject failures” loop. Later chapters can make that loop more general without turning the early project into a black-box library demo.

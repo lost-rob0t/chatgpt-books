@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="420" viewBox="0 0 1600 420">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z"/></marker>
+  </defs>
+  <style>text{font-family:sans-serif;font-size:16px}.small{font-size:14px}.box{fill:none;stroke:#000;stroke-width:1.5}.edge{fill:none;stroke:#000;stroke-width:1.5;marker-end:url(#arrow)}</style>
+  <text x="800" y="28" text-anchor="middle" font-size="20">LFE Project 3 checkpoint C: source → application → release → fresh BEAM</text>
+  <rect class="box" x="25" y="95" width="190" height="85"/><text x="120" y="120" text-anchor="middle">LFE source</text><text class="small" x="120" y="145" text-anchor="middle">router + supervisor</text><text class="small" x="120" y="165" text-anchor="middle">application callback</text>
+  <rect class="box" x="265" y="105" width="170" height="65"/><text x="350" y="132" text-anchor="middle">BEAM modules</text><text class="small" x="350" y="154" text-anchor="middle">ordinary VM code</text>
+  <rect class="box" x="485" y="85" width="200" height="105"/><text x="585" y="112" text-anchor="middle">otp_router.app</text><text class="small" x="585" y="136" text-anchor="middle">component identity</text><text class="small" x="585" y="156" text-anchor="middle">deps + registered names</text><text class="small" x="585" y="176" text-anchor="middle">mod = otp-router-app</text>
+  <rect class="box" x="745" y="65" width="210" height="90"/><text x="850" y="92" text-anchor="middle">application controller</text><text class="small" x="850" y="116" text-anchor="middle">application master</text><text class="small" x="850" y="136" text-anchor="middle">starts top supervisor</text>
+  <rect class="box" x="1015" y="75" width="180" height="70"/><text x="1105" y="104" text-anchor="middle">otp-router-sup</text><text class="small" x="1105" y="127" text-anchor="middle">one_for_one</text>
+  <rect class="box" x="1250" y="75" width="220" height="70"/><text x="1360" y="104" text-anchor="middle">otp-router gen_server</text><text class="small" x="1360" y="127" text-anchor="middle">Project 1 kernel</text>
+  <path class="edge" d="M215 137 L265 137"/><path class="edge" d="M435 137 L485 137"/><path class="edge" d="M685 110 L745 110"/><path class="edge" d="M955 110 L1015 110"/><path class="edge" d="M1195 110 L1250 110"/>
+  <rect class="box" x="485" y="265" width="200" height="85"/><text x="585" y="292" text-anchor="middle">lfe_router_release.rel</text><text class="small" x="585" y="316" text-anchor="middle">ERTS + exact versions</text><text class="small" x="585" y="337" text-anchor="middle">whole-system composition</text>
+  <rect class="box" x="745" y="265" width="210" height="85"/><text x="850" y="292" text-anchor="middle">systools:make_script/2</text><text class="small" x="850" y="316" text-anchor="middle">validates .rel/.app</text><text class="small" x="850" y="337" text-anchor="middle">emits .script + .boot</text>
+  <rect class="box" x="1015" y="265" width="180" height="85"/><text x="1105" y="292" text-anchor="middle">fresh erl -boot</text><text class="small" x="1105" y="316" text-anchor="middle">starts otp_router</text><text class="small" x="1105" y="337" text-anchor="middle">same supervision tree</text>
+  <rect class="box" x="1250" y="265" width="220" height="85"/><text x="1360" y="292" text-anchor="middle">systools:make_tar/2</text><text class="small" x="1360" y="316" text-anchor="middle">package shape checked</text><text class="small" x="1360" y="337" text-anchor="middle">not deployment proof</text>
+  <path class="edge" d="M585 190 L585 265"/><path class="edge" d="M685 307 L745 307"/><path class="edge" d="M955 307 L1015 307"/><path class="edge" d="M955 325 C1100 390 1210 370 1250 325"/><path class="edge" d="M1105 265 C1105 220 1105 190 1105 145"/>
+</svg>

@@ -25,22 +25,23 @@ URLs:
 - https://numpy.org/doc/2.5/reference/generated/numpy.matmul.html
 - https://numpy.org/doc/2.5/reference/generated/numpy.ndarray.shape.html
 - https://numpy.org/doc/2.5/reference/generated/numpy.gradient.html
-Inspected material: 1-D =numpy.dot= semantics; dimension errors; vector-norm API; numerical comparison support; 2.5-series release chronology; =ndarray.shape= dimension tuples; conventional 2-D =matmul= behavior and the =(n,k),(k,m)->(n,m)= compatibility signature; 2-D/1-D multiplication; mismatch errors; and the =@= operator relationship. For calculus, =numpy.gradient= was inspected for its sampled N-dimensional contract, second-order central differences at interior points, one-sided boundary behavior, explicit spacing support, and documented evenly spaced central-difference error term.
-Used by: Project 1's independent vector/matrix oracle and the calculus lab's bounded sampled-gradient oracle. NumPy is deliberately not used to implement the teaching algorithms themselves.
+- https://numpy.org/doc/2.5/reference/generated/numpy.linalg.lstsq.html
+Inspected material: 1-D =numpy.dot= semantics; dimension errors; vector-norm API; numerical comparison support; 2.5-series release chronology; =ndarray.shape= dimension tuples; conventional 2-D =matmul= behavior and the =(n,k),(k,m)->(n,m)= compatibility signature; 2-D/1-D multiplication; mismatch errors; and the =@= operator relationship. For calculus, =numpy.gradient= was inspected for its sampled N-dimensional contract, second-order central differences at interior points, one-sided boundary behavior, explicit spacing support, and documented evenly spaced central-difference error term. For Project 2, =numpy.linalg.lstsq= was inspected for its least-squares objective, return contract, and minimum-norm behavior when multiple minimizers exist.
+Used by: Project 1's independent vector/matrix oracle, the calculus lab's bounded sampled-gradient oracle, and Project 2's independent ordinary finite least-squares oracle. NumPy is deliberately not used to implement the teaching algorithms themselves.
 
 ** Python 3.14.7 =math= documentation
 Authority: official Python documentation.
 URL: https://docs.python.org/3/library/math.html
 Version at retrieval: Python 3.14.7 documentation.
 Inspected material: =math.fsum= accurate floating-point summation, =math.hypot= Euclidean norm, =math.dist= Euclidean distance, and finite-value predicates.
-Used by: Chapter 5 numerical-stability notes and the standard-library implementation choices inherited by Project 1's vector and matrix layers; the calculus lab reuses =fsum= and =hypot= for bounded finite computations.
+Used by: Chapter 5 numerical-stability notes and the standard-library implementation choices inherited by Project 1's vector and matrix layers; the calculus lab and Project 2 reuse =fsum= and =hypot= for bounded finite computations.
 
 ** Python 3.14.7 floating-point tutorial
 Authority: official Python documentation.
 URL: https://docs.python.org/3.14/tutorial/floatingpoint.html
 Version at retrieval: Python 3.14.7 documentation.
 Inspected material: binary representation error, per-operation rounding, =math.fsum= as a more accurate summation tool, and the statement that almost all current platforms map Python =float= to IEEE 754 binary64 values.
-Used by: the Project 1 matrix numerical-failure lab separating exact real-number associativity from finite-precision execution behavior and the calculus finite-difference step-size/cancellation failure discussion.
+Used by: the Project 1 matrix numerical-failure lab separating exact real-number associativity from finite-precision execution behavior, the calculus finite-difference step-size/cancellation failure discussion, and Project 2's fail-closed finite-arithmetic boundary.
 
 ** MIT OpenCourseWare 18.01SC -- Single Variable Calculus
 Authority: MIT OpenCourseWare course taught by Prof. David Jerison.
@@ -55,3 +56,19 @@ URL: https://ocw.mit.edu/courses/18-02sc-multivariable-calculus-fall-2010/
 As taught: Fall 2010.
 Inspected material: Part 2B overview and linked session sequence for the multivariable chain rule, gradient definition, level-curve geometry, and directional derivatives. The overview identifies the gradient as the vector packaging directional rate information and the direction of most rapid local change.
 Used by: Chapters 10--12 for partial-derivative, gradient, directional-derivative, and multivariable-chain-rule sequencing.
+
+** Boyd and Vandenberghe -- /Introduction to Applied Linear Algebra/
+Authority: author-maintained Stanford book site plus Cambridge University Press publication metadata.
+URLs:
+- https://web.stanford.edu/~boyd/vmls/
+- https://www.cambridge.org/highereducation/books/introduction-to-applied-linear-algebra/4D69AF22E38303FE20FFEEFDCE0E7F96
+Publication: Cambridge University Press, 2018. DOI 10.1017/9781108583664. Hardback ISBN 9781316518960.
+Inspected material: official book scope and contents establishing least-squares methods/model fitting as applied linear-algebra material; author-maintained online edition availability.
+Used by: Project 2's least-squares/model-fitting context. The centered one-feature derivation and executable fixture in this repository are original teaching material.
+
+** Boyd and Vandenberghe -- /Convex Optimization/
+Authority: author-maintained Stanford site for the Cambridge University Press book and official Chapter 9 teaching material.
+URL: https://web.stanford.edu/~boyd/cvxbook/
+Publication: Cambridge University Press, 2004.
+Inspected material: Chapter 9 / unconstrained-minimization material describing descent methods as a direction-plus-step-size update with an explicit stopping criterion; gradient descent as an instance of this family.
+Used by: Project 2's bounded gradient-descent algorithm boundary. The project does not claim a general convergence theorem, line-search implementation, or convex-optimization benchmark.
