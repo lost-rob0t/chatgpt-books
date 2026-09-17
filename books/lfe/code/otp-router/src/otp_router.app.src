@@ -1,0 +1,7 @@
+{application, otp_router,
+ [{description, "LFE teaching OTP router"},
+  {vsn, "0.1.0"},
+  {modules, ['event-rules', 'otp-router', 'otp-router-sup', 'otp-router-app']},
+  {registered, ['otp-router', 'otp-router-sup']},
+  {applications, [kernel, stdlib]},
+  {mod, {'otp-router-app', []}}]}.
