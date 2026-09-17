@@ -1,0 +1,357 @@
+#+title: Heuristics from Relaxed Symbolic Models
+:PROPERTIES:
+:ID:       b2db9b63-aa43-4729-8838-61ec2288852b
+:END:
+#+bibliography: ../references.bib
+
+* Chapter 9 -- Heuristics Are Claims About a Simpler Problem
+:PROPERTIES:
+:ID:       ab899607-55ee-462f-98cb-492d2bca3947
+:END:
+
+A heuristic is not a magic number attached to A*.  It is a claim about what remains between a state and a goal.
+
+That claim can be excellent, useless, or wrong.
+
+Chapter 6 introduced A* through the Search Library.  The engine accepts a function =h(state)=, combines it with path cost =g=, and orders the frontier by =g+h=.  The engine deliberately does not know whether =h= is sensible.  That separation is exactly what we want.  Search policy belongs to the reusable engine; domain knowledge belongs to the symbolic model.
+
+Planning gives us a way to derive domain knowledge instead of writing a pile of ad-hoc distance functions.  We already have explicit action schemas.  Each says what must hold before an action, what the action adds, what it deletes, and what it costs.  If we simplify those semantics in a disciplined way, the simplified problem can estimate the harder one.
+
+Bonet and Geffner's heuristic-search planning work makes this connection explicit: planning representations can be used to derive heuristic costs, and one important relaxation discards delete lists [cite:@bonetgeffner2001].  Their Section 4 develops atom-cost propagation and contrasts additive and maximum combinations; the maximum combination gives the =h_max= family.  This chapter derives a small course-local version directly from the planner we already built.
+
+The important word is *derive*.  We will not import a planner and then point at its heuristic API.  We will change one semantic assumption, propagate consequences, record the evidence, and feed the result back into the existing A* implementation.
+
+** 9.1 Start with the real transition system
+
+Our accepted planner transition is:
+
+#+begin_example
+applicable action
+     |
+     v
+remove delete effects
+     |
+     v
+insert add effects
+     |
+     v
+canonical successor state
+#+end_example
+
+The delete list is where facts can stop being true.  In the warehouse project, =PICKUP= deletes both package-at-location and =EMPTY ROBOT=.  =MOVE= deletes the robot's old location.  A real plan therefore has interactions:
+
+- carrying a package requires first losing =EMPTY ROBOT=;
+- moving away from a dock means we are no longer at the dock;
+- one action can destroy a precondition another action would need.
+
+Those interactions are part of why planning is hard.  They are also exactly what we can temporarily remove to obtain an easier problem.
+
+For heuristic analysis only, suppose delete effects do nothing.
+
+Now facts accumulate monotonically.  If =(at robot dock)= is true and =MOVE= adds =(at robot hall)=, the relaxed world can contain both facts.  That world is physically silly.  It is useful because it is easier.
+
+This is not the open-world assumption, probabilistic uncertainty, or “facts never expire in the real system.”  It is a deliberate alternate transition relation used only to estimate cost.
+
+#+caption: Milestone B derives a bounded relaxed-cost analysis from the existing planner and then keeps relaxed support separate from checked real-plan explanation.
+#+attr_html: :alt Real ground state and existing action schemas enter a delete-relaxation analysis. Facts receive best costs and support records. A converged h-max estimate may guide the existing A-star search. The returned real path is separately replayed against original add-delete semantics, yielding a grounded explanation or an explicit ambiguity/failure.
+[[file:assets/planner-heuristic-explanation.svg]]
+
+** 9.2 Relaxation is useful only if its boundary stays visible
+
+The implementation does not modify =APPLY-GROUND-ACTION=.  That function keeps its real delete-then-add semantics.  Relaxation lives in a separate analysis function:
+
+#+begin_src lisp
+(analyze-hmax-relaxation state goals schemas)
+#+end_src
+
+That architectural choice matters.  If “relaxed mode” were a dynamic global variable inside the transition function, every call site would need to know which semantics happened to be active.  A debugging trace could silently mix relaxed and real states.  Instead, the real planner remains real and the heuristic analyzer owns its alternate model explicitly.
+
+The analyzer still reuses the accepted grounding mechanism.  It calls =INSTANTIATE-APPLICABLE-ACTIONS= against the currently accumulated relaxed facts.  Therefore:
+
+- variable consistency still comes from Project 2's unifier;
+- ungrounded world facts still fail at the public planner boundary;
+- unbound effect variables still fail before a fact enters analysis;
+- action costs remain the same declared values;
+- no second pattern matcher is hidden inside the heuristic code.
+
+A symbolic system becomes easier to trust when alternate semantics are represented as alternate components rather than as invisible switches.
+
+** 9.3 Give each reachable fact a cost
+
+The relaxed analysis maintains one best known cost for each ground fact.
+
+Every fact already true in the input state gets cost zero:
+
+#+begin_example
+cost((at robot dock))              = 0
+cost((at package-17 dock))         = 0
+cost((empty robot))                = 0
+#+end_example
+
+Now consider a grounded action.  If every precondition already has a cost, we can propose a cost for each add effect.
+
+The =h_max=-style recurrence used by this project is:
+
+#+begin_example
+candidate(action)
+  = action-cost + max(cost(precondition_1), ..., cost(precondition_n))
+#+end_example
+
+An action with no preconditions uses zero for the maximum.
+
+Each add effect keeps the smallest candidate support cost seen so far.  Propagation repeats until no cost improves.
+
+Bonet and Geffner describe the same basic forward-propagation shape for atom costs and define the maximum combination over a set of atoms as the max heuristic [cite:@bonetgeffner2001].  Their displayed treatment is unit-cost.  Our teaching planner already supports arbitrary nonnegative action costs, so this code carries the declared cost through the analogous recurrence.  That is an implementation adaptation, not a theorem we pretend the paper proved for our exact Common Lisp API.
+
+This distinction is not pedantry.  Citation laundering happens when an implementation changes assumptions and then cites a theorem as if nothing changed.  Here the source motivates the mechanism; executable checks establish bounded facts about our implementation; stronger claims wait for stronger evidence.
+
+** 9.4 Why maximum instead of sum?
+
+Suppose a goal requires facts =A= and =B=.  If achieving =A= costs 3 and achieving =B= costs 4, summing gives 7.  But perhaps one four-cost action sequence achieves both.  A sum can double-count shared work.
+
+The maximum says only:
+
+#+begin_example
+achieving both cannot be cheaper than the harder individual requirement
+#+end_example
+
+That is usually weaker.  It is also safer under the source model that motivates =h_max=.  Bonet and Geffner explicitly contrast the more informed additive heuristic with the maximum heuristic and note that the maximum heuristic can be much less informative when subgoals are mostly independent [cite:@bonetgeffner2001].
+
+Weakness is not a bug we should hide.  A heuristic trades computational effort and information.  If =h=0= everywhere, A* collapses toward uniform-cost search.  If a heuristic is cheap but weak, the search may expand many nodes.  If it is informative but expensive, evaluating it can dominate the run.
+
+This milestone records no timing or scalability benchmark.  The point is to get the semantics right before measuring anything.
+
+** 9.5 Walk the warehouse relaxation by hand
+
+Recall the real initial warehouse state:
+
+#+begin_example
+(at robot dock)
+(at package-17 dock)
+(empty robot)
+(connected dock hall)
+(connected hall office)
+#+end_example
+
+All five facts start at cost zero.
+
+=PICKUP(package-17, dock)= has three zero-cost preconditions and action cost one, so relaxed fact:
+
+#+begin_example
+(carrying robot package-17)
+#+end_example
+
+receives cost one.
+
+=MOVE(dock, hall)= similarly gives:
+
+#+begin_example
+(at robot hall)
+#+end_example
+
+cost one.
+
+Because delete effects are ignored, =(at robot dock)= remains available in the relaxed world.  That is the simplification.
+
+Once =(at robot hall)= is present, =MOVE(hall, office)= can support:
+
+#+begin_example
+(at robot office)
+#+end_example
+
+at cost two.
+
+Finally =DROP(package-17, office)= needs =(at robot office)= at cost two and =(carrying robot package-17)= at cost one.  The maximum precondition cost is two; adding the unit action cost gives:
+
+#+begin_example
+cost((at package-17 office)) = 3
+#+end_example
+
+The real optimal plan costs four, but so does the exact sequential delete-relaxed plan: both still require a pickup, two moves, and a drop.  The three-versus-four gap in this fixture comes from =MAX= combining the separate carrying and location costs, not from delete effects alone.  Ignoring deletes changes the transition model; approximating joint achievement through individual fact costs is a second simplification.
+
+The laboratory later in this chapter keeps all three quantities visible: =h_max= estimate three, exact relaxed optimum four, real optimum four.  It also supplies a consumable-resource fixture where ignoring deletes really does change solvability.  That comparison prevents a plausible but incorrect explanation of the warehouse gap.
+
+The permanent suite requires these fixture values.  They count as TESTED evidence only on an exact revision whose recorded test run actually passed; source assertions by themselves are not observed results.
+
+** 9.6 An estimate should carry its derivation
+
+A bare number is hostile to debugging.
+
+If the analyzer says the goal costs three, the reader should be able to ask: *which relaxed action last supported that fact?*
+
+The analyzer therefore records a =RELAXED-SUPPORT= for every best-known fact cost.  Initial facts have =:INITIAL= support.  Derived facts record:
+
+- the fact;
+- its best cost;
+- the source =:ACTION=;
+- the grounded schema name;
+- the grounded action name;
+- the grounded preconditions whose costs were combined.
+
+For the warehouse goal, the support should identify the grounded office drop action.  That does not mean the support graph is the actual executed plan.  Delete relaxation intentionally admits combinations that the real transition system cannot execute in that form.
+
+This gives us our first important provenance rule:
+
+#+begin_example
+provenance is always provenance of a particular computation
+#+end_example
+
+A heuristic support explains the heuristic calculation.  It is not automatically a causal explanation of the final real plan.
+
+** 9.7 Termination is an assumption until you make it a result
+
+It is tempting to say: “Delete relaxation is monotone, therefore propagation terminates.”
+
+That conclusion needs another premise: the set of reachable ground facts must be finite.
+
+Our course terms can contain lists.  An action schema can bind =?x= from =(seed ?x)= and add =(seed (next ?x))=.  Starting from =(seed zero)= produces:
+
+#+begin_example
+(seed zero)
+(seed (next zero))
+(seed (next (next zero)))
+...
+#+end_example
+
+No delete effect is needed.  The relaxed fact universe grows forever.
+
+The analyzer therefore accepts =MAX-ITERATIONS= and returns an explicit status:
+
+| Status | Meaning |
+|--------+---------|
+| =:REACHED= | all goals already hold initially, or propagation reached a fixpoint with costs for all goals |
+| =:UNREACHABLE= | propagation reached a fixpoint and at least one goal has no cost |
+| =:BOUNDED= | the configured limit stopped propagation before a fixpoint |
+
+The initial-goal shortcut returns zero without enumerating the relaxed closure: doing nothing already satisfies the goals, and costs are nonnegative.  The laboratory tests this separately from the zero-budget case where the goals do not yet hold.
+
+Only =:UNREACHABLE= says that this completed relaxed closure did not reach the goal.  =:BOUNDED= says the computation stopped early.  Turning the latter into “dead end” would be the same epistemic mistake we avoided in the Formal Reasoning Workbench when distinguishing bounded exploration from proof.
+
+The A* adapter has a narrower interface: it must return a finite nonnegative number.  =MAKE-HMAX-HEURISTIC= therefore returns the converged estimate only for =:REACHED= and falls back to zero for =:UNREACHABLE= or =:BOUNDED=.  Zero is weak but safe for the Search Library's numeric boundary.  Call the analyzer directly when the evidence status matters.
+
+** 9.8 Test lower-bound behavior where we can know the answer
+
+A citation about a heuristic family is not a test of our code.
+
+The milestone therefore creates a bounded oracle from machinery we already trust on a tiny fixture:
+
+1. solve the warehouse with uniform-cost search;
+2. take every state on that returned optimal path;
+3. from each state, solve the remaining problem again with UCS;
+4. compute the relaxed estimate at that same state;
+5. require =h(state) <= exact-remaining-cost= for every checked state.
+
+This does not prove the implementation admissible for every possible schema set.  It checks the lower-bound relationship over a controlled family of concrete states where the reference cost is independently obtained by the existing exact cost search.
+
+The test suite also runs A* with the relaxed heuristic and requires the same optimal cost as UCS on the warehouse fixture.
+
+Notice what we do *not* assert:
+
+- that A* always expands fewer nodes than UCS;
+- that the heuristic is consistent for every schema language extension;
+- that the implementation is asymptotically efficient;
+- that passing five states proves a theorem.
+
+Tests become stronger when their claim surface is smaller and explicit.
+
+** 9.9 The search result still does not contain enough provenance
+
+The planner passes each grounded action name into the Search Library as a transition label:
+
+#+begin_example
+(move dock hall)
+#+end_example
+
+That is convenient for presentation, but a label is not necessarily a unique identity.
+
+Imagine two schemas both named =FINISH=. Both are applicable in the same state.  Both produce =(done)=.  Search may keep one successor after duplicate pruning and return the action label:
+
+#+begin_example
+(finish)
+#+end_example
+
+Which schema justified the step?
+
+If the trace stored no unique schema identity, the honest answer is: we cannot tell from the label alone.
+
+A bad explanation system would choose the first matching rule and print a confident paragraph.
+
+This project refuses to do that.
+
+** 9.10 Derive a real explanation by replay
+
+=EXPLAIN-PLAN-RESULT= accepts the schema set and a successful Search Library result.  For every adjacent pair of path states, it:
+
+1. reads the recorded action label;
+2. re-instantiates every schema that is applicable in the real =before= state;
+3. keeps candidates whose grounded action name equals the recorded label;
+4. applies each candidate with the original delete/add semantics;
+5. keeps only candidates whose successor equals the recorded =after= state.
+
+There are now three cases.
+
+Exactly one match gives a =PLAN-STEP-EXPLANATION= containing the grounded preconditions, add effects, delete effects, action cost, schema name, and before/after states.
+
+Zero matches raises =INVALID-PLAN-TRACE=.  Either the result and domain do not belong together or some semantics changed after the result was produced.  The permanent regression deliberately removes =PICKUP= from the replay schema set after producing a valid warehouse result; replay must reject that stale/domain-mismatched evidence at the first transition.
+
+More than one match raises =AMBIGUOUS-PLAN-STEP=.  The system does not invent provenance it does not possess.
+
+That last failure is a feature.  It tells us when the representation needs a stronger identity in a later milestone.
+
+** 9.11 Explanation is validation plus retained structure
+
+There is a broader symbolic-AI lesson here.
+
+An explanation should not be a natural-language story pasted onto an answer after the fact.  The strongest explanations are assembled from structure that participated in or can validate the computation:
+
+- search parent links explain the selected state path;
+- grounded action replay explains each real transition;
+- unifier substitutions explain how a schema became concrete;
+- relaxed supports explain a heuristic estimate;
+- later rule-system justifications will explain derived facts.
+
+The natural-language layer can summarize those records.  It should not replace them.
+
+This is also where Common Lisp is particularly pleasant as a teaching language.  We can retain symbolic structures directly instead of serializing every intermediate object to strings and reparsing it later.
+
+** 9.12 Failure lab -- make the heuristic lie
+
+Run:
+
+#+begin_src sh
+sbcl --script books/symbolic-ai-common-lisp/code/planner/run-tests.lisp
+#+end_src
+
+Then make one change at a time.
+
+1. Replace =MAX= over precondition costs with =+=.  Find a state where shared support causes the estimate to exceed the exact remaining UCS cost.  Do not call the resulting function admissible merely because A* still finds a plan.
+2. Apply delete effects during “relaxed” propagation.  You have stopped computing the intended relaxation.  Which support facts disappear?
+3. Return =:UNREACHABLE= whenever the iteration bound is hit.  Use the term-growing =SEED/NEXT= fixture to demonstrate the false conclusion.
+4. Make =MAKE-HMAX-HEURISTIC= return a huge sentinel value for =:BOUNDED=.  Observe that you have turned incomplete analysis into search-order information with no justified lower-bound meaning.
+5. Change =EXPLAIN-PLAN-RESULT= to select the first matching schema.  Add the duplicated =FINISH= schemas.  The code now prints a specific provenance record even though the trace cannot distinguish the sources.
+6. Remove or alter one schema after solving a plan and confirm that replay fails with =INVALID-PLAN-TRACE= rather than narrating an action label whose original semantics are no longer available.
+
+Every failure corresponds to a different category of bug: heuristic unsoundness, semantic mismatch, evidence-status collapse, numeric-interface abuse, provenance fabrication, and stale trace/domain mismatch.
+
+** 9.13 Exercises
+
+1. ★ For precondition costs 2, 5, and 3 with unit action cost, compute the =h_max=-style candidate support cost by hand.
+2. ★ Explain why ignoring deletes creates an easier model without making the relaxed facts descriptions of a physically possible world.
+3. ★ Explain the difference between a relaxed support record and a plan-step explanation.
+4. ★★ Extend the relaxed-support printer so a reader can follow one goal fact backward through its recorded preconditions.  Keep cycles and shared support visible rather than recursively printing forever.
+5. ★★ Construct a finite domain where =h_max= is zero at the goal and positive one transition earlier.  Add the regression without hard-coding search internals.
+6. ★★ Construct a domain where the max estimate is much weaker than exact remaining cost because two independent subgoals require disjoint work.  Explain the gap without inventing benchmark language.
+7. ★★★ Add a checked =:RELAXED-UNREACHABLE= pruning hook to a separate experimental search adapter.  State exactly why a completed delete-relaxed fixpoint missing the goal can justify that pruning for this frozen action language, and keep =:BOUNDED= out of that path.
+8. ★★★ Introduce explicit stable schema identifiers distinct from display names.  Decide whether explanation should still reject two different identifiers that produce the same labeled state transition.
+9. ★★★ Propose a property-based generator for tiny finite planner domains and an oracle that compares the relaxed estimate with exact UCS cost.  Define the finite term vocabulary so the generator itself cannot create an unbounded closure.
+10. ★★★ Research =h_add=, =h^+=, and one stronger admissible heuristic.  For each, identify what information it preserves or throws away compared with this chapter's =h_max=-style mechanism.  Do not implement one until its claim and test boundary are written down.
+
+** 9.14 Checkpoint: what we actually know
+
+Exact-head passing tests are what upgrade the concrete fixture/API assertions in this chapter from authored expectations to bounded TESTED evidence.  The primary sources establish the historical/theoretical context for heuristic search and delete-relaxation planning [cite:@hart1968;@bonetgeffner2001].
+
+Even with those tests green, this milestone does not establish a general proof that every caller-supplied course schema yields an admissible or terminating heuristic computation.  It does not establish a benchmark.  It does not turn an ambiguous action label into unique provenance.  It does not implement FF, LM-cut, PDDL, or a production planner.
+
+What it does give the reader is more valuable than a recipe: one explicit example of how symbolic representations can generate search guidance, how evidence status prevents an approximation from becoming a fake proof, and how explanation can be checked against the same semantics that produced the plan.
+
+#+include: "heuristic-laboratory.org" :lines "7-" :minlevel 2

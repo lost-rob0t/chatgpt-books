@@ -1,0 +1,536 @@
+#+title: Production Systems from First Principles
+:PROPERTIES:
+:ID:       3c4ed92a-3579-4640-9ac0-30d2f00bd823
+:END:
+#+bibliography: ../references.bib
+
+* Chapter 10 -- From Matches to a Production System
+:PROPERTIES:
+:ID:       f1be3e8b-9434-4677-9ddd-7d1a491328bb
+:END:
+
+A pattern matcher answers a local question:
+
+#+begin_quote
+Does this symbolic pattern fit this datum, and if so, what did its variables mean?
+#+end_quote
+
+A production system asks a nastier question:
+
+#+begin_quote
+Given many facts and many rules, which complete rule instances are possible *now*, which one should run next, what new facts does it produce, and what evidence explains the result?
+#+end_quote
+
+That jump is where a matcher becomes an inference engine.
+
+Historically, production systems became a major architecture for symbolic AI because they separate a changing collection of data from condition/action knowledge and a control procedure.  Davis and King's 1975 overview is useful historical framing for the family [cite:@davisking1975].  OPS5 later made this style concrete in a widely studied system [cite:@forgy1981ops5].  Forgy's RETE work addressed the repeated many-pattern/many-object matching cost that appears once the rule set and working memory become large [cite:@forgy1982rete].
+
+We are going to earn that optimization problem instead of starting with its solution.
+
+Project 4 milestone A therefore implements the embarrassingly obvious engine first:
+
+#+begin_example
+working memory
+     |
+     v
+match every rule condition
+     |
+     v
+join compatible matches
+     |
+     v
+build activations
+     |
+     v
+sort agenda
+     |
+     v
+fire one activation
+     |
+     v
+assert returned facts
+     |
+     +---------------------> repeat
+#+end_example
+
+This is not a production RETE engine.  It is better for the current lesson because every piece of state remains visible.
+
+** 10.1 Working memory is not just a Lisp list
+
+Start with facts:
+
+#+begin_src lisp
+'((service api state failed)
+  (service api depends-on db)
+  (service db health down)
+  (probe api code connection-refused))
+#+end_src
+
+We could keep those terms in an ordinary list and call it working memory.  The first rule would work.  The first explanation would not.
+
+Suppose later we derive:
+
+#+begin_src lisp
+'(service api suspect dependency-unavailable)
+#+end_src
+
+If an explanation says only “the rule matched some facts,” we cannot identify which observations supported the activation.  Equality of symbolic data is not the same thing as identity of evidence.
+
+The milestone therefore wraps every working-memory datum in a fact record with a stable integer ID.  Initial insertion order is deterministic.  Reasserting an =EQUAL= datum does not create a second fact; the first fact keeps its identity.
+
+That gives us two different questions:
+
+- =EQUAL= asks whether two fact payloads express the same symbolic datum for this engine;
+- the fact ID asks which working-memory element participated in an activation.
+
+This distinction becomes important again in truth maintenance.  A support graph needs identities, not merely pretty printed terms.
+
+The first boundary is strict: working-memory facts must be *ground* under this project's symbolic-variable representation.  A term containing =(:VAR NAME)= is rule syntax, not an unresolved value that may leak into a conclusion.
+
+#+begin_src lisp
+(make-working-memory
+ '((service api state failed)
+   (service db health down)))
+#+end_src
+
+An action that tries to assert an unbound project variable signals =INVALID-DERIVED-FACT=.  We fail where the bad evidence enters the system instead of waiting for a later rule to interpret an unresolved variable as ordinary data.
+
+** 10.2 Reuse the matcher; do not grow a second one
+
+Project 2 already gave us directional pattern matching.  A rule condition therefore uses the same explicit variable representation:
+
+#+begin_src lisp
+(let ((service (symbolic-ai.pattern:make-variable 'service)))
+  `((service ,service state failed)))
+#+end_src
+
+For one condition, the rule engine does almost nothing new.  It walks the working-memory facts and calls:
+
+#+begin_src lisp
+(symbolic-ai.pattern:match-pattern pattern fact-datum
+                                   :bindings bindings)
+#+end_src
+
+A successful result carries an environment such as:
+
+#+begin_example
+((SERVICE . API))
+#+end_example
+
+That environment is not reconstructed by the rule engine.  Project 4 consumes the public matcher contract.
+
+This matters architecturally.  When two subsystems need “almost the same” variable semantics, the tempting shortcut is to copy ten lines of matching code and change them locally.  The copies drift.  One honors repeated variables; another does not.  One treats =(:VAR X)= in data literally; another accidentally promotes it to syntax.  The book already paid to make those boundaries explicit, so the rule engine reuses them.
+
+** 10.3 A join is repeated matching under one environment
+
+Single-condition rules are easy.  Useful rules are conjunctions.
+
+Consider:
+
+#+begin_src lisp
+(service ?service depends-on ?dependency)
+(service ?dependency health down)
+#+end_src
+
+using the project's explicit variable terms rather than reader syntax.  The important feature is not that each condition can match.  It is that both conditions must agree about =?DEPENDENCY=.
+
+Suppose working memory contains:
+
+#+begin_example
+#1 (service api depends-on db)
+#2 (service cache health down)
+#3 (service db health down)
+#+end_example
+
+Condition one against fact #1 binds:
+
+#+begin_example
+SERVICE    -> API
+DEPENDENCY -> DB
+#+end_example
+
+Condition two is not matched from scratch.  It is matched with those bindings already present.  Fact #2 fails because =DEPENDENCY= is already =DB=.  Fact #3 succeeds.
+
+The complete activation therefore carries:
+
+#+begin_example
+rule:       DEPENDENCY-DOWN
+bindings:   SERVICE -> API, DEPENDENCY -> DB
+supports:   (1 3)
+#+end_example
+
+That is a join.
+
+No database package or RETE node is required to understand the mechanism.  We enumerate matches for condition one, feed each resulting environment into condition two, feed those into condition three, and so on.  The intermediate object is simply a partial environment plus the fact IDs that produced it.
+
+The implementation also makes a semantic choice that many tiny teaching engines accidentally leave ambiguous: by default, one fact ID may not satisfy two distinct condition slots in the same activation.  If a rule genuinely means that one fact can fill both slots, it opts into reuse explicitly.
+
+Why care?  Consider:
+
+#+begin_src lisp
+((tag ?x)
+ (tag ?x))
+#+end_src
+
+with only one =(TAG A)= fact.  Does that mean “there exist two matching observations” or “the same observation may be considered twice”?  There is no universal answer hiding in Lisp.  It is a rule-language semantic choice.  The milestone chooses distinct supports by default and tests the opt-in alternative.
+
+** 10.4 An activation is a rule instance, not a rule
+
+A rule is reusable knowledge.  An activation is one currently satisfied instance of that rule.
+
+The distinction becomes obvious as soon as two services fail:
+
+#+begin_example
+(service api state failed)
+(service worker state failed)
+#+end_example
+
+A condition =(SERVICE ?S STATE FAILED)= creates two activations.  They share a rule ID but have different bindings and different support fact IDs.
+
+The milestone's activation record retains:
+
+| Field | Meaning |
+|-------+---------|
+| rule ID | stable identity of the rule definition |
+| rule order | declaration position used by this course's tie-breaker |
+| salience | explicit integer priority |
+| bindings | the complete environment after all conditions joined |
+| support fact IDs | exact working-memory evidence for this instance |
+| rule object | executable rule definition used when firing |
+
+Keeping those fields together turns “why is this rule on the agenda?” into a data question.
+
+A debugger can inspect the activation before anything fires.  Later, an explanation system can retain the rule ID, bindings, and supports after the activation is gone.
+
+** 10.5 The agenda makes control policy visible
+
+Once several activations exist, the engine needs control policy.  A declarative rule says when it *could* fire.  It does not, by itself, say which eligible rule goes first.
+
+Current CLIPS 6.4.2 documentation uses the same useful vocabulary: satisfied rules create activations on an agenda; agenda placement considers salience and a chosen conflict-resolution strategy [cite:@clips642bpg].  CLIPS provides several strategies.  Our engine does not pretend to implement them.
+
+Milestone A uses one intentionally boring order:
+
+1. higher integer salience first;
+2. earlier rule declaration first;
+3. lexicographically smaller support-ID sequence first.
+
+That policy is not historically privileged.  It is *reproducible*.
+
+Reproducibility matters before sophistication.  If two equal-priority activations can swap arbitrarily between runs, traces are harder to compare and regression failures are harder to localize.  Once the system is observable, later chapters can change conflict resolution deliberately and test the consequences.
+
+Here is the important conceptual split:
+
+#+begin_example
+matching policy       -> which activations exist?
+conflict resolution   -> which activation fires next?
+action semantics      -> what changes when it fires?
+#+end_example
+
+Mashing all three into one recursive function produces a shorter demo and a worse system.
+
+** 10.6 Forward chaining is a cycle over explicit evidence
+
+The full execution loop is now small enough to state precisely.
+
+1. Build all currently eligible, not-yet-fired activations from working memory.
+2. If none exist, return =:QUIESCENT=.
+3. Otherwise select the first agenda activation.
+4. Call its action with the activation's bindings.
+5. Require the action to return a proper list of *ground fact data*.
+6. Assert each returned fact, deduplicating =EQUAL= data.
+7. Record a justification for every newly added fact.
+8. Mark this exact activation as fired.
+9. Rebuild the agenda and repeat.
+
+The action boundary deserves attention.  Rules do not manufacture strings that are passed to the Lisp reader.  They do not return arbitrary forms that the engine sends to =EVAL=.  An action is already a trusted Common Lisp function supplied by the program, and its result is treated as symbolic *data* to validate and assert.
+
+That keeps the boundary narrow:
+
+#+begin_src lisp
+(lambda (bindings)
+  `((service ,(binding bindings 'service)
+             suspect dependency-unavailable)))
+#+end_src
+
+The exact helper name in the runnable project is =BINDING-VALUE=; the point is that the value becomes part of a fact term, not executable code.
+
+The moment a system accepts generated symbolic data and evaluates it as host code, it has crossed from inference into code execution.  Later hybrid-interface chapters will return to that boundary with external model output.
+
+** 10.7 Project case: diagnosing a dependency failure
+
+The project fixture is deliberately technical.  It is still synthetic; it is not pretending that four toy facts diagnose real production outages.
+
+Initial evidence:
+
+#+begin_example
+#1 (service api state failed)
+#2 (service api depends-on db)
+#3 (service db health down)
+#4 (probe api code connection-refused)
+#+end_example
+
+The first rule asks whether a failed dependency relationship is visible:
+
+#+begin_src lisp
+(make-rule
+ 'dependency-down
+ `((service ,service depends-on ,dependency)
+   (service ,dependency health down))
+ (lambda (bindings)
+   `((service ,(must-binding 'service bindings)
+              suspect dependency-unavailable)))
+ :salience 10)
+#+end_src
+
+The second rule requires three independent pieces of evidence:
+
+#+begin_src lisp
+(make-rule
+ 'diagnose-dependency
+ `((service ,service state failed)
+   (service ,service suspect dependency-unavailable)
+   (probe ,service code connection-refused))
+ (lambda (bindings)
+   `((diagnosis ,(must-binding 'service bindings)
+                dependency-unavailable))))
+#+end_src
+
+Before the first rule fires, the second rule has no complete join because the suspicion fact does not exist.
+
+The =DEPENDENCY-DOWN= activation joins facts #2 and #3.  Its action proposes:
+
+#+begin_example
+(service api suspect dependency-unavailable)
+#+end_example
+
+Because four facts already exist, the deterministic working-memory contract gives that new fact ID #5.
+
+Rebuilding the agenda now lets =DIAGNOSE-DEPENDENCY= join facts #1, #5, and #4.  Its conclusion is:
+
+#+begin_example
+(diagnosis api dependency-unavailable)
+#+end_example
+
+This is the first place the book has a genuinely chained rule derivation: a fact produced by one rule becomes supporting evidence for another.
+
+The permanent regression does not merely look for the final diagnosis datum.  It also requires the diagnosis justification to identify =DIAGNOSE-DEPENDENCY= and the support sequence =(1 5 4)=.  Until that regression executes on the exact revision, this paragraph describes the intended contract rather than claiming a test result.
+
+** 10.8 Refraction: “still true” does not mean “fire forever”
+
+Suppose a rule says:
+
+#+begin_src lisp
+IF (ping)
+THEN assert (ping)
+#+end_src
+
+Working memory already contains =(PING)=.  The rule matches.  Its action reasserts equal data, so working memory does not change.  If the engine blindly rebuilds the agenda, the same activation appears again.  It can fire forever while doing nothing.
+
+We need memory in the control system as well as in working memory.
+
+Milestone A records an *exact activation key*:
+
+#+begin_example
+(rule-id, supporting-fact-ids)
+#+end_example
+
+After that activation fires, the exact key is filtered from later agendas.  The same rule may still fire for a different support tuple created later.
+
+This mechanism is intentionally small.  Later production systems have richer reactivation semantics involving updates, retractions, recency, negated conditions, and incremental memories.  Here we need only enough refraction to make the simple forward-chaining loop terminate when nothing genuinely new is available.
+
+This also exposes an important lesson: termination is not guaranteed merely because facts are deduplicated.  A rule can keep generating *new* facts.
+
+** 10.9 A firing limit is not quiescence
+
+Consider:
+
+#+begin_example
+(seed X) -> (seed (next X))
+#+end_example
+
+Starting from =(SEED ZERO)=, every newly asserted ground fact supports a new activation:
+
+#+begin_example
+(seed zero)
+(seed (next zero))
+(seed (next (next zero)))
+...
+#+end_example
+
+Exact-activation refraction does not help because each support fact is different.
+
+The engine therefore accepts =MAX-FIRINGS=.  Reaching the limit while an activation remains returns:
+
+#+begin_example
+:BOUNDED
+#+end_example
+
+It does *not* return =:QUIESCENT=.
+
+This is the same epistemic discipline we used in the planner relaxation and finite-state checker.  A resource bound says the computation stopped.  It does not say the closure was reached, the property was proved, or no further inference exists.
+
+That distinction is boring until a monitoring system reports “no more diagnoses” when it really means “we stopped after 100 firings.”  Then it is the whole bug.
+
+** 10.10 Justification is the beginning of explanation
+
+Every new fact receives a justification record:
+
+#+begin_example
+fact-id
+rule-id
+bindings
+support-fact-ids
+#+end_example
+
+That is not yet a truth-maintenance system.  If a supporting fact disappears, milestone A does not automatically retract the consequence.  There is not even a public retraction operation yet.
+
+But justification gives us something much better than a generated story.
+
+For a derived diagnosis, we can walk:
+
+#+begin_example
+(diagnosis api dependency-unavailable)
+       |
+       | produced by DIAGNOSE-DEPENDENCY
+       v
+supports: #1, #5, #4
+             |
+             | #5 produced by DEPENDENCY-DOWN
+             v
+        supports: #2, #3
+#+end_example
+
+That graph is structural evidence retained by the inference process.  A later explanation layer can render it in prose, Graphviz, JSON, or a debugger.  It does not need to hallucinate a reason after the fact.
+
+#+caption: Milestone A derives forward chaining from the existing matcher: working-memory facts join into activations, deterministic conflict resolution selects one agenda item, the action returns validated fact data, and new facts retain justifications before the cycle repeats.
+#+attr_html: :alt Working-memory facts flow into condition matching and multi-condition joins. Complete joins become activations on an agenda. Conflict resolution selects one activation. Its action returns ground fact data, new facts and justification records are added to working memory, and the cycle repeats. A bounded stop is separate from quiescence.
+[[file:assets/rule-match-agenda-cycle.svg]]
+
+** 10.11 The deliberately bad algorithm is now useful
+
+After each firing, milestone A matches every rule against working memory again.
+
+That sounds wasteful because it is wasteful.
+
+Suppose 10,000 facts remain unchanged and one new fact arrives.  A naïve rematch revisits enormous amounts of evidence that it already considered.  Multiple conditions also recreate intermediate joins repeatedly.
+
+Now the reader can understand what an incremental network needs to remember:
+
+- which individual facts satisfy which simple tests;
+- which partial binding tuples satisfy prefixes of multi-condition rules;
+- which new or removed working-memory elements invalidate those partial results;
+- which complete tuples reach productions.
+
+Forgy's RETE work is historically central to this many-pattern/many-object matching problem [cite:@forgy1982rete].  We stop here in this volume's first rule-engine milestone.  The sibling /Expert System Design and Implementation/ book derives alpha memories, beta memories, join nodes, tokens, production nodes, RETE-like networks, truth maintenance, and production operations in depth.
+
+That boundary is intentional.  This book needs a rule engine because rule systems are a core symbolic-AI mechanism and later KR/formal/hybrid chapters need something executable to reason about.  It does not need to duplicate an entire production-engine book.
+
+** 10.12 Failure lab -- break one invariant at a time
+
+Run the rule suite from the repository root:
+
+#+begin_src sh
+sbcl --script books/symbolic-ai-common-lisp/code/rules/run-tests.lisp
+#+end_src
+
+Then use a disposable branch or local copy for these failures.
+
+*** Failure A -- reset bindings between conditions
+
+Change the join so every condition calls =MATCH-PATTERN= with an empty binding environment.
+
+The dependency example can now combine:
+
+#+begin_example
+(service api depends-on db)
+(service cache health down)
+#+end_example
+
+because the second condition forgets that =DEPENDENCY= was already =DB=.  The engine has stopped implementing conjunction with shared variables; it is merely collecting unrelated local matches.
+
+*** Failure B -- let one fact fill every condition slot
+
+Remove the used-support check.  A rule with two identical conditions can activate from one fact even if its intended meaning requires two observations.
+
+Do not fix this by saying “users should know.”  Either define reuse as language semantics or represent the distinction explicitly.  The milestone chooses explicit opt-in reuse.
+
+*** Failure C -- erase support identities
+
+Store only bindings in an activation.  The rule can still fire, so happy-path tests may pass.  Explanation quality collapses: two equal-looking or differently sourced observations become impossible to distinguish later.
+
+*** Failure D -- randomize ties
+
+Replace deterministic rule-order/support ordering with whatever order happens to fall out of hash tables.  The logical closure might remain the same for a monotonic rule set, yet traces and intermediate behavior become unstable.  Once actions can interact, order can become semantically visible as well.
+
+*** Failure E -- remove refraction
+
+Use the =(PING) -> (PING)= rule.  Fact deduplication prevents memory growth but does not prevent repeated firing.  This demonstrates why “working memory reached a set fixpoint” and “the control loop terminates” are different claims.
+
+*** Failure F -- label the firing bound “done”
+
+Use the growing =SEED= rule and change =:BOUNDED= to =:QUIESCENT=.  The return value now states something false: an unfired activation remains.
+
+*** Failure G -- evaluate rule output
+
+Change the action boundary so symbolic output is passed to =EVAL=.  You have replaced a data-driven inference boundary with arbitrary host-language execution.  Undo it.  The rest of the book assumes facts remain data unless a separately authorized interface says otherwise.
+
+** 10.13 Tests are part of the semantics
+
+Milestone A's regression suite is designed around contracts that prose alone can accidentally blur:
+
+- one-condition matching carries variable bindings;
+- multi-condition joins preserve one environment;
+- one fact cannot fill two condition slots unless the rule opts in;
+- salience dominates rule order, and rule order gives deterministic equal-salience behavior;
+- two matching facts create two distinct activations;
+- duplicate assertion preserves stable fact identity;
+- a no-op rule fires once and then becomes refracted;
+- the infrastructure scenario reaches a chained diagnosis with retained justification;
+- an indefinitely growing rule returns =:BOUNDED= under a firing limit;
+- an ungrounded conclusion fails closed;
+- malformed action output fails closed.
+
+A test run establishes those statements only for the exact revision that ran.  The source file being present is not test evidence.
+
+** 10.14 What changes in the next rule-system slices
+
+The current engine creates an excellent profiler target because its waste is obvious.
+
+Later work can ask:
+
+- Can single-condition tests be compiled into reusable alpha-style discrimination?
+- Can partial joins be retained instead of rebuilt?
+- What must happen to those memories when a fact is retracted?
+- How should negation be represented without treating absence as eternal truth?
+- Which conflict-resolution policies are appropriate for different domains?
+- How do justifications become dependency-directed truth maintenance?
+- Can a debugger explain why a rule *did not* activate, not only why it did?
+- Which invariants can the Formal Reasoning Workbench check on a finite abstraction of agenda/working-memory behavior?
+
+Those are not reasons to hide the simple engine.  They are reasons to keep it.  Optimization is much easier to understand when there is an executable semantic baseline to compare against.
+
+** 10.15 Exercises
+
+1. *Activation table.* Given six facts and three two-condition rules, enumerate every partial and complete join by hand.  Include bindings and support fact IDs.
+2. *Join bug.* Modify the implementation so the environment is reset before condition two.  Add the smallest regression that produces a false activation.
+3. *Fact reuse policy.* Design a rule where reusing one fact for two conditions is semantically correct.  Enable =:ALLOW-FACT-REUSE-P= only for that rule and explain the difference.
+4. *Conflict resolution.* Add a second deterministic strategy that ignores salience.  Do not replace the default.  Write a fixture where firing order changes but the monotonic final closure remains the same.
+5. *Order-sensitive actions.* Construct a safe synthetic example where two rules derive different follow-up activations depending on which fires first.  Explain why conflict resolution is now semantically visible even without retractions.
+6. *Refraction key attack.* Change the key to use rule ID only.  Demonstrate how a rule stops after its first binding even when a second service should produce a distinct activation.
+7. *Bounded inference.* Extend the growing =SEED= fixture so every other firing also derives a harmless marker fact.  Verify that the firing limit still reports =:BOUNDED= whenever an activation remains.
+8. *Why-not debugging.* Design a diagnostic function that takes a rule and working memory and reports the deepest condition prefix that matched, including the environments that survived.  Keep it separate from the firing engine.
+9. *Explanation graph.* Starting from a final diagnosis fact, recursively follow justifications to initial facts and emit a DOT graph.  Detect repeated subproofs instead of printing the same subtree forever.
+10. *Incremental design sketch.* Without implementing RETE, mark exactly which computations the full-rematch engine repeats after one fact is added.  Propose memory nodes that could cache those results, then compare your sketch with the deeper architecture in the sibling Expert Systems volume.
+
+** 10.16 Boundary checkpoint
+
+At this point the reader owns a complete, inspectable forward-chaining kernel:
+
+#+begin_example
+facts -> matches -> joined bindings -> activations -> agenda
+      -> firing -> new facts + justification -> repeat
+#+end_example
+
+That is enough machinery to move into semantic networks, frames, broader knowledge representation, backward reasoning, and explanation while keeping one executable rule substrate available.
+
+It is not enough machinery to claim a production expert-system engine.  There is no incremental RETE/TREAT network, truth maintenance, retraction semantics, persistence, distributed execution, benchmark evidence, or production knowledge base.  Those absences are part of the contract, not embarrassing footnotes.

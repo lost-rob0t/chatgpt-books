@@ -1,0 +1,102 @@
+#+title: Project 4 Research -- Working Memory, Joins, and Agenda Control
+:PROPERTIES:
+:ID:       2dbc19ff-0ca8-4a4a-b5e4-f9312e7bed81
+:END:
+#+bibliography: ../references.bib
+
+* Scope
+Issue #114 begins Project 4 with the smallest production-system machinery that is still worth debugging: explicit working memory, pattern matches, multi-condition joins, activations, an agenda, deterministic conflict resolution, forward chaining, bounded execution, and retained justification records.
+
+This milestone is intentionally *not* the production matching-network chapter.  The sibling =books/expert-systems= volume owns alpha/beta memories, join/token/production nodes, RETE/TREAT-style incremental networks, truth maintenance, persistence, knowledge-engineering workflow, and operational concerns.  The Common Lisp book first builds the obvious full-rematch engine so the reader can see exactly which repeated work an incremental network is meant to remove.
+
+* Research questions
+1. What is the historically useful production-system decomposition before RETE optimization is introduced?
+2. What should the book call an activation and an agenda without claiming conformance to OPS5 or CLIPS?
+3. Which conflict-resolution decisions are semantics of this teaching engine rather than inherited historical behavior?
+4. How can the existing directional matcher become a multi-condition join without exposing or duplicating unification internals?
+5. What evidence must be retained now so later explanation and truth-maintenance chapters have something concrete to consume?
+
+* Sources inspected
+** Davis and King 1975 -- historical production-system overview
+Randall Davis and Jonathan King, /An Overview of Production Systems/, Stanford Artificial Intelligence Laboratory Memo AIM-271 / STAN-CS-75-524, October 1975 [cite:@davisking1975].  The Stanford bibliographic record identifies the report and its purpose as an analysis/overview of recurring production-system themes.  This source is used for historical framing, not as a specification for this engine.
+
+Status: DOCUMENTED.
+
+** Forgy 1981 -- OPS5 lineage
+Charles L. Forgy, /OPS5 User's Manual/, CMU-CS-81-135, 1981 [cite:@forgy1981ops5].  The inspected CMU bibliographic material establishes the report identity and OPS5 lineage.  Milestone A does not claim OPS5 compatibility and does not borrow an OPS5 conflict-resolution strategy wholesale.
+
+Status: DOCUMENTED for bibliographic/historical lineage; no conformance claim.
+
+** Forgy 1982 -- RETE motivation, not implementation
+Forgy's RETE paper is /Rete: A Fast Algorithm for the Many Pattern/Many Object Pattern Match Problem/, /Artificial Intelligence/ 19(1), 17--37 (1982), DOI =10.1016/0004-3702(82)90020-0= [cite:@forgy1982rete].  It is the primary historical source for the later incremental-matching discussion.
+
+The teaching engine in issue #114 deliberately rebuilds candidate matches from working memory after each firing.  We therefore cite RETE only to explain the optimization problem that follows from repeated many-pattern/many-object matching.  No RETE performance result is transferred to this code, and this milestone does not contain a RETE network.
+
+Status: DOCUMENTED source basis; RETE implementation UNTESTED/OUT OF SCOPE here.
+
+** CLIPS 6.4.2 -- maintained terminology check
+The current CLIPS Basic Programming Guide is Version 6.4.2 dated January 16, 2025 [cite:@clips642bpg].  Its rule-execution section states that rules whose conditions are satisfied become activations placed on an agenda, and that agenda placement depends on salience plus the selected conflict-resolution strategy.  It also documents multiple conflict-resolution strategies and says higher-salience activations precede lower-salience ones.
+
+That maintained terminology is useful comparison evidence, but this course engine chooses a smaller deterministic policy: descending integer salience, then rule declaration order, then supporting fact IDs.  That policy is explicitly ours.  It is not described as CLIPS behavior or compatibility.
+
+Status: DOCUMENTED against the current official 6.4.2 guide.
+
+* Mechanism derived for milestone A
+** Working memory
+A working-memory fact is a pair of meanings: symbolic data plus a stable insertion identity.  Equal fact data is deduplicated, but the first fact identity survives.  Stable IDs let an activation say exactly which observations supported it even when two facts have similar shapes.
+
+The first implementation accepts ground facts only.  Project variables are syntax for rule conditions, not uncertainty stored in working memory.
+
+** One-condition match
+A rule condition is passed directly to Project 2's =MATCH-PATTERN=.  The rule engine does not grow a second matcher.  A successful match returns the accepted binding environment.
+
+** Multi-condition join
+For condition 1, enumerate matching facts.  For every success, pass the resulting binding environment into condition 2.  Continue until every condition has matched.  Repeated variables across different conditions therefore become ordinary consistency constraints supplied by the already-tested matcher.
+
+The milestone defaults to distinct supporting fact IDs across condition slots.  A rule must opt in explicitly if one working-memory fact is intended to satisfy multiple slots.  This is a course-local semantic choice and is tested as such.
+
+** Activation
+An activation retains:
+- rule identity;
+- rule declaration order;
+- salience;
+- the complete binding environment;
+- supporting fact IDs.
+
+Those fields are enough to make the agenda inspectable and to construct a stable exact-activation key.
+
+** Agenda and conflict resolution
+The first agenda is recomputed from scratch after each firing.  Activations sort by:
+1. higher salience;
+2. earlier rule declaration order;
+3. lexicographically smaller support-ID sequence.
+
+This deliberately boring ordering makes traces reproducible.  A later chapter can compare alternative policies after the reader has a stable baseline.
+
+** Exact-activation refraction
+Once a particular rule/support tuple fires, the same tuple is not admitted again during that run.  This prevents a no-op rule from firing forever merely because it reasserts an already-present fact.  A newly derived supporting fact can still create a different activation.
+
+The term /refraction/ here names this course-local exact-activation mechanism; it is not a claim that the engine implements every historical system's reactivation semantics.
+
+** Actions as a data boundary
+A right-hand-side action is a Common Lisp function receiving bindings and returning a proper list of ground fact terms.  The engine asserts those terms.  It does not call =EVAL= on generated symbolic code.  Ungrounded results and malformed action outputs fail closed.
+
+** Bounded forward chaining
+=:QUIESCENT= means agenda reconstruction found no unfired activation.  =:BOUNDED= means =MAX-FIRINGS= stopped execution while work remained.  The distinction mirrors the book's existing evidence discipline: stopping early is not evidence that the inference closure was reached.
+
+** Justification
+Every newly derived fact records its rule ID, final bindings, and supporting fact IDs.  This is sufficient for a first explanation trace.  It is not yet a truth-maintenance system: retracting a premise does not retract consequences in milestone A.
+
+* Infrastructure diagnosis fixture
+The teaching scenario uses synthetic service observations rather than animals, fruit, or medical diagnosis.  Facts can state that a service failed, that it depends on another service, that a dependency health check is down, and that an application probe reports connection refusal.  One rule derives a dependency-unavailable suspicion; another joins that suspicion with the failed service and probe evidence to derive a diagnosis fact.
+
+The fixture is synthetic and does not claim that these rules are operationally sufficient for real Linux/service diagnosis.  Its purpose is to force multi-condition joins, chained inference, provenance, agenda ordering, and failure debugging through one coherent technical example.
+
+* Claim status before CI
+- DOCUMENTED: historical source metadata and current CLIPS 6.4.2 agenda/salience terminology.
+- IMPLEMENTED/UNTESTED: the branch contains the full-rematch working memory/join/agenda/refraction/justification engine and its direct + ASDF test harness, but those tests must not be called TESTED until they execute on the exact branch revision.
+- UNTESTED/OUT OF SCOPE: RETE/TREAT, incremental alpha/beta memories, truth maintenance, retractions, persistence, negation-as-absence, concurrency, performance/scaling behavior, and production diagnosis quality.
+- No benchmark result is claimed.
+
+* Verification plan
+Run the new direct and ASDF rule-system tests, then all existing Search, Pattern/Unifier, Planner, and Formal Workbench suites.  Validate the editable rule-cycle diagram and citation rendering.  Build and validate the book with =make book BOOK=symbolic-ai-common-lisp= and =make check BOOK=symbolic-ai-common-lisp=.  Run repository tests and the focused Nix gate.  Record exact-head evidence only after those commands actually succeed.

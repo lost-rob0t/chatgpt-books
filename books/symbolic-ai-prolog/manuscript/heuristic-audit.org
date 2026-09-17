@@ -1,0 +1,231 @@
+** 9.27 A Valid Table Still Does Not Establish a Valid Heuristic
+:PROPERTIES:
+:ID:       2e7f3651-7481-4ce4-a4f6-bdaef9ef9dd0
+:END:
+
+The previous failure lab separated two questions that are easy to blur:
+
+1. *Can this value cross the program boundary safely?*
+2. *Does this value satisfy the mathematical premise required by a search claim?*
+
+Our A* adapter can answer the first question. It accepts only =zero= or a finite =table([estimate(State,H), ...])=. It canonicalizes states, requires non-negative integer estimates, rejects duplicate canonical keys, rejects missing entries when a generated state needs one, and never turns a caller-provided term into a Prolog goal.
+
+None of those checks establishes that =H= is a lower bound on the true remaining cost. None establishes the stronger edge-by-edge condition usually called consistency. The overestimating-table regression made that gap executable: well-formed data can still cause this goal-on-pop A* kernel to select the cost-12 remote repair before the cost-11 on-site plan.
+
+There is a useful next question for a *finite teaching domain*:
+
+#+begin_quote
+If we can first establish the complete reachable state graph, can we audit the table against that graph instead of trusting the phrase “hand-audited”? 
+#+end_quote
+
+Yes, but only if we keep the scope honest.
+
+The new =audit_heuristic/6= lab does not become an oracle for arbitrary planning domains. It first tries to enumerate the reachable closure under an explicit =MaxStates= cap. If that cap is reached before the frontier is exhausted, the result is =cutoff(...)= and there is *no heuristic-quality verdict*. Only a completed finite closure is allowed to proceed to the checks below.
+
+That ordering is the important mechanism. The program must earn the right to say what set of states it audited.
+
+** 9.28 Establish the Finite Closure Before Checking a Theorem Premise
+:PROPERTIES:
+:ID:       77709ee6-ead6-474d-ac19-ceb7e409e349
+:END:
+
+The audit reuses the same action semantics as the planner. It does not invent a second notion of applicability or effect application:
+
+#+begin_src prolog
+applicable(Schema, State, Instance),
+apply_instance(Instance, State, NextState)
+#+end_src
+
+Costs remain inert wrappers:
+
+#+begin_src prolog
+costed(Schema, Cost)
+#+end_src
+
+For each discovered canonical ground state, the audit enumerates every applicable costed transition and records an edge of the form:
+
+#+begin_src prolog
+edge(State,
+     step(SchemaId, ConcreteAction),
+     Cost,
+     NextState)
+#+end_src
+
+The state frontier itself is deliberately boring. A state already present in the discovered set is not inserted again. A new state is admitted only while the number of discovered states remains within =MaxStates=.
+
+If admitting another distinct state would exceed the cap, the public result looks like:
+
+#+begin_src prolog
+cutoff(state_limit(MaxStates),
+       summary(StateCount, EdgeCount),
+       candidate(NextState))
+#+end_src
+
+Notice what is missing: there is no =admissible= or =consistent= atom anywhere in that result.
+
+That omission is the safety property. A partial graph may hide exactly the state or edge that falsifies a heuristic condition. Turning “I checked the first 10,000 states” into “the heuristic is admissible” would repeat the same category error as turning a depth cutoff into =exhausted/1=.
+
+This finite-closure gate also prevents the audit helper itself from becoming an accidental unbounded search. A domain that can keep generating fresh canonical states can hit the explicit cap and return control to its caller. The cap is not a completeness theorem. It is a resource contract.
+
+** 9.29 Admissibility Becomes a Checkable Relation on the Closed Fixture
+:PROPERTIES:
+:ID:       92cd27a5-4b4d-4573-a04e-87e57ef20912
+:END:
+
+Hart, Nilsson, and Raphael formulate A* around a cost-so-far term plus a heuristic estimate and attach minimum-cost claims to conditions on that estimate [cite:@hart-nilsson-raphael-astar-1968]. Their later correction is part of the provenance for the stronger comparison claims [cite:@hart-nilsson-raphael-astar-correction-1972]. The course implementation should therefore keep the condition visible instead of treating the name “A*” as a certificate.
+
+On a *completed finite reachable closure*, we can obtain the exact remaining minimum cost for each reachable state by running our already-tested uniform-cost kernel from that state to the same goal. Let that value be =h*(s)=.
+
+For each reachable state with a goal path, the audit checks:
+
+#+begin_example
+H(s) =< h*(s)
+#+end_example
+
+If the table says =H(s)=100= but uniform-cost search finds a remaining plan of cost 10, the report keeps the concrete counterexample:
+
+#+begin_src prolog
+inadmissible(State, 100, 10)
+#+end_src
+
+The important word here is *fixture*. We are not proving that a heuristic-generating algorithm is admissible on every input. We are checking every state in one finite reachable graph whose closure was established under the explicit audit procedure.
+
+States from which the goal is unreachable are retained separately as =unreachable(State,H)= evidence. The lab does not invent a finite “true cost” for them merely to make an inequality easy to print.
+
+The weighted-recovery fixture has four reachable canonical states. Its original table gives 11 at the failed/depot state, 10 at the failed/site state, and 0 at either restored state. On this finite graph those are exactly the remaining optimal costs for the two non-goal states and zero for the goal states. The executable audit is what is allowed to promote that statement from a hand calculation to repository TESTED evidence after CI actually runs it.
+
+** 9.30 Consistency Is an Edge Property, Not Another Spelling of Admissibility
+:PROPERTIES:
+:ID:       7d562247-e34f-4b6c-9f65-c53937105e61
+:END:
+
+A second check walks every recorded transition:
+
+#+begin_example
+s --cost c--> s'
+#+end_example
+
+and tests:
+
+#+begin_example
+H(s) =< c + H(s')
+#+end_example
+
+A violation is returned with enough structure to reproduce it:
+
+#+begin_src prolog
+inconsistent(State,
+             Step,
+             H,
+             Cost,
+             NextState,
+             NextH)
+#+end_src
+
+This is useful because admissibility and consistency are not interchangeable labels.
+
+Construct a second table for the same four-state fixture:
+
+#+begin_example
+failed/depot -> 11
+failed/site  -> 0
+restored/*   -> 0
+#+end_example
+
+Every value is still at or below the exact remaining minimum cost for its state. The table therefore passes the finite admissibility audit.
+
+But consider the one-cost shuttle edge:
+
+#+begin_example
+failed/depot --1--> failed/site
+#+end_example
+
+The consistency inequality becomes:
+
+#+begin_example
+11 =< 1 + 0
+#+end_example
+
+which is false.
+
+The audit must therefore be able to say, in one report, that this table is =admissible_on_audited_states= and =inconsistent=. A regression checks exactly that distinction. The same regression also observes that A* still returns the cost-11 optimum on this particular tiny fixture. That runtime observation is deliberately *not* generalized into “consistency does not matter.” One successful finite example cannot cancel a theorem premise.
+
+This is a recurring symbolic-AI lesson: a useful result type often needs more than one boolean dimension. “Good heuristic” is too vague to debug.
+
+** 9.31 The Overestimating Counterexample Now Explains Itself
+:PROPERTIES:
+:ID:       5c752714-4044-43dc-9238-3f741e9b9e8f
+:END:
+
+Earlier we deliberately changed the failed/site estimate to 100. The A* regression showed the operational consequence: the cheaper branch was delayed and the cost-12 remote goal was selected before the cost-11 on-site goal.
+
+The finite audit adds the missing explanation layer.
+
+From the failed/site state, uniform-cost search finds the on-site repair at remaining cost 10. The table says 100, so the report contains:
+
+#+begin_src prolog
+inadmissible(FailedSiteState, 100, 10)
+#+end_src
+
+The on-site repair transition itself also makes the stronger local problem visible:
+
+#+begin_example
+100 =< 10 + 0
+#+end_example
+
+which fails. The report therefore also includes an =inconsistent(...)= term for that concrete edge.
+
+Now we have three artifacts with different jobs:
+
+- the *input validator* says the table is structurally safe closed data;
+- the *finite audit* says which heuristic premises hold or fail on the completed reachable fixture;
+- the *A* execution trace/result* says what this planner actually selected under that table.
+
+Do not collapse them. Validation is authority/representation evidence. The audit is finite mathematical evidence over an enumerated model. The search result is operational evidence from one run.
+
+** 9.32 Failure Lab G -- Audit a Prefix and Accidentally Call It the World
+:PROPERTIES:
+:ID:       8ba8ae2f-4e08-4af8-99f6-9f537fb1577d
+:END:
+
+Break the audit in the smallest possible way: when =MaxStates= is reached, return the verdict computed over the states seen so far instead of returning =cutoff/3=.
+
+On a larger domain the first few states may all satisfy both inequalities while a later state violates them. The mutant implementation would then manufacture a universal-looking conclusion from a prefix selected by traversal order and resource budget.
+
+The repair is not “pick a larger default.” The repair is to preserve the epistemic state in the result algebra:
+
+#+begin_example
+complete finite closure -> quality checks may run
+state cap reached       -> cutoff; no quality verdict
+#+end_example
+
+This is the same design discipline used by bounded DFS, abductive candidate generation later in the book, and any future hybrid subsystem that can stop because of a caller-owned resource limit.
+
+A second failure is subtler: audit only the states but not the transitions. That can establish the finite lower-bound relation for the table while completely missing an edge-level consistency violation. The admissible-but-inconsistent fixture is the permanent regression against that mistake.
+
+** 9.33 The Audit Boundary in One Picture
+:PROPERTIES:
+:ID:       9043fed3-9675-464f-bdfb-3a607e12dcf7
+:END:
+
+#+caption: The runtime accepts validated heuristic data, but the optional finite audit first requires a complete reachable closure. Hitting the state cap returns cutoff and no quality verdict. Editable source: =assets/heuristic-audit-flow.dot=.
+#+ATTR_HTML: :alt Diagram showing closed heuristic data passing representation validation, then a bounded reachable-state closure. A state-limit branch returns cutoff with no quality verdict; a complete closure feeds exact UCS remaining-cost checks and transition consistency inequalities before an audited report. A separate dashed path shows A-star runtime consuming validated data without proving heuristic quality.
+[[file:assets/heuristic-audit-flow.svg]]
+
+The dashed runtime path is intentional. A* does not secretly invoke the audit. Keeping the experiment separate makes its cost visible and prevents a finite teaching checker from being mistaken for a production precondition on every search.
+
+** 9.34 Exercises
+:PROPERTIES:
+:ID:       2a0ea6c2-4f1f-48a2-8f6a-8120923890c8
+:END:
+
+1. Starting from the four-state recovery graph, compute =h*(s)= for every state by hand. Compare your table with the executable audit report.
+2. Keep every estimate admissible but construct a different inconsistent table. Identify the exact edge that violates the consistency inequality before running the test.
+3. Make the failed/site estimate 100. Predict every =inadmissible/3= and =inconsistent/6= term that should appear. Then compare with the executable report.
+4. Set =MaxStates= to 2. Explain why a cutoff is stronger evidence than silence but weaker than a completed quality audit.
+5. Mutate the audit so cutoff returns the partial verdict. Write a regression whose traversal prefix passes while a later reachable state would fail.
+6. Add one zero-cost transition to the fixture. State the consistency inequality it introduces and explain why non-negative costs make a same-state zero-cost edge trivially consistent.
+7. Add an unreachable non-goal state to a finite fixture. Decide what evidence your report should retain for it without fabricating a finite optimal remaining cost.
+8. Explain why running UCS from every reachable state is acceptable for this tiny teaching audit but not a scalability claim or a prescription for production heuristic construction.
+9. Design a property-style generator for small finite costed graphs and heuristic tables. List which claims its samples could test and which claims would still require a proof.
+10. Suppose a future subsystem supplies heuristic data over a signed or versioned knowledge base. Design the provenance fields you would attach to the table *without* giving that subsystem authority to execute Prolog goals.

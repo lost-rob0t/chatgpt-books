@@ -1,0 +1,64 @@
+#+title: Symbolic AI in Prolog Research 07 -- Bounded DFS and Iterative Deepening
+:PROPERTIES:
+:ID:       ae9bd8ef-0f0f-4601-8d02-f8bbab0143be
+:END:
+
+* Scope
+This record closes the remaining Chapter 9 search-policy gap after cost-aware/A* frontiers: a caller-imposed depth bound must not be reported as finite search exhaustion, and iterative deepening must make its repeated bounded searches visible.
+
+Retrieval date: 2026-09-16.
+
+* Question 1 -- What is the historical motivation for explicit depth cutoffs?
+DOCUMENTED, PRIMARY SOURCE: Richard E. Korf's 1985 article describes depth-first search as descending until a depth cutoff and backtracking. It notes that without cutoff/duplicate checking search may not terminate, while a cutoff estimated too low can terminate without finding a solution. The same paper presents depth-first iterative deepening as repeating depth-first search at successively larger limits [cite:@korf-dfid-1985].
+
+Primary paper inspected: Richard E. Korf, “Depth-First Iterative-Deepening: An Optimal Admissible Tree Search,” =Artificial Intelligence= 27(1), 97--109 (1985), DOI =10.1016/0004-3702(85)90084-0=. Pages 99--100 were directly inspected for the depth-first cutoff and iterative-deepening presentation. Bibliographic metadata was cross-checked with DBLP and the DOI record.
+
+Teaching consequence: a repository result must preserve whether search stopped because a goal was found, because every permitted simple branch was exhausted, or because a live branch crossed a caller limit.
+
+* Question 2 -- Which Korf claims apply to this implementation?
+DOCUMENTED BOUNDARY: Korf states shortest-length and asymptotic optimality results in the brute-force *tree-search* model developed in the paper, and separately points out that arbitrary graphs may require exploration of all paths to a given depth [cite:@korf-dfid-1985].
+
+The course planner is not that theorem's implementation. It is a graph-shaped forward planner over canonical ground symbolic states and uses path-local cycle pruning. Therefore this book cites Korf for the depth-limited/iterative-deepening mechanism and historical analysis, but does not claim the paper's asymptotic theorem, memory bound, or general shortest-path theorem for arbitrary course domains.
+
+A bounded repository regression establishes that iterative deepening finds the known depth-3 solution on the synthetic field-service fixture. That evidence remains fixture-specific.
+
+* Question 3 -- Why is cutoff a first-class result?
+Project-defined semantics:
+- =found(plan(Steps,States))= -- a goal was reached within the bound;
+- =cutoff(Goals,Limit)= -- at least one non-cycle successor remained below a node at the caller's maximum depth;
+- =exhausted(Goals)= -- every simple branch considered under the current transition/path-cycle policy ended without a goal and no branch was hidden by the depth bound.
+
+A node at exactly =Limit= is not enough to justify =cutoff/2=. If it has no successor outside the current path, the limit hid no deeper work. This distinction lets iterative deepening stop early on genuine finite exhaustion.
+
+* Question 4 -- What duplicate policy is appropriate for this teaching slice?
+The implementation uses path-local canonical-state cycle pruning. It deliberately does not use one global visited set across the complete depth-first iteration.
+
+Reason: a state encountered on a deep branch has less remaining depth budget than the same state encountered later through a shallower branch. A global state-only visited set could therefore erase a later branch with more remaining search depth. Path-local pruning prevents cyclic revisits on one candidate plan while still permitting the same state on an independent branch.
+
+This relies on the Chapter 8 contract that the canonical ground state is the planner's complete future-relevant state key. If path history changes action legality or goals, that state representation is insufficient and the duplicate policy must change.
+
+* Question 5 -- Why bound iterative deepening itself?
+Project design boundary: an API that increases its limit forever can itself fail to terminate on an infinite unsolved state space. =iterative_deepening_plan/6= therefore accepts =MaxDepth=. It repeats limits from zero upward, but returns =cutoff(Goals,MaxDepth)= if the final permitted iteration still reports cutoff.
+
+If any iteration reports =exhausted/1=, the implementation stops early: under the unchanged transition and path-cycle semantics, that iteration found no live branch whose future was hidden by the bound.
+
+No wall-clock, stack, heap, inference-count, or production capacity guarantee is attached to this interface.
+
+* Verification state
+DOCUMENTED:
+- Korf 1985 depth-first cutoff and depth-first iterative-deepening presentation;
+- the paper's explicit tree-search theorem scope and arbitrary-graph caveat;
+- verified article metadata and DOI.
+
+TESTED at implementation head =3e6967f02c6f9189ebd7bc7793f621f5e6837c7d=:
+- =symbolic-ai-prolog-book= run =35160005325= used SWI-Prolog 10.0.2 and passed Project 1 25/25, explicit-search 9/9, relational-planner 10/10, cost-search 16/16, and bounded-search 9/9 regressions;
+- the same focused run passed =make book BOOK=symbolic-ai-prolog= and =make check BOOK=symbolic-ai-prolog= with EPUBCheck 5.3.0 reporting 0 fatals / 0 errors / 0 warnings / 0 infos;
+- focused Nix job =105008329303= passed =nix flake check -L=;
+- generic =books-ci= run =35160005329= passed structure, Pandoc Org-reader validation, deterministic assets/fixture, EPUBCheck, publication/citation regressions, ERT, real Org-roam synchronization, and artifact upload.
+
+NOT CLAIMED:
+- Korf's asymptotic optimality theorem for this graph planner;
+- production time/space complexity measurements;
+- completeness on infinite state spaces;
+- cost-optimality from depth-limited search;
+- any LLM, neuro-symbolic, Prolog-RLM, or external-system behavior.

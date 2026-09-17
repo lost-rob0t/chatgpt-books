@@ -39,34 +39,34 @@ Expected deliverable: runnable OTP worker application, executable lifecycle test
 :PROPERTIES:
 :ID:       6d9afccc-5159-5527-9caf-447701fc748e
 :END:
-Purpose: Add supervisors, workers, restart strategies, queueing, backpressure, and telemetry.
-Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
-Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
-Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
-Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
-Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
-External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
-Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
-Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
-Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
-Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
-Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+Purpose: Turn the earlier supervision lessons into a bounded work system whose overload, worker-crash, retry, and state-loss behavior is explicit before distribution or persistence is introduced.
+Learning outcomes: distinguish runtime mailbox traffic from an application work queue; define the point at which =submit/1= accepts ownership; use dynamic =temporary= supervisor children for one-shot worker lifetime; correlate worker attempts with monitors; keep logical job identity/retry budget outside generic supervisor restart policy; explain why a restarted queue process does not reconstruct its volatile ledger.
+Prerequisites: Chapters 1--14, including the merged OTP application and release boundaries.
+Relevant chapters: Chapter 15 introduces checkpoint A; later distribution, persistence/recovery, tracing/testing, and measured-backpressure chapters extend the same project rather than replacing it.
+Architecture: =job_processor_sup= has =job_worker_sup= and =job_processor= as =one_for_one= siblings. =job_processor= owns bounded admission, explicit FIFO pending state, client/job identity, active monitor ledger, and attempt budget. =job_worker_sup= owns dynamic temporary worker process lifetime. =job_worker= executes one synthetic test payload per attempt. Checkpoint A is intentionally volatile: no durable queue/replay contract exists yet.
+Implementation language/tooling: Erlang/OTP 29.1 in the focused workflow; STDLIB =queue=; EUnit scenario tests; editable Graphviz execution/failure diagram.
+External dependencies: official immutable Erlang/OTP 29.1 source/documentation plus repository publication tooling only.
+Tests: bounded one-active/one-queued overload rejection; FIFO pending order; first-attempt crash followed by second-attempt success; retry-budget exhaustion; automatic removal of temporary child specs after completion; queue-process kill/restart proving that the replacement process has an empty ledger and does not recover the old in-flight result.
+Failure scenarios: explicit overload, deliberate worker crash, repeated worker crash, and queue-process loss while a sibling temporary worker is still alive.
+Visuals: =job-processor-flow.dot/svg= shows admission, FIFO, dynamic supervisor/worker, completion/DOWN retry paths, and the separate volatile-ledger loss after queue restart.
+Research requirements: immutable OTP 29.1 =supervisor=, =queue=, and processes reference manual. Treat capacity, retry placement, and attempt budget as course-local policy, not OTP guarantees. Preserve a hard boundary between observed local behavior and later durability/distribution claims.
+Expected deliverable: Chapter 15, runnable checkpoint-A modules/tests, research pass 06, editable diagram, a production-EPUB regression that keeps accepted Chapters 13--15 in the canonical include path, and a dependency-ready handoff to distribution/persistence work.
 ** Project 4 -- Distributed Erlang Service
 :PROPERTIES:
 :ID:       103b12a9-2303-52f3-850e-19e0f7043d30
 :END:
-Purpose: Run cooperating nodes and handle disconnects and partial failures.
-Learning outcomes: integrate multiple chapter concepts; make architecture/test/provenance tradeoffs explicit.
-Prerequisites: the chapters listed in OUTLINE.org before this project's integration point.
-Relevant chapters: staged across the curriculum; final integration is dependency-gated in ROADMAP.org.
-Architecture: split domain logic, interfaces, persistence/external boundaries, tests, and observability rather than one monolith.
-Implementation language/tooling: selected to match the book subject; dependencies must be pinned/reproducible.
-External dependencies: public/synthetic data and primary documentation only unless a later issue records an approved dependency.
-Tests: unit + scenario/regression tests; add property/integration/performance tests when the architecture warrants them.
-Failure scenarios: invalid input, boundary failure, contradictory/edge cases, and one operational/debugging failure.
-Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
-Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
-Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+Purpose: Extend the existing process/message model across a real node boundary while keeping process failure, missing service, and distribution-connection loss as separate observable conditions.
+Learning outcomes: distinguish node identity from process identity; address a node-local registered process remotely; understand which local message/monitor mechanisms extend across nodes; interpret =noproc= versus =noconnection= without inventing remote knowledge; use =net_kernel:monitor_nodes/2= connection events and =connection_id= metadata; rebuild observation state after reconnect; maintain the security boundary between a same-host teaching cookie and production distribution security.
+Prerequisites: Chapters 1--15, including the merged release boundary and Project 3's explicit volatile-work ownership model.
+Relevant chapters: Chapter 16 begins checkpoint A. Chapter 17 will extend the project into persistence/recovery semantics; Chapters 18--20 later add tracing, testing, and measured operational behavior rather than pretending checkpoint A is production failover.
+Architecture: an origin-node client sends correlation-reference requests to ={erlang_book_dist_service, PeerNode}= over ordinary Erlang Distribution and monitors that registered remote process. The test harness starts the peer with STDLIB =peer= using an independent standard-I/O control channel, allowing Distribution to be deliberately disconnected while the peer VM and service remain observable. =net_kernel:monitor_nodes/2= provides connection-level =nodeup=/=nodedown= evidence. No durable job state or cluster-membership protocol is introduced.
+Implementation language/tooling: Erlang/OTP 29.1, STDLIB =peer=, EUnit, explicit short-name distributed test origin, and editable Graphviz connection/failure diagram.
+External dependencies: official immutable Erlang/OTP 29.1 sources/documentation and repository publication tooling only; the executable checkpoint is same-host and uses no external network service.
+Tests: real cross-node request/reply; deliberate remote service crash while the peer remains connected; missing remote registration yielding =noproc=; distribution disconnect yielding remote-process =noconnection= plus =nodedown=; independent peer-control proof that the service remains alive while Distribution is down; reconnect yielding a new connection ID, fresh process monitor, and successful new request.
+Failure scenarios: service-process crash, absent registered process, deliberate loss of one distribution connection while peer/service survive, and reconnection without automatic restoration of the terminated process-monitor relationship.
+Visuals: =distributed-service-failure.dot/svg= separates the ordinary distribution path, process monitor, node-connection observer, and test-only standard-I/O control path.
+Research requirements: immutable OTP 29.1 Distributed Erlang reference, =net_kernel=, =erlang:monitor/2= source documentation, STDLIB =peer=, and Secure Coding Guidelines. Treat same-host observations as TESTED only after CI and never promote them to WAN partition, availability, TLS deployment, consensus, global-name, or failover claims.
+Expected deliverable: Chapter 16, runnable same-host multi-node service/tests, research pass 07, editable diagram, focused production-EPUB inclusion regression, and an evidence-based handoff to persistence/recovery work.
 ** Project 5 -- Fault-Tolerant Distributed Application
 :PROPERTIES:
 :ID:       0a80a100-37ef-58b1-8621-55edebdf3932

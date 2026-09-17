@@ -1,0 +1,78 @@
+#+title: Symbolic AI in Prolog Research 08 -- Finite Heuristic-Premise Audit
+:PROPERTIES:
+:ID:       22616435-a463-48ea-b3cc-5a61306e7f68
+:END:
+
+* Scope
+This record hardens Project 2 milestone C / Chapter 9 after the cost-aware, heuristic, and bounded-search kernels were drafted. Research 06 already established the central theorem boundary: accepting =estimate(State,H)= data does not establish the lower-bound or consistency premises associated with classical A* claims. This pass asks whether those premises can be made executable *without* upgrading a finite regression into a general theorem prover.
+
+Retrieval/recheck date: 2026-09-16.
+
+* Question 1 -- Which heuristic conditions are being audited?
+DOCUMENTED, PRIMARY SOURCE: Hart, Nilsson, and Raphael 1968 formalize heuristic minimum-cost graph search around cost-so-far plus a heuristic estimate [cite:@hart-nilsson-raphael-astar-1968]. The original authors' 1972 correction remains part of the provenance for the distinction between the lower-bound/admissibility condition and the stronger consistency condition used in the optimal-efficiency discussion [cite:@hart-nilsson-raphael-astar-correction-1972].
+
+The course therefore audits two relations separately on a completed finite reachable graph:
+
+1. state lower bound: =H(s) =< h*(s)=, where =h*(s)= is the exact remaining minimum cost obtained by the course's uniform-cost kernel on that finite graph;
+2. edge consistency: for every recorded transition =s --c--> s'=, =H(s) =< c + H(s')=.
+
+No claim is made that checking a finite fixture proves those properties for an algorithm that generates heuristic values on arbitrary future domains.
+
+* Question 2 -- Why must reachable-state closure be established first?
+Project-defined evidence boundary: a finite audit is only meaningful over the set it actually covers. The new helper therefore enumerates canonical reachable states under an explicit positive =MaxStates= cap. If one more distinct reachable state would exceed the cap, it returns =cutoff(...)= and emits no admissibility/consistency verdict.
+
+This is intentionally parallel to the Chapter 9 bounded-search result algebra: caller resource exhaustion is evidence about the computation, not proof that the unvisited portion is harmless. Raising the cap may make a particular fixture complete, but the existence of a cap is not a completeness theorem for infinite state spaces.
+
+* Question 3 -- How is exact remaining cost obtained without a second shortest-path implementation?
+Project design: once the reachable closure is complete, the audit reuses =uniform_cost_plan/5= from the same milestone. Each reachable state becomes a start state for the same fixed goal. A =found(plan(Cost,...))= result supplies the exact minimum remaining cost under the finite non-negative-cost teaching contract; =exhausted(...)= is retained separately as an unreachable-goal state rather than being assigned a fabricated large finite number.
+
+This intentionally favors mechanism transparency over performance. Re-running uniform-cost search from each state is acceptable for the four-state teaching fixture. No scaling, asymptotic, benchmark, or production-checker claim is inferred.
+
+* Question 4 -- What counterexamples should the implementation preserve?
+Three tables over the existing weighted-recovery fixture separate the concepts:
+
+- current audited table: start 11, failed/site 10, both goal states 0; expected to satisfy both finite checks;
+- admissible-but-inconsistent table: start 11, failed/site 0, goals 0; all state estimates remain lower bounds, but the cost-1 shuttle edge violates =11 =< 1 + 0=;
+- overestimating table: start 0, failed/site 100, goals 0; failed/site violates the state lower-bound check because UCS finds remaining cost 10 and also violates consistency on repair edges.
+
+The existing A* regression for the overestimating table remains operational evidence. The new audit should explain *which premise failed* rather than replacing the runtime experiment.
+
+* Question 5 -- Which current SWI behavior is inherited?
+DOCUMENTED / REUSED FROM RESEARCH 06: the runtime frontier continues to depend on current SWI =library(heaps)= min-priority behavior and =library(assoc)= ground-key mappings [cite:@swi-heaps;@swi-assoc]. The audit's table normalization also uses an assoc only with canonical ground state keys. No heap representation or AVL implementation detail becomes part of the audit's semantic result.
+
+The 2026-09-16 recheck of official SWI documentation still describes =library(heaps)= as a min-heap interface ordered by keys and =library(assoc)= keys as ground. These are implementation facts, not evidence that the heuristic satisfies a mathematical condition.
+
+* Executable contract to verify
+The branch should not mark these claims TESTED until the exact new head executes them:
+
+1. the four-state/nine-transition weighted-recovery closure completes within =MaxStates=10 and its original table reports no violations;
+2. =zero= reports admissible/consistent on the same non-negative-cost closure;
+3. the admissible-but-inconsistent table reports those two verdict dimensions separately and A* still happens to return cost 11 on this fixture;
+4. the overestimating table reports =inadmissible(FailedSite,100,10)= plus a concrete inconsistent repair edge;
+5. =MaxStates=2 returns cutoff without any heuristic-quality verdict;
+6. a callable-looking =throw(marker)= heuristic is rejected as data and is never executed;
+7. all prior Project 1/2 suites and publication gates remain green.
+
+* Claim boundary
+DOCUMENTED:
+- the classical A* heuristic-condition provenance already established in Research 06;
+- current SWI heap/assoc contracts reused by the implementation.
+
+UNTESTED until exact-head execution:
+- the new reachable-state counts, transition counts, audit verdicts, and violation terms;
+- the new diagram/manuscript publication path;
+- all combined semantic, book, EPUB, and Nix gates after this change.
+
+NOT CLAIMED:
+- proof of admissibility or consistency for infinite/unbounded domains;
+- proof about a heuristic generator beyond the finite table actually audited;
+- production scalability or a recommendation to run UCS from every state in large systems;
+- benchmark/performance results;
+- PDDL, temporal/probabilistic planning, negative-cost support, LLM/neuro-symbolic, or Prolog-RLM behavior.
+
+* Search record
+Query/theme: make the already documented Hart/Nilsson/Raphael heuristic premises executable on the bounded teaching graph without weakening the distinction between representation validation and mathematical evidence.
+
+Sources rechecked: the Stanford/Nilsson-hosted 1968 paper; the original-authors' 1972 correction provenance already recorded in the bibliography; current official SWI-Prolog heap/assoc documentation used by the running implementation.
+
+Result: a finite-domain audit is pedagogically justified only behind a completed reachable-closure gate. Cutoff must suppress the quality verdict rather than produce a partial universal claim.

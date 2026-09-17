@@ -101,3 +101,54 @@ URL: https://www.swi-prolog.org/pldoc/man?predicate=sort/2
 Authority: official current SWI-Prolog predicate documentation, retrieved 2026-09-16.
 Relevant material: ISO =sort/2= sorts by standard term order and removes duplicates; page warning that later binding nonground terms can invalidate the ordering relation.
 Affects: Project 2 milestone-B canonical ground planning-state representation and explicit rejection of nonground state facts before sorting.
+
+** Dijkstra -- minimum path with positive edge lengths
+Citation: Edsger W. Dijkstra, “A Note on Two Problems in Connexion with Graphs,” =Numerische Mathematik= 1, 269--271, 1959. DOI: 10.1007/BF01386390.
+Primary/authoritative copies inspected:
+- https://www.cs.utexas.edu/~EWD/ewd08xx/EWD841a.PDF -- E.W. Dijkstra Archive reproduction of the paper.
+- https://doi.org/10.1007/BF01386390 -- Springer journal metadata cross-check.
+Authority: original paper reproduction plus publisher record.
+Relevant material: explicit shortest-path problem over edges of given positive length.
+Affects: Chapter 9 motivation for accumulated-cost rather than FIFO depth priority. The book's allowance of zero-cost integer actions is a separate tested course behavior, not attributed to this paper.
+
+** Hart, Nilsson, and Raphael -- A*
+Citation: Peter E. Hart, Nils J. Nilsson, and Bertram Raphael, “A Formal Basis for the Heuristic Determination of Minimum Cost Paths,” =IEEE Transactions on Systems Science and Cybernetics= 4(2), 100--107, 1968. DOI: 10.1109/TSSC.1968.300136.
+Primary copy inspected: https://ai.stanford.edu/~nilsson/OnlinePubs-Nils/PublishedPapers/astar.pdf
+Authority: primary paper copy hosted in Nils Nilsson's Stanford publication archive; IEEE DOI metadata cross-checked.
+Relevant material: formal heuristic minimum-cost graph-search framework and the =g+h= A* lineage.
+Affects: Chapter 9 A* derivation and theorem-condition warning.
+
+** Hart, Nilsson, and Raphael -- 1972 A* correction
+Citation: Peter E. Hart, Nils J. Nilsson, and Bertram Raphael, “Correction to ‘A Formal Basis for the Heuristic Determination of Minimum Cost Paths’,” =ACM SIGART Bulletin= 37, 28--29, 1972. DOI: 10.1145/1056777.1056779.
+Author/publisher record inspected: https://dl.acm.org/doi/10.1145/1056777.1056779 with bibliographic/summary cross-checks from the DOI record.
+Authority: correction by the original authors, published by ACM.
+Relevant material: explicit distinction between the lower-bound heuristic condition tied to admissibility and the stronger consistency condition discussed for optimal-efficiency comparison.
+Affects: Chapter 9 refusal to summarize A* as unconditionally optimal or optimally efficient.
+
+** SWI-Prolog =library(heaps)=
+URL: https://www.swi-prolog.org/pldoc/doc/_SWI_/library/heaps.pl
+Authority: official current SWI-Prolog library documentation, retrieved 2026-09-16.
+Relevant material: min-heap priority semantics, standard-term-order key requirement, =add_to_heap/4= and =get_from_heap/4=. The page currently documents a pairing-heap implementation, but Chapter 9 does not make that representation part of the planner semantic contract.
+Affects: Project 2 milestone-C UCS/A* frontier implementation.
+
+** SWI-Prolog =library(assoc)=
+URL: https://www.swi-prolog.org/pldoc/man?section=assoc
+Authority: official current SWI-Prolog library documentation, retrieved 2026-09-16.
+Relevant material: association maps require ground keys; persistent lookup/update operations over the documented interface.
+Affects: Project 2 milestone-C best-known-cost and finite heuristic-table maps. Canonical planning states are already ground before they become keys.
+
+** Korf -- depth-first iterative deepening
+Citation: Richard E. Korf, “Depth-First Iterative-Deepening: An Optimal Admissible Tree Search,” =Artificial Intelligence= 27(1), 97--109, 1985. DOI: 10.1016/0004-3702(85)90084-0.
+Primary copy inspected: the published-paper scan mirrored at University of South Carolina, pages 99--100 inspected directly on 2026-09-16; metadata cross-checked with DBLP and the DOI record.
+Authority: primary published article plus bibliographic metadata records.
+Relevant material: depth-first cutoff behavior; failure to find solutions when an estimated cutoff is too low; restarting depth-first search at successively deeper limits; theorem scope for brute-force tree search; explicit arbitrary-graph caveat.
+Affects: Chapter 9 bounded DFS / iterative-deepening result semantics. The course planner does not claim Korf's tree-search asymptotic theorem for its graph-shaped relational state space.
+
+* Inspected 2026-09-17
+** Dechter and Pearl -- generalized best-first search and A* reopening
+Citation: Rina Dechter and Judea Pearl, “Generalized Best-First Search Strategies and the Optimality of A*,” =Journal of the Association for Computing Machinery= 32(3), 505--536, July 1985. DOI: 10.1145/3828.3830.
+Primary copy inspected: https://ics.uci.edu/~dechter/publications/r0.pdf -- author-hosted published-paper copy from Rina Dechter's UCI publication archive.
+Metadata cross-check: Rina Dechter's UCI publications page and ACM DOI record.
+Authority: original authors' paper plus publisher/author bibliographic records.
+Relevant material: BF* duplicate handling explicitly replaces a worse path and moves an improved node from CLOSED back to OPEN; discussion later notes that under consistent =h= A* does not reopen closed nodes; paper distinguishes admissible and consistent heuristic domains.
+Affects: Chapter 9 regression/failure lab for an admissible-but-inconsistent finite heuristic where the current teaching kernel must re-expand a canonical state after a strict best-=g= improvement. The book does not claim exact algorithmic equivalence to BF* or transfer the paper's optimal-efficiency results to the course kernel without their premises.
