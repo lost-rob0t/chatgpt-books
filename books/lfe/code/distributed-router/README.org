@@ -1,0 +1,27 @@
+#+title: LFE Project 4 -- Distributed Router Checkpoint A
+:PROPERTIES:
+:ID:       b1ad49bf-56bf-4721-95ee-9dd34ac6df1a
+:END:
+
+* Purpose
+This checkpoint puts the already-accepted Project 3 =otp_router= application behind a real Erlang distribution boundary. It does not copy the router, supervisor, or routing kernel. The new code is a system-test harness that proves what changes when the same locally registered =gen_server= lives on another BEAM node.
+
+* Run
+From the repository root, after =lfec= is available:
+
+#+begin_src sh
+bash books/lfe/code/distributed-router/run-tests
+#+end_src
+
+The runner compiles the existing LFE Event Rules and OTP Router modules into an isolated build directory, creates the =otp_router.app= resource, compiles a Common Test suite, and runs that suite from a distributed origin node.
+
+* Executable contracts
+The suite uses OTP's =peer= module to create disposable same-host nodes. Each test gets a real remote node and starts the compiled LFE OTP application there.
+
+1. =remote_route/1= calls the remotely registered ={'otp-router', PeerNode}= server with =gen_server:call/3= and requires the same =pager= route as the local service. It also proves that the registered router/supervisor PIDs belong to =PeerNode= while the origin has no local =otp-router= registration.
+2. =node_loss_is_observable/1= subscribes to the peer's node status, stops the peer, requires ={nodedown, PeerNode}=, then requires a later remote =gen_server:call/3= failure to contain the documented ={nodedown, PeerNode}= reason.
+
+* Boundary
+This is a *same-host test network*. It uses a fixed, throwaway cookie and plain Erlang distribution only inside the isolated test runner. It is not a production security recipe. Current Erlang/OTP documentation warns that default distribution should not be exposed to untrusted networks; TLS distribution and deployment policy belong to a later slice.
+
+The suite does not claim network-partition behavior, cross-host deployment, node discovery, remote restart, persistence, consensus, exactly-once delivery, throughput, latency, or availability.
