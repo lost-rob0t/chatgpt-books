@@ -10,6 +10,10 @@ Developers who want to understand, extend, debug, and operate the real StarIntel
 General programming; Common Lisp, Prolog, message queues, and databases are introduced where needed.
 * Learning outcomes
 The reader should be able to explain the core ideas, implement important mechanisms, debug failures, evaluate tradeoffs, and extend the systems built in the major projects.
+
+The EPUB is intended to be sufficient to /grok StarIntel/ rather than merely browse its APIs.  A successful reader should be able to trace a canonical document from source through validation, ingest, RabbitMQ, CouchDB, outbox/event and actor boundaries; distinguish canonical StarLang schema authority from runtime adoption; reason about actor targets versus persistent investigation targets and operations; and add a tested capability without copying or bypassing the platform contracts.
+
+The manuscript therefore begins with =manuscript/reader-orientation-07.org= and ends with =manuscript/glossary-07.org=.  Those two modules are the reader's map for the deeper pinned runtime experiments.
 * Major projects
 - [[id:95600b49-6e43-550d-b202-6aa6ae80ddb2][Create Valid StarIntel Records]] -- Create, validate, explain, and test public/synthetic records using the current document model.
 - [[id:26942a4e-e550-5416-b136-6a14fa591577][Build an Ingest Adapter]] -- Build a safe public/demo-data adapter through the actual current ingest architecture.
@@ -17,6 +21,9 @@ The reader should be able to explain the core ideas, implement important mechani
 - [[id:33c8e718-032d-5a5a-b104-746748a9f154][Add Search or Inference]] -- Extend a development environment with a meaningful search or inference capability.
 - [[id:fa271d01-af9e-5892-b544-4ef1f20cf63d][Debug a Broken Pipeline]] -- Inject controlled failures across services, RabbitMQ, databases, APIs, and logs and trace them systematically.
 - [[id:5755d789-1897-5437-b9d1-0ccc3cf93a73][Add a Complete StarIntel Capability]] -- Capstone based on fresh repository research, integrating data, runtime, tests, observability, and documentation.
+* Current edition boundary
+As of 2026-10-05, canonical new StarIntel documents are defined by StarLang =org.starintel/core@1= version =0.10.1=.  The default =starintel-server= branch still carries its older =0.9.1=/=0.9.0= runtime lock, while the tested =0.10.1= server migration is draft PR #313.  The EPUB must always distinguish canonical authority, runtime adoption, historical compatibility, and exact pinned experiments.
+
 * Research
 Record primary-source work under =research/= and bibliography metadata in =references.bib=. Never let version-sensitive prose outrun current documentation.
 * Build
