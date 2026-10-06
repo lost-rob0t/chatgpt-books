@@ -1,4 +1,4 @@
-* Interlude -- Investigations Are Data, Plans Are Data, Execution Is Still Separate
+** Interlude -- Investigations Are Data, Plans Are Data, Execution Is Still Separate
 :PROPERTIES:
 :ID:       934a34f8-3c09-4adb-a2c5-4d21d69dc134
 :END:
