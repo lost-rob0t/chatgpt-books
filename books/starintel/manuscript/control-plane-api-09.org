@@ -1,0 +1,519 @@
+* Interlude -- The HTTP Control Plane: API Version Is Not Schema Version
+:PROPERTIES:
+:ID:       b31ab5f4-1cfe-47e9-8e1d-acde35869279
+:END:
+
+StarIntel now has enough HTTP surface that hard-coding random route strings is a
+bad way to learn the platform.
+
+The current server exposes a machine-readable control-plane contract alongside
+legacy compatibility routes.  That gives clients a better question:
+
+#+begin_example
+Which named operation does the server advertise?
+#+end_example
+
+instead of:
+
+#+begin_example
+Which URL did I see in an old shell script?
+#+end_example
+
+[cite:@starintel-server-20261005]
+
+** Three independent version axes
+
+Before looking at routes, separate three kinds of versioning.
+
+#+begin_example
+API contract version
+document schema version
+actor/capability semantic version
+#+end_example
+
+They can all contain strings that look like versions.  They do not answer the
+same question.
+
+| Version | Example | Meaning |
+|---------+---------+---------|
+| API path/operation contract | =/api/v1/documents= | HTTP/client interface generation/versioning |
+| document schema | =schemaVersion: 0.10.1= | canonical StarIntel document contract |
+| actor semantic version | manifest =semantic.version= | declared actor/service semantics |
+
+A =v1= API endpoint can still be implemented over a historical document schema.
+
+That is exactly the state of current server =main= at this book revision: the
+machine-readable versioned document operations exist, while the checked-in
+document lock still points to the older 0.9 runtime contract.
+[cite:@starintel-server-20261005]
+
+So never infer:
+
+#+begin_example
+/api/v1/...  => StarIntel schema 1.x or 0.10.1
+#+end_example
+
+The URL cannot answer that.
+
+** Machine-readable contract endpoints
+
+Current server docs expose:
+
+#+begin_example
+GET /openapi.json
+GET /client-manifest.json
+#+end_example
+
+The first emits OpenAPI.
+The second emits the normalized StarIntel client operation manifest.
+
+These are discovery surfaces for the HTTP contract.
+
+A client can use them to learn operations without scraping prose docs.
+
+** Named operations are the stable mental unit
+
+The current contracted document operations include:
+
+| Operation | Method | Route |
+|-----------+--------+-------|
+| =documents.create= | POST | =/api/v1/documents= |
+| =documents.bulk.create= | POST | =/api/v1/documents/bulk= |
+| =documents.get= | GET | =/api/v1/documents/:id= |
+| =documents.update= | PUT | =/api/v1/documents/:id= |
+| =documents.delete= | DELETE | =/api/v1/documents/:id= |
+| =documents.search= | GET | =/api/v1/documents/search= |
+| =actors.list= | GET | =/v1/actors= |
+
+[cite:@starintel-server-20261005]
+
+The operation name is a better dependency than a raw path string because a
+generated/thin client can map the operation to the correct transport details.
+
+** Why generated wrappers should stay thin
+
+The server's Common Lisp client architecture keeps transport/authentication,
+timeouts, correlation behavior, error normalization, and secret redaction in a
+handwritten runtime.
+
+Generated operation wrappers call that runtime rather than each generating
+their own HTTP stack.
+
+This split is worth copying in other language bindings:
+
+#+begin_example
+generated operation metadata/wrappers
+             |
+             v
+shared handwritten transport runtime
+             |
+             +--> authentication
+             +--> timeout policy
+             +--> correlation
+             +--> error normalization
+             +--> redaction
+#+end_example
+
+If every generated method contains its own retry/auth logic, regenerating the
+client becomes a semantic change rather than a contract update.
+
+** Authentication is a boundary, not a header convenience
+
+Current server defaults to API-key authentication for protected paths.  The
+transport carries a bearer credential, but the architectural lesson is not the
+literal header syntax.
+
+It is:
+
+#+begin_example
+identity established
+       |
+       v
+principal context
+       |
+       v
+authorization decision for operation/resource
+       |
+       v
+side effect
+#+end_example
+
+Do not let an SDK turn "we attached a bearer token" into "this action was
+authorized."
+
+The server owns that decision.
+
+** Correlation IDs are evidence glue
+
+Current HTTP behavior understands a bounded caller correlation identifier.
+
+That ID is useful because a distributed trace does not have one call stack.
+
+A good correlation story connects:
+
+#+begin_example
+HTTP request
+   |
+   v
+publish / queue activity
+   |
+   v
+consumer mutation
+   |
+   v
+outbox/event
+   |
+   v
+actor execution
+   |
+   v
+derived ingest
+#+end_example
+
+One correlation value should not replace more specific identities such as
+mutation ID, schedule ID, execution ID, actor semantic resource, or document ID.
+
+Think of correlation as a thread through the graph, not the identity of every
+node on the thread.
+
+** Request timeout is not workflow deadline
+
+The current HTTP boundary can accept a bounded logical request-timeout hint.
+
+An HTTP request timeout answers:
+
+#+begin_example
+How long should this request boundary remain open?
+#+end_example
+
+An actor target deadline answers something closer to:
+
+#+begin_example
+How late may this execution still be useful/allowed?
+#+end_example
+
+An operation phase deadline/policy, if modeled by a higher layer, would answer a
+third question.
+
+Do not copy one timeout number into every layer and call it distributed
+deadline propagation.
+
+** Safe errors should preserve classification
+
+Current server docs describe client-safe error envelopes with fields such as
+status, message, correlation identifier, and stable error code.
+
+A good client should preserve the stable classification.
+
+Bad:
+
+#+begin_example
+catch every non-2xx
+raise Exception("StarIntel failed")
+#+end_example
+
+Better:
+
+#+begin_example
+authentication failure
+authorization failure
+invalid document
+conflict
+not found
+timeout
+service unavailable
+unknown server failure
+#+end_example
+
+Those classes lead to different operator actions.
+
+** A 404 is not always "missing data"
+
+Suppose =GET /api/v1/documents/:id= returns 404.
+
+Possible interpretations include:
+
+- the authorized lookup observed no such document;
+- the path ID was wrong;
+- the requested representation/migration is not available;
+- the document has not become visible yet after an asynchronous write;
+- a legacy/current identity mapping was misunderstood.
+
+A 403 tells you something different: the caller cannot make the absence
+observation under that policy.
+
+Never convert 403 into 404 inside a debugging client unless the API contract
+explicitly defines that privacy behavior.
+
+** Legacy routes remain part of the migration story
+
+Current server keeps older document/target/search routes such as:
+
+#+begin_example
+POST /new/document/:dtype
+POST /documents/bulk
+GET  /document/:id
+PUT  /document/:id
+DELETE /document/:id
+POST /new/target/:actor
+GET  /targets/:actor
+GET  /search
+#+end_example
+
+[cite:@starintel-server-20261005]
+
+These routes are not automatically wrong because they are old.
+
+But new clients should prefer named contracted operations where available,
+because the contract registry can be inspected/generated/tested.
+
+Compatibility is different from preferred integration.
+
+** The historical target route is especially different
+
+The current server docs call out the old target adapter as a special historical
+path.  It does not mean that =investigation-target= 0.10.1 should be posted to
+that endpoint and magically become modern research orchestration.
+
+Remember the three meanings:
+
+#+begin_example
+legacy scheduler target route
+canonical investigation-target document
+operation/control-plane planning
+#+end_example
+
+They need an explicit integration boundary.
+
+** Actor discovery is part of the control plane
+
+=GET /v1/actors= exposes the scrubbed semantic actor/service catalog.
+
+This gives a UI or automation layer a clean discovery sequence:
+
+1. authenticate;
+2. call the named actor-list operation;
+3. inspect semantic resource identity;
+4. inspect accepts/produces/capabilities;
+5. inspect bounded status/ready state;
+6. apply local policy;
+7. submit work through the appropriate contracted boundary.
+
+It should not need RabbitMQ management credentials merely to populate an actor
+picker.
+
+** API capabilities should be discovered, not assumed
+
+A client interacting with multiple StarIntel deployments may encounter
+different adoption states.
+
+One server may advertise:
+
+#+begin_example
+documents.create
+documents.get
+actors.list
+#+end_example
+
+while another may additionally advertise newer operations.
+
+The client should test the contract/capability surface rather than infer server
+features from a version string alone.
+
+This is especially important while document-schema migration and runtime
+feature migration are moving independently.
+
+** The 0.10.1 migration changes document semantics, not the concept of named operations
+
+Server PR #313 reports a tested draft implementation that moves document
+boundaries to StarLang-generated 0.10.1 while retaining the hardened service
+architecture. [cite:@starintel-server-pr313]
+
+Conceptually:
+
+#+begin_example
+named HTTP operation
+      |
+      v
+authentication / authorization
+      |
+      v
+0.10.1 canonical validation
+      |
+      v
+runtime mutation / queue / storage
+#+end_example
+
+The API registry remains a control-plane concept.
+The document reader/validator changes release.
+
+This is why keeping the version axes separate pays off.
+
+** A client-side evidence object
+
+A good SDK can return a richer local result than a boolean.
+
+For example:
+
+#+begin_src json
+{
+  "operation": "documents.create",
+  "correlationId": "corr-book-1",
+  "request": {
+    "completed": true,
+    "status": 202
+  },
+  "persistence": {
+    "checked": false
+  }
+}
+#+end_src
+
+After read-back:
+
+#+begin_src json
+{
+  "operation": "documents.create",
+  "correlationId": "corr-book-1",
+  "request": {
+    "completed": true,
+    "status": 202
+  },
+  "persistence": {
+    "checked": true,
+    "observed": true,
+    "documentId": "person:book-demo"
+  }
+}
+#+end_src
+
+The exact SDK shape is illustrative.
+
+The important idea is that the client records observations instead of
+collapsing them into one ="success": true=.
+
+** Bulk operations add another lifetime
+
+A bulk request can be accepted while individual items are still processing.
+
+Now there are at least three lifetimes:
+
+#+begin_example
+HTTP request lifetime
+bulk job lifetime
+individual mutation lifetime
+#+end_example
+
+Later chapters examine why retaining every original bulk payload forever can
+exhaust memory even when the number of active workers is bounded.
+
+The control-plane lesson here is simpler: a job ID is a durable/pollable
+identity for a longer-lived operation.  Do not make the HTTP connection itself
+the job record.
+
+** Search is an observation boundary too
+
+=document.search= returns what the current authorized search product can observe
+under its indexing/query semantics.
+
+It does not prove:
+
+- the corpus contains no other matching document;
+- every just-written document has already reached every index;
+- a missing result means the underlying document does not exist;
+- search rank is truth or confidence.
+
+Debugging search therefore starts by distinguishing:
+
+#+begin_example
+document read path
+indexing path
+search query path
+ranking/filtering path
+authorization path
+#+end_example
+
+A direct document read and a search miss can both be true at the same moment.
+
+** Control-plane mental model
+
+By now the control plane can be pictured as:
+
+#+begin_example
+                  +--------------------+
+                  | OpenAPI / manifest |
+                  +----------+---------+
+                             |
+                             v
+client / Quasar ------ named operation
+       |                     |
+       |                     v
+       |              authn / authz
+       |                     |
+       |      +--------------+--------------+
+       |      |                             |
+       v      v                             v
+actor discovery                     document operations
+       |                             create/get/update/search
+       v
+capability selection
+       |
+       v
+runtime work
+#+end_example
+
+This layer coordinates and observes the platform.  It is not the durable corpus
+itself and not the actor runtime itself.
+
+** Failure lab: "the API is broken"
+
+Split the report.
+
+| Observation | Next boundary |
+|-------------+---------------|
+| =/openapi.json= unavailable | HTTP process/contract mounting |
+| operation absent from manifest | feature/contract registration |
+| login fails | authentication |
+| operation returns 403 | authorization/policy |
+| create returns 422 | document/admission contract |
+| create accepted, read never observes | queue/consumer/persistence |
+| get works, search misses | index/search path |
+| actor listed unavailable | runtime observation |
+| actor listed ready, work never handled | dispatch/handler path |
+
+The table turns one vague complaint into testable hypotheses.
+
+** Exercises
+
+- ★ Explain why =/api/v1/documents= says nothing by itself about
+  =schemaVersion=.
+- ★ Name the difference between an API operation version and actor semantic
+  version.
+- ★★ Design a client capability check that avoids hard-coding a route string.
+- ★★ Explain why an actor discovery response must not serialize private Sento
+  references.
+- ★★ Show how 403 and 404 should lead to different persistence-debugging
+  conclusions.
+- ★★★ Design a client result type that separately records request acceptance,
+  broker evidence, and durable read-back.
+- ★★★ Design a mixed-deployment compatibility strategy where one server supports
+  only the historical document profile and another supports canonical 0.10.1.
+
+** Reader checkpoint
+
+You should now be able to explain all of the following without conflation:
+
+#+begin_example
+OpenAPI/client-manifest     -> what operations exist
+schemaVersion               -> what document contract applies
+actor semantic version      -> what capability semantics were declared
+authentication              -> who is calling
+authorization               -> what that principal may do
+correlationId               -> how observations across boundaries are connected
+HTTP status                 -> what the HTTP boundary observed
+read-back                   -> stronger evidence of durable visibility
+search result               -> product/index observation, not corpus omniscience
+#+end_example
+
+That vocabulary is enough to build a client that tells the truth about what it
+knows.
