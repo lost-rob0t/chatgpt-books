@@ -1,10 +1,12 @@
-#+title: Project 1 Milestone A -- Validate Real StarIntel Records
+#+title: Project 1 Milestone A -- Validate the Historical 0.9 StarIntel Profile
 :PROPERTIES:
 :ID:       f61107b7-f34c-47bf-82cf-b54fafaa0203
 :END:
 
 * Purpose
-This project exercises the *real* current Python StarIntel document boundary. It deliberately does not copy or reimplement schema validation inside the book.
+This project exercises the *real pinned historical* Python StarIntel 0.9 document boundary used by the original book milestone. It deliberately does not copy or reimplement schema validation inside the book.
+
+For new StarIntel work, the canonical authority is now StarLang =org.starintel/core@1= version =0.10.1=. This harness remains valuable as a compatibility/migration input test; it is not the source of truth for new canonical documents.
 
 Two upstream revisions are pinned because the Python package records the schema authority but does not vendor the schema file itself:
 
@@ -14,14 +16,16 @@ adapter:
   5857914a1e34ad18a6956b8ff0df5349de0ca099
   package release: 0.9.1
 
-canonical schema source recorded by that adapter lock:
+historical schema source recorded by that adapter lock:
   lost-rob0t/starintel-gpt-auto-dig
   6479c0a9dc88ce9fed183515fc4df5d245de0b3a
   schemas/starintel-doc-v0.9.0.schema.json
   wire schema_version: 0.9.0
 #+end_example
 
-The distinction is intentional: 0.9.1 is the coordinated package/release profile while =schema_version="0.9.0"= identifies the wire-schema family. Only the immutable schema artifact at the recorded commit is consumed here; this project does not run Auto-Dig or modify that repository.
+Within this historical profile, the distinction is intentional: 0.9.1 is the coordinated package/release profile while =schema_version="0.9.0"= identifies the wire-schema family. Only the immutable schema artifact at the recorded commit is consumed here; this project does not run Auto-Dig or modify that repository.
+
+Do not migrate this lesson by changing only the version string. Canonical 0.10.1 uses a different authority, lowerCamelCase fields, =id=/=rev= rather than the historical storage-shaped envelope, and explicit versioned migration semantics.
 
 * Run
 From the repository root:
@@ -42,6 +46,8 @@ bash books/starintel/code/records/run-tests
 The focused CI workflow performs the same exact-revision pinning automatically. =run-tests= also honors explicit =STARINTEL_DOC_ROOT=, =STARINTEL_SCHEMA_ROOT=, and =STARINTEL_SCHEMA= paths for an already-prepared disposable environment.
 
 * What the tests prove
+
+These claims are deliberately scoped to the pinned historical 0.9 profile.
 - the synthetic =person= fixture validates against the imported upstream schema;
 - round-trip serialization preserves its permitted extension data;
 - the synthetic =operation= fixture demonstrates a 0.9.1 release capability without changing the 0.9.0 wire version;
@@ -51,3 +57,8 @@ They do *not* prove persistence, HTTP authorization, RabbitMQ delivery, CouchDB 
 
 * Safety
 Fixtures are synthetic and contain no credentials, investigation targets, or private data. Do not point this harness at a production StarIntel deployment.
+
+
+* Current-edition follow-up
+
+The next Project 1 milestone must consume the exact StarLang-generated 0.10.1 authority and official versioned reader. It must independently test canonical fixtures, raw-wire duplicate-key conformance, historical -> canonical migration, migrated-output validation, current-input identity behavior, and unknown-field preservation/rejection policy without creating another book-local validator.
