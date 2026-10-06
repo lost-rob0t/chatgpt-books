@@ -20,3 +20,11 @@ Re-run all examples/tests/benchmarks and verify citations.
 Prose, navigation, diagrams, accessibility, and cover.
 * Phase 10 -- EPUB release
 Production build + EPUBCheck + private artifact/release.
+
+
+* Education completeness gate
+The book is not release-ready merely because every planned topic has prose.  Before Phase 8, the EPUB must satisfy all six reader mastery gates in =OUTLINE.org= and contain at least one end-to-end trace that begins with canonical StarLang =0.10.1= data and reaches durable/queryable StarIntel state on a runtime that actually supports that release.
+
+Pinned historical experiments remain valuable, but current canonical guidance must not depend on a superseded schema profile.  Each version-sensitive chapter must declare: authority revision, runtime revision, evidence class, and migration/compatibility boundary.
+
+The final capstone must join canonical documents, an investigation target/operation, an actor capability, durable persistence, provenance/relations, query/search, observability and failure recovery into one inspectable workflow.
