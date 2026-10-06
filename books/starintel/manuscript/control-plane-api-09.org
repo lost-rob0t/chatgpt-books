@@ -1,4 +1,4 @@
-* Interlude -- The HTTP Control Plane: API Version Is Not Schema Version
+** Interlude -- The HTTP Control Plane: API Version Is Not Schema Version
 :PROPERTIES:
 :ID:       b31ab5f4-1cfe-47e9-8e1d-acde35869279
 :END:
