@@ -26,24 +26,24 @@ Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modific
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 3 -- Document/Data Model
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for document/data model.
+** Chapter 3 -- The Canonical Document Model
+Goal: read the StarLang 0.10.1 authority, understand the common document envelope, persistent relations, identity/revision semantics, and explicit historical compatibility.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
 Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 4 -- Datasets And Provenance
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for datasets and provenance.
+** Chapter 4 -- Validation, Provenance, Truth, and Authority
+Goal: separate raw-wire validity, schema/semantic validation, provenance, confidence, authorization, evidentiary quality, and durability.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
 Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 5 -- Validation
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for validation.
+** Chapter 5 -- From Canonical Document to Running System
+Goal: trace canonical data through normalization, admission, transport, persistence, events, actors, derived documents, and mixed-version migration boundaries.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
 Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
@@ -58,24 +58,36 @@ Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modific
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 7 -- Actor Architecture
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for actor architecture.
+** Chapter 7 -- Actors Are Addresses Plus Failure Boundaries
+Goal: understand local routing identity, semantic actor/service manifests, runtime liveness, typed target dispatch, local-versus-Rabbit resolution, and unproven restart boundaries.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
 Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 8 -- Rabbitmq
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for RabbitMQ.
+** Interlude -- Investigations Are Data, Plans Are Data, Execution Is Still Separate
+Goal: connect persistent =investigation-target= and =operation= documents to phase DAGs, dataset bindings, capability gaps, actor selection, execution, durable outputs, and completion evidence.
+Dependencies: Chapters 3--7 plus StarLang 0.10.1 research-contract semantics.
+Expected code: initially source-backed reader trace; later one executable end-to-end investigation capstone.
+Research: distinguish persistent corpus dtypes from transient embedded operation components and runtime scheduler targets.
+
+** Interlude -- The HTTP Control Plane: API Version Is Not Schema Version
+Goal: understand machine-readable HTTP operations, authentication/authorization, correlation, actor discovery, version axes, legacy compatibility routes, and truthful client evidence.
+Dependencies: canonical documents, actor semantics, and current server contract registry.
+Expected code: thin client/contract discovery examples; later canonical 0.10.1 service trace.
+Research: API path version, document schema version, and actor semantic version must remain separate.
+
+** Chapter 8 -- RabbitMQ: Settlement Is a State Machine
+Goal: reason about publisher evidence, consumer ownership, ACK/NACK settlement, retry/quarantine, redelivery, and uncertainty windows.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
 Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 9 -- Couchdb
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for CouchDB.
+** Chapter 9 -- CouchDB: Storage Revisions, Canonical Revisions, and the Durable Outbox
+Goal: separate canonical id/rev from CouchDB _id/_rev, mutation identity, conflict domains, outbox recovery, and at-least-once event semantics.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
 Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
@@ -116,8 +128,8 @@ Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modific
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 14 -- Ingestion
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for ingestion.
+** Chapter 14 -- Ingestion as an Evidence Ladder
+Goal: report request, broker, consumer, durability, search, and actor observations without collapsing them into one success boolean; connect historical and canonical runtimes.
 Dependencies: previous chapter.
 Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
 Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
