@@ -1,0 +1,166 @@
+#+title: StarIntel Reader Spine Pass 08 -- Investigation, Actor Discovery, API, and Storage Consistency
+:PROPERTIES:
+:ID:       9b206b77-fb3c-4c0c-bc87-7695ff0cfbbd
+:END:
+
+* Status
+
+DOCUMENTED manuscript expansion and source-currency pass.
+
+No new production runtime behavior is claimed by this research note. Existing
+book TESTED claims remain tied to their exact historical service/actor pins.
+
+* Sources re-inspected
+
+** StarLang authority
+
+Revision:
+=fa1c8f4fb0590526c39aa3e9bc4a7e6eac30bea7=
+
+Inspected:
+
+- base persistent =document= envelope;
+- =person=;
+- =relation=;
+- operation embedded/transient components;
+- persistent =operation=;
+- persistent =investigation-target=;
+- generated TypeScript interface for the common envelope;
+- research-operation semantic contract;
+- versioned compatibility reader and migration policy;
+- raw JSON wire/conformance material.
+
+Key current findings used in the manuscript:
+
+- canonical public identity is =id=;
+- canonical revision projection is =rev=;
+- canonical version marker is =schemaVersion="0.10.1"=;
+- key style is lowerCamelCase;
+- relations are first-class persistent documents with required source,
+  destination and predicate;
+- operation components are typed transient embedded records, not standalone
+  corpus dtypes;
+- operations require semantic checks beyond generated JSON Schema, including
+  phase DAG/reference/completion constraints;
+- investigation targets are persistent research intent and need not name an
+  actor;
+- historical 0.9 migration is explicit structural/semantic mapping, not a
+  version-string rewrite.
+
+** StarIntel Server current main
+
+Revision:
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769=
+
+Inspected:
+
+- =source/actor-registry.lisp=;
+- =source/frontends/http-actor-discovery.lisp=;
+- =source/starintel-gserver.asd= load position;
+- =doc/actors.org=;
+- =doc/http-api-docs.org=.
+
+Current-source additions documented in the EPUB:
+
+- operator-facing semantic actor/service registry is separate from the legacy
+  local target-routing index;
+- emitted manifests carry canonical STAR resource URI, semantic
+  name/version/digest, accepts/produces contracts, capabilities, source package,
+  and operator-visible policy;
+- runtime status is stored separately from static semantic manifest state;
+- =GET /v1/actors= exposes a scrubbed authenticated catalog requiring
+  =actors:read=;
+- machine-readable HTTP contract exposes OpenAPI/client manifest and named
+  document operations;
+- API path version, document schema version, and actor semantic version are
+  separate axes;
+- current server =main= still carries the historical document lock, so the
+  existence of =/api/v1/documents= does not imply 0.10.1 document support.
+
+** Server canonical migration
+
+Draft PR #313 published head:
+=117057d6f5bbf2e2b40d5cfd89eb7adcca5e28fd=
+
+Used only as UPSTREAM-REPORTED tested migration evidence.
+
+The manuscript records its intended separation of canonical =id=/=rev= from
+CouchDB-private =_id=/=_rev= and its generated 0.10.1 boundary, while explicitly
+stating the migration remains unmerged into server default branch at this
+edition's audit.
+
+** Book service-backed ingest trace
+
+Merged book PR #58 remains the runtime evidence for:
+
+- baseline synthetic POST plus authorized durable read-back;
+- verified RabbitMQ-down fault while HTTP stayed alive;
+- HTTP return without bounded persistence observation;
+- explicit Rabbit start + StarIntel restart recovery;
+- fresh post-recovery successful read-back.
+
+The current manuscript no longer describes that trace as future/UNTESTED work.
+
+* Manuscript changes in Pass 08
+
+- rewrote Chapters 3--5 around the canonical StarLang 0.10.1 authority;
+- reframed the original 0.9 Project 1 as historical compatibility evidence;
+- added requirements for a future executable canonical 0.10.1 Project 1
+  harness;
+- expanded Chapter 7 with semantic actor/service discovery and the distinction
+  between routing identity, semantic resource identity, and private Sento
+  runtime reference;
+- added a full investigation/operation interlude connecting persistent research
+  intent, operation DAGs/dataset bindings/capability gaps/assignments, actor
+  selection and completion evidence;
+- added an HTTP/control-plane interlude covering machine-readable operations,
+  authentication/authorization, correlation, capability discovery, and the
+  independence of API/schema/actor versions;
+- modernized Chapter 9 so CouchDB storage fields are private projection details
+  rather than canonical public identity;
+- modernized Chapter 14 / Project 2 to include already-merged service-backed
+  fault evidence and a clearly pending canonical 0.10.1 milestone.
+
+* Claim classes
+
+** DOCUMENTED from current authority/source
+
+- StarLang canonical 0.10.1 envelope and research contracts;
+- current semantic actor registry/catalog behavior;
+- current HTTP contract/discovery architecture;
+- current default-branch server adoption gap.
+
+** TESTED by earlier book milestones
+
+- historical Project 1 0.9 adapter regressions;
+- historical Project 2 hermetic adapter;
+- Project 2 disposable service-backed fault trace;
+- Project 3 local actor dispatch at its exact pinned StarIntel/Sento revision.
+
+** UPSTREAM-REPORTED
+
+- draft server PR #313 exact-head 0.10.1 runtime verification.
+
+** NOT YET TESTED BY THIS BOOK
+
+- canonical 0.10.1 positive/negative fixture harness;
+- official versioned-reader migration regression in book CI;
+- canonical 0.10.1 end-to-end service ingest/read-back;
+- current semantic actor registry book-side executable exercise;
+- full investigation-target -> operation -> semantic selection -> actor
+  execution -> durable output -> completion-evidence workflow;
+- current external actor delivery and multi-process discovery;
+- Project 3 handler fault/process restart semantics.
+
+* Next educational slices
+
+1. add a book-local test harness that consumes StarLang's exact generated
+   0.10.1 authority without reimplementing validation;
+2. add migration fixtures through the official versioned reader;
+3. after an accepted 0.10.1 server runtime is pinned, run canonical end-to-end
+   ingest/read-back and relation tests;
+4. make semantic actor registry discovery executable from the book;
+5. connect one investigation target to an operation and real capability
+   selection;
+6. expand search, graph/query, Prolog/inference, Quasar, security and deployment
+   chapters around the same boundary/evidence method.
