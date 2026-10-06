@@ -57,6 +57,231 @@ source file exists
 
 The same evidence discipline from ingestion applies here too.
 
+*** Two registries answer different questions
+
+Current StarIntel now has an additional distinction that the original milestone
+A text did not yet teach.
+
+There is a *legacy/local routing index* used to map a target-routing string such
+as =book-audit= to a private Sento actor component.
+
+There is also an *operator-facing semantic actor/service registry* built from
+explicit manifests.  Current server =main= loads this newer registry and exposes
+its safe projection through authenticated =GET /v1/actors=.  The route requires
+the =actors:read= scope. [cite:@starintel-server-20261005]
+
+Do not combine those registries mentally.
+
+#+begin_example
+target-routing index
+  "book-audit" -> private Sento component
+  purpose: local dispatch compatibility
+  audience: runtime internals
+
+semantic actor registry
+  star://.../actor/... -> manifest + contracts + capabilities + status projection
+  purpose: operator/client discovery
+  audience: Quasar, SDKs, operators
+#+end_example
+
+A component can be locally routable without automatically becoming an
+operator-visible catalog entry.
+
+A manifest can describe an operator-visible capability while its current
+runtime observation says it is unavailable.
+
+This is the actor equivalent of the document lesson:
+
+#+begin_example
+catalog presence != liveness != successful execution
+#+end_example
+
+*** What an actor manifest means
+
+The current semantic registry validates emitted actor/service manifests before
+installing them.  An entry contains:
+
+- a canonical =star://= resource URI;
+- resource kind =actor= or =service=;
+- semantic name;
+- semantic version;
+- semantic digest;
+- accepted target/document/message contracts;
+- produced target/document/message contracts;
+- capability strings;
+- source package provenance;
+- an explicit operator-visible flag.
+
+[cite:@starintel-server-20261005]
+
+That is a semantic contract, not a serialized Sento object.
+
+The manifest answers questions like:
+
+#+begin_example
+What is this actor/service?
+Which semantic version is it?
+What can it accept?
+What can it produce?
+What capabilities does it advertise?
+Which package declared it?
+Should an operator be allowed to discover it?
+#+end_example
+
+It deliberately does not expose private runtime handles, broker credentials, or
+internal topology.
+
+*** Runtime status is a separate observation
+
+Current registry code stores runtime observation separately from the static
+semantic entry.
+
+The bounded status vocabulary currently includes:
+
+#+begin_example
+online
+declared-offline
+degraded
+unavailable
+#+end_example
+
+A local private actor binding can be checked for Sento liveness.  Remote
+adapters can report bounded runtime status.  But a runtime observation without
+a registered manifest does not create an operator-facing semantic actor entry.
+[cite:@starintel-server-20261005]
+
+That gives a useful four-cell reasoning table:
+
+| Manifest | Runtime observation | Meaning |
+|----------+---------------------+---------|
+| absent | absent | no operator-visible actor is evidenced |
+| present | unavailable | capability is cataloged but no ready runtime is evidenced |
+| present | degraded | capability exists but current health is impaired |
+| present | online/ready | catalog + bounded liveness evidence exist |
+
+Even the final row does not prove that a particular target invocation completed.
+
+*** Accepted/produced contracts are more important than names
+
+A list of actor names is not enough for composition.
+
+Suppose Quasar needs a capability that accepts =domain= targets and produces
+=domain= and =relation= documents.
+
+A semantic manifest lets the control plane inspect those contracts directly
+instead of guessing from a name such as ="domain-enricher"=.
+
+That changes actor selection from:
+
+#+begin_example
+this actor's name sounds right
+#+end_example
+
+into:
+
+#+begin_example
+this declared semantic resource accepts the work contract I have
+and advertises the capability I need
+#+end_example
+
+That is the foundation for capability-based routing, UI discovery, and safer
+automation.
+
+*** A semantic digest is not a health check
+
+The manifest's semantic digest identifies the declared semantics/version
+material.  It does not say the process is currently online.
+
+Likewise, a runtime =ready=true= observation does not prove that the running code
+still matches some unverified manifest bytes unless the startup/packaging path
+binds them correctly.
+
+This is why the registry keeps semantic identity, package provenance, and
+runtime observation as separate concepts.
+
+*** Discovery is a public projection, not topology dumping
+
+Current =GET /v1/actors= returns a scrubbed catalog projection.  The server docs
+explicitly keep internal actor references, Sento paths, Rabbit queue/routing
+names, endpoints, and secrets out of that response. [cite:@starintel-server-20261005]
+
+This design has two benefits:
+
+1. clients can reason about capabilities without gaining unnecessary runtime
+   internals;
+2. the server can change process topology without changing the semantic
+   identity of the capability.
+
+A Quasar actor picker should depend on semantic identity/contracts, not on
+whether an implementation happens to be local Sento today and Rabbit-backed
+tomorrow.
+
+*** Actor identity now has at least three layers
+
+When debugging an actor, ask which identity is being discussed:
+
+| Layer | Example | Purpose |
+|-------+---------+---------|
+| legacy target-routing name | =book-audit= | current target dispatch compatibility |
+| canonical semantic resource | =star://host/actor/book-audit= | operator/capability identity |
+| private runtime reference | Sento component object | in-process message delivery |
+
+They may correspond to one logical capability, but they are not interchangeable
+values.
+
+If you log only "actor=book-audit", a distributed failure can become ambiguous.
+Good observability should retain enough identity to connect semantic resource,
+routing selection, execution/correlation identity, and runtime result.
+
+*** How a control plane should choose an actor
+
+A safe high-level selection flow is:
+
+#+begin_example
+requested work contract
+        |
+        v
+discover operator-visible semantic actors
+        |
+        v
+filter by accepts/capabilities
+        |
+        v
+check status/ready as a current observation
+        |
+        v
+apply policy/authorization
+        |
+        v
+resolve concrete runtime destination
+        |
+        v
+dispatch typed work
+        |
+        v
+observe handler/result separately
+#+end_example
+
+A registry entry is therefore *input to dispatch selection*, not proof of
+dispatch success.
+
+*** Current-source note versus Project 3 test evidence
+
+This semantic registry landed after the older executable Project 3 milestone A
+pin used by this book.
+
+Therefore this chapter makes two different kinds of claim:
+
+- the local target-routing behavior below is TESTED at the exact historical
+  StarIntel/Sento pin named by Project 3;
+- the semantic actor/service catalog described in this section is DOCUMENTED
+  from current server =main= at
+  =ce14c77ccd2f51f543410fdeef3d78fb9978b769= and needs its own book-side
+  executable exercise before being promoted to TESTED-by-book.
+
+That distinction is intentional.  Source currency should improve the book
+without rewriting old test history.
+
 *** Read the effective implementation, not the first implementation
 The current server still contains an older target router in =source/actors.lisp=.
 If you read only that function, you will learn the wrong current contract.  The
