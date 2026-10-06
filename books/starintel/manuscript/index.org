@@ -1,6 +1,7 @@
 #+include: "reader-orientation-07.org"
 #+include: "foundation-runtime.org"
 #+include: "actor-runtime-06.org"
+#+include: "investigation-model-08.org"
 #+include: "bulk-lifetime-04.org"
 #+include: "service-trace-05.org"
 #+include: "glossary-07.org"
