@@ -147,334 +147,1089 @@ For a system this dynamic, the revision is part of the citation.
 - ★★ Imagine a README says an actor is active while the ASDF file omits it. What additional evidence could overturn the ASDF-based conclusion?
 - ★★★ Write a five-line "historical/current" note for a hypothetical route whose old implementation is still in-tree but replaced by a later-loaded handler.
 
-** Chapter 3 -- The Document Contract: Four Versions, One Record
+** Chapter 3 -- The Canonical Document Model
 :PROPERTIES:
 :ID:       f3a00aa5-cab8-4e49-a880-2cbd838c7750
 :END:
-Version numbers are where a beginner can become confused fast, because StarIntel currently has several values that look similar but answer different questions.
+The first edition of this chapter taught the document contract from the server's
+then-current 0.9 runtime.  That was useful runtime evidence, but it is no longer
+the right place to begin.
 
-*** Release 0.9.1 is not wire =schema_version= 0.9.0
-The current Python package metadata says version =0.9.1=. Its schema lock also records =release_version="0.9.1"=. Yet its validator constant remains =SPEC_VERSION="0.9.0"=, and canonical documents use:
+For new StarIntel work, begin at the *schema authority*.
 
-#+begin_src json
-{
-  "schema_version": "0.9.0"
-}
-#+end_src
+As of this edition's 2026-10-05 source audit, the canonical document library is
+=org.starintel/core@1= version =0.10.1= in
+=lost-rob0t/star-lang/specs/starintel/0.10.1/core.star=.  The generated release
+lock declares both =releaseVersion= and =schemaVersion= as =0.10.1= and declares
+=lowerCamelCase= as the canonical JSON key style. [cite:@starlang-starintel-0101]
 
-That is intentional. The current server runtime document describes the active coordinated release/profile as 0.9.1, the wire schema family as 0.9.0, and the schema revision as =0.9.0+fields.20260909.1=. [cite:@starintel-doc-091;@starintel-server-20260916]
-
-The rule for this book is simple:
+This changes the beginner's first question from:
 
 #+begin_example
-release/profile       0.9.1
-wire schema_version   0.9.0
-schema revision       0.9.0+fields.20260909.1
-document version      integer field such as 1
-CouchDB _rev          database revision token after persistence
+Which JSON file should I copy?
 #+end_example
 
-Do not substitute one for another.
+to:
 
-*** A minimal synthetic person
-Project 1 starts from a synthetic record so no investigation data or credentials enter the repository:
+#+begin_example
+Which StarLang contract defines this document,
+and which generated artifact does my language consume?
+#+end_example
+
+That is a much stronger mental model because it survives language bindings,
+runtime migrations, and repository reshuffling.
+
+*** Read =core.star= before generated code
+
+The canonical source begins with a versioned specification library:
+
+#+begin_src lisp
+(spec-library "org.starintel/core@1"
+  (:version "0.10.1")
+  ...)
+#+end_src
+
+The file then defines scalars, enums, records, and documents.  Generated JSON
+Schema and language bindings are products of that source.  They are important
+products, but they are not separate authorities.
+
+The distinction matters when generated artifacts disagree with hand-written
+code.  The right debugging question is not "which copy looks newer?" but:
+
+1. which =core.star= revision is authoritative;
+2. which release lock names the generated artifacts;
+3. which artifact revision did this consumer actually pin;
+4. did the runtime load that consumer.
+
+A generated binding can be perfectly valid and still be the wrong release for
+the process that loaded it.
+
+*** The base =document= is intentionally rich
+
+The canonical base document declares five fields that establish the common
+identity/typing envelope:
+
+#+begin_src lisp
+(document document
+  (:persistence persistent)
+  (id document-id :required)
+  (rev string :optional)
+  (dataset string :required)
+  (dtype string :required)
+  (schemaVersion string :required)
+  ...)
+#+end_src
+
+[cite:@starlang-starintel-0101]
+
+The base contract then adds optional groups for provenance, temporal scope,
+collection metadata, causal/correlation identity, confidence/quality,
+classification and access metadata, hashes/content metadata, raw material,
+notes, deletion/tombstone state, and extensions.
+
+That breadth is deliberate.  StarIntel wants a =person=, =relation=,
+=wireless-network=, =file=, or =operation= to carry common evidence and lifecycle
+metadata without every dtype reinventing its own spelling.
+
+A useful way to learn the envelope is by responsibility:
+
+| Group | Representative fields | Question answered |
+|-------+-----------------------+-------------------|
+| Identity | =id=, =rev=, =dtype=, =dataset=, =schemaVersion= | What object/contract is this? |
+| Source | =sources=, =sourceUrls=, =sourceRecordIds=, =sourceKinds= | Where did it originate? |
+| Time | =observedAt=, =collectedAt=, =firstSeenAt=, =validFrom=, =expiresAt= | When was it observed/valid? |
+| Execution lineage | =runId=, =correlationId=, =causationId=, =parentId=, =rootId= | Which workflow caused it? |
+| Assessment | =confidence=, =qualityScore=, =verificationStatus= | How is its quality assessed? |
+| Provenance | =provenance=, =chainOfCustody=, =transformHistory= | How did it become this representation? |
+| Policy | =sensitivity=, =visibility=, =owner=, =accessControl= | How should it be handled? |
+| Content identity | =contentHash=, =hashAlgorithm=, =normalizedHash= | Which bytes/normalized content are represented? |
+| Escape hatch | =extensions= | What explicitly non-core metadata must survive? |
+
+Do not read that table as "fill every field."  Most are optional because
+different sources know different things.  The contract gives components a
+shared vocabulary when those facts are known.
+
+*** Identity is not a CouchDB implementation detail
+
+The canonical =document-id= scalar is a string constrained to a bounded,
+portable character set.  The important point is conceptual: =id= is the
+StarIntel document identity.
+
+=rev= is a revision token carried by the canonical model when revision
+information needs to cross the boundary.  A storage engine may have its own
+native revision representation, but clients should not infer that the
+canonical identity is "whatever CouchDB happened to call =_id=."
+
+For current new work:
+
+#+begin_example
+id            logical StarIntel document identity
+rev           revision/concurrency metadata when exposed canonically
+dataset       corpus / grouping boundary
+dtype         concrete document contract discriminator
+schemaVersion canonical StarIntel document release
+#+end_example
+
+The old 0.9 runtime used =_id= and =schema_version=.  Those spellings are
+historical inputs, not the canonical 0.10.1 output vocabulary.
+
+*** A small canonical person
+
+The =person= document extends the common document and adds optional fields such
+as =fname=, =mname=, =lname=, =fullName=, =displayName=, =bio=, dates,
+nationality/citizenship, occupations, addresses, accounts, images and typed
+identifier references. [cite:@starlang-starintel-0101]
+
+A deliberately small example is:
 
 #+begin_src json
 {
-  "_id": "starintel:person:book-demo",
+  "id": "person:book-demo",
   "dataset": "book-demo",
   "dtype": "person",
-  "schema_version": "0.9.0",
-  "version": 1,
-  "date_added": "2026-09-16T12:00:00Z",
-  "date_updated": "2026-09-16T12:00:00Z",
-  "sources": [
-    {
-      "kind": "synthetic",
-      "name": "StarIntel book demo",
-      "accessed_at": "2026-09-16T12:00:00Z",
-      "notes": "Synthetic fixture; no investigation data."
-    }
-  ],
-  "evidence": [],
-  "data": {
-    "fname": "Alex",
-    "lname": "Example",
-    "bio": "Synthetic record used only by the StarIntel book."
-  },
-  "extensions": {
-    "book.example": {
-      "exercise": "project-1-a",
-      "synthetic": true
-    }
-  }
+  "schemaVersion": "0.10.1",
+  "fname": "Alex",
+  "lname": "Example",
+  "collectionStatus": "normalized",
+  "sourceKinds": ["human"],
+  "notes": "Synthetic teaching record only."
 }
 #+end_src
 
-Several design choices are visible before we write any code.
+This example teaches the *shape*.  A production collector should not invent
+source/verification metadata it does not actually know.
 
-- =_id= gives the record an identity.
-- =dataset= places it in a logical corpus and later participates in authorization/policy decisions.
-- =dtype= selects a canonical schema branch.
-- =schema_version= selects the wire schema family.
-- =version= is the record's own integer version field.
-- timestamps are RFC 3339 date-time strings under the current schema validation path.
-- =sources= and =evidence= are explicit provenance surfaces rather than information hidden in a log message.
-- =data= is the type-specific payload.
-- =extensions= is a controlled place for permitted non-core data.
+The difference between an optional field and a guess is fundamental.  "The
+schema allows =gender=" does not mean a collector may populate gender by
+assumption.  Schema expressiveness is not evidentiary authority.
 
-The Python adapter uses JSON Schema Draft 2020-12 through =jsonschema.Draft202012Validator= and installs a format checker, including an explicit RFC 3339-zone check for =date-time=. [cite:@starintel-doc-091;@json-schema-2020-12]
+*** Relations make the graph explicit
 
-*** Canonical dtypes, not friendly aliases
-The current Python adapter has an explicit set of rejected aliases. For example, changing a canonical dtype to =organization= does not silently rewrite it into some other type; it yields a typed validation failure. [cite:@starintel-doc-091]
+StarIntel is graph-shaped because relationships are first-class documents, not
+only because a UI draws lines.
 
-This is an important interoperability rule. Silent normalization looks friendly in one client and becomes poison in a multi-language system: two adapters can disagree about which spelling was canonical, what was signed or hashed, or which branch should run. Rejecting unsupported aliases makes the mismatch visible at the boundary.
+The canonical =relation= extends =document= and requires:
 
-*** Extensions are not a second schema-free universe
-The fixture includes an extension namespace for a book-only marker. The upstream round-trip function validates before serialization and validates again after JSON round-trip. Our test requires the permitted extension payload to survive unchanged.
+#+begin_src lisp
+(document relation
+  (:extends document
+   :persistence persistent)
+  (source reference :required)
+  (destination reference :required)
+  (predicate string :required)
+  ...)
+#+end_src
 
-That does not mean arbitrary top-level fields are accepted. Current schema sections are intentionally closed where the schema says so. Think of =extensions= as an explicit escape hatch governed by the document contract, not permission to attach mystery keys anywhere.
+It can additionally carry direction, an inverse predicate, note, evidence
+references, weight, and temporal validity. [cite:@starlang-starintel-0101]
 
-*** =_rev= is not =version=
-Once CouchDB stores a document, it may have an =_rev= field such as a revision token. CouchDB uses revisions as part of its MVCC/update protocol. The application-level integer =version= in a StarIntel document is a different concept. [cite:@couchdb-docs-35]
+That means a relation can itself have identity, dataset membership, provenance,
+collection metadata, confidence, lifecycle state, and revision history.
 
-If you conflate them, update logic becomes nonsense. A CouchDB revision answers "which stored revision are you updating?" The StarIntel integer can answer an application/schema-defined record-version question. The wire =schema_version= answers yet another question: "which document contract should validate this shape?"
+This is stronger than putting =friend_ids= inside a person record.  A
+first-class relation lets you ask:
 
-*** Debugging lab: name every version
-Given a failure report containing:
+- who asserted the connection;
+- what evidence supports it;
+- when it was valid;
+- whether a later source disputes it;
+- whether two independently collected relations describe the same claim;
+- whether a derived relation should be recomputed when inputs change.
+
+The graph is evidence-bearing data, not merely adjacency.
+
+*** References prevent accidental embedding
+
+Many canonical fields use =reference= rather than embedding an entire target
+document.  Generated bindings expose the reference as a schema-qualified
+identity pair.
+
+The architectural idea is more important than its exact generated syntax:
+documents link to identities; they do not have to duplicate every object they
+mention.
+
+That keeps one document update from requiring a rewrite of every document that
+references it, and it gives relation/provenance logic stable identities to
+reason over.
+
+*** Canonical operations and investigation targets are documents too
+
+The 0.10.1 authority adds persistent research/orchestration contracts that are
+easy to confuse with runtime messages.
+
+=operation= requires a =mission= string, an =operation-status=, and a non-empty
+or schema-valid phase structure.  It can also carry objectives, scope,
+target-policy/bindings, datasets, capability gaps, assignments and post-actions.
+
+=investigation-target= requires a target string and can carry a research
+question, hypotheses, objectives, scope, source preferences/exclusions,
+required dtypes, recurrence controls, depth/breadth controls, priority, score,
+selection reasons and other research parameters. [cite:@starlang-research-contracts-0101]
+
+These are *persistent StarIntel documents*.  They are not aliases for:
+
+- a Sento actor mailbox message;
+- a Rabbit routing key;
+- the older actor scheduler's internal target object;
+- a spatial mission;
+- a UI tab called "target."
+
+The same English word can exist in multiple layers.  The dtype tells you which
+contract you actually have.
+
+*** Canonical does not mean every runtime has adopted it
+
+At the time of this edition, =starintel-server= default branch still carries its
+older runtime lock: release/profile 0.9.1 over the 0.9.0 wire schema.
+[cite:@starintel-server-20261005]
+
+A tested draft migration exists in server PR #313.  That work changes the
+server to accept flat lowerCamelCase 0.10.1 documents through generated StarLang
+artifacts and =star-cl= at HTTP, bulk, Rabbit mutation, update and generated API
+schema boundaries.  It is not merged into the default branch at this book
+revision. [cite:@starintel-server-pr313]
+
+This gives us a realistic distributed-software lesson:
 
 #+begin_example
-package: starintel_doc 0.9.1
-schema_version: 0.9.0
-version: 4
-_rev: 7-abc...
+canonical authority can advance
+        |
+        v
+language bindings can advance
+        |
+        v
+runtime support can be implemented/tested
+        |
+        v
+runtime support can merge
+        |
+        v
+deployments can upgrade
 #+end_example
 
-write one sentence for what each value controls. If you cannot, do not change the record yet.
+Those arrows are not instantaneous.
 
-** Chapter 4 -- Validation, Provenance, and Authority Are Different Contracts
+*** The old 0.9 profile is historical compatibility, not garbage
+
+Historical data remains valuable.  The StarLang compatibility layer explicitly
+recognizes the old 0.9.0 wire family and the current 0.10.1 family.  The
+versioned reader selects an explicit profile, performs defined field mappings,
+validates the result, and emits canonical 0.10.1. [cite:@starlang-starintel-compat]
+
+That is better than pretending old documents never existed.
+
+The correct rule is:
+
+#+begin_example
+historical input -> explicit reader -> explicit migration -> canonical output
+#+end_example
+
+not:
+
+#+begin_example
+historical input -> change "schema_version" string -> hope
+#+end_example
+
+*** Chapter checkpoint
+
+You should now be able to answer without looking:
+
+1. Why is =core.star= stronger authority than a copied JSON schema?
+2. What five fields form the common identity/typing envelope?
+3. Why can =relation= carry provenance independent of its endpoint documents?
+4. What is the difference between an =investigation-target= document and actor
+   scheduler work?
+5. Why can StarIntel's canonical schema be 0.10.1 while a server branch still
+   accepts 0.9.x?
+6. What must happen before historical 0.9 data is considered canonical 0.10.1?
+
+If any answer collapses two boundaries into one, reread the relevant section
+before continuing.
+
+** Chapter 4 -- Validation, Provenance, Truth, and Authority
 :PROPERTIES:
 :ID:       81a76cbf-e77a-40cf-8e8c-2197e10830cc
 :END:
-A valid document is not automatically trusted, authorized, true, current, or durable. Those properties belong to different mechanisms.
+A StarIntel document can be perfectly valid JSON, perfectly valid against its
+schema, authorized for persistence, and still be wrong about the world.
 
-*** Validation asks whether the object conforms
-At the current Python boundary, =validate_document= first requires an object and exact supported wire version, resolves the dtype against schema branches, then runs Draft 2020-12 validation. It maps schema failures into stable categories such as =missing_required_field=, =undeclared_field=, =invalid_datetime=, =wrong_type=, and others. [cite:@starintel-doc-091]
+This is not a defect in schema validation.  It is why StarIntel separates
+different kinds of confidence and authority.
 
-At the current Common Lisp HTTP boundary, the server requires a JSON object plus non-empty identity/dataset/dtype, checks route/body dtype agreement when relevant, checks the wire version, and invokes =star.documents:validate-v09-document=. [cite:@starintel-server-20260916]
+*** Five different questions
 
-Project 1 deliberately exercises the Python binding because it is easy for a beginner to run in isolation. Later chapters exercise the server boundary as a separate integration test. Passing the Python project is not claimed as proof that HTTP/Rabbit/Couch paths are healthy.
+When someone says "this document is valid," ask which statement they mean:
 
-*** Provenance asks where a claim came from
-A record can be schema-valid and still contain a false assertion. Provenance is how we keep the system debuggable when facts come from different collectors, transformations, or operators.
+1. *Parse validity* -- are these bytes valid JSON under the wire rules?
+2. *Contract validity* -- does the parsed object conform to the selected
+   StarIntel document contract?
+3. *Semantic validity* -- do cross-field/domain invariants hold?
+4. *Authorization* -- may this principal perform this action on this resource?
+5. *Evidentiary quality* -- do the sources actually support the claim?
 
-For the synthetic fixture, the source is an object rather than a string because the current 0.9 wire schema models source records structurally:
+Only the first three are primarily document-validation questions.
+
+A sixth question appears after persistence:
+
+6. *Durability* -- did an authorized valid object actually become durable
+   state?
+
+Do not use one green check as an answer to all six.
+
+*** Validate raw bytes before information is lost
+
+A subtle wire-format problem appears before ordinary JSON Schema validation:
+duplicate JSON object keys.
+
+Many JSON parsers keep one occurrence and discard another.  If a security or
+canonicalization boundary parses first and validates uniqueness later, the
+validator may never see the ambiguity.
+
+The current StarLang wire-conformance material therefore includes raw JSON
+unique-key cases that must be given to the SDK/parser *as raw wire strings*.
+[cite:@starlang-starintel-0101]
+
+That is a general lesson:
+
+#+begin_example
+if parsing can destroy evidence about malformed input,
+validate the relevant wire invariant before destructive normalization
+#+end_example
+
+This matters for signatures, hashes, migrations, forensic reproduction, and
+cross-language agreement.
+
+*** Select the schema by explicit version and dtype
+
+A versioned document reader needs enough information to know which grammar and
+semantics apply.
+
+For canonical data:
+
+#+begin_example
+schemaVersion = "0.10.1"
+dtype         = concrete document type
+#+end_example
+
+Historical compatibility uses its explicit historical marker and reader.
+Ambiguous input should fail closed instead of being guessed into a profile.
+[cite:@starlang-starintel-compat]
+
+A robust reader should never decide "this looks roughly like 0.10.1."
+
+*** Schema validity proves shape, not truth
+
+Consider:
 
 #+begin_src json
-"sources": [
-  {
-    "kind": "synthetic",
-    "name": "StarIntel book demo",
-    "accessed_at": "2026-09-16T12:00:00Z",
-    "notes": "Synthetic fixture; no investigation data."
-  }
-],
-"evidence": []
+{
+  "id": "person:book-demo",
+  "dataset": "demo",
+  "dtype": "person",
+  "schemaVersion": "0.10.1",
+  "fullName": "Ada Lovelace"
+}
 #+end_src
 
-This intentionally boring provenance tells the reader exactly what the fixture is: book data, not field evidence. Future projects will add richer sourced data only when the source is public and the mapping is explicit.
+Suppose it validates.
 
-A useful rule for extensions, transformations, and actors is:
+What have you proven?
+
+- =id= satisfies the document-id syntax;
+- required base fields exist;
+- =dtype= selects a compatible concrete contract;
+- the field types and structural constraints pass.
+
+What have you *not* proven?
+
+- this identifier really denotes Ada Lovelace;
+- the name was observed from a reliable source;
+- the record is current;
+- two sources are independent;
+- the caller is authorized to store it;
+- the runtime persisted it;
+- a relation derived from it is correct.
+
+Treating schema validation as truth is one of the fastest ways to build a
+confidently wrong intelligence system.
+
+*** Provenance lives on the common envelope for a reason
+
+The canonical document includes multiple provenance surfaces:
+
+- =sources= for canonical references;
+- =sourceUrls= for source locations;
+- =sourceRecordIds= for source-system identifiers;
+- =sourceKinds= for collection category;
+- source licensing/terms fields;
+- =sourceRetrievedAt=;
+- collector/method/version metadata;
+- =provenance=;
+- =chainOfCustody=;
+- =transformHistory=;
+- causal/workflow identifiers.
+
+[cite:@starlang-starintel-0101]
+
+These fields answer different questions.  Do not cram all provenance into one
+free-text note.
+
+For example:
 
 #+begin_example
-new assertion -> retain enough source/evidence identity to explain why it exists
+sourceUrls        where the source was accessed
+sourceRecordIds   how the source system named the item
+collector         which collector produced this document
+transformHistory  how the representation changed
+correlationId     which workflow/run this observation belongs to
 #+end_example
 
-The exact provenance structures evolve with the document contract, so later chapters inspect their current schema rather than hard-code folklore here.
+This separation gives operators and downstream actors something queryable.
 
-*** Authorization asks whether this caller may perform this action
-The current server's loaded authorization path is default-deny according to its active runtime contract. Route actions include =documents:write= for canonical document submission, with resource dimensions such as tenant and dataset evaluated by policy. Rabbit publication also re-authorizes at the internal publish boundary using server-captured context rather than trusting caller-supplied authority fields. [cite:@starintel-server-20260916]
+*** Derived evidence must preserve the path back to inputs
 
-This yields another debugging distinction:
+Suppose an actor resolves a domain, extracts an organization from a page, or
+derives a spatial encounter from two observations.
+
+The output should not merely say "confidence = 0.87."
+
+A useful derived artifact needs enough lineage to answer:
+
+- which input documents were used;
+- which rule/model/actor version produced it;
+- when the derivation ran;
+- what transformation occurred;
+- what uncertainty or confidence means;
+- whether a human later verified/disputed it.
+
+The canonical envelope gives you fields for that story.  The exact structure of
+a particular derivation belongs to its dtype/capability contract.
+
+*** Confidence is metadata, not permission to invent facts
+
+The 0.10.1 common envelope supports confidence and quality metadata.  That is
+useful precisely because evidence can be uncertain.
+
+But attaching =confidence= to a claim does not absolve the producer from source
+discipline.
+
+Bad pattern:
 
 #+begin_example
-schema-valid + unauthorized -> reject
-schema-invalid + authorized -> reject
-schema-valid + authorized   -> eligible to proceed to the next boundary
+no source
+guess a property
+confidence = 0.51
+therefore acceptable
 #+end_example
 
-Neither validation nor authorization should be "fixed" by making the other looser.
+Better pattern:
 
-*** Server-owned tenancy is not caller provenance
-Current HTTP boundary code can stamp server-resolved tenant information before internal publication/persistence and strip that internal field on client egress. [cite:@starintel-server-20260916]
+#+begin_example
+bounded method + named inputs + known limitations
+        |
+        v
+derived claim + confidenceBasis + provenance
+#+end_example
 
-That is an ownership clue: clients should not treat server-owned security context as evidence they can freely invent. A provenance label such as a synthetic source object says where record content came from; a tenant/policy context says where the service permits the operation. They solve different problems.
+If a value is unknown, absence is often more honest than a fabricated low-
+confidence value.
 
-*** Failure exercises
-1. Remove =_id=. Predict which layer can reject the document before RabbitMQ.
-2. Change =schema_version= to =0.8.0=. Explain why package release 0.9.1 does not make that a supported wire value.
-3. Remove the timezone suffix from =date_added=. Predict the validation category.
-4. Keep the document valid but imagine the caller lacks =documents:write=. Which contract fails now?
-5. Imagine the HTTP publish succeeds and the database is unavailable downstream. Which earlier contracts may still have passed?
+*** Relations need evidence too
 
-** Chapter 5 -- Following a Document Through the Runtime
+A relation document has required source, destination, and predicate fields and
+can carry its own evidence references and temporal fields. [cite:@starlang-starintel-0101]
+
+Imagine two person documents and a relation:
+
+#+begin_example
+person:A ---- employed-by ----> organization:B
+#+end_example
+
+The people/organization documents tell you about the endpoint entities.  They
+do not automatically prove the employment assertion.
+
+The relation should carry the provenance/evidence for the *edge claim*.
+
+This is a key graph-intelligence principle:
+
+#+begin_example
+node provenance != edge provenance
+#+end_example
+
+If you lose that distinction, deleting or correcting one source can make it
+impossible to determine which graph edges remain supported.
+
+*** Authorization is not provenance
+
+A caller can have permission to write a document that later turns out to be
+false.
+
+A source can be highly reliable while a caller still lacks permission to write
+into a given tenant/dataset.
+
+Therefore:
+
+#+begin_example
+provenance answers: why do we believe/retain this?
+authorization answers: may this principal perform this action here?
+#+end_example
+
+The server's older runtime experiments already demonstrate that admission and
+authorization are separate service boundaries.  The same architectural
+separation must survive the 0.10.1 migration.
+
+*** Tenancy is server/security context, not source evidence
+
+Security ownership fields and source fields may appear close together in a
+document or internal message, but they have different authorities.
+
+A collector can report where content came from.
+A service resolves which principal/tenant may write it.
+
+Never let a client manufacture an authority decision merely by writing a field
+that resembles server context.
+
+*** Validation during migration is two-sided
+
+A high-integrity migration must validate both sides:
+
+#+begin_example
+historical bytes
+   |
+   +-- validate/select historical profile
+   |
+   +-- map fields with explicit rules
+   |
+   +-- preserve unmapped material / migration record
+   |
+   +-- validate canonical 0.10.1 output
+   |
+   +-- compare/report semantics
+#+end_example
+
+The StarLang versioned compatibility path records migration metadata and
+preserves original material rather than silently throwing unknown input away.
+[cite:@starlang-starintel-compat]
+
+The educational point is not the specific implementation trick.  It is that
+migration itself is evidence-bearing work.
+
+*** Failure lab: classify the broken contract
+
+For each case, name the first contract that should fail.
+
+| Case | First failure class |
+|------+---------------------|
+| duplicate raw JSON key | wire/parser conformance |
+| no =schemaVersion= on canonical input | version/profile selection |
+| unknown canonical dtype | schema/type selection |
+| required relation predicate missing | contract validation |
+| source/destination reference exists but assertion unsupported | evidentiary quality, not shape |
+| caller lacks dataset write permission | authorization |
+| HTTP accepted but no durable read-back | runtime/durability investigation |
+| old 0.9 object has unknown legacy field | migration policy, not blind drop |
+| actor emits a canonical-looking document with invented source metadata | provenance/producer correctness |
+
+*** Exercises
+
+- ★ Explain why "valid JSON" is weaker than "valid StarIntel document."
+- ★ Explain why "valid StarIntel document" is weaker than "supported claim."
+- ★★ Design provenance for a relation extracted from two public documents.
+- ★★ Give an example where =correlationId= and =sourceRecordIds= must differ.
+- ★★★ Design a migration test that proves an unknown historical field was
+  preserved or explicitly rejected rather than silently discarded.
+- ★★★ Explain why authorization must be tested independently from validation in
+  an end-to-end ingest test.
+
+** Chapter 5 -- From Canonical Document to Running System
 :PROPERTIES:
 :ID:       e69e510f-3036-43f4-837d-b85377546515
 :END:
-Now combine the document model with the live runtime.
+Now connect the canonical model to actual StarIntel runtimes.
 
-*** Stage 1: request parsing
-The current HTTP boundary accepts JSON media types, enforces a bounded request body, validates JSON with a standards-oriented parser, and keeps JSOWN as the server's internal representation. Malformed input is turned into a typed HTTP input error rather than being passed downstream. [cite:@starintel-server-20260916]
+This chapter intentionally uses *two lanes*:
 
-This is the first place to investigate when the body never becomes a document at all.
+- the canonical 0.10.1 architecture we are building toward;
+- exact historical/runtime evidence from the server revisions used by the
+  book's executable labs.
 
-*** Stage 2: strict document admission
-For the canonical =/new/document/:dtype= route, the path dtype must be non-empty, the body must be an object, and the document dtype must agree with the path. Strict v0.9 validation runs before publication. [cite:@starintel-server-20260916]
+Keeping those lanes separate is more educational than pretending a rolling
+migration has already finished.
 
-The route name is not allowed to mutate a mismatched body into correctness. If the path says =person= and the body says a different canonical dtype, that mismatch is observable.
+*** Lane A: the canonical logical flow
 
-*** Stage 3: authorization and server context
-The current route installed later in the load order is the authorized handler. Publication crosses an authorization service before the unchecked Rabbit producer function. The producer projection builds server-owned message properties from verified service context rather than trusting authority-like fields from the document. [cite:@starintel-server-20260916]
+Regardless of implementation language, a persistent document pipeline needs to
+answer these questions:
 
-This is where a hacker should look when a valid document is denied or when a downstream audit/correlation context looks wrong.
+#+begin_example
+raw/source material
+      |
+      v
+canonical 0.10.1 document
+      |
+      v
+validation + authorization
+      |
+      v
+transport / work admission
+      |
+      v
+durable mutation
+      |
+      v
+post-mutation event
+      |
+      v
+actor / index / inference / notification
+      |
+      v
+derived canonical document or relation
+#+end_example
 
-*** Stage 4: ingest publication
-The unchecked producer derives a routing key from the dtype using the server's ingest routing format and publishes the serialized document to RabbitMQ. Before that internal side effect the document may receive server-side tenant stamping. [cite:@starintel-server-20260916]
+At each arrow, ask what evidence proves that boundary completed.
 
-At this point, do not jump ahead and say "stored." Publication and storage remain separate observations.
+The data model does not dictate RabbitMQ or CouchDB.  Those are runtime
+implementations.  But once the runtime uses them, their delivery/revision
+semantics become part of how we prove the logical transitions.
 
-*** Stage 5: consumer and durable corpus
-The current architecture uses Rabbit consumers for ingest/update paths. Successful ingest leads to CouchDB persistence. The server documents CouchDB as the durable corpus. After persistence, a =documents.new.<dtype>= event is used for fan-out to actor processing. [cite:@starintel-server-20260916]
+*** Lane B: the book's pinned 0.9 runtime evidence
 
-The exact ACK/NACK, retry, conflict, outbox, and redelivery mechanics deserve their own chapter and executable failure labs. The foundation chapter only freezes the ownership sequence required to understand the first project.
+The executable foundation/service labs were built against specific September
+2026 server revisions whose live document boundary was still 0.9.x.
+[cite:@starintel-server-20260916]
 
-*** Stage 6: actors and recursive enrichment
-Local Sento actors and external actor services can consume relevant work and emit derived StarIntel documents or relations. Those derived documents can re-enter ingest. This is dataflow recursion: the knowledge graph expands as messages move through durable and event boundaries. [cite:@starintel-server-20260916]
+Those labs remain valuable because they prove concrete distributed-system
+behavior:
 
-The actor chapter later asks harder questions: ordering, duplication, idempotency, restart, timers, remote boundaries, registry ownership, and what a "successful" actor message means. For now, keep one invariant: actors do not erase the document contract. Derived records still have to cross valid boundaries.
+- HTTP return is weaker than durable read-back;
+- Rabbit publisher and consumer settlement are distinct;
+- durable mutation and outbox state are distinct from event publication;
+- actor send/registration is distinct from handler execution;
+- crash/retry/recovery windows have to be observed, not inferred.
 
-*** A debugging trace template
-When a document disappears, collect observations in order:
+The *mechanisms* and evidence method remain relevant even as the document shape
+moves to 0.10.1.
 
-| Boundary | Question | Example evidence |
-|----------+----------+------------------|
-| Client -> HTTP | Was valid JSON sent to the expected route? | request body, route, correlation ID |
-| HTTP validation | Did strict schema admission pass? | response status/code, typed category |
-| Authorization | Was the action/resource allowed? | redacted audit decision/correlation ID |
-| HTTP -> Rabbit | Did the producer boundary succeed? | server log/producer result appropriate to current implementation |
-| Rabbit -> consumer | Was the delivery observed/processed? | consumer delivery + ACK/NACK evidence |
-| Consumer -> CouchDB | Was durable state created/updated? | document read/revision evidence |
-| Persistence -> event | Was post-persistence fan-out emitted? | routed event observation |
-| Event -> actor | Did the intended actor receive and process it? | actor/runtime trace |
-| Actor -> derived ingest | Did derived data cross admission again? | new correlation/provenance chain |
+What changes is the document authority at the edge.
 
-Do not skip from the first row to the last. Debugging gets fast when each boundary either has evidence or becomes the next experiment.
+*** The current adoption gap
 
-* Project 1 -- Create and Break Valid StarIntel Records
+At the 2026-10-05 audit:
+
+| Layer | State |
+|-------+-------|
+| Canonical StarLang authority | 0.10.1 |
+| Generated 0.10.1 artifacts | published/locked in StarLang |
+| =starintel-server= default branch | still older 0.9.1/0.9.0 lock |
+| server PR #313 | tested draft 0.10.1 migration |
+| every downstream actor/client | not assumed migrated |
+
+[cite:@starlang-starintel-0101;@starintel-server-20261005;@starintel-server-pr313]
+
+The table prevents a common migration failure: sending canonical bytes to a
+runtime that has not loaded the canonical reader yet.
+
+*** What the 0.10.1 server migration changes conceptually
+
+PR #313's published design/evidence reports a server boundary that consumes
+StarLang-generated 0.10.1 through =star-cl=.  It maps canonical =id= to
+CouchDB-owned storage identity internally, protects canonical identity/version
+on updates, and projects storage revision back through canonical =rev= rather
+than leaking raw storage metadata as the public contract.
+[cite:@starintel-server-pr313]
+
+This is exactly the layering the book wants to teach:
+
+#+begin_example
+canonical public document
+        |
+        v
+runtime/storage projection
+        |
+        v
+database-native representation
+        |
+        v
+runtime/storage projection
+        |
+        v
+canonical public document
+#+end_example
+
+A database implementation can have private fields.  Those fields do not become
+canonical merely because the database stores them.
+
+*** Stage 1: source bytes become a candidate document
+
+A collector begins with source-specific material: an API response, web page,
+file, sensor observation, message, analyst input, or derived result.
+
+Do not dump that source object directly into the database just because it is
+JSON.
+
+First decide:
+
+- which canonical dtype represents the observation;
+- which source fields map directly;
+- which source fields belong in =extensions= or raw preservation;
+- what provenance/time metadata is actually known;
+- whether identity is source-derived, deterministic, or assigned by policy.
+
+This normalization boundary is where source-specific vocabulary becomes shared
+StarIntel vocabulary.
+
+*** Stage 2: canonical validation
+
+The normalized object must pass the explicit =schemaVersion= and dtype
+contract.
+
+Validation should be deterministic enough that a producer and consumer using
+the same release agree on the result.
+
+If Python, Common Lisp, TypeScript, Java, or another generated binding disagree
+on the same canonical bytes, treat that as a conformance bug, not as harmless
+language flavor.
+
+*** Stage 3: admission and authorization
+
+A valid document reaches a service boundary.
+
+The service must separately decide:
+
+- who is the caller;
+- what tenant/dataset/resource is being targeted;
+- which action is requested;
+- whether the body and route agree;
+- which correlation/idempotency context is trusted.
+
+Only after these checks is the request eligible to cross into a side-effecting
+transport/persistence path.
+
+*** Stage 4: transport admission
+
+If the server publishes work to RabbitMQ, a successful local publish call is
+one observation.
+
+A broker publisher confirmation, when configured and observed, is a stronger
+and different observation.
+
+Neither is the same as CouchDB persistence.
+
+This gives a precise evidence ladder:
+
+#+begin_example
+HTTP/service returned
+   <
+publisher call returned
+   <
+broker responsibility evidenced
+   <
+consumer delivery evidenced
+   <
+durable mutation/read-back evidenced
+   <
+post-mutation event/actor effect evidenced
+#+end_example
+
+The exact order can vary by implementation, but the principle does not:
+downstream facts require downstream observations.
+
+*** Stage 5: durable mutation
+
+The persistent store now owns a revision of the document.
+
+For the book's CouchDB-backed runtime, durable mutation raises questions about:
+
+- current revision;
+- idempotency/mutation identity;
+- conflict handling;
+- server-private outbox state;
+- tenant/storage metadata;
+- what gets projected back to the canonical response.
+
+The database chapter treats those mechanics in detail.
+
+*** Stage 6: event publication
+
+A stored document can cause a post-mutation event.
+
+The event is not "the document happened again."  It is a transport object that
+communicates a consequence of the mutation.
+
+This difference gives you better recovery logic:
+
+- durable document present, event pending -> publish/recover event;
+- event maybe published, marker not durable -> duplicate publication possible;
+- actor receives duplicate -> actor/consumer must use stable identity or
+  idempotent behavior.
+
+Exactly-once slogans are less useful than naming these states.
+
+*** Stage 7: actor or capability processing
+
+An actor can receive a typed work envelope, load/query documents, call tools,
+derive a relation, enrich a document, or create a new observation.
+
+But actor execution does not exempt its output from the document contract.
+
+A derived object should re-enter through a canonical boundary so it gets:
+
+- validation;
+- provenance;
+- authorization/policy;
+- persistence semantics;
+- event semantics;
+- query/index visibility.
+
+Otherwise you have built a second shadow database inside the actor.
+
+*** Stage 8: recursive enrichment
+
+The central StarIntel loop is therefore:
+
+#+begin_example
+document
+  -> durable corpus
+  -> event/work
+  -> actor/capability
+  -> derived document/relation
+  -> durable corpus
+  -> ...
+#+end_example
+
+The recursion is dataflow recursion, not magic recursion in one process.
+
+Because each round produces typed evidence-bearing objects, the graph can grow
+without every actor having to understand every other actor.
+
+*** Worked trace: synthetic person to derived relation
+
+Assume a canonical synthetic person document is admitted.
+
+1. The producer constructs =person:book-demo= under dataset =book-demo=.
+2. Canonical validation proves the object conforms to 0.10.1.
+3. Authorization admits the write.
+4. Transport accepts the mutation request.
+5. Durable persistence makes the person queryable.
+6. A post-persistence event makes relevant work discoverable.
+7. An enrichment actor observes a public organization association.
+8. The actor creates or references the organization document.
+9. It emits a =relation= whose source is the person reference, destination is
+   the organization reference, and predicate names the observed association.
+10. The relation carries its own source/provenance.
+11. That relation is validated/persisted like any other canonical document.
+
+Notice what never happened: the actor edited an invisible in-memory graph and
+declared victory.
+
+The graph changed because durable evidence-bearing documents changed.
+
+*** Debugging ledger: one row per boundary
+
+When a document "disappears," create this table before changing code:
+
+| Boundary | Expected input | Observable success | Stronger fact still unproven |
+|----------+----------------+--------------------+------------------------------|
+| normalization | source object | canonical candidate | schema validity |
+| validation | candidate | valid contract result | authorization |
+| authorization | valid request | allow decision | transport acceptance |
+| publish | admitted request | publish observation | broker responsibility |
+| broker | message | confirm/delivery evidence | durable mutation |
+| consumer | delivery | settlement/handler result | later event consumers |
+| persistence | mutation | revision/read-back | actor execution |
+| event | persisted change | event delivery | actor side effect |
+| actor | typed work | handler receipt/result | derived durability |
+| derived ingest | canonical output | durable read-back | later graph consequences |
+
+The first row without evidence is the next experiment.
+
+*** Migration debugging: four objects may coexist
+
+During the 0.9 -> 0.10.1 transition you may encounter:
+
+1. an exact historical 0.9 document;
+2. a canonical 0.10.1 document;
+3. a migrated 0.10.1 document carrying migration provenance;
+4. a runtime/storage projection containing private database fields.
+
+Do not diff those as if they were expected to be byte-identical.
+
+Ask instead:
+
+- which contract owns each representation;
+- what mapping created it;
+- which fields are intentionally private;
+- whether semantic content was preserved;
+- whether the canonical output validates.
+
+*** Exercises
+
+- ★ Draw the eight stages from source material to recursive enrichment.
+- ★ Explain why canonical =id= can map to private CouchDB identity without making
+  CouchDB's field name canonical.
+- ★★ Write an evidence ledger for "HTTP returned 202 but GET is 404."
+- ★★ Explain how a relation actor should retain edge-specific provenance.
+- ★★★ During a mixed-version deployment, design a safe refusal rule for a
+  0.10.1 document arriving at an old-only runtime.
+- ★★★ Design one test that proves a runtime response did not leak a
+  database-private field into canonical output.
+
+* Project 1 -- Learn the Contract, Then Learn the Migration
 :PROPERTIES:
 :ID:       95600b49-6e43-550d-b202-6aa6ae80ddb2
 :END:
-The first project is intentionally smaller than a server deployment. Before operating an actor graph, you should be able to create a canonical record, validate it using a real maintained binding, predict why malformed variants fail, and explain exactly what that test does *not* prove.
+Project 1 now has two educational layers.
 
-*** Architecture: import the boundary, do not clone it
-The project pins =lost-rob0t/starintel-doc= revision =5857914a1e34ad18a6956b8ff0df5349de0ca099=. That adapter's own schema lock points at canonical schema commit =6479c0a9dc88ce9fed183515fc4df5d245de0b3a= in =lost-rob0t/starintel-gpt-auto-dig=. The package does not vendor that schema file, so the exercise fetches only the exact immutable schema artifact named by the lock. The book owns fixtures, exercises, and assertions; the upstream package and schema remain the validation authority. [cite:@starintel-doc-091]
+The first is the book's original executable 0.9 compatibility checkpoint.  The
+second is the canonical 0.10.1 reading/migration checkpoint introduced by this
+edition.
 
-That produces a clean dependency shape:
+Do not merge them into one fake "universal" validator.
+
+*** Milestone A -- historical 0.9 executable compatibility lab
+
+Status: TESTED in the earlier book workflow at its pinned revisions.
+
+The original project pins =lost-rob0t/starintel-doc= revision
+=5857914a1e34ad18a6956b8ff0df5349de0ca099= and its immutable historical schema
+artifact.  It teaches how the then-current 0.9.1 package accepted the 0.9.0 wire
+family and how malformed historical records fail.
+
+That lab is still useful because migration engineers need to understand the
+input contract they are migrating *from*. [cite:@starintel-doc-091]
+
+Its old fixture vocabulary includes:
 
 #+begin_example
-book fixtures + assertions
-          |
-          v
-pinned starintel_doc 0.9.1 adapter
-          |
-          +----> adapter schema lock
-                        |
-                        v
-              pinned canonical 0.9 schema artifact
+_id
+schema_version
+version
+date_added / date_updated
+nested data
 #+end_example
 
-There is no second validator hiding in the tutorial, and fetching that schema data dependency does not run the repository that stores it.
+Treat those as historical-profile fields in this edition.
 
-*** Run the project
-From the =chatgpt-books= repository root:
+*** Run the historical lab
+
+From the repository root:
 
 #+begin_src sh
 git clone https://github.com/lost-rob0t/starintel-doc .cache/starintel-doc
 git -C .cache/starintel-doc checkout 5857914a1e34ad18a6956b8ff0df5349de0ca099
 
 mkdir -p .cache/starintel-schema/schemas
-curl --fail --location \
-  --output .cache/starintel-schema/schemas/starintel-doc-v0.9.0.schema.json \
-  https://raw.githubusercontent.com/lost-rob0t/starintel-gpt-auto-dig/6479c0a9dc88ce9fed183515fc4df5d245de0b3a/schemas/starintel-doc-v0.9.0.schema.json
+curl --fail --location   --output .cache/starintel-schema/schemas/starintel-doc-v0.9.0.schema.json   https://raw.githubusercontent.com/lost-rob0t/starintel-gpt-auto-dig/6479c0a9dc88ce9fed183515fc4df5d245de0b3a/schemas/starintel-doc-v0.9.0.schema.json
 
 python3 -m pip install .cache/starintel-doc
 bash books/starintel/code/records/run-tests
 #+end_src
 
-The runner points =STARINTEL_SCHEMA= at that separately pinned canonical artifact and executes the book's regression tests. The focused CI workflow pins both authorities so a future upstream branch move cannot silently change the lesson.
+The negative cases intentionally break one historical invariant at a time:
+missing identity, rejected alias, invalid datetime, and unsupported wire
+version.
 
-*** What the executable tests ask
-The suite uses two synthetic fixtures.
+Those are compatibility tests, not current-schema examples.
 
-**** Person fixture
-It checks basic canonical envelope fields, permitted extension preservation, and round-trip stability.
+*** Milestone B -- canonical 0.10.1 authority reading lab
 
-**** Operation fixture
-The current 0.9.1 release added/supports an =operation= dtype while the wire schema family remains =0.9.0=. The fixture makes that distinction executable rather than merely memorized. [cite:@starintel-doc-091]
+Status: DOCUMENTED in this pass; a dedicated executable book harness remains to
+be added.
 
-The negative tests deliberately break one thing at a time:
+Open:
 
-- delete =_id=;
-- use rejected alias =organization=;
-- remove the timezone from =date_added=;
-- substitute wire version =0.8.0=.
+#+begin_example
+star-lang/specs/starintel/0.10.1/core.star
+star-lang/specs/starintel/0.10.1/release-lock.json
+star-lang/specs/starintel/0.10.1/generated/
+star-lang/specs/starintel/compatibility/
+#+end_example
 
-A good failure lab changes one variable. If you mutate five fields and get one validation error, you learned almost nothing.
+Then perform this exercise:
 
-*** Debugging exercise: predict before running
-For each mutation, write the expected *category* before executing the suite. Then run it and compare.
+1. Find the base =document= definition.
+2. Find =person= and list only fields it adds beyond the base document.
+3. Find =relation= and identify its three required relation-specific fields.
+4. Find =operation= and =investigation-target=.
+5. Inspect the release lock and explain how generated artifacts are tied to the
+   source release.
+6. Inspect the compatibility reader and identify the exact point where the
+   historical =_id= becomes canonical =id=.
+7. Find how unknown historical data is preserved or rejected.
+8. Explain why a current canonical document passing through the versioned reader
+   should behave as an identity operation rather than a second migration.
 
-| Mutation | Expected boundary result |
-|----------+--------------------------|
-| remove =_id= | =missing_required_field= |
-| =dtype="organization"= | =invalid_enum= alias rejection |
-| =date_added="2026-09-16T12:00:00"= | =invalid_datetime= |
-| =schema_version="0.8.0"= | unsupported spec/wire version |
+The purpose is to learn to navigate the authority, not memorize one generated
+file.
 
-If an upstream release changes one of these results, that is not a reason to loosen the test blindly. It is a signal to inspect the new schema/adapter, update the research record, and decide whether the book or dependency pin should move.
+*** Milestone C -- migration reasoning lab
 
-*** Explain the result like an operator
-After the suite passes, answer all five questions without looking back:
+Given this simplified historical object:
 
-1. Why does package release 0.9.1 accept a document whose =schema_version= is 0.9.0?
-2. What does =version= mean that =schema_version= does not?
-3. What could a future CouchDB =_rev= tell you that neither of those values tells you?
-4. Why does passing this suite *not* prove a live StarIntel Server can persist the record?
-5. Why is a server authorization failure not evidence that the document schema is invalid?
-
-If those answers are crisp, the project has done its job.
-
-*** Failure lab: a fake green test
-Imagine replacing =validate_document(document)= with this:
-
-#+begin_src python
-assert document["dtype"] == "person"
+#+begin_src json
+{
+  "_id": "person:book-demo",
+  "dataset": "book-demo",
+  "dtype": "person",
+  "schema_version": "0.9.0",
+  "version": 1,
+  "data": {
+    "fname": "Alex",
+    "lname": "Example"
+  }
+}
 #+end_src
 
-The test might be green while missing required fields, invalid dates, unsupported versions, closed-schema violations, and future contract changes. It would test your imitation of the contract, not the contract.
+do *not* hand-edit it into a 0.10.1 document.
 
-This is why Project 1 imports the real adapter. A tutorial should make the production boundary easier to understand, not create a second source of truth.
+Instead write a migration worksheet:
 
-*** Where the project grows next
-Later milestones extend this same record work instead of throwing it away:
+| Historical concept | Canonical concept | Mapping kind |
+|--------------------+-------------------+--------------|
+| =_id= | =id= | renamed/promoted identity |
+| =schema_version= | =schemaVersion= | version/profile change |
+| nested person fields | person top-level fields | structural flattening |
+| historical =version= | no automatic semantic twin assumed | explicit compatibility decision |
+| unknown fields | =extensions.legacy= / migration record as defined | preserve-or-reject policy |
 
-- validate more dtypes and relation/provenance structures from current schema inventory;
-- exercise the server's actual HTTP validation and authorization boundary in a disposable local stack;
-- trace an accepted record through RabbitMQ to CouchDB;
-- inject a downstream persistence failure and prove that request acceptance is not durability;
-- hand the resulting document to a real actor project while preserving provenance and correlation evidence.
+Then compare your reasoning with the executable compatibility mapping.
+[cite:@starlang-starintel-compat]
 
-Those steps remain dependency-gated. The foundation project stops exactly where its evidence stops.
+The point is that a migration is a reviewed mapping, not a regex.
+
+*** Milestone D -- canonical fixture design
+
+Design a new synthetic 0.10.1 person fixture for the future executable book
+harness.
+
+Require yourself to justify each field:
+
+- Why this =id=?
+- Why this dataset?
+- Which source/provenance values are facts about the fixture?
+- Which optional fields should be omitted rather than guessed?
+- What does =collectionStatus= mean for a synthetic fixture?
+- What relation fixture would exercise first-class edge provenance?
+
+A sparse truthful fixture is better than a realistic-looking invented one.
+
+*** What Project 1 must eventually prove
+
+Before the final EPUB is release-ready, the current-schema Project 1 harness
+must independently prove at least:
+
+- canonical 0.10.1 positive fixtures validate against the generated authority;
+- all named generated dtypes are discoverable through the release manifest;
+- raw duplicate-key conformance fails before destructive parsing;
+- a small historical fixture migrates through the official versioned reader;
+- migrated output validates as 0.10.1;
+- an already-current valid document is not semantically mutated by the reader;
+- opaque/unknown historical material follows the documented preservation or
+  rejection policy;
+- book fixtures contain no private data or credentials.
+
+Until those tests exist and run on this book branch, this chapter labels them
+as requirements, not achievements.
 
 * Foundation checklist
 :PROPERTIES:
@@ -482,15 +1237,34 @@ Those steps remain dependency-gated. The foundation project stops exactly where 
 :END:
 Before continuing to actors, queues, and databases, you should be able to:
 
-- describe StarIntel as document-driven recursive dataflow rather than one monolithic application;
-- distinguish current implementation evidence from historical or proposed architecture;
-- name release/profile 0.9.1 versus wire =schema_version= 0.9.0 without hesitation;
-- separate document =version= from CouchDB =_rev=;
-- explain validation, provenance, authorization, publication, and persistence as different contracts;
-- follow one document across HTTP -> RabbitMQ -> consumer -> CouchDB -> event -> actor boundaries;
-- run the Project 1 real-adapter tests and explain each intentional failure.
+- describe StarIntel as recursive evidence flow rather than one monolithic app;
+- locate the canonical 0.10.1 authority in StarLang;
+- explain why generated bindings are consumers of =core.star= rather than
+  independent schema authorities;
+- name =id=, =rev=, =dataset=, =dtype= and =schemaVersion= correctly;
+- distinguish a document identity from a storage revision;
+- explain why relations have their own provenance;
+- distinguish parse validity, schema validity, semantic validity,
+  authorization, evidentiary quality and durability;
+- explain why raw JSON duplicate-key checks can belong before normal parsed
+  schema validation;
+- distinguish canonical 0.10.1 guidance from the book's pinned 0.9 runtime labs;
+- explain why server default-branch adoption can lag the canonical schema;
+- trace source -> canonical document -> admission -> transport -> durable
+  mutation -> event -> actor -> derived document;
+- use an evidence ledger instead of equating "send returned" with "done";
+- explain actor targets, =investigation-target= documents and =operation=
+  documents without conflating them;
+- describe a 0.9 -> 0.10.1 migration as semantic mapping plus validation and
+  provenance, not a field-name edit;
+- run the historical Project 1 compatibility tests and explain exactly what
+  they do and do not prove.
 
-The rest of the book builds outward from these invariants. Common Lisp service internals, RabbitMQ behavior, CouchDB conflict handling, actors, Prolog, search, graphs, testing, security, deployment, and the capstone all become easier once "what crossed which boundary?" is a reflex rather than an afterthought.
+The rest of the book builds outward from these invariants.  Common Lisp service
+internals, RabbitMQ behavior, CouchDB conflict handling, actors, Prolog, search,
+graphs, testing, security, deployment, Quasar, automated research and the
+capstone all become easier once "which contract owns this representation?" and
+"what observation proves this transition?" become reflexes.
 
 * Part II -- Runtime Boundaries
 :PROPERTIES:
