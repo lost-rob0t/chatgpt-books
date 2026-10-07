@@ -57,6 +57,16 @@ jobs:
       - name: Run Project 1 record-contract tests
         run: bash books/starintel/code/records/run-tests
 
+      - name: Run canonical Project 1 SDK practicum
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install 'jsonschema[format]==4.26.0'
+          git clone https://github.com/lost-rob0t/starintel-doc .cache/starintel-doc-canonical
+          git -C .cache/starintel-doc-canonical checkout 6aa8051dc7ea560943a60a25e1d600467f2778bc
+          bash books/starintel/code/canonical-records/run-tests .cache/starintel-doc-canonical
+          python3 -m py_compile books/starintel/code/canonical-records/*.py
+
       - name: Run Project 2 ingest-adapter tests
         run: |
           bash books/starintel/code/ingest-adapter/run-tests
@@ -103,6 +113,7 @@ jobs:
           dot -Tsvg books/starintel/assets/document-flow.dot -o /tmp/starintel-document-flow.svg
           dot -Tsvg books/starintel/assets/ingest-settlement.dot -o /tmp/starintel-ingest-settlement.svg
           dot -Tsvg books/starintel/assets/actor-dispatch.dot -o /tmp/starintel-actor-dispatch.svg
+          dot -Tsvg books/starintel/assets/canonical-record-evidence.dot -o /tmp/starintel-canonical-record-evidence.svg
 
       - name: Build StarIntel book
         run: make book BOOK=starintel
@@ -111,6 +122,13 @@ jobs:
         env:
           EPUBCHECK_JAR: .cache/epubcheck-5.3.0/epubcheck.jar
         run: make check BOOK=starintel
+
+      - name: Upload validated StarIntel EPUB
+        uses: actions/upload-artifact@v4
+        with:
+          name: starintel-book-epub
+          path: books/starintel/dist/starintel.epub
+          if-no-files-found: error
 
   actor-runtime-upstream:
     runs-on: ubuntu-latest
@@ -201,3 +219,4 @@ jobs:
 
       - name: Flake check
         run: sudo nix flake check -L
+

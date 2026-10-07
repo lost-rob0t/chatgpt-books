@@ -1081,8 +1081,8 @@ Ask instead:
 Project 1 now has two educational layers.
 
 The first is the book's original executable 0.9 compatibility checkpoint.  The
-second is the canonical 0.10.1 reading/migration checkpoint introduced by this
-edition.
+second is the canonical 0.10.1 reading/migration checkpoint and executable
+practicum introduced by this edition.
 
 Do not merge them into one fake "universal" validator.
 
@@ -1133,8 +1133,8 @@ Those are compatibility tests, not current-schema examples.
 
 *** Milestone B -- canonical 0.10.1 authority reading lab
 
-Status: DOCUMENTED in this pass; a dedicated executable book harness remains to
-be added.
+Status: DOCUMENTED authority-navigation exercise. Milestone E now adds a
+pinned SDK practicum with executable canonical and migration fixtures.
 
 Open:
 
@@ -1199,8 +1199,8 @@ The point is that a migration is a reviewed mapping, not a regex.
 
 *** Milestone D -- canonical fixture design
 
-Design a new synthetic 0.10.1 person fixture for the future executable book
-harness.
+Inspect the synthetic 0.10.1 person fixture in =code/canonical-records/=, then
+design a second fixture for the executable practicum.
 
 Require yourself to justify each field:
 
@@ -1228,8 +1228,13 @@ must independently prove at least:
   rejection policy;
 - book fixtures contain no private data or credentials.
 
-Until those tests exist and run on this book branch, this chapter labels them
-as requirements, not achievements.
+Milestone E executes a bounded subset: three canonical fixtures, persistent
+inventory, a book-local duplicate-key guard, one explicit SDK migration, and
+current-input identity. Full upstream compatibility-fixture replay and complete
+current-runtime adoption remain separate work. A counted inventory is not an
+all-type conformance result.
+
+#+include: "canonical-records-lab-10.org"
 
 * Foundation checklist
 :PROPERTIES:
@@ -1337,3 +1342,4 @@ Write three statements that are justified and three that are not. A justified st
 - ★★ Find one current server source file that exists but is not loaded and describe how you proved the negative.
 - ★★ Draw an evidence ladder for an update request rather than a new-document request.
 - ★★★ Design an observability event that distinguishes local publish-call completion from publisher confirmation without leaking credentials.
+

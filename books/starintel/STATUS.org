@@ -169,13 +169,41 @@ Documented from current server =main= at
 These current-source additions are DOCUMENTED, not silently generalized into
 the older exact-pin Project 3 TESTED claims.
 
+* Pass 10 -- Canonical records practicum
+
+Added a pinned canonical SDK lab, manuscript walkthrough, lifecycle failure
+worksheet with ten worked answers, and an editable evidence-boundary diagram.
+All seventeen local tests passed on 2026-10-07 against SDK
+=6aa8051dc7ea560943a60a25e1d600467f2778bc=. The SDK offline release-closure check
+also passed. The fail-closed format-capability regression first detected the
+default environment lacked the optional RFC3339 checker. Reusing an existing
+Python environment with jsonschema 4.26.0 and rfc3339-validator 0.1.4 made all
+seventeen tests pass without a new installation. CI explicitly installs the
+pinned format extra. The release schema, manifest, and core source match the inspected
+StarLang default head byte-for-byte.
+
+The tests cover three canonical fixtures, exact-number and negative cases,
+persistent inventory, one explicit legacy migration with retained original
+payload, and current-input migration identity. Duplicate-key rejection is
+TESTED in the book-local admission guard; last-member-wins behavior remains a
+TESTED LIMITATION of the pinned SDK parser alone. No product repository was
+modified to change that behavior.
+
+The local EPUB build command completed using available Pandoc 3.1.11.1, but
+XML inspection found the same eight duplicate-id-attribute errors in both the
+unchanged baseline and updated book. The older local renderer is not the
+workflow-pinned Pandoc 3.10.1. EPUBCheck is unavailable locally; the CI-produced
+validated EPUB and remote exact-head checks still gate publication. Existing service/actor test evidence is unchanged and was not rerun by
+this local practicum.
+
 * Active research / missing executable proofs
 
 Still required before the book can claim full current-schema mastery:
 
-- book-local canonical 0.10.1 validation harness consuming StarLang-generated
-  authority without duplicating it;
-- versioned-reader migration tests from historical 0.9 input;
+- expand the bounded canonical 0.10.1 practicum to broader current-type and
+  failure coverage without duplicating StarLang authority;
+- complete authoritative compatibility-fixture replay beyond the one SDK
+  historical-input migration and current-input identity case now tested;
 - canonical 0.10.1 end-to-end service ingest/read-back on a runtime that
   actually supports 0.10.1;
 - canonical relation persistence/read-back test;
@@ -190,8 +218,9 @@ Still required before the book can claim full current-schema mastery:
 
 PR #153 current exact-head CI must be treated as authoritative for this slice.
 
-The branch modifies manuscript/source metadata only; it does not claim new
-StarIntel product-runtime tests beyond the already merged evidence named above.
+The branch now includes a thin pinned-SDK canonical practicum. It does not
+claim new StarIntel service-runtime behavior beyond the previously named
+evidence. Remote exact-head results are required for the updated branch.
 
 Required gates remain:
 
@@ -239,8 +268,8 @@ not started.
 
 * Next dependency-ready writing/implementation slices
 
-1. Add the executable canonical 0.10.1 Project 1 harness.
-2. Add official historical -> canonical migration fixtures/tests.
+1. Extend the now-executable canonical 0.10.1 Project 1 practicum.
+2. Add broader official historical -> canonical migration fixtures/tests.
 3. Expand search/query/graph chapters around current APIs and evidence
    semantics.
 4. Expand Prolog/inference chapters with current executable StarIntel
@@ -259,4 +288,6 @@ book cannot honestly claim a canonical 0.10.1 end-to-end server path until it
 pins a runtime that actually supports that contract and runs the complete
 service-backed test.
 
-No merge or auto-merge is authorized for PR #153.
+Publication and merge state are governed by the current task instructions and
+exact-head checks; this file does not itself grant merge authority.
+

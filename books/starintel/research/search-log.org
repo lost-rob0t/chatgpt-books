@@ -72,3 +72,12 @@ Sources inspected: current server =master= =e49c67d88d60dbcc0fcba1b4ba76c1a0a6d6
 Result: no actor-runtime teaching claim in milestone A is contradicted. The eleven-commit delta changes observability, authorization, configuration, Compose, and their tests, not the actor/target/runtime source used by this slice. Current =target-dispatch.lisp= still defines the typed dispatch envelope and canonical =documents.target.dispatch.<actor>= route. Current serial ASDF load order still loads =target-recovery= before the later =runtime-lifecycle=; the former's =start-actors= calls =recover-persisted-targets=, while the later loaded definition omits that call. The book therefore keeps the recovery statement as a DOCUMENTED source/load-order finding and does not upgrade it to a tested process-restart failure.
 Evidence status: current source currency is DOCUMENTED at =e49c67d...=. Project 3's runnable actor regression remains TESTED only against the exact =1ac298b...= StarIntel/Sento pin; no result is silently transferred to the new head.
 Remaining uncertainty: handler-crash behavior, registry state after actor death, replacement/restart policy, and whole-process persisted-target recovery still require the dependency-gated fault experiment.
+
+
+* 2026-10-07 -- Canonical records practicum
+Question: close Project 1's executable current-contract gap without inventing a
+second schema or a service-runtime success claim.
+Primary inspection: StarLang fa1c8f4; Python SDK 6aa8051; server ce14c77.
+Result: seventeen-test pinned SDK lab, explicit migration example, guarded raw
+JSON boundary, lifecycle worksheet and ten worked answers.
+Details: [[file:canonical-records-pass-10.org][Pass 10 research and verification]].

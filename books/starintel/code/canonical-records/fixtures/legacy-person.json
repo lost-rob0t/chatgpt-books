@@ -1,0 +1,11 @@
+{
+  "_id": "person:book-legacy",
+  "dataset": "book-synthetic",
+  "dtype": "person",
+  "schema_version": "0.9.0",
+  "version": 1,
+  "data": {
+    "fname": "Alex",
+    "private_note": "synthetic legacy payload, not personal data"
+  }
+}

@@ -1,0 +1,78 @@
+#+title: StarIntel Canonical Records Practicum Pass 10
+
+* Question and scope
+Can Project 1 teach current canonical records through the real merged Python
+SDK while keeping local validation separate from service-runtime adoption?
+
+Date: 2026-10-07. Parent issue #9, existing draft PR #153.
+Original book head: =8848b2906bc5d473ee833d5f4eec2d0624e01de5=.
+No concurrent changes appeared on that PR during source inspection.
+
+* Primary sources
+- [[https://github.com/lost-rob0t/starintel-doc/tree/6aa8051dc7ea560943a60a25e1d600467f2778bc][Merged Python SDK]]:
+  canonical module, migration helper, README, generated definitions and
+  complete consumer lock. The lab uses this exact checkout.
+- [[https://github.com/lost-rob0t/star-lang/tree/fa1c8f4fb0590526c39aa3e9bc4a7e6eac30bea7/specs/starintel/0.10.1][Canonical release]]:
+  rechecked main, core source, manifest and schema identities.
+- [[https://github.com/lost-rob0t/starintel-server/commit/ce14c77ccd2f51f543410fdeef3d78fb9978b769][Server default head]]:
+  unchanged at source recheck. No canonical end-to-end service proof is added.
+
+The SDK lock pins StarLang =9198370f7a6f3e2a5ea00af3efdb6d705e102650=.
+Three inspected SDK files have the same Git blob identities as current
+StarLang =fa1c8f4=:
+- =core.star=: =2910288cc9e70a76f6e904cdb66ee6d915e94fa1=;
+- generated manifest: =c1c0afd1309ca8740164b8b4dfbf7c8f9cc2d9f1=;
+- generated schema: =537163da436f67a973e280d1704e32bdba5b888b=.
+The SDK's own offline complete release-closure verification also passed.
+
+* Findings
+The manifest exposes ninety persistent and thirty-three transient documents.
+The persistent SDK inventory contains =org=, not =organization=. Relation
+requires source, destination, and predicate. StarReference requires schema and
+id. Shape validation does not consult a backing corpus for endpoint existence.
+
+The SDK uses exact numeric parsing/serialization, and generated decimal fields
+remain strings. The pinned parser alone retains the last duplicate object
+member. The lab records that limitation and uses a small, separately labeled
+book-local pair-inspection guard before the unchanged text reaches the SDK.
+This does not claim a product fix or complete parser resource hardening.
+
+One historical synthetic person migrates through the official SDK helper with
+original payload retention. Already-current valid input preserves its meaning.
+These examples do not establish all historical mappings or full compatibility
+fixture coverage.
+
+* Executed local checks
+- Python 3.12.14 and jsonschema 4.26.0.
+- SDK HEAD and tracked-file cleanliness verified.
+- SDK complete offline release closure passed.
+- All seventeen canonical practicum tests passed in an existing environment
+  with jsonschema 4.26.0 and rfc3339-validator 0.1.4; no packages were installed.
+- The format-capability regression first correctly failed in the default
+  environment lacking that checker. CI explicitly installs the pinned format
+  extra so date-time validation cannot silently disappear.
+- Existing hermetic regressions passed: ingest adapter 8, trace evidence 9,
+  ambiguous bulk 8, bulk lifetime 11, and actor injector 2. These do not replay
+  live service or upstream actor behavior.
+- Org include-preparation regression passed.
+- Pandoc Org-reader regression failed as expected on the old local renderer;
+  it requires the reader behavior of CI-pinned Pandoc 3.10.1.
+- New editable Graphviz source rendered successfully.
+- =make book BOOK=starintel= completed using Pandoc 3.1.11.1.
+
+* Publication limit
+Deeper XML inspection found duplicate id attributes in eight chapter XHTML
+members. The same eight errors occur in an unchanged build of the original
+book head with the same older local Pandoc. The book workflow pins Pandoc
+3.10.1. This local build is therefore not delivered as a validated EPUB.
+EPUBCheck is unavailable locally; exact-head CI and its uploaded validated
+EPUB remain the authoritative publication gate.
+
+* Claim boundary
+TESTED: bounded SDK/fixture results listed above, including the parser
+limitation and book guard behavior.
+DOCUMENTED: current authority/runtime pins and lifecycle reasoning.
+UNTESTED by this pass: HTTP authorization, broker settlement, CouchDB mutation,
+outbox crash recovery, actor execution, complete migration compatibility, and
+canonical end-to-end service ingest/read-back. Prior book evidence retains its
+own immutable pins and scope.

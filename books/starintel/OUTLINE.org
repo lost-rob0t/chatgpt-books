@@ -280,3 +280,11 @@ The reader can add a capability that consumes canonical contracts, declares its 
 
 ** Gate F -- Operations
 The reader can debug a deliberately broken multi-service run from evidence/correlation IDs and can identify the first unproven boundary before changing code or restarting services.
+
+
+* Project 1 practicum added in Pass 10
+=manuscript/canonical-records-lab-10.org= implements the next Gate A checkpoint:
+three synthetic canonical fixtures through the pinned SDK, negative cases,
+exact JSON numbers, book-local duplicate-member admission, explicit legacy
+preservation and current-input identity. Ten worked lifecycle failure answers
+connect Gate A to Gate B without claiming a service-backed 0.10.1 trace.

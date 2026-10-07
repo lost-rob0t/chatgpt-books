@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd)"
+SDK="${1:?usage: run-tests /path/to/pinned/starintel-doc}"
+SDK="$(cd "$SDK" && pwd)"
+PIN=6aa8051dc7ea560943a60a25e1d600467f2778bc
+test "$(git -C "$SDK" rev-parse HEAD)" = "$PIN" || {
+  echo "Expected starintel-doc at $PIN" >&2; exit 2;
+}
+test -z "$(git -C "$SDK" status --porcelain --untracked-files=no)" || {
+  echo "SDK tracked files must match the pin" >&2; exit 2;
+}
+(cd "$SDK" && python3 scripts/sync-starintel-schema.py --offline)
+PYTHONPATH="$SDK${PYTHONPATH:+:$PYTHONPATH}" \
+  python3 -m unittest discover -s "$HERE" -p 'test_*.py' -v

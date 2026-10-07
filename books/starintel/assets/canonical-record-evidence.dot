@@ -1,0 +1,20 @@
+digraph evidence {
+  graph [rankdir=TB, bgcolor="white", pad="0.2", nodesep="0.3", ranksep="0.4"];
+  node [shape=box, fontname="sans-serif", fontsize=12, margin="0.12"];
+  edge [fontname="sans-serif", fontsize=10];
+  raw [label="Original JSON text"];
+  guard [label="Book duplicate-key guard"];
+  sdk [label="Canonical SDK validation\nLocal practicum stops here"];
+  http [label="HTTP admission"];
+  broker [label="Broker publication evidence"];
+  mutation [label="Consumer mutation + outbox"];
+  read [label="Authorized durable read-back"];
+  actor [label="Actor handler receipt"];
+  output [label="Derived relation read-back"];
+  raw -> guard -> sdk;
+  sdk -> http [style=dashed, label="service-backed proof required"];
+  http -> broker -> mutation;
+  mutation -> read;
+  mutation -> actor [label="event + dispatch"];
+  actor -> output;
+}
