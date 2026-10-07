@@ -1,0 +1,48 @@
+#+title: Project 1 Canonical Records Practicum
+
+* Purpose
+Run seventeen bounded tests against the real canonical Python SDK. The fixtures
+are synthetic. No services, credentials, private corpus, or external write is
+used. The matching lesson and answer key are in
+=manuscript/canonical-records-lab-10.org=.
+
+* Pin and dependencies
+SDK: =lost-rob0t/starintel-doc= at
+=6aa8051dc7ea560943a60a25e1d600467f2778bc=.
+Use Python 3.11+ and =jsonschema[format]>=4.23,<5= already available in the
+environment. CI pins jsonschema[format]==4.26.0. Local verification used
+Python 3.12.14, jsonschema 4.26.0 and rfc3339-validator 0.1.4: all seventeen
+cases pass. The format-capability test also correctly failed in a separate
+environment lacking the optional RFC3339 checker.
+The runner does not install anything.
+
+#+begin_src sh
+git clone https://github.com/lost-rob0t/starintel-doc .cache/starintel-doc-canonical
+git -C .cache/starintel-doc-canonical checkout 6aa8051dc7ea560943a60a25e1d600467f2778bc
+bash books/starintel/code/canonical-records/run-tests .cache/starintel-doc-canonical
+#+end_src
+
+Keep this checkout separate from the historical adapter used by =code/records=.
+The runner checks HEAD, tracked-file cleanliness, and the SDK's complete offline
+release closure. Tests import the standalone =starintel_canonical= namespace
+using the supplied checkout, not the historical installed package.
+
+* What is tested
+- 90 persistent / 33 transient manifest inventory and persistent-only discovery;
+- person, org, and relation round trips and optional revision omission;
+- local typed endpoint consistency;
+- malformed identity, missing required fields, old aliases, unknown dtype and
+  wrong version rejection;
+- decimal bounds/scale and exact ordinary JSON numbers;
+- duplicate decoded keys rejected by the book-local original-text guard;
+- a recorded duplicate-key limitation of the pinned SDK parser alone;
+- one explicit legacy migration with original-payload preservation;
+- semantic identity for an already-current input;
+- accepted shape of a dangling reference, documenting the absence of storage
+  referential checks at this boundary.
+
+* Evidence boundary
+The duplicate-key guard is book-local admission policy, not a patch to the SDK
+or a claim about deployed servers. It does not impose transport resource limits.
+No broker acknowledgement, persistence, actor execution, authorization, complete
+historical migration coverage, or all-dtype conformance is proved by this suite.

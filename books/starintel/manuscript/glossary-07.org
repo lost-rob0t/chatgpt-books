@@ -1,0 +1,211 @@
+#+title: Appendix -- StarIntel Working Glossary
+:PROPERTIES:
+:ID:       f7c712c0-77c6-4cf3-9a6f-54893b90da4f
+:END:
+
+* Working glossary
+
+This glossary uses the meanings taught by this book.  Version-sensitive entries
+must still be checked against the pinned source for the chapter or experiment.
+
+** actor
+A message-processing component with an address, mailbox, handler state and
+lifecycle/failure boundary.
+
+** actor identity
+The name or identifier used by the runtime/registry to resolve a local or remote
+actor destination.  Do not confuse it with a document =id=.
+
+** actor registry
+Runtime state that maps actor identities to resolvable local actor components
+and/or discovery metadata.
+
+** acknowledgement / ACK
+A transport settlement action indicating a delivery has been handled according
+to the consumer's contract.  It is not universal proof of all downstream side
+effects.
+
+** canonical
+The representation or source designated as the authority for new StarIntel
+data.  For the current document model this book treats StarLang =core.star=
+=0.10.1= as canonical.
+
+** capability
+A bounded operation a component is allowed and able to perform.  Capability
+design answers both *what can this component do?* and *under which authority or
+constraints?*
+
+** correlation ID
+An identifier used to connect observations from one logical request/workflow
+across multiple services without pretending those services share one call
+stack.
+
+** CouchDB revision / =_rev=
+Storage-level optimistic-concurrency metadata.  It is not the canonical logical
+document identity and not the schema version.
+
+** dataset
+A named grouping/provenance boundary for documents and investigation material.
+
+** derived document
+A document created from other observations/documents by an actor, model,
+inference rule or transformation.  Its provenance should identify those inputs
+and the derivation method.
+
+** document
+The typed, evidence-bearing unit of durable StarIntel knowledge.
+
+** document identity
+The logical canonical identifier of a document.  In =0.10.1= this is =id=.
+Historical runtimes may expose =_id= storage/wire conventions.
+
+** dtype
+The discriminator selecting a concrete StarIntel document contract.
+
+** event
+A notification or record of a state transition.  An event is not automatically
+the same object as the durable document whose mutation caused it.
+
+** evidence
+An observation supporting a claim.  Logs, tests, source code, read-backs,
+message settlement and persisted state are different kinds of evidence with
+different strength.
+
+** evidence ladder
+An ordered set of observations that progressively prove more about a workflow,
+for example HTTP return -> broker acceptance -> consumer settlement -> durable
+read-back -> actor receipt.
+
+** extension field
+A defined place to preserve data that does not belong to the canonical typed
+fields without silently inventing new top-level schema.
+
+** generated binding
+Language-specific types/adapters produced from StarLang's canonical source.
+Generated code is a consumer artifact, not an independent schema authority.
+
+** idempotency
+A contract that makes replay of the same logical operation safe or
+recognizable.  It requires a definition of *same logical operation*.
+
+** ingest
+The boundary through which a candidate document becomes admitted StarIntel
+work, normally involving validation, authorization, routing and eventual
+persistence.
+
+** investigation target
+The canonical persistent =investigation-target= research document.  It is not
+the same as an actor scheduler target.
+
+** lowerCamelCase
+The canonical JSON key style declared by the StarLang =0.10.1= release.
+
+** mailbox
+The actor-side queue of messages waiting for handler processing.
+
+** migration
+An explicit mapping from one versioned representation/meaning to another.
+Changing a version marker alone is not a migration.
+
+** mission
+A domain concept used for spatial/research work.  Do not treat it as a synonym
+for =operation= or =investigation-target=.
+
+** mutation identity
+The identifier used to recognize one logical persistent change across retries
+or replays.
+
+** observation
+A recorded fact about what one boundary actually did or returned.  Good
+debugging preserves observations before jumping to conclusions.
+
+** operation
+A persistent =0.10.1= coordination document describing an operation, including
+mission/status/phase information.  It is not a running actor.
+
+** outbox
+Durable state recording that a committed database change still has an external
+event/notification to publish.
+
+** persistence
+Durable storage of a document or related runtime state.  HTTP or publish success
+alone does not prove persistence.
+
+** provenance
+Information linking a document or relation to its source, acquisition,
+transformation or derivation history.
+
+** publisher confirm
+Broker-side acknowledgement to a publisher that the broker has taken
+responsibility for a published message under the configured RabbitMQ semantics.
+It is distinct from consumer ACK.
+
+** quarantine
+Terminal handling for a message/document that should not continue normal retry
+processing without inspection or correction.
+
+** relation
+A typed, evidence-bearing connection among document identities.
+
+** replay
+Processing the same logical input/event again, intentionally or due to retry,
+redelivery or recovery.
+
+** routing key
+The broker-level string used to route a message to bindings/queues.  It is part
+of the transport contract and should be verified from executable configuration.
+
+** schema authority
+The source designated to define valid canonical document contracts.  For
+StarIntel =0.10.1= that authority is StarLang =core.star= plus its generated
+release artifacts.
+
+** schemaVersion
+The canonical =0.10.1= document-contract version field.  Historical documents
+may use =schema_version=.
+
+** settlement
+The decision that ends ownership of a broker delivery through ACK/NACK/reject or
+an equivalent transport action.
+
+** source pin
+A commit/release identifier attached to a version-sensitive claim so the reader
+can determine exactly which code or spec made the claim true.
+
+** Star Language / StarLang
+The language/toolchain used to define the canonical StarIntel document model
+and generate versioned artifacts for consumers.
+
+** target
+An overloaded term.  Always qualify it as an actor/runtime target, an
+=investigation-target= document, or another domain-specific target.
+
+** tenant
+The security/ownership partition that scopes which principal may read or write
+which StarIntel resources.
+
+** typed envelope
+A message wrapper with an explicit protocol/type contract rather than an
+unstructured payload.
+
+** validation
+Checking an object against a contract.  Validation can prove conformance; it
+cannot by itself prove that the contents are true.
+
+** versioned reader
+A compatibility component that selects an explicit historical/canonical input
+contract and performs a defined migration or rejection.
+
+* Dangerous shorthand
+
+Avoid these sentences unless you can name the exact evidence behind them:
+
+- "The document was saved" when you only have an HTTP success.
+- "The actor ran" when you only have a send return.
+- "The broker has it" when you only have a local publish return.
+- "It is current StarIntel" when the example is pinned to an older runtime.
+- "Target means..." without naming which target layer.
+- "The schema says..." without naming the StarLang release or historical
+  compatibility contract.
+- "Exactly once" when the system actually combines idempotency, outbox recovery,
+  broker redelivery and duplicate-safe consumers.

@@ -1,0 +1,27 @@
+{
+  "dataset": "book-synthetic",
+  "schemaVersion": "0.10.1",
+  "collector": "starintel-book-fixture",
+  "collectionMethod": "manually authored synthetic teaching example",
+  "tags": [
+    "synthetic",
+    "book-example"
+  ],
+  "id": "relation:book-membership",
+  "dtype": "relation",
+  "source": {
+    "schema": "org.starintel/core@1/person",
+    "id": "person:book-alex"
+  },
+  "destination": {
+    "schema": "org.starintel/core@1/org",
+    "id": "org:book-example"
+  },
+  "predicate": "member-of",
+  "extensions": {
+    "book": {
+      "claimStatus": "synthetic premise, not a real-world assertion",
+      "basis": "membership declared by this exercise"
+    }
+  }
+}

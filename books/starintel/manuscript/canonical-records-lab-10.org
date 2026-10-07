@@ -1,0 +1,317 @@
+*** Milestone E -- Run the canonical records practicum
+:PROPERTIES:
+:ID:       72d384e1-e3d2-4a4f-92f8-7d0631b71864
+:END:
+
+We will build a small graph, deliberately break it, and identify the limit of
+each successful check. The graph has three persistent documents: a synthetic
+person, a synthetic organization, and a membership relation. No live person,
+organization, account, or investigation is represented.
+
+The executable work lives in =code/canonical-records/=. It imports the real
+Python SDK's standalone =starintel_canonical= namespace. It does not maintain a
+second schema, implement a database, start a broker, or simulate an actor and
+then call that a StarIntel runtime test.
+
+The SDK pin is
+=6aa8051dc7ea560943a60a25e1d600467f2778bc=. Its release lock points to StarLang
+=9198370f7a6f3e2a5ea00af3efdb6d705e102650=. The generated schema, portable
+manifest, and =core.star= bytes were also compared with StarLang's inspected
+default head =fa1c8f4fb0590526c39aa3e9bc4a7e6eac30bea7=; these three files are
+identical. Different repository commit IDs therefore need not mean different
+document contracts. Compare the locked artifacts before drawing that
+conclusion. [cite:@starintel-doc-canonical-20261007;@starlang-starintel-0101]
+
+**** Run the lab without replacing the historical lab
+
+Use Python 3.11 or newer with =jsonschema[format]= available. Keep this SDK
+checkout separate from the historical =.cache/starintel-doc= used by milestone
+A. The commands fetch source and run the lab; they do not install packages or
+contact a running StarIntel service.
+
+#+begin_src sh
+git clone https://github.com/lost-rob0t/starintel-doc \
+  .cache/starintel-doc-canonical
+git -C .cache/starintel-doc-canonical checkout \
+  6aa8051dc7ea560943a60a25e1d600467f2778bc
+bash books/starintel/code/canonical-records/run-tests \
+  .cache/starintel-doc-canonical
+#+end_src
+
+The runner checks the exact SDK revision and rejects changed tracked files. It
+then runs the SDK's own offline release-closure check before the book tests.
+That verifies the local package against its lock. Upstream identity still
+depends on the immutable source pin and comparison with the authority.
+
+At this pass, the suite contains seventeen tests. One explicitly checks that
+the optional date-time validator exists and rejects malformed input; it fails
+closed when that dependency is absent. A green result covers these
+fixtures and assertions. It does not establish complete conformance for all
+ninety persistent types merely because the inventory count is correct.
+
+**** Begin with a sparse person
+
+The common envelope identifies the document and dataset. The body describes
+only what the exercise actually supplies. The complete fixture also records
+the book fixture source as its collector and labels the record synthetic.
+
+#+begin_src json
+{
+  "id": "person:book-alex",
+  "dataset": "book-synthetic",
+  "dtype": "person",
+  "schemaVersion": "0.10.1",
+  "fname": "Alex",
+  "lname": "Example"
+}
+#+end_src
+
+We omit =rev= because no storage revision has been observed. We omit a date of
+birth, address, retrieval timestamp, and external source URL because this
+exercise supplies none. Filling every available property would teach the
+wrong habit: a rich schema permits detail but does not manufacture evidence.
+
+In a Python process whose import path includes the pinned SDK checkout:
+
+#+begin_src python
+from starintel_canonical import Document
+
+person = {
+    "id": "person:book-alex",
+    "dataset": "book-synthetic",
+    "dtype": "person",
+    "schemaVersion": "0.10.1",
+    "fname": "Alex",
+    "lname": "Example",
+}
+assert Document.from_dict(person).to_dict() == person
+assert "rev" not in person
+#+end_src
+
+This checks the document boundary. The SDK selects the concrete =person=
+definition from the generated manifest. Validating only the generated JSON
+Schema's definitions-only root would not select that document contract.
+[cite:@starintel-doc-canonical-20261007]
+
+**** Give the edge its own identity and basis
+
+The organization dtype is =org=. A plausible-looking =organization= dtype is
+not an alias in the inspected manifest. Its fixture requires a =name= in
+addition to the common envelope.
+
+The relation connects the endpoints using typed references:
+
+#+begin_src json
+{
+  "id": "relation:book-membership",
+  "dataset": "book-synthetic",
+  "dtype": "relation",
+  "schemaVersion": "0.10.1",
+  "source": {
+    "schema": "org.starintel/core@1/person",
+    "id": "person:book-alex"
+  },
+  "destination": {
+    "schema": "org.starintel/core@1/org",
+    "id": "org:book-example"
+  },
+  "predicate": "member-of"
+}
+#+end_src
+
+The complete fixture carries a =book= extension saying that membership is a
+synthetic premise declared by the exercise. That is an honest basis for this
+example. In a real investigation, the relation would need the actual evidence
+for the membership claim; merely citing the person document would not supply
+it.
+
+The tests compare the relation's references with the two endpoint fixtures.
+They also remove a required reference field and the relation predicate to
+observe rejection. Finally, a test substitutes a well-shaped reference to an
+absent organization. Schema validation accepts it. The SDK has not queried a
+corpus or verified that the referenced object exists.
+
+This separates three checks that an application may need: the shape of a
+reference, resolution of its target, and support for the relationship claim.
+Only the first is supplied by document shape validation. Our fixture-level
+endpoint comparison supplies a small local consistency check, not a general
+cross-dataset resolver.
+
+**** Preserve numbers at the original text boundary
+
+There are two numeric conventions to recognize. Schema-declared decimals,
+such as =confidence=, use decimal strings. Ordinary JSON numbers inside an
+opaque extension use JSON numeric tokens. The SDK's exact parser and writer
+preserve the latter without passing them through binary floating point.
+
+The lab verifies a long fractional token in an extension, together with
+=false= and =null=. It separately tests that =confidence="0.75"= passes while
+a floating-point =0.75=, an out-of-range string, and an over-precision string
+fail. A successful exact-number round trip is a serialization result; it says
+nothing about whether a producer's confidence estimate is calibrated.
+
+Use =Document.from_json()= and =Document.to_json()= on original text, or the
+SDK's =parse_json= and =stringify_json= helpers. If a previous parser already
+rounded a value, a later validator cannot recover the discarded digits.
+[cite:@starintel-doc-canonical-20261007]
+
+**** The duplicate-key failure happens before document validation
+
+Consider the raw input:
+
+#+begin_src json
+{"id":"person:first","id":"person:second"}
+#+end_src
+
+At the pinned SDK revision, =parse_json= retains the second value. This lab
+records that limitation explicitly. Once the object has become a dictionary,
+neither schema validation nor a round-trip check can discover that the first
+member existed.
+
+The small =admission.py= helper first walks object-member pairs and rejects a
+repeated decoded key, including repetitions inside nested objects. It then
+passes the original, unchanged text to the SDK. Its preliminary pass keeps
+number tokens as strings solely for inspection and discards that temporary
+result. Exact numeric decoding remains the SDK's responsibility.
+
+The distinction matters when reading the results:
+
+- TESTED: the book guard rejects top-level, nested, and escaped-key duplicates.
+- TESTED LIMITATION: the pinned SDK parser alone accepts a last-member-wins
+  duplicate-key input.
+- UNTESTED: a deployed server, router, or producer uses this book guard.
+
+This is an admission-policy teaching example, not a complete parser-hardening
+package. Production code also needs limits appropriate to its transport, such
+as payload size and nesting depth. The book does not silently claim those
+limits are implemented here.
+
+**** Migrate explicitly and inspect what was retained
+
+The fourth fixture uses the old =_id=/=schema_version=/=data= envelope. It
+includes an otherwise unmapped synthetic payload field. The test invokes the
+actual =starintel_canonical.migration.canonicalize_document= helper and checks
+all of the following:
+
+1. Canonical output has =id= and =schemaVersion="0.10.1"=.
+2. The mapped =fname= is present at the top level.
+3. The original payload remains under =extensions.legacy.original.data=.
+4. The unmapped field is not invented as a new canonical top-level property.
+5. The input dictionary remains unchanged.
+6. The output validates through the canonical SDK.
+
+A separate test passes an already-current document through the migration
+helper and checks semantic identity. These are two bounded migration cases.
+They do not prove every historical shared-name type has a complete semantic
+mapping, nor do they rewrite a corpus. [cite:@starintel-doc-migration-20261007]
+
+Inspect the preserved original before interpreting the migrated record. An
+unmapped field being retained is valuable audit evidence; it does not mean a
+current consumer understands or enforces that field.
+
+**** Follow the same graph through a running system
+
+The local practicum ends before network admission. Use its three documents as
+the input to this *reasoning worksheet*, not as permission to send 0.10.1 data
+to the book's historical 0.9 server pin. The default server still carries the
+older contract at the 2026-10-07 recheck.
+
+#+caption: Evidence boundaries for one document and a later derived relation. The local lab tests parsing and validation. Storage, transport settlement, and actor outcomes require their own runtime observations.
+#+attr_html: :alt Original JSON passes a book duplicate-key guard and the canonical SDK. A dashed boundary separates these local checks from HTTP admission, broker publication, consumer mutation, durable read-back, actor handling, and derived-document read-back.
+[[file:assets/canonical-record-evidence.svg]]
+
+Imagine a supported runtime has accepted the person and organization. An
+actor is assigned a work item that may derive the membership relation. Keep a
+ledger with document IDs, relevant revisions, work-item identity, and available
+correlation or mutation identities. At each step, record the actual observed
+event. Do not fill later rows because an earlier call returned successfully.
+
+These observations answer different questions:
+
+- HTTP acceptance: what the selected API promises about this request.
+- Publisher confirmation, if actually observed: the broker's result for that
+  publication under the configured protocol.
+- Consumer acknowledgement: settlement of that delivery by its consumer.
+- Durable mutation/read-back: what was stored and observed through a defined
+  authorized read path.
+- Actor receipt: the handler received that work item.
+- Derived-document read-back: the actor's output crossed the persistence
+  boundary.
+- Operation completion evidence: the declared completion conditions were met.
+
+The publisher and consumer acknowledgements concern opposite sides of the
+broker. Neither word =ACK= should be used without saying which side produced
+it. Whether a consumer ACK implies a prior commit depends on that consumer's
+verified implementation and path. In the book's inspected normal ingest path,
+ACK follows the durable mutation/outbox operation; filtered deliveries have a
+different path. Chapter 8 explains that distinction.
+
+**** Failure worksheet
+
+For each case, write the strongest supported conclusion and the next
+observation needed. Assume no evidence beyond the sentences below.
+
+1. All three fixtures validate locally. No HTTP request has been made.
+2. HTTP returned success. An authorized bounded read found no document yet.
+3. A publisher confirmation was observed. No consumer result was observed.
+4. The person is readable. Its event publication has not been observed.
+5. The outbox worker published an event, then crashed before marking it sent.
+6. An actor handler recorded receipt. No derived relation is readable yet.
+7. The relation is readable. Its destination reference names an absent object.
+8. A broker log says ACK, without a channel, consumer, or message identity.
+9. A canonical relation validates after explicit migration. Its preserved
+   legacy payload still contains an unmapped field.
+10. The runtime advertises HTTP API version 1. Its document schema lock says
+    0.9.0.
+
+**** Answer key
+
+1. Local contract checks passed. You have not established admission, storage,
+   relationship truth, or any actor behavior. First select a runtime that
+   supports the same document contract before submitting anything.
+2. The request returned successfully and persistence was not observed within
+   that read's scope and deadline. Check the response contract and correlation
+   evidence before retrying. Do not convert an ambiguous outcome into a
+   definite failed mutation or automatically resend a non-idempotent action.
+3. The publication has broker-side evidence. Check the relevant queue/route,
+   consumer and mutation evidence next. A publisher confirmation does not
+   establish a consumer ACK or application commit.
+4. The read path observed stored content. Inspect pending outbox/event evidence
+   before expecting actor processing. Storage and downstream publication have
+   separate failure windows.
+5. Replay can publish that event again. A stable event identity helps a
+   consumer recognize duplicate work. It does not itself make processing
+   exactly-once. Inspect the consumer's duplicate-handling policy and effects.
+6. Receipt proves the handler reached that observation. Inspect its outcome,
+   output validation and write evidence. Do not mark an investigation phase
+   complete solely because a message arrived.
+7. The relation's storage and reference resolution are separate facts. Resolve
+   the destination in the authorized dataset/scope. A schema validator does
+   not act as a corpus-level foreign-key checker.
+8. This is insufficiently correlated evidence. Identify whether it is a
+   publisher confirmation or consumer settlement and bind it to the relevant
+   attempt before drawing a conclusion.
+9. This fixture's mapping and output validation passed. Inspect what the
+   retained field means and whether any current consumer maps it. Preservation
+   does not establish semantic adoption.
+10. The API route version does not establish 0.10.1 support. Select the
+    appropriate document contract/runtime combination. Do not relabel a
+    historical object to make it pass a new-client check.
+
+**** Extend the lab
+
+- ★ Remove =predicate= and predict which check fails before running the suite.
+- ★ Explain why the graph uses =org= even though we call it an organization in
+  prose.
+- ★★ Add a second relation fixture with a different synthetic basis. Verify its
+  independent identity and that both endpoint references resolve within the
+  fixture set.
+- ★★ Add a migration negative case with ambiguous reference type information.
+  Read the official helper before writing the assertion; do not infer a dtype
+  from an ID prefix.
+- ★★★ Design a future service-backed test that binds one canonical mutation,
+  one actor work item, and one derived read-back. List the exact version pins
+  and evidence needed, including what remains unknown after a timeout.
+
+Keep proposed service experiments separate from executed local assertions.
+The next runtime milestone must actually cross those service boundaries.

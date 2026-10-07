@@ -1,0 +1,404 @@
+#+title: Reader Orientation -- How to Grok StarIntel
+:PROPERTIES:
+:ID:       8e4f2db9-3ad0-4f31-a5f1-4d826f0f6a71
+:END:
+#+bibliography: ../references.bib
+
+* Read this before Chapter 1
+
+StarIntel is easier to understand when you stop treating it as one application and
+start treating it as a set of contracts through which evidence moves.
+
+The shortest useful mental model is:
+
+#+begin_example
+source
+  -> canonical document
+  -> validated ingest
+  -> durable corpus
+  -> event / routing decision
+  -> actor or analysis capability
+  -> derived document or relation
+  -> the same corpus again
+#+end_example
+
+The important word is *contract*.  A document contract defines what data means.
+A transport contract defines what a successful send means.  A storage contract
+defines what durable state means.  An actor protocol defines what work is being
+requested.  A query contract defines what can be observed.  Most serious bugs
+appear when two adjacent contracts are mentally collapsed into one.
+
+This orientation gives you the vocabulary and architecture map needed to read
+the rest of the EPUB without already knowing the repositories.
+
+* The edition rule: authority and runtime are different questions
+
+As of 2026-10-05, the canonical StarIntel document authority is Star Language
+=org.starintel/core@1= version =0.10.1=.  The source of truth is
+=specs/starintel/0.10.1/core.star= in =lost-rob0t/star-lang=.  Its generated
+release lock declares both release and schema version =0.10.1= and
+=lowerCamelCase= as the canonical key style. [cite:@starlang-starintel-0101]
+
+That does *not* mean every runtime has already adopted that contract.
+
+The current =starintel-server= default branch was rechecked on 2026-10-05 at
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769=.  Its checked-in runtime lock still
+identifies the historical =0.9.1= release profile over the =0.9.0= wire schema.
+A separate draft migration, server PR #313 at
+=117057d6f5bbf2e2b40d5cfd89eb7adcca5e28fd=, has executable evidence for
+accepting the StarLang-generated =0.10.1= contract but is not merged into the
+default branch. [cite:@starintel-server-20261005;@starintel-server-pr313]
+
+So the reader must keep three statements separate:
+
+| Question | Current answer for this edition |
+|----------+---------------------------------|
+| What defines the canonical StarIntel document model? | StarLang =core.star= and its generated =0.10.1= release |
+| What does server =main= accept today? | The checked-in server runtime still carries the older =0.9.1=/=0.9.0= lock |
+| Is a server =0.10.1= implementation available? | Yes, as the tested but unmerged PR #313 migration |
+
+This is not editorial trivia.  It is the same distinction you need in a real
+rolling migration: *specification authority*, *implementation support*, and
+*deployed adoption* can move at different times.
+
+Older chapters in this book contain deliberately pinned runtime experiments.
+Read those as evidence about the exact named revision, not as permission to
+infer that an older schema remains canonical.
+
+* Seven nouns that unlock the system
+
+** Document
+
+A document is the durable typed unit of StarIntel knowledge.  In canonical
+=0.10.1= form, the common document envelope is flat and uses lowerCamelCase.
+The base contract includes =id=, optional =rev=, =dataset=, =dtype=, and
+=schemaVersion=, with additional common metadata defined by StarLang.
+[cite:@starlang-starintel-0101]
+
+A minimal mental example is:
+
+#+begin_src json
+{
+  "id": "person:example",
+  "dataset": "demo",
+  "dtype": "person",
+  "schemaVersion": "0.10.1"
+}
+#+end_src
+
+That fragment is for orientation, not a claim that every dtype is valid with
+only those fields.  Each concrete document type adds its own requirements.
+
+** Dataset
+
+A dataset is the grouping and provenance boundary around documents.  It is not
+just a folder name.  It gives downstream code a stable way to discuss where
+documents belong, how collections were assembled, and which operations or
+policies apply to them.
+
+When debugging, always ask whether an observed document is in the dataset you
+think you are querying.
+
+** Relation
+
+A relation is a first-class way to say that two or more document identities are
+connected by a typed claim.  The important architectural idea is that graph
+structure is represented as evidence-bearing data, not only as an implicit
+database join.
+
+Treat the graph as something that can be inspected, versioned, attributed, and
+derived.
+
+** Actor
+
+An actor is a stateful message-processing component with an address and a
+failure boundary.  Actors are not the database, and they are not synonymous
+with document types.
+
+A useful actor mental model is:
+
+#+begin_example
+address + mailbox + handler + state + lifecycle
+#+end_example
+
+The book's current Project 3 intentionally separates actor creation,
+registration, address resolution, send completion, handler receipt, and later
+side effects.  Those are different observations.
+
+** Target
+
+The word =target= appears in more than one layer, so qualify it.
+
+An *actor scheduling target* is work directed toward an actor/runtime path.
+The canonical =0.10.1= *investigation-target* document is a persistent research
+contract containing a target string, research question, hypotheses and other
+research controls.  StarLang explicitly states that =investigation-target= is
+not an alias for actor scheduler =target= or spatial =mission=.
+[cite:@starlang-research-contracts-0101]
+
+If you say only "target" while debugging, you are already one ambiguity deep.
+
+** Operation
+
+The canonical =operation= document is a persistent coordination object.  It
+models an investigation/research operation with a mission, status, phases and
+other orchestration fields.  It is data that can be stored, moved and reasoned
+about; it is not the same thing as a running actor process.
+[cite:@starlang-research-contracts-0101]
+
+** Event
+
+An event is evidence that some boundary reported a state transition or emitted
+a notification.  An event is not automatically the durable document that caused
+it, nor proof that every consumer completed its work.
+
+That distinction matters around RabbitMQ, outbox replay, retries, actor
+dispatch, and UI notifications.
+
+* Do not collapse these pairs
+
+Memorize this table.  It prevents a large fraction of StarIntel debugging
+mistakes.
+
+| Pair | Why they differ |
+|------+-----------------|
+| =id= vs =rev= | logical document identity versus storage/concurrency revision |
+| document =version= vs =schemaVersion= | object/domain versioning versus document-contract version |
+| canonical schema vs runtime acceptance | source authority can advance before a runtime merges support |
+| HTTP acceptance vs persistence | a request boundary can return before downstream durable visibility is proven |
+| publish call vs broker confirmation | a local send return is not identical to broker responsibility |
+| broker ACK vs application side effect | settlement proves a delivery transition, not every later consequence |
+| actor registered vs actor executed | registry visibility does not prove the handler processed a message |
+| send returned vs handler receipt | asynchronous enqueue/send success is weaker evidence |
+| actor target vs =investigation-target= | scheduler work item versus persistent research document |
+| operation vs mission | research/orchestration document versus one mission concept inside a larger workflow |
+| event vs document | notification/transition evidence versus durable knowledge object |
+| relation vs inferred truth | relation data can itself have provenance, uncertainty, or later contradiction |
+
+* The canonical document authority chain
+
+For =0.10.1=, learn the chain in this order:
+
+#+begin_example
+core.star
+   |
+   +--> generated JSON Schema
+   +--> generated language bindings
+   +--> dtype manifest / release metadata
+   +--> compatibility and migration artifacts
+   |
+   +--> consumer libraries
+           |
+           +--> server/runtime boundaries
+           +--> actor systems
+           +--> clients and tooling
+#+end_example
+
+The rule is simple: downstream copies do not become independent schema
+authorities merely because they can validate JSON.
+
+The release lock exists so a consumer can verify that generated artifacts came
+from the intended source set.  Compatibility artifacts describe how historical
+inputs may be interpreted or migrated; they do not outrank =core.star= as the
+canonical model. [cite:@starlang-starintel-0101]
+
+* A 0.9 -> 0.10.1 migration is structural, not a version-string edit
+
+The historical document family used fields such as =_id= and =schema_version=
+and commonly used snake_case/nested shapes.  Canonical =0.10.1= uses =id=,
+=schemaVersion= and lowerCamelCase.  The StarLang compatibility reader requires
+an explicit versioned input and emits canonical =0.10.1= rather than pretending
+that changing a marker is sufficient. [cite:@starlang-starintel-compat]
+
+That teaches a broader engineering rule:
+
+#+begin_quote
+A schema migration is a mapping between meanings, not a search-and-replace over
+field names.
+#+end_quote
+
+When reading old examples in later chapters, first identify whether the example
+is a historical-runtime experiment or a canonical =0.10.1= example.
+
+* The end-to-end evidence loop
+
+The book will repeatedly return to one trace.
+
+** 1. Acquire
+
+A collector, user, importer, actor, or other source produces an observation or
+candidate object.
+
+Question: *what is the source and what can it actually know?*
+
+** 2. Normalize into a canonical document
+
+Source-specific shapes are converted into the canonical StarIntel vocabulary.
+
+Question: *which authority defines the output shape?*
+
+For new work, the answer is the StarLang =0.10.1= release, not a hand-maintained
+copy of an older schema.
+
+** 3. Validate
+
+The document is checked against the relevant type contract and boundary rules.
+
+Question: *did validation prove syntax/shape only, or a stronger semantic
+invariant too?*
+
+Never promote schema validity into truth.
+
+** 4. Admit and route
+
+A client or service submits the document or work request.  Authentication,
+authorization, routing and transport now matter.
+
+Question: *what exactly did the accepting boundary acknowledge?*
+
+** 5. Persist
+
+The durable data layer stores the document, revisions, mutation metadata and
+outbox state required by the runtime.
+
+Question: *what durable observation proves this step happened?*
+
+** 6. Emit consequences
+
+A successful mutation can cause an event, route, actor dispatch, index update,
+search projection, notification, or more work.
+
+Question: *which downstream effect is synchronous and which is merely
+eventually observable?*
+
+** 7. Derive
+
+An actor or analysis capability may produce a new document, relation, score,
+annotation or target.
+
+Question: *what provenance connects the derived artifact to its inputs and
+method?*
+
+** 8. Re-enter
+
+Derived evidence can be ingested again.  This is where StarIntel becomes a
+recursive evidence system rather than a one-shot ETL pipeline.
+
+* Repository map: think in responsibilities
+
+Repository names will evolve.  Responsibilities are more stable.
+
+| Responsibility | Typical home in the current system |
+|----------------+------------------------------------|
+| canonical document language/spec | =star-lang= |
+| generated Common Lisp document support | =star-cl= and generated release artifacts |
+| ingest, persistence, HTTP, RabbitMQ, local actors | =starintel-server= |
+| specialized external actor systems | actor repositories/services |
+| investigation/operator control plane | Quasar family |
+| automated research/dig orchestration | auto-dig / auto-research family |
+| UI and device clients | Quasar, Zara and specialized clients |
+
+The rest of the book should teach a repository only after first naming the
+responsibility it owns.  That way a rename or split does not destroy the mental
+model.
+
+* How to debug StarIntel without guessing
+
+For any failure, make a boundary ledger.
+
+#+begin_example
+BOUNDARY              INPUT              OBSERVATION             NEXT OWNER
+HTTP admission        canonical doc      2xx / 4xx / 5xx         publisher/queue
+Rabbit publish        serialized msg     local return/confirm     broker
+Rabbit delivery       queued msg         delivery + settlement    consumer
+DB mutation           document/mutation  durable revision         outbox/event
+event publication     outbox event       publish/confirm           consumer/actor
+actor dispatch        typed envelope     send/receipt             actor handler
+derived ingest        new document       read-back / event         next stage
+#+end_example
+
+Then enforce four rules:
+
+1. Record what you *observed*, not what you hoped happened.
+2. Pin the code/spec revision for version-sensitive claims.
+3. Distinguish absence of evidence from evidence of absence.
+4. Stop at the first boundary whose preconditions or observations are unknown.
+
+This is why the existing runtime chapters spend so much time on words such as
+=TESTED=, =DOCUMENTED= and =UNTESTED=.  The labels are part of the engineering
+method, not editorial bureaucracy.
+
+* Three traces every reader should be able to perform
+
+Before calling yourself comfortable with StarIntel, you should be able to trace
+these without hand-waving.
+
+** Trace A -- one document
+
+Start with a source object.  Identify its canonical dtype, contract authority,
+dataset, identity, ingest boundary, persistence observation, event consequences
+and query/read-back path.
+
+** Trace B -- one actor task
+
+Start with a target/work request.  Identify actor identity, registration,
+address resolution, envelope type, local or remote route, send observation,
+handler receipt, failure behavior and any derived document.
+
+** Trace C -- one investigation
+
+Start with a research question.  Identify the =investigation-target= document,
+operation/phase structure, datasets involved, actors/capabilities selected,
+documents and relations produced, provenance retained, and how an operator can
+inspect the result.
+
+The projects in this book progressively build these traces instead of teaching
+unconnected APIs.
+
+* What "grok StarIntel" means at the end of the EPUB
+
+A successful reader should be able to:
+
+- explain the canonical =0.10.1= document authority and distinguish it from a
+  runtime's current adoption state;
+- read a StarLang document definition and locate its generated schema/binding;
+- explain document identity, revision, provenance, dataset membership and
+  relations without conflating them;
+- trace an ingest request across HTTP, RabbitMQ, persistence, outbox/event and
+  actor boundaries;
+- distinguish synchronous return values from durable or downstream evidence;
+- implement a small actor/capability without copying the runtime;
+- explain actor registration, routing, mailbox/handler execution and failure as
+  separate concerns;
+- reason about idempotency, retries, redelivery, duplicate events and recovery;
+- inspect CouchDB state without confusing storage metadata with the canonical
+  document contract;
+- explain the difference among actor targets, investigation targets, operations
+  and missions;
+- extend search/inference while preserving source/provenance boundaries;
+- debug a broken multi-service pipeline using observations rather than folklore;
+- identify whether a statement is canonical, implemented, tested, experimental,
+  historical, deprecated or merely planned;
+- add a complete StarIntel capability with tests, observability, documentation
+  and a migration story.
+
+If a chapter does not move the reader toward one of those capabilities, it is
+probably not earning its space.
+
+* Reader checkpoints
+
+After Part I you should be able to draw the evidence loop and explain every
+durability/ownership boundary.
+
+After the actor and messaging material you should be able to trace one target
+from selection to handler receipt and identify every place where "sent" can be
+mistaken for "done."
+
+After the language/search/inference material you should be able to add a
+capability while keeping canonical documents and provenance stable.
+
+After the operations/debugging material you should be able to diagnose a
+cross-service failure from evidence, not by restarting everything.
+
+The capstone should feel like composition of known contracts, not a brand-new
+architecture.

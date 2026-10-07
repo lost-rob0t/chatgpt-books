@@ -1,0 +1,678 @@
+** Interlude -- Investigations Are Data, Plans Are Data, Execution Is Still Separate
+:PROPERTIES:
+:ID:       934a34f8-3c09-4adb-a2c5-4d21d69dc134
+:END:
+
+By this point you know what a canonical document is and what an actor is.  The
+next question is how StarIntel represents an *investigation* without turning the
+entire workflow into undocumented process state.
+
+The 0.10.1 authority gives us two important persistent document types:
+
+- =investigation-target= -- what should be investigated and under which research
+  controls;
+- =operation= -- how a larger body of work is planned, phased, scoped, bound to
+  datasets/capabilities, assigned, and completed.
+
+[cite:@starlang-research-contracts-0101]
+
+These documents make planning inspectable.  They do not magically execute
+themselves.
+
+That distinction is the entire point of this interlude.
+
+** Four layers that look similar in a UI
+
+A control plane may show all of these on one screen:
+
+#+begin_example
+research question
+investigation target
+operation / phase
+actor execution
+#+end_example
+
+They belong to different contracts.
+
+| Layer | Primary question | Durable corpus object? |
+|-------+------------------+------------------------|
+| research question | what are we trying to learn? | usually represented inside =investigation-target= or operation objectives |
+| =investigation-target= | what should be investigated, with what bounds/preferences? | yes |
+| =operation= | how is multi-step work organized and evidenced? | yes |
+| operation phase/component | what typed planning state is embedded in the operation? | no separate corpus document in 0.10.1 |
+| actor/runtime target | what concrete work should a runtime deliver? | runtime/scheduler contract, not the same dtype |
+| actor execution | did a handler actually perform work? | execution observation/event, not equivalent to the plan |
+
+The UI can compose these layers.  The data model should not erase them.
+
+** =investigation-target= is the durable research intent
+
+The canonical document requires =target= and inherits the full StarIntel
+document envelope.  Optional research controls include:
+
+- =actor=;
+- =targetId= and =targetType=;
+- =query=;
+- =researchQuestion=;
+- =hypotheses=;
+- =objectives=;
+- =inScope= and =outOfScope=;
+- =seedIds= and =sourceIds=;
+- =requiredDtypes=;
+- preferred/excluded sources;
+- recurrence/delay;
+- =options=;
+- =depth=, =maxDepth=, =breadth=;
+- =priority= and =score=;
+- =selectionReason=;
+- status and next-run metadata.
+
+[cite:@starlang-research-contracts-0101]
+
+Notice one deliberate detail: =actor= is optional.
+
+That means the persistent research intent does not have to choose an execution
+implementation at creation time.
+
+This supports a healthy architecture:
+
+#+begin_example
+what needs investigation
+        |
+        v
+capability/actor selection
+        |
+        v
+concrete runtime work
+#+end_example
+
+rather than:
+
+#+begin_example
+actor name = the meaning of the investigation
+#+end_example
+
+** A minimal investigation target
+
+A small teaching object can look like:
+
+#+begin_src json
+{
+  "id": "investigation-target:book-example",
+  "dataset": "book-demo",
+  "dtype": "investigation-target",
+  "schemaVersion": "0.10.1",
+  "target": "example.org",
+  "researchQuestion": "What public infrastructure is directly attributable to example.org?",
+  "objectives": [
+    "Collect bounded public records",
+    "Preserve source and derivation provenance"
+  ],
+  "inScope": [
+    "public DNS and explicitly linked public documents"
+  ],
+  "outOfScope": [
+    "credentialed access",
+    "unrelated third parties"
+  ],
+  "maxDepth": 2,
+  "selectionReason": [
+    "synthetic book exercise"
+  ]
+}
+#+end_src
+
+The object says what the investigation is trying to do.  It does not claim any
+actor ran.
+
+It also does not claim that every field is appropriate for every real
+investigation.  The lesson is the separation of intent from execution.
+
+** Research controls should survive actor replacement
+
+Suppose the first implementation uses actor =dns-a=.
+
+Later, =dns-a= is replaced by =dns-b=, moved out of process, or split into two
+capabilities.
+
+If the research question, scope, source exclusions, and depth controls lived
+only inside actor-specific options, changing implementations would rewrite the
+meaning of the investigation.
+
+Persistent research controls make the intent stable while runtime selection can
+evolve.
+
+This is one reason =investigation-target= is not just "scheduler target with
+more fields."
+
+** =operation= is executable planning state, not intelligence evidence
+
+The StarLang source is explicit: research operations are executable planning
+state, distinct from real-world intelligence evidence, missions, and actor
+scheduler targets. [cite:@starlang-research-contracts-0101]
+
+An operation contains:
+
+- =mission=;
+- operation =status=;
+- phases;
+- optional objectives;
+- overall in/out scope;
+- target policy and target bindings;
+- dataset bindings;
+- capability gaps;
+- assignments;
+- post-actions.
+
+This gives the system a durable object that can answer:
+
+#+begin_example
+What work is planned?
+Which phases depend on which?
+Which datasets may each phase use?
+Which capabilities are missing?
+Who/what is assigned?
+What evidence allows a phase to be considered complete?
+What should happen after completion?
+#+end_example
+
+That is much more useful than a pile of background jobs with opaque IDs.
+
+** Embedded operation components are typed but not corpus documents
+
+This is a subtle but important schema rule.
+
+=operation-phase=, =operation-dataset-binding=,
+=operation-capability-gap=, =operation-assignment=, and related components are
+typed StarLang documents with =:persistence transient=.
+
+They are embedded records inside the persistent operation.  They are not
+standalone corpus dtypes. [cite:@starlang-research-contracts-0101]
+
+Therefore a client enumerating persistent StarIntel corpus document types must
+not simply list every generated =document= declaration.
+
+The authority's rule is conceptually:
+
+#+begin_example
+manifest kind = document
+AND persistence = persistent
+        |
+        v
+corpus dtype
+#+end_example
+
+Submitting an =operation-phase= by itself as if it were a durable corpus record
+would change its semantics.
+
+** Why embedded typed records are useful
+
+A phase still benefits from a precise contract:
+
+- =phaseId=;
+- objective;
+- state;
+- dependencies;
+- entry/exit conditions;
+- scope;
+- target policy and target IDs;
+- dataset binding IDs;
+- required capability IDs;
+- deliverable IDs;
+- completion evidence.
+
+But its identity is local to the containing operation.
+
+That makes operations self-contained planning graphs while avoiding a corpus
+full of fragments that only make sense when reassembled.
+
+** Operations are DAGs, not ordered checklists
+
+The canonical semantics require phase dependencies to be acyclic.
+
+That means:
+
+#+begin_example
+phase A -> phase C
+phase B -> phase C
+#+end_example
+
+is valid planning structure: C waits on A and B.
+
+This:
+
+#+begin_example
+A -> B -> C -> A
+#+end_example
+
+is not merely inconvenient.  It violates the operation semantics because there
+is no dependency-respecting completion order.
+
+The operation's phase graph lets a scheduler/control plane reason about
+parallelism and blockers without inventing ordering from array position.
+
+** Structural schema validation is not enough for operations
+
+JSON Schema can require fields and constrain types.  It cannot by itself express
+all cross-component operation semantics.
+
+The StarLang authority therefore declares and tests additional invariants,
+including:
+
+- unique component IDs;
+- acyclic phase dependencies;
+- resolving local references;
+- operation =outOfScope= overriding phase =inScope=;
+- completion evidence for completed phases;
+- terminal phases before the entire operation is completed.
+
+[cite:@starlang-research-contracts-0101]
+
+The locked operation semantic reference enforces those invariants after
+generated-schema validation.
+
+This is a concrete example of Chapter 4's distinction:
+
+#+begin_example
+structurally valid
+        !=
+semantically valid
+#+end_example
+
+** A planned operation example
+
+A small operation might be:
+
+#+begin_src json
+{
+  "id": "operation:book-example",
+  "dataset": "book-demo",
+  "dtype": "operation",
+  "schemaVersion": "0.10.1",
+  "mission": "Answer the book-example research question with bounded public evidence",
+  "status": "planned",
+  "objectives": [
+    "Collect source-backed records",
+    "Produce provenance-preserving relations"
+  ],
+  "phases": [
+    {
+      "phaseId": "collect",
+      "objective": "Collect bounded source records",
+      "state": "planned",
+      "requiredCapabilityIds": ["capability:dns-collection"]
+    },
+    {
+      "phaseId": "relate",
+      "objective": "Create supported relations from collected documents",
+      "state": "planned",
+      "dependsOn": ["collect"],
+      "requiredCapabilityIds": ["capability:relation-builder"]
+    }
+  ]
+}
+#+end_src
+
+This is a teaching example of the planning structure.
+
+A real operation should also bind datasets, targets, capabilities, evidence, and
+assignments as needed rather than relying on strings that no control plane can
+resolve.
+
+** Dataset bindings make data access part of the plan
+
+An =operation-dataset-binding= includes:
+
+- local =bindingId=;
+- dataset;
+- role;
+- access mode;
+- optional phase IDs;
+- purpose.
+
+Roles include collection, working, derived, publication, reference, and archive.
+Access modes include read, append, write, and read-write.
+[cite:@starlang-research-contracts-0101]
+
+This lets an operation say more than "use database X."
+
+For example:
+
+#+begin_example
+raw-public
+  dataset = collection-2026-10-05
+  role    = collection
+  access  = append
+
+analysis
+  dataset = book-analysis
+  role    = working
+  access  = read-write
+
+publish
+  dataset = book-results
+  role    = publication
+  access  = append
+#+end_example
+
+Now phase logic can refer to local binding IDs rather than hard-coding storage
+details everywhere.
+
+** Capability gaps are planning objects
+
+An operation can explicitly declare that a required capability is:
+
+- required;
+- missing;
+- planned;
+- in progress;
+- available;
+- resolved;
+- waived.
+
+A gap records category, description, blocking status, required-by references,
+and optional capability/resolution references.
+
+This is powerful because "we cannot run this phase" becomes structured state
+rather than a Slack message or exception string.
+
+A control plane can distinguish:
+
+#+begin_example
+missing actor capability
+missing source
+missing hardware
+missing schema support
+missing protocol support
+missing infrastructure
+#+end_example
+
+without inventing one generic "actor missing" error.
+
+** Do not create actors just because a capability is missing from one view
+
+Current server guidance makes a similar distinction for actor discovery:
+registry/manifests and evidence should be consulted before concluding an actor
+gap exists. [cite:@starintel-server-20261005]
+
+A sensible planning flow is:
+
+#+begin_example
+required capability
+      |
+      +--> existing actor/service supports it -> select/bind
+      |
+      +--> actor exists but source/config broken -> source/actor repair
+      |
+      +--> source not onboarded -> source onboarding
+      |
+      +--> genuinely no implementation -> capability gap / new implementation
+#+end_example
+
+Otherwise an autonomous planner can produce duplicate actor ecosystems every
+time discovery is incomplete.
+
+** Assignments bind plans to executors without redefining the plan
+
+An operation assignment can name an agent or actor, one or more phase IDs, a
+role, and assignment status.
+
+The assignment says:
+
+#+begin_example
+this executor is currently responsible for these phases
+#+end_example
+
+It does not change what the phases mean.
+
+That separation is important when work is reassigned after a failure.
+
+The operation remains stable; assignment state changes.
+
+** Completion requires evidence
+
+The semantic rule that completed phases require =completionEvidence= prevents a
+dangerous shortcut:
+
+#+begin_example
+worker set state = completed
+therefore phase is complete
+#+end_example
+
+A completion state needs references/identifiers for the evidence supporting it.
+
+Depending on the phase, that evidence might point to:
+
+- durable output document IDs;
+- relation IDs;
+- execution result/event IDs;
+- validation reports;
+- review records;
+- other operation-local evidence identifiers.
+
+The exact evidence contract belongs to the operation/capability design, but the
+principle is durable: completion is justified state, not merely a label.
+
+** "Completed operation" is stronger than "status=completed"
+
+The authority requires a completed operation to contain only completed or
+skipped phases. [cite:@starlang-research-contracts-0101]
+
+So a document like:
+
+#+begin_example
+operation.status = completed
+phase collect    = completed
+phase relate     = active
+#+end_example
+
+should fail semantic validation.
+
+This is exactly why consumers should not infer completion merely from one
+top-level string.
+
+** Scope exclusion must win
+
+The canonical semantics state that operation =outOfScope= overrides phase
+=inScope=.
+
+This prevents a child phase from silently expanding a boundary that the parent
+operation explicitly excluded.
+
+The pattern is broadly useful:
+
+#+begin_example
+parent hard constraint
+      >
+child local preference
+#+end_example
+
+A system that lets every actor loosen operation scope independently does not
+have operation scope.
+
+** From persistent target to capability selection
+
+Now connect =investigation-target= to the semantic actor registry.
+
+A control plane can conceptually:
+
+1. load the investigation target;
+2. inspect =requiredDtypes=, target type, source preferences and research
+   controls;
+3. load operator-visible actor/service manifests;
+4. filter on accepted target/document contracts and capabilities;
+5. check bounded runtime status;
+6. apply authorization/policy;
+7. create or update operation capability bindings/assignments;
+8. generate a concrete runtime target/envelope;
+9. dispatch it;
+10. observe execution and durable outputs separately.
+
+The persistent research document drives selection; it is not itself the mailbox
+message.
+
+** An end-to-end investigation trace
+
+Here is the reader trace this book will eventually make executable.
+
+#+begin_example
+investigation-target:book-example
+       |
+       | defines research question, scope, depth, source controls
+       v
+operation:book-example
+       |
+       | phases + dataset bindings + required capabilities
+       v
+semantic actor registry
+       |
+       | choose compatible ready capability
+       v
+runtime target / typed dispatch envelope
+       |
+       | local Sento or external transport
+       v
+actor execution
+       |
+       +--> person/domain/etc. documents
+       +--> relation documents
+       +--> execution/completion evidence
+       |
+       v
+canonical ingest
+       |
+       v
+durable corpus + events
+       |
+       v
+operation phase completion evidence
+       |
+       v
+query / search / Quasar inspection
+#+end_example
+
+Every arrow is a contract boundary.
+
+** Where Prolog and inference fit
+
+Prolog or another inference engine can participate at several points without
+becoming the entire architecture.
+
+Examples:
+
+- validate operation consistency;
+- select capabilities from declarative facts;
+- infer candidate relations from durable documents;
+- enforce bounded workflow policies;
+- diagnose missing prerequisites;
+- explain why one actor/capability was selected.
+
+But an inference result that changes the corpus should still become a canonical
+document/relation with provenance.
+
+Symbolic reasoning is a capability inside the evidence loop, not a bypass
+around it.
+
+** Where Quasar fits
+
+Quasar is best understood as a control-plane/operator surface.
+
+Its responsibilities can include:
+
+- show investigations and operations;
+- list operator-visible actors/services;
+- display capabilities and runtime status;
+- submit bounded targets;
+- show phase progress and blockers;
+- browse documents/relations;
+- show provenance/evidence;
+- surface failures and retry/recovery actions.
+
+Quasar should not need to know private Sento component references or Rabbit
+topology to do those jobs.
+
+That is why semantic manifests and canonical documents are useful seams.
+
+** Failure lab: "the investigation is stuck"
+
+Do not treat that as one failure.
+
+Ask:
+
+| Question | Evidence to collect |
+|----------+---------------------|
+| Is the investigation target valid? | canonical validation result |
+| Is there an operation? | durable operation read-back |
+| Is the next phase dependency-ready? | DAG/local semantic validation |
+| Is a capability required but unresolved? | capability-gap state |
+| Does a matching actor manifest exist? | semantic registry query |
+| Is the runtime ready? | status/ready observation |
+| Was concrete work dispatched? | execution/trace/schedule identity |
+| Did a handler receive it? | handler receipt/result |
+| Did it emit canonical output? | output IDs/provenance |
+| Did outputs become durable? | read-back/revision |
+| Was completion evidence attached? | operation phase state/evidence |
+| Is the UI stale? | compare control-plane projection with authoritative state |
+
+The first unknown row is the next diagnostic experiment.
+
+** Failure lab: a capability is online but wrong
+
+Suppose the registry says an actor is online.
+
+That proves a bounded liveness observation.
+
+It does not prove:
+
+- the actor accepts the target contract you have;
+- the semantic digest is the one your operation expects;
+- the source it needs is configured;
+- authorization will permit the action;
+- the handler can process this specific target;
+- output validation will succeed.
+
+Capability selection needs semantic and runtime evidence.
+
+** Failure lab: operation phases form a cycle
+
+If =collect= depends on =analyze= and =analyze= depends on =collect=, do not let a
+scheduler "pick one and see what happens."
+
+The operation is semantically invalid.
+
+Failing early preserves a useful property: any admitted operation has at least
+one possible topological execution order subject to other conditions.
+
+** Exercises
+
+- ★ Explain why =operation-phase= is typed but not a standalone corpus dtype.
+- ★ Explain why an investigation target may omit =actor=.
+- ★★ Design dataset bindings for collection, working analysis and publication.
+- ★★ Given three phases, draw a valid DAG with two parallel prerequisites.
+- ★★ Explain why =completionEvidence= is stronger than setting state to
+  =completed=.
+- ★★★ Write a capability-selection decision table that uses accepted contracts,
+  capabilities, runtime status and authorization.
+- ★★★ Design a failure report that distinguishes "no actor exists" from "actor
+  exists but required source is not configured."
+- ★★★ Show how a Prolog rule engine could select a capability while keeping the
+  final actor execution and document ingest boundaries explicit.
+
+** Reader checkpoint
+
+You now have enough vocabulary to describe a complete StarIntel investigation
+without using "target," "actor," and "operation" as synonyms.
+
+You should be able to say:
+
+#+begin_quote
+The persistent investigation target defines bounded research intent.  A
+persistent operation defines phased planning state and evidence requirements.
+The control plane selects semantic capabilities, resolves concrete runtime work,
+and observes execution.  Actors produce canonical documents and relations that
+re-enter the durable corpus.  Phase/operation completion is justified by
+evidence, not inferred from a send call.
+#+end_quote
+
+If that sentence feels natural, the rest of the runtime/search/control-plane
+chapters have somewhere coherent to attach.
