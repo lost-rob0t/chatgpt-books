@@ -1,0 +1,51 @@
+{
+  "dataset": "book-owned-beacon-synthetic",
+  "schemaVersion": "0.10.1",
+  "collector": "starintel-book-owned-beacon-lab",
+  "collectionMethod": "manually authored fictional offline teaching fixture",
+  "tags": [
+    "synthetic",
+    "owned-equipment",
+    "book-example"
+  ],
+  "sensitivity": "internal",
+  "visibility": "private",
+  "id": "analysis:owned-lab-single-receiver",
+  "dtype": "analysis",
+  "description": "Schema-shaped teaching fixture, not an executed field analysis",
+  "status": "fixture",
+  "question": "Can this single receiver observation establish an equipment zone?",
+  "method": "course median RSSI fingerprint baseline with abstention gates",
+  "scope": "fictional enrolled cart in an offline classroom exercise",
+  "inputIds": [
+    "observation:owned-lab-west-100"
+  ],
+  "findings": [
+    "Only one independent receiver observation is supplied."
+  ],
+  "conclusions": [
+    "The course policy requires abstention until sufficient independent receiver evidence is available."
+  ],
+  "limitations": [
+    "This is authored expected behavior, not a recorded execution result.",
+    "RSSI is not a precise GPS position.",
+    "The supplied operator registry is trusted course input; the radio alias is not authentication."
+  ],
+  "uncertaintySources": [
+    "Clock correction interval",
+    "Receiver coverage",
+    "RSSI variation",
+    "Enrollment validity"
+  ],
+  "unresolved": [
+    "Equipment zone"
+  ],
+  "extensions": {
+    "course": {
+      "expectedState": "insufficient_receivers",
+      "expectedZone": null,
+      "minimumIndependentReceivers": 2,
+      "claimStatus": "UNTESTED"
+    }
+  }
+}

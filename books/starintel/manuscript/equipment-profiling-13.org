@@ -68,7 +68,9 @@ the total.
 
 A deduplicated observation can contribute to more than one analytical view,
 but it does not become a new observation each time it is displayed. Keep
-observation counts separate from window-result counts.
+observation counts separate from window-result counts. Reused support in
+adjacent windows is correlated evidence, even when each displayed label is
+individually well formed.
 
 The chapter before this one also required new evidence for repeated-state
 confirmation. Recomputing a label twice from the same samples must not
@@ -91,8 +93,8 @@ observation visibility fraction =
   / windows meeting the declared coverage rule
 
 zone-output availability =
-  eligible evaluation windows with an accepted zone
-  / all eligible evaluation windows
+  declared evaluation windows with an accepted zone
+  / all declared evaluation windows, including coverage gaps
 #+end_example
 
 These are different quantities. A beacon may be observed but lack enough

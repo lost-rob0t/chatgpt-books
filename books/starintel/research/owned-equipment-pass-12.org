@@ -18,7 +18,7 @@ teaching assumption, not a claim about phones or headphones.
   guarantee that every configured transmission appears in a collector.
 - [[https://www.bluetooth.com/core-specification-6-feature-overview/][Bluetooth Core 6.0 overview]]:
   RSSI distance estimation depends on reference calibration and environmental
-  effects. Receiver coordinates must not be copied onto observed emitters.
+  effects.
 - [[https://www.bluetooth.com/download/bluetooth-security-and-privacy-best-practices-guide/][Bluetooth privacy guidance]]:
   address changes make observed radio attributes unsuitable as a universal
   persistent asset identity. The lab uses an explicit operator enrollment map;
@@ -34,6 +34,11 @@ teaching assumption, not a claim about phones or headphones.
 - [[https://www.rfc-editor.org/info/rfc5905/][RFC 5905]]:
   clock offset and uncertainty vocabulary. Supplied constant offsets in the
   course data do not implement synchronization or time-of-flight ranging.
+
+The book's separate inference/design rule is that receiver coordinates describe
+the observing instrument and must not be copied onto observed emitters as a
+measured device location. That rule is not attributed as a direct quotation or
+experimental result from the Core 6 overview.
 
 * Canonical mapping
 The common document envelope and asset/observation/analysis/geo-point/location

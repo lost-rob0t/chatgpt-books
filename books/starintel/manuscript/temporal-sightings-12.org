@@ -168,9 +168,10 @@ If receiver A reads 1005 with an offset of +5 seconds, its corrected time is
 different acquisition times.
 
 A correction is an estimate, not a guarantee. Retain a bound or other justified
-description of its uncertainty. If an observation is corrected to 1000 with an
-uncertainty of one second, treat its time support as an interval from 999 to
-1001 for the relevant association decision.
+description of its uncertainty. If an observation is corrected to 1000 with a justified maximum clock-error
+bound of one second, its bounded time interval is 999 to 1001 under that
+model. A standard deviation or other statistical uncertainty is not itself a
+hard error bound; preserve which interpretation was supplied.
 
 Two overlapping time intervals do not establish a strict order. If one
 observation's latest plausible time precedes another's earliest plausible time,
@@ -300,7 +301,11 @@ makes a historical observation look current.
 A single changed classification can be noise. The lab requires repeated
 accepted support before recording a zone transition. This introduces a
 tradeoff: fewer false transitions, but some delay in recognizing a genuine
-change.
+change. Every selected observation identity in a confirming support set must
+be new relative to earlier results for that asset. Reusing even one supporting
+sample resets this lab's confirmation chain; adding one fresh row to an old
+support set is not enough. Distinct observation identities avoid that duplicate-support
+error, but they do not establish statistical independence of radio errors.
 
 Unknown windows reset continuity. The sequence
 
@@ -349,7 +354,8 @@ For our zone baseline, useful outputs include:
 
 - a confusion matrix on labeled held-out windows;
 - accuracy among accepted classifications;
-- the fraction of eligible windows receiving an accepted classification;
+- the fraction of all predeclared evaluation windows receiving an accepted
+  classification, with coverage reported separately;
 - the rate of incorrect or unsupported transitions;
 - transition-detection delay under a declared timing convention;
 - stale, uncovered and unknown-window counts;

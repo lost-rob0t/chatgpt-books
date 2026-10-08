@@ -235,7 +235,9 @@ grid is not silently converted into longitude/latitude. The course classifier
 does not implement a radio collector, precise coordinate-ranging system or
 production identity/permission service.
 
-Execution status must be established by the exact-head hosted workflow.
+The lab supplies 23 standard-library behavior tests, 3 real-SDK fixture tests,
+six canonical fixtures and a deterministic report generator. Execution status
+must be established by the exact-head hosted workflow.
 Hardware type remains unspecified; no real device or network access is used.
 
 * Active research / missing executable proofs

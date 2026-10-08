@@ -1,0 +1,52 @@
+{
+  "dataset": "book-owned-beacon-synthetic",
+  "schemaVersion": "0.10.1",
+  "collector": "starintel-book-owned-beacon-lab",
+  "collectionMethod": "manually authored fictional offline teaching fixture",
+  "tags": [
+    "synthetic",
+    "owned-equipment",
+    "book-example"
+  ],
+  "sensitivity": "internal",
+  "visibility": "private",
+  "id": "observation:owned-lab-west-100",
+  "dtype": "observation",
+  "observerId": "asset:owned-lab-receiver-west",
+  "subjectId": "asset:owned-lab-cart",
+  "observationType": "synthetic enrolled-equipment receiver sample",
+  "observedProperty": "received signal strength",
+  "rawValue": {
+    "receiverTimeS": 100,
+    "radioAlias": "fictional-cart-a",
+    "receiverSampleId": "r-west-cart-100",
+    "rssiDbm": -41
+  },
+  "value": {
+    "rssiDbm": -41
+  },
+  "unit": "dBm",
+  "method": "offline fixture; no radio capture",
+  "instrument": "fictional-r-west",
+  "observedAt": 1700000098,
+  "collectedAt": 1700000100,
+  "payloadObservedAt": "2023-11-14T22:14:58Z",
+  "extensions": {
+    "course": {
+      "fixtureOnly": true,
+      "simulationEpochUnix": 1700000000,
+      "clockOffsetSeconds": 2,
+      "clockUncertaintySeconds": 1,
+      "correctedIntervalSeconds": [
+        97,
+        99
+      ],
+      "receiverPoseId": "west-anchor",
+      "receiverPosition": {
+        "frame": "fictional-workshop-grid-metres",
+        "xMeters": 0,
+        "yMeters": 0
+      }
+    }
+  }
+}

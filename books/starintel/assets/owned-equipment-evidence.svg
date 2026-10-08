@@ -20,7 +20,7 @@
 <text x="232" y="177" font-size="16">receipt time, RSSI and observed address</text>
 <text x="667" y="124">Experiment context</text>
 <text x="667" y="153" font-size="16">Enrollment, clock bounds, receiver poses,</text>
-<text x="667" y="177" font-size="16">coverage and held-out calibration design</text>
+<text x="667" y="177" font-size="16">coverage, calibration and held-out tests</text>
 <text x="450" y="280">Eligible unique observations</text>
 <text x="450" y="309" font-size="16">Preserve rejections and provenance; never copy</text>
 <text x="450" y="333" font-size="16">receiver coordinates onto the observed asset</text>

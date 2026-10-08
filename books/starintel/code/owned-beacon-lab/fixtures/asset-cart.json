@@ -1,0 +1,25 @@
+{
+  "dataset": "book-owned-beacon-synthetic",
+  "schemaVersion": "0.10.1",
+  "collector": "starintel-book-owned-beacon-lab",
+  "collectionMethod": "manually authored fictional offline teaching fixture",
+  "tags": [
+    "synthetic",
+    "owned-equipment",
+    "book-example"
+  ],
+  "sensitivity": "internal",
+  "visibility": "private",
+  "id": "asset:owned-lab-cart",
+  "dtype": "asset",
+  "name": "Fictional workshop cart",
+  "assetType": "owned classroom equipment",
+  "serialNumber": "FICTIONAL-CART-001",
+  "extensions": {
+    "course": {
+      "owned": true,
+      "enrollmentRecord": "operator-fixture-cart-001",
+      "radioAliasesAreNotAuthentication": true
+    }
+  }
+}
