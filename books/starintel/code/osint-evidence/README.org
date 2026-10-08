@@ -1,0 +1,35 @@
+#+title: Fictional OSINT evidence lab
+
+* Purpose
+A small, offline teaching lab for a fictional research packet and consent-scoped
+location freshness. It does not collect data, contact a website, identify a real
+person, or operate a location service.
+
+* Run
+Use the canonical SDK checkout and dependencies from Project 1:
+=6aa8051dc7ea560943a60a25e1d600467f2778bc= with =jsonschema[format]==4.26.0=.
+
+#+begin_src sh
+PYTHONPATH="$PWD/.cache/starintel-doc-canonical" \
+  python3 -m unittest discover \
+  -s books/starintel/code/osint-evidence -p 'test_*.py' -v
+#+end_src
+
+The focused workflow runs this after the pinned canonical Project 1 runner,
+which verifies the SDK revision, cleanliness and release closure.
+
+* Boundaries
+=case.json= is a course packet containing five canonical documents. The outer
+packet is not a canonical dtype. The two same-name people remain separate;
+the relation describes a fictional programme assertion.
+
+=freshness.py= is a course-local display classifier. Its grant is trusted
+exercise input; a real service must obtain authorization from an authenticated
+policy system, not from a client-supplied boolean. Relative simulation seconds
+and invented grid coordinates are not geographic observations. No actual
+StarIntel actor, authentication implementation, geolocation API call, or
+production consent/retention enforcement is claimed.
+
+Twelve tests cover canonical fixture validation, distinct identities, freshness,
+cache replay, revocation, audience, grant expiry, clock/accuracy failures and
+non-mutation. Execution status belongs to the exact CI head.

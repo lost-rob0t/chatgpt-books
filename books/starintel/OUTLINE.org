@@ -72,6 +72,20 @@ Dependencies: Chapters 3--7 plus StarLang 0.10.1 research-contract semantics.
 Expected code: initially source-backed reader trace; later one executable end-to-end investigation capstone.
 Research: distinguish persistent corpus dtypes from transient embedded operation components and runtime scheduler targets.
 
+** Fieldwork -- OSINT Fundamentals and Location Evidence
+Goal: conduct a bounded public-professional research exercise with fictional
+sources; keep namesakes, evidence chains, contradictions, temporal claims and
+uncertainty visible; distinguish public-scene geolocation from personal
+presence and evaluate a consent-scoped synthetic live-location feed.
+Dependencies: canonical records practicum and investigation/operation model.
+Implementation: =manuscript/osint-foundations-11.org= and
+=code/osint-evidence/=; all worked cases are fictional.
+Evidence: primary-source-backed method explanation; canonical fixture and
+course-local display-policy tests through the exact-head focused workflow.
+Non-claims: no covert private-person tracking, actual location collection,
+production authorization service, automated identity resolution or canonical
+end-to-end runtime adoption.
+
 ** Interlude -- The HTTP Control Plane: API Version Is Not Schema Version
 Goal: understand machine-readable HTTP operations, authentication/authorization, correlation, actor discovery, version axes, legacy compatibility routes, and truthful client evidence.
 Dependencies: canonical documents, actor semantics, and current server contract registry.

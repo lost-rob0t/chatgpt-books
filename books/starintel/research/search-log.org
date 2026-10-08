@@ -81,3 +81,13 @@ Primary inspection: StarLang fa1c8f4; Python SDK 6aa8051; server ce14c77.
 Result: seventeen-test pinned SDK lab, explicit migration example, guarded raw
 JSON boundary, lifecycle worksheet and ten worked answers.
 Details: [[file:canonical-records-pass-10.org][Pass 10 research and verification]].
+
+* 2026-10-08 -- Fictional OSINT fundamentals and location evidence
+Question: how can a reader build a source-backed professional identity finding,
+preserve uncertainty and evaluate location evidence without conflating a public
+scene or device report with a private person's current whereabouts?
+Sources: official Berkeley Protocol, Google Search Help, W3C Geolocation,
+High Resolution Time and PROV, RFC 2606, and current StarLang source.
+Result: wholly fictional worked packet, query/source/contradiction worksheets,
+fictional venue comparison, and an offline consent-scoped freshness lab.
+Details: [[file:osint-fieldwork-pass-11.org][Pass 11 research record]].

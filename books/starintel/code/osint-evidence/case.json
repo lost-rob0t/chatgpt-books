@@ -1,0 +1,107 @@
+{
+  "fictional": true,
+  "description": "Every person, organization, source statement and association is invented. This is an exercise packet, not a StarIntel document envelope.",
+  "documents": [
+    {
+      "dataset": "book-fictional-osint",
+      "schemaVersion": "0.10.1",
+      "collector": "starintel-book-author",
+      "collectionMethod": "manually authored fictional exercise",
+      "tags": [
+        "fictional",
+        "teaching-only"
+      ],
+      "id": "source:fiction-programme",
+      "dtype": "source",
+      "rawContent": "Fictional source S1: Harbor Data Forum programme lists Alex Rivera of Delta Research Lab for the talk River Sensors. This text is authored for the exercise.",
+      "notes": "Not downloaded from a website. Dates and statements are exercise premises."
+    },
+    {
+      "dataset": "book-fictional-osint",
+      "schemaVersion": "0.10.1",
+      "collector": "starintel-book-author",
+      "collectionMethod": "manually authored fictional exercise",
+      "tags": [
+        "fictional",
+        "teaching-only"
+      ],
+      "id": "person:fiction-rivera-science",
+      "dtype": "person",
+      "fullName": "Alex Rivera",
+      "occupation": [
+        "river-sensor researcher"
+      ],
+      "verificationStatus": "fictional candidate A"
+    },
+    {
+      "dataset": "book-fictional-osint",
+      "schemaVersion": "0.10.1",
+      "collector": "starintel-book-author",
+      "collectionMethod": "manually authored fictional exercise",
+      "tags": [
+        "fictional",
+        "teaching-only"
+      ],
+      "id": "person:fiction-rivera-design",
+      "dtype": "person",
+      "fullName": "Alex Rivera",
+      "occupation": [
+        "graphic designer"
+      ],
+      "verificationStatus": "fictional candidate B"
+    },
+    {
+      "dataset": "book-fictional-osint",
+      "schemaVersion": "0.10.1",
+      "collector": "starintel-book-author",
+      "collectionMethod": "manually authored fictional exercise",
+      "tags": [
+        "fictional",
+        "teaching-only"
+      ],
+      "id": "org:fiction-delta-lab",
+      "dtype": "org",
+      "name": "Delta Research Lab"
+    },
+    {
+      "dataset": "book-fictional-osint",
+      "schemaVersion": "0.10.1",
+      "collector": "starintel-book-author",
+      "collectionMethod": "manually authored fictional exercise",
+      "tags": [
+        "fictional",
+        "teaching-only"
+      ],
+      "id": "relation:fiction-programme-affiliation",
+      "dtype": "relation",
+      "source": {
+        "schema": "org.starintel/core@1/person",
+        "id": "person:fiction-rivera-science"
+      },
+      "destination": {
+        "schema": "org.starintel/core@1/org",
+        "id": "org:fiction-delta-lab"
+      },
+      "predicate": "listed-as-speaker-for",
+      "evidence": [
+        {
+          "schema": "org.starintel/core@1/source",
+          "id": "source:fiction-programme"
+        }
+      ],
+      "verificationStatus": "fictional teaching assertion",
+      "confidenceBasis": "Within the invented packet, the programme and lab profile share the talk title and reciprocal professional link. This edge records what the programme says, not independently verified employment.",
+      "extensions": {
+        "org.starintel.book": {
+          "claimId": "C1",
+          "status": "supported within fictional packet",
+          "contradictions": [
+            "A superseded biography uses a different former affiliation."
+          ],
+          "validityLabel": "at the fictional programme date",
+          "realWorldAssertion": false
+        }
+      }
+    }
+  ]
+}

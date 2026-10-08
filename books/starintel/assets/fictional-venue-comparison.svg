@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="460" viewBox="0 0 900 460" role="img" aria-labelledby="title desc">
+<title id="title">Fictional venue comparison</title>
+<desc id="desc">Two invented public venues. Beacon Hall has two arches, a square clock, and an annex to its right. Lantern Library has three arches and a round clock. These are drawn exercise features, not real places.</desc>
+<rect width="900" height="460" fill="#ffffff"/>
+<g font-family="sans-serif" fill="#182633">
+<text x="450" y="32" font-size="22" text-anchor="middle">Fictional scene comparison</text>
+<text x="450" y="58" font-size="15" text-anchor="middle">Compare feature combinations. Capture time remains unknown.</text>
+<text x="230" y="98" font-size="21" text-anchor="middle">Beacon Hall</text>
+<text x="670" y="98" font-size="21" text-anchor="middle">Lantern Library</text>
+</g>
+<g stroke="#263c4c" stroke-width="3" fill="#edf2f5">
+<rect x="85" y="145" width="265" height="190"/>
+<path d="M65 145 L217 110 L370 145 Z" fill="#cad7df"/>
+<rect x="350" y="260" width="75" height="75"/>
+<rect x="198" y="168" width="40" height="40" fill="white"/>
+<path d="M139 335 V272 A31 31 0 0 1 62 0 V335 M237 335 V272 A31 31 0 0 1 62 0 V335" fill="white"/>
+<rect x="525" y="145" width="290" height="190"/>
+<path d="M508 145 L670 110 L832 145 Z" fill="#cad7df"/>
+<circle cx="670" cy="187" r="22" fill="white"/>
+<path d="M550 335 V271 A28 28 0 0 1 56 0 V335 M642 335 V271 A28 28 0 0 1 56 0 V335 M734 335 V271 A28 28 0 0 1 56 0 V335" fill="white"/>
+<path d="M218 176 V189 H230 M670 173 V187 L680 193" fill="none" stroke-width="2"/>
+</g>
+<g font-family="sans-serif" fill="#182633" font-size="16" text-anchor="middle">
+<text x="230" y="371">Two arches, square clock, right annex</text>
+<text x="670" y="371">Three arches, round clock, no right annex</text>
+<text x="450" y="411">Supplied observation: two arches + square clock + right annex</text>
+<text x="450" y="438">No real-world coordinates. No person or current-location claim.</text>
+</g>
+</svg>
