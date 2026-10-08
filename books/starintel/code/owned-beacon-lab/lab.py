@@ -37,19 +37,32 @@ def inside(start, end, low, high):
     return start <= low <= high < end
 
 
+def intersects(start, end, low, high):
+    """Intersection of a half-open validity interval and closed uncertainty."""
+    return start <= high and low < end
+
+
 def pose_for(receiver, low, high):
     matches = [p for p in receiver["poses"]
-               if inside(p["starts_s"], p["ends_s"], low, high)]
-    return matches[0] if len(matches) == 1 else None
+               if intersects(p["starts_s"], p["ends_s"], low, high)]
+    if len(matches) != 1:
+        return None
+    pose = matches[0]
+    return pose if inside(pose["starts_s"], pose["ends_s"], low, high) else None
 
 
 def enrolled_asset(registry, alias, low, high):
     """Only explicit operator-authored bindings; never similarity matching."""
-    matches = {b["asset_id"] for b in registry["bindings"]
+    matches = [b for b in registry["bindings"]
                if b["radio_alias"] == alias
-               and inside(b["starts_s"], b["ends_s"], low, high)
-               and registry["assets"].get(b["asset_id"], {}).get("owned") is True}
-    return next(iter(matches)) if len(matches) == 1 else None
+               and intersects(b["starts_s"], b["ends_s"], low, high)]
+    if len(matches) != 1:
+        return None
+    binding = matches[0]
+    if (inside(binding["starts_s"], binding["ends_s"], low, high)
+            and registry["assets"].get(binding["asset_id"], {}).get("owned") is True):
+        return binding["asset_id"]
+    return None
 
 
 def deduplicate_frames(frames):
@@ -65,14 +78,17 @@ def deduplicate_frames(frames):
         raise ValueError("one frame per report time")
     clean = [dict(f, samples=[]) for f in frames]
     grouped = defaultdict(list)
-    audit = Counter()
+    audit = Counter(raw_rows=0, invalid_sample=0, conflicting_keys=0,
+                    conflicting_rows=0, duplicate_replays=0,
+                    normalization_rejected_unique_rows=0, accepted_unique_rows=0)
     required = {"receiver_id", "sample_id", "radio_alias", "receiver_time_s",
                 "received_s", "rssi_dbm"}
     for index, frame in enumerate(frames):
         if not number(frame["at_s"]) or frame["at_s"] < 0:
             raise ValueError("report time must be nonnegative and finite")
         for row in frame["samples"]:
-            if (set(row) != required
+            audit["raw_rows"] += 1
+            if (not isinstance(row, dict) or set(row) != required
                     or not all(isinstance(row[k], str) and row[k]
                                for k in ("receiver_id", "sample_id", "radio_alias"))
                     or not all(number(row[k]) for k in
@@ -86,6 +102,7 @@ def deduplicate_frames(frames):
                       for _, row in entries}
         if len(identities) != 1:
             audit["conflicting_keys"] += 1
+            audit["conflicting_rows"] += len(entries)
             continue
         audit["duplicate_replays"] += len(entries) - 1
         index, row = min(entries, key=lambda pair:
@@ -165,13 +182,15 @@ def estimate(asset_id, frame, normalized, model, receivers):
     result = {"asset_id": asset_id, "at_s": frame["at_s"], "zone": None,
               "state": "coverage_unknown", "covered": adequate_coverage(frame, receivers),
               "receiver_sample_count": len(rows), "receiver_count": 0,
-              "scores_db": {}, "margin_db": None, "support_ids": []}
+              "scores_db": {}, "margin_db": None, "support_ids": [],
+              "observed_start_s": min((r["observed_low_s"] for r in rows), default=None),
+              "observed_end_s": max((r["observed_high_s"] for r in rows), default=None)}
     if not result["covered"]:
         return result
     if not rows:
         result["state"] = "not_observed"
         return result
-    # One latest reading per independent receiver prevents weighting a busy
+    # One latest reading per distinct receiver prevents weighting a busy
     # receiver more heavily merely because it supplied more samples.
     latest = {}
     for row in sorted(rows, key=lambda r: (r["observed_s"], r["sample_id"])):
@@ -179,6 +198,9 @@ def estimate(asset_id, frame, normalized, model, receivers):
     rows = list(latest.values())
     result["receiver_count"] = len(rows)
     result["support_ids"] = [[r["receiver_id"], r["sample_id"]] for r in rows]
+    low = min(row["observed_low_s"] for row in rows)
+    high = max(row["observed_high_s"] for row in rows)
+    result.update(observed_start_s=low, observed_end_s=high)
     if any(row["receiver_id"] not in frame["healthy_receivers"] for row in rows):
         result["state"] = "coverage_conflict"
         return result
@@ -188,8 +210,6 @@ def estimate(asset_id, frame, normalized, model, receivers):
     if not separated(rows):
         result["state"] = "low_separation"
         return result
-    low = min(row["observed_low_s"] for row in rows)
-    high = max(row["observed_high_s"] for row in rows)
     if high - low > MAX_PAIR_SPAN_S:
         result["state"] = "unsynchronized"
         return result
@@ -203,8 +223,7 @@ def estimate(asset_id, frame, normalized, model, receivers):
                            for row, key in zip(rows, keys)) / len(rows)
     ranked = sorted(scores.items(), key=lambda item: (item[1], item[0]))
     margin = ranked[1][1] - ranked[0][1]
-    result.update(scores_db=scores, margin_db=margin,
-                  observed_start_s=low, observed_end_s=high)
+    result.update(scores_db=scores, margin_db=margin)
     if margin < MIN_MARGIN_DB:
         result["state"] = "low_margin"
     elif ranked[0][1] > MAX_RESIDUAL_DB:
@@ -222,8 +241,10 @@ def analyze_frames(frames, registry, receivers, model):
         for row in frame["samples"]:
             value, reason = normalize_sample(row, registry, receivers, now_s=frame["at_s"])
             if reason:
+                audit["normalization_rejected_unique_rows"] += 1
                 audit[reason] += 1
             else:
+                audit["accepted_unique_rows"] += 1
                 normalized.append(value)
         observations.extend(normalized)
         for asset_id, asset in sorted(registry["assets"].items()):
@@ -235,8 +256,11 @@ def analyze_frames(frames, registry, receivers, model):
 def transitions(results, asset_id):
     """Confirm endpoints after two consecutive accepted zone results.
 
-    Unknown results and time gaps erase continuity. A change event describes
-    endpoints only; it contains no route, path, velocity or visit claim.
+    Every selected support ID must be new. The complete acquisition interval
+    must also lie strictly after every earlier valid interval's high bound.
+    Unknown, late and overlapping results erase confirmation continuity but
+    never erase the acquisition high-water mark. A change describes endpoints
+    only; it contains no route, path, velocity or visit claim.
     """
     selected = sorted((r for r in results if r["asset_id"] == asset_id),
                       key=lambda r: r["at_s"])
@@ -245,6 +269,7 @@ def transitions(results, asset_id):
     count = 0
     events = []
     seen_support = set()
+    acquisition_high_water = None
     for row in selected:
         at = row["at_s"]
         if previous_at is not None and at - previous_at > MAX_CONTINUITY_GAP_S:
@@ -254,7 +279,15 @@ def transitions(results, asset_id):
         support = {tuple(pair) for pair in row.get("support_ids", [])}
         reused = bool(support & seen_support)
         seen_support.update(support)
-        if row["zone"] is None or not support or reused:
+        low, high = row.get("observed_start_s"), row.get("observed_end_s")
+        valid_interval = number(low) and number(high) and 0 <= low <= high <= at
+        advances = valid_interval and (acquisition_high_water is None
+                                       or low > acquisition_high_water)
+        if valid_interval:
+            # Keep this even when coverage, zone, novelty or chronology fails.
+            acquisition_high_water = (high if acquisition_high_water is None
+                                      else max(acquisition_high_water, high))
+        if row["zone"] is None or not support or reused or not advances:
             confirmed = candidate = last_confirmed_at = None
             count = 0
             continue

@@ -26,7 +26,7 @@ python3 -m unittest discover -s . -p 'test_lab.py' -v
 python3 run_lab.py > owned-beacon-report.json
 #+end_src
 
-The inference code and its 23 tests use only Python's standard library.
+The inference code and its 27 tests use only Python's standard library.
 The additional three fixture-validation tests require the already provisioned
 =starintel-doc= checkout at =6aa8051dc7ea560943a60a25e1d600467f2778bc= and
 =jsonschema[format]==4.26.0=, as in the existing canonical-records practicum:
@@ -63,13 +63,21 @@ The exercises preserve raw receiver time and receipt time separately.
 Corrected time is =receiver_time_s - clock_offset_s=. A supplied clock-error
 bound gives a closed possible-observation interval. That whole interval must
 fit exactly one explicit identity binding and one dated receiver pose.
+Any other binding for that alias or receiver pose that intersects even part
+of the possible-observation interval makes association ambiguous. A closed
+uncertainty interval includes its endpoints; validity intervals are half-open,
+so an exact handover instant belongs only to the new interval. Duplicate
+overlapping registry entries are conservatively rejected too.
 Future observations, excessive uncertainty and stale samples are rejected.
 Conservative age uses the interval's earliest possible observation time.
 
 Deduplication groups the complete supplied session by =(receiver_id,sample_id)=.
 An identical payload with a later receipt time is a replay of that supplied
 sample identity. Conflicting payloads under one identity quarantine the whole
-key, regardless of input order. This says nothing about whether ordinary BLE
+key, regardless of input order. All rows under a conflicting key count as
+=conflicting_rows=, including any exact repetitions inside that quarantined
+group; those repetitions are not also counted as =duplicate_replays=.
+This says nothing about whether ordinary BLE
 advertisements authenticate freshness. Identical payloads with different
 sample IDs are not automatically declared the same transmitter event.
 
@@ -115,10 +123,15 @@ to visibility while still being insufficient for a zone estimate.
    east at 120/130, a coverage gap at 140, an unlisted alias at 150, west with
    an explicitly enrolled rotated alias at 160/170, covered nondetection at
    180, west at 190/200 and east at 210/220.
-6. Trace the two-result confirmation rule. Every confirmation requires new
-   receiver/sample support. A repeated evaluation of the same sighting must
-   not count twice. Unknown results and gaps greater than 15 s reset
-   continuity; events record endpoint reports only and never draw a path.
+6. Trace the two-result confirmation rule. Every selected receiver/sample
+   support identity must be novel, not merely one row in the support set.
+   The complete corrected acquisition interval must lie strictly after the
+   greatest earlier valid interval's upper bound. Touching, overlapping or
+   delayed historical evidence cannot advance confirmation, even when it has
+   new sample IDs and a later report time. Rejected results and gaps reset
+   confirmation continuity but preserve this acquisition high-water mark;
+   valid intervals on rejected results can advance the mark. Missing intervals
+   do not erase it. Events record endpoint reports only and never draw a path.
 7. Compare the cart and work-light summaries. Window visibility and unique
    receiver-sample support are different denominators. Several receivers
    seeing one transmission are not several equipment-use events.
@@ -134,6 +147,23 @@ covered nondetection, unknown coverage, zone availability and unique accepted
 receiver-sample counts. These describe instrumentation visibility and
 classification opportunities. They do not establish equipment operation,
 daily routines, occupants, social relationships or a person's habits.
+
+
+=audit= reconciles raw input rows using mutually exclusive primary dispositions:
+
+#+begin_example
+raw_rows = invalid_sample + conflicting_rows + duplicate_replays
+           + normalization_rejected_unique_rows + accepted_unique_rows
+#+end_example
+
+Malformed rows are removed first. Entire conflicting-key groups are then
+quarantined. Exact replays are counted only in the remaining groups. Each
+surviving unique row either fails normalization for its first reported reason
+or is accepted. Reason counters such as =stale= and =unknown_identity= break
+down =normalization_rejected_unique_rows=; do not add them to that total again.
+=conflicting_keys= counts groups, while =conflicting_rows= counts input rows.
+This accounting describes the complete supplied offline session, not an
+online assertion that earlier results are immune to a later conflicting replay.
 
 The two-result transition output distinguishes =acquired= from =changed=.
 Reacquisition after a gap is not a transition across that gap. Endpoints do

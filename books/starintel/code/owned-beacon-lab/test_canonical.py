@@ -90,6 +90,7 @@ class CanonicalFixtureTests(unittest.TestCase):
         self.assertEqual(observation["payloadObservedAt"], iso_time.replace("+00:00", "Z"))
         self.assertEqual(result["state"], analysis["extensions"]["course"]["expectedState"])
         self.assertEqual(result["zone"], analysis["extensions"]["course"]["expectedZone"])
+        self.assertEqual(analysis["extensions"]["course"]["minimumDistinctReceivers"], 2)
 
 
 if __name__ == "__main__":

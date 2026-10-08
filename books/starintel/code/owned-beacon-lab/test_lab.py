@@ -4,7 +4,7 @@ import unittest
 from fixture_data import CALIBRATION, CART, EAST, LAMP, RECEIVERS, REGISTRY, WEST
 from fixture_data import frame, test_cases, timeline
 from lab import analyze_frames, enrolled_asset, evaluate, fit, normalize_sample
-from lab import summarize, transitions
+from lab import pose_for, summarize, transitions
 
 
 class OwnedBeaconLabTests(unittest.TestCase):
@@ -223,6 +223,89 @@ class OwnedBeaconLabTests(unittest.TestCase):
             self.assertEqual(sum(summary["estimated_zone_windows"].values()),
                              summary["zone_available_windows"])
             self.assertNotIn("daily_routine", summary)
+
+
+    def test_late_acquisition_cannot_become_a_current_transition(self):
+        frames = [frame(100, WEST, observed_s=98), frame(110, WEST, observed_s=108),
+                  frame(111, EAST, observed_s=100), frame(112, EAST, observed_s=101)]
+        batch = self.analyze(frames)
+        self.assertTrue(all(r["zone"] is not None for r in self.cart_results(batch)))
+        events = transitions(batch["results"], CART)
+        self.assertEqual([(e["kind"], e["to_zone"], e["confirmed_at_s"]) for e in events],
+                         [("acquired", "west-bay", 110)])
+        # Unknown coverage and further late evidence must not erase the
+        # high-water mark established by the west evidence at 108 +/- 1.
+        frames.extend([frame(113, healthy=[]),
+                       frame(114, EAST, observed_s=102), frame(115, EAST, observed_s=103),
+                       frame(120, EAST, observed_s=118), frame(130, EAST, observed_s=128)])
+        events = transitions(self.analyze(frames)["results"], CART)
+        self.assertEqual([(e["kind"], e["to_zone"], e["confirmed_at_s"]) for e in events],
+                         [("acquired", "west-bay", 110), ("acquired", "east-bay", 130)])
+
+    def test_overlapping_and_touching_acquisition_intervals_reset_confirmation(self):
+        cases = [
+            # The overlapping interval advances the high-water mark from
+            # 103 to 104. The next interval starts at 104, so it still cannot
+            # become the first member of a new two-report confirmation.
+            ([frame(100, WEST, observed_s=98), frame(104, WEST, observed_s=102),
+              frame(106, EAST, observed_s=103), frame(108, EAST, observed_s=105),
+              frame(110, EAST, observed_s=108), frame(114, EAST, observed_s=112)],
+             [104, 114]),
+            # Closed uncertainty intervals sharing one endpoint overlap.
+            ([frame(100, WEST, observed_s=98), frame(103, WEST, observed_s=100),
+              frame(106, WEST, observed_s=104), frame(109, WEST, observed_s=107)],
+             [109]),
+        ]
+        for frames, expected_times in cases:
+            with self.subTest(times=[f["at_s"] for f in frames]):
+                events = transitions(self.analyze(frames)["results"], CART)
+                self.assertEqual([e["confirmed_at_s"] for e in events], expected_times)
+                self.assertTrue(all(e["kind"] == "acquired" for e in events))
+
+    def test_partial_binding_and_pose_overlap_is_ambiguous_at_shared_endpoints(self):
+        self.registry["bindings"].append(
+            {"asset_id": LAMP, "radio_alias": "fictional-cart-a", "starts_s": 149, "ends_s": 200})
+        self.assertIsNone(enrolled_asset(self.registry, "fictional-cart-a", 147, 149))
+        self.assertIsNone(enrolled_asset(self.registry, "fictional-cart-a", 149, 149))
+        self.assertEqual(enrolled_asset(self.registry, "fictional-cart-a", 147, 148), CART)
+        self.assertEqual(enrolled_asset(self.registry, "fictional-cart-a", 150, 150), LAMP)
+        receiver = deepcopy(self.receivers["r-rover"])
+        receiver["poses"][1]["starts_s"] = 149
+        self.assertIsNone(pose_for(receiver, 147, 149))
+        self.assertIsNone(pose_for(receiver, 149, 149))
+        self.assertEqual(pose_for(receiver, 147, 148)["pose_id"], "rover-west")
+        self.assertEqual(pose_for(receiver, 150, 150)["pose_id"], "rover-east")
+        # Nonoverlapping half-open validity intervals remain unambiguous at
+        # the exact handover, while uncertainty crossing it is withheld.
+        self.assertEqual(pose_for(RECEIVERS["r-rover"], 150, 150)["pose_id"], "rover-east")
+        self.assertIsNone(pose_for(RECEIVERS["r-rover"], 149, 150))
+
+    def test_raw_sample_accounting_reconciles_primary_dispositions(self):
+        value = frame(100, WEST)
+        replay = deepcopy(value["samples"][0])
+        replay["received_s"] = 101
+        conflict = deepcopy(value["samples"][1])
+        conflict["rssi_dbm"] = -60
+        conflict_replay = deepcopy(value["samples"][1])
+        unknown = deepcopy(value["samples"][0])
+        unknown.update(sample_id="unknown-alias-sample", radio_alias="fictional-unlisted")
+        stale = deepcopy(value["samples"][1])
+        stale.update(sample_id="stale-sample", receiver_time_s=49)
+        value["samples"].extend([replay, conflict, conflict_replay, {}, unknown, stale])
+        audit = self.analyze([value])["audit"]
+        self.assertEqual(audit["raw_rows"], 8)
+        self.assertEqual(audit["accepted_unique_rows"], 1)
+        self.assertEqual(audit["conflicting_keys"], 1)
+        self.assertEqual(audit["conflicting_rows"], 3)
+        self.assertEqual(audit["duplicate_replays"], 1)
+        self.assertEqual(audit["invalid_sample"], 1)
+        self.assertEqual(audit["normalization_rejected_unique_rows"], 2)
+        self.assertEqual(audit["unknown_identity"] + audit["stale"],
+                         audit["normalization_rejected_unique_rows"])
+        self.assertEqual(audit["raw_rows"],
+                         audit["accepted_unique_rows"] + audit["conflicting_rows"]
+                         + audit["duplicate_replays"] + audit["invalid_sample"]
+                         + audit["normalization_rejected_unique_rows"])
 
 
 if __name__ == "__main__":

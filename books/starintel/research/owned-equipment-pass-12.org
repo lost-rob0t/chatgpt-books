@@ -69,3 +69,18 @@ is separate from XML or EPUB structural validation.
 
 Thresholds, synthetic positions and expected test sequences are course design,
 not measured Bluetooth performance or a platform accuracy guarantee.
+
+* Review-driven edge cases
+Independent review required acquisition-time progression for confirmed state
+events, not merely fresh record IDs and later receipt/report times. The lab
+retains an acquisition high-water mark so delayed historical sightings cannot
+become a new current transition. Touching/overlapping acquisition bounds do not
+prove strict progression.
+
+Identity and pose association now reject any competing validity interval that
+intersects the possible observation interval, including a partial overlap.
+Raw-row accounting also distinguishes quarantined conflict rows from conflict
+keys and reconciles duplicates, normalization rejections and accepted records.
+
+These cases are explicit regression targets. Actual execution status remains
+tied to the corrected exact-head tests.

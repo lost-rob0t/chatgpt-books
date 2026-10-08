@@ -173,6 +173,12 @@ bound of one second, its bounded time interval is 999 to 1001 under that
 model. A standard deviation or other statistical uncertainty is not itself a
 hard error bound; preserve which interpretation was supplied.
 
+An observation's possible time must also fit an unambiguous enrollment binding
+and receiver pose. It is insufficient to find one interval that contains the
+whole uncertainty range while ignoring a competing binding that overlaps only
+part of that range. If either identity or pose could differ at a possible
+acquisition time, withhold that association.
+
 Two overlapping time intervals do not establish a strict order. If one
 observation's latest plausible time precedes another's earliest plausible time,
 the ordering is supported by that model. Otherwise, retain the ambiguity.
@@ -306,6 +312,18 @@ be new relative to earlier results for that asset. Reusing even one supporting
 sample resets this lab's confirmation chain; adding one fresh row to an old
 support set is not enough. Distinct observation identities avoid that duplicate-support
 error, but they do not establish statistical independence of radio errors.
+
+New record identities are only one gate. Forward state confirmation must also
+be supported by acquisition-time progression. Consider west-bay evidence
+acquired at 98 and 108, followed by newly received east-bay records that were
+acquired at 100 and 101. Their arrival order cannot establish a current
+west-to-east change: those east observations precede the latest west evidence.
+Retain late data for historical analysis, but do not let it advance the
+forward state sequence without an explicit historical-revision procedure.
+
+Overlapping acquisition-error intervals also require care. A distinct sample
+whose possible acquisition time overlaps the prior support does not prove a
+strictly later observation under this conservative model.
 
 Unknown windows reset continuity. The sequence
 

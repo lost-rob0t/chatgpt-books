@@ -21,10 +21,10 @@
     "observation:owned-lab-west-100"
   ],
   "findings": [
-    "Only one independent receiver observation is supplied."
+    "Only one distinct receiver observation is supplied."
   ],
   "conclusions": [
-    "The course policy requires abstention until sufficient independent receiver evidence is available."
+    "The course policy requires abstention until sufficient distinct receiver evidence is available."
   ],
   "limitations": [
     "This is authored expected behavior, not a recorded execution result.",
@@ -44,8 +44,8 @@
     "course": {
       "expectedState": "insufficient_receivers",
       "expectedZone": null,
-      "minimumIndependentReceivers": 2,
-      "claimStatus": "UNTESTED"
+      "claimStatus": "UNTESTED",
+      "minimumDistinctReceivers": 2
     }
   }
 }
