@@ -2,6 +2,7 @@
 #+include: "foundation-runtime.org"
 #+include: "actor-runtime-06.org"
 #+include: "investigation-model-08.org"
+#+include: "osint-foundations-11.org"
 #+include: "control-plane-api-09.org"
 #+include: "runtime-post-actor-09.org"
 #+include: "bulk-lifetime-04.org"

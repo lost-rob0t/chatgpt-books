@@ -5,8 +5,12 @@
 
 * Phase
 
-Reader-spine and canonical-0.10.1 educational expansion is the active slice in
-draft PR #153.
+The reader-spine and canonical-0.10.1 expansion merged through PR #153 as
+=8bebf77dac5abe023ca1bc53351f53980b8f099a=. All exact-head checks and its
+post-merge main CI passed.
+
+The active slice is a fictional OSINT fundamentals and location-evidence
+chapter with a small offline evidence/freshness lab.
 
 Project 1 historical document-contract work, Project 2 service-backed ingest
 evidence, and Project 3 milestone A actor-dispatch evidence are already merged.
@@ -96,7 +100,7 @@ Not promoted by that milestone:
 - real Rabbit delivery to an external actor;
 - actor-generated durable canonical output.
 
-* Active slice -- Reader Spine Passes 07--08 / PR #153
+* Merged reader spine -- Passes 07--10 / PR #153
 
 Current branch:
 =book/starintel-reader-spine-20261005=
@@ -195,6 +199,23 @@ unchanged baseline and updated book. The older local renderer is not the
 workflow-pinned Pandoc 3.10.1. EPUBCheck is unavailable locally; the CI-produced
 validated EPUB and remote exact-head checks still gate publication. Existing service/actor test evidence is unchanged and was not rerun by
 this local practicum.
+
+* Active slice -- Fictional OSINT fieldwork / Pass 11
+
+Authored:
+- a substantive research-method chapter with a fictional professional identity
+  case, query log, source packet, competing hypotheses and contradiction ledger;
+- fictional public-venue scene comparison with editable SVG;
+- opt-in synthetic live-location freshness, uncertainty, expiry and revocation
+  reasoning, keeping device evidence separate from personal presence;
+- five canonical fictional documents and twelve tests covering the packet and
+  a book-local display classifier;
+- primary sources and explicit claim limits.
+
+No local executor is available for this pass. Python tests, publication and
+EPUB validation must run in hosted CI on the exact branch head. Until those
+checks pass, the new lab is AUTHORED / UNTESTED. The classifier is course-local,
+not a production StarIntel location or authorization service.
 
 * Active research / missing executable proofs
 

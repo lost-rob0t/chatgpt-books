@@ -1,0 +1,587 @@
+* Fieldwork -- OSINT Fundamentals and Location Evidence
+:PROPERTIES:
+:ID:       3d7b64f3-2f19-40c2-a8bd-4f09304cbd4d
+:END:
+
+A useful investigation ends with a supported answer to a defined question.
+It also leaves enough evidence for another reader to understand the answer,
+challenge it, and see what remains unknown. This chapter teaches that work:
+turning an initial name or organization into a bounded research question,
+finding relevant public material, resolving ambiguous identities, and assessing
+what location evidence actually says.
+
+Every person, organization, venue, source statement, date and location in the
+worked cases is fictional. The search strings illustrate syntax; they are not
+instructions to investigate someone with a similar real name. The location lab
+uses invented venue drawings and an opt-in simulation feed. Its objective is
+to evaluate evidence, not to infer a private person's current whereabouts.
+
+The chapter connects to the investigation model you have just read. Research
+intent belongs in a bounded plan; observations, claims and contradictions need
+distinct identities; a diagram connecting two records is not proof that their
+subjects are the same person.
+
+** Begin with a question that can be answered
+
+An instruction such as "find everything about Alex" has no useful completion
+condition. It encourages collecting unrelated information and makes it hard
+to recognize a wrong match. Replace it with a question whose scope and evidence
+requirements are visible.
+
+Our fictional assignment is:
+
+#+begin_example
+Which Alex Rivera is listed for the talk "River Sensors" in the Harbor Data
+Forum programme, and which organization does that programme associate with
+the speaker?
+
+Separately, which fictional public venue is consistent with the supplied
+venue drawing, and what time information is actually supported?
+#+end_example
+
+The permitted source set is public professional material: the event programme,
+the named organization's published profile, a professional project page, and
+public venue information. Private contact details, home addresses, relatives,
+restricted accounts and ongoing personal movement are outside the assignment.
+
+Write the following before searching:
+
+- Question: the exact claim to establish.
+- Purpose: the decision the answer will support.
+- Scope: sources, relevant time interval and permitted data.
+- Starting evidence: what was supplied and by whom.
+- Alternative explanations: at least one plausible way the obvious answer
+  could be wrong.
+- Completion rule: the evidence needed for a bounded answer.
+- Stop rule: when further collection would be irrelevant, unauthorized or too
+  uncertain to justify.
+
+For this assignment, completion means explaining the programme attribution
+with corroborating professional context and preserving any contrary evidence.
+It does not require a complete personal profile. A well-supported partial
+answer is more useful than an apparently complete dossier assembled from
+unrelated namesakes.
+
+** Search in passes and keep the query history
+
+Start with the most distinctive public-professional detail, not a long bundle
+of assumptions. The talk title might distinguish our candidate better than
+the common name.
+
+The following queries use fictional domains. The =.example= top-level name is
+reserved for documentation; these are exercise strings, not live sources.
+[cite:@rfc2606-book]
+
+#+begin_example
+"River Sensors" "Harbor Data Forum"
+"Alex Rivera" "River Sensors"
+site:harbor-forum.example "Alex Rivera"
+site:delta-lab.example "River Sensors"
+site:harbor-forum.example filetype:pdf programme
+"Alex Rivera" "River Sensors" -design
+#+end_example
+
+Google documents quoted matching, =site:=, exclusion with =-= and =filetype:=.
+It also documents =before:= and =after:= in terms of document updates. Keep
+the operator next to its argument. Date-filtered search results are discovery
+aids; they do not authenticate when an event happened. [cite:@google-refine-book]
+
+Use a simple search log:
+
+| Pass | Question | Query or source | Observation | Next action |
+|------+----------+-----------------+-------------+-------------|
+| 1 | Which programme? | talk title plus event name | programme candidate found | open original page |
+| 2 | Which namesake? | event site plus full name | two professional contexts | keep separate candidates |
+| 3 | Does the organization connect the talk? | organization site plus talk title | reciprocal context found | preserve supporting extract |
+| 4 | What could contradict the match? | prior affiliation and dated profile | older biography differs | compare dates and wording |
+
+Open the source behind a result. A snippet may be truncated, stale, or attached
+to a page whose context changes its meaning. Record the exact page or document
+you examined, rather than treating a search-result card as the evidence itself.
+
+Change one part of a query at a time. If adding the talk title removes the
+designer's portfolio from results, that is useful discovery behavior. It does
+not prove there are only two Alex Riveras, nor that the remaining result is
+correct. Search coverage is limited by indexing, spelling, access and what was
+published.
+
+An exclusion term is especially easy to overuse. The =-design= query might
+hide a relevant researcher whose profile mentions sensor design. Run the
+unfiltered version too, and record why any exclusion was introduced.
+
+A missing result means "not found by these methods in this source set." It
+does not mean the subject never held a role, attended an event, or published a
+document. Keep that limitation in the final answer.
+
+** Make a source packet before writing the conclusion
+
+For the exercise, imagine that the following short records are supplied.
+They are authored premises, not web captures.
+
+| Source | Fictional statement | Time information | Relationship to other sources |
+|--------+----------------------+------------------+-------------------------------|
+| S1 | The programme lists Alex Rivera, Delta Research Lab, for "River Sensors" | programme dated 12 September | event publisher |
+| S2 | Delta's profile links the same talk title and the programme | profile updated 14 September | organization publisher |
+| S3 | Alex Rivera's design portfolio lists a different field and organization | portfolio dated 10 September | distinct candidate |
+| S4 | A news digest repeats S1 word for word | digest dated 15 September | copied from S1 |
+| S5 | An older biography lists candidate A with Coastal Instruments | biography dated 3 February | historical professional context |
+| S6 | A venue drawing shows two entrance arches and a square clock | capture time unknown | supplied fictional illustration |
+
+Each source record should retain enough context to answer: what was observed,
+where it came from, which version was examined, and what changed during
+processing? A practical packet contains:
+
+- a local source identifier;
+- the source URL or supplied-artifact identity;
+- the publisher and author, if actually available;
+- the source's own date statement, including ambiguity;
+- the time you retrieved or received it;
+- the relevant excerpt and its surrounding context;
+- a preserved copy when permitted and useful;
+- transformations such as OCR, cropping, translation or normalization;
+- access and retention limits;
+- claims supported, contradicted, or left unresolved.
+
+The Berkeley Protocol provides a professional framework for preservation and
+verification. It distinguishes source attribution from content authentication,
+calls for contextual preservation and transformation records, and separates
+internal consistency from external corroboration. Its source-analysis guidance
+also asks investigators to consider independence and interests.
+[cite:@berkeley-protocol-book]
+
+The packet structure here is this book's teaching workflow. It is not a claim
+that a particular file format makes evidence court-admissible.
+
+If you compute a content hash, record the algorithm and hash the actual bytes
+you retained. A hash can help detect a changed copy; it does not prove who
+created the content or whether its claims are true. Do not hash an excerpt and
+describe the result as a hash of the whole original document.
+
+Keep originals and transformed working copies distinguishable. An OCR error
+in a person's name must not silently replace the preserved spelling. If a date
+was interpreted from an ambiguous local format, retain the original text and
+record the interpretation separately.
+
+** Resolve identity by competing explanations
+
+Our two fictional Alex Riveras begin as separate candidates.
+
+Candidate A has the river-sensor research context. Candidate B has the design
+portfolio context. Their shared name is a search key, not a sufficient merge
+key.
+
+Build an evidence matrix around the question:
+
+| Feature | Candidate A | Candidate B | What the feature contributes |
+|---------+-------------+-------------+-------------------------------|
+| Full name | Alex Rivera | Alex Rivera | no distinction |
+| Talk title | linked from professional profile | no link in supplied packet | supports A within this packet |
+| Named organization | Delta Research Lab | different design organization | separates the contexts |
+| Programme link | reciprocal professional link | none supplied | supports attribution to A |
+| Earlier biography | Coastal Instruments | not supplied | possible affiliation change, not immediate disproof |
+
+Do not convert this matrix into an arbitrary numerical identity score. A
+weighted sum can hide that all the apparently strong signals came from one
+copied biography. Explain which observations distinguish the candidates and
+which merely repeat the same assertion.
+
+Try at least three hypotheses:
+
+1. S1 refers to candidate A.
+2. S1 refers to candidate B.
+3. The packet is insufficient, or S1 contains an attribution error.
+
+S1 and S2 provide coherent professional context for the first hypothesis.
+S3 helps explain why a name-only search could confuse the second person with
+the first. S4 adds another published copy but no independent reporting chain.
+S5 requires temporal interpretation: a February affiliation and a September
+programme affiliation may both be accurate for their respective dates.
+
+The next useful question is whether the sources describe different times or
+make incompatible claims about the same interval. Avoid deleting a contrary
+source simply because it complicates the graph.
+
+A proportionate conclusion is:
+
+#+begin_example
+Within the fictional packet, the programme attribution is consistent with
+candidate A: the lab profile connects the same talk and programme. Candidate B
+remains a separate namesake. The older biography records a different earlier
+affiliation; the packet does not establish the person's full employment
+history.
+#+end_example
+
+This wording exposes the evidence and the limit. It does not silently turn an
+event affiliation into verified current employment.
+
+** Count evidence chains rather than copies
+
+Five pages may all repeat one press release. Preserve the copies if they
+matter to the question, but keep their dependence visible.
+
+#+begin_example
+S1 programme --------------------> C1 programme attribution
+   |
+   +---- copied by S4 digest ----> repetition of C1
+
+S2 organization profile ---------> contextual corroboration of C1
+S3 other namesake ---------------> alternative identity candidate
+S5 older biography -------------> time-qualified context / possible tension
+#+end_example
+
+Ask what each publisher directly observed, what it received from someone
+else, and whether it links or copies that source. Distinct domains are not
+automatically independent witnesses. Independent sources can also share an
+error, so the final explanation still needs the underlying details.
+
+Record both support and contradiction links. When a finding changes, mark the
+old finding superseded or disputed rather than rewriting its history to look
+as if you always knew the answer.
+
+Provenance describes the entities, activities and agents involved in producing
+information. W3C PROV is useful vocabulary for those relationships; this
+chapter's StarIntel examples do not claim PROV serialization or conformance.
+[cite:@w3c-prov-book]
+
+** Put only the justified claim into StarIntel
+
+The existing canonical practicum taught =person=, =org=, =source= and =relation=
+documents. The fictional packet in =code/osint-evidence/case.json= reuses that
+boundary. It contains two person documents, an organization, a synthetic source
+record, and one relation.
+
+The relation predicate is =listed-as-speaker-for=. That wording matches the
+programme assertion. Using =employed-by= here would strengthen the claim
+without adding evidence.
+
+#+begin_src json
+{
+  "id": "relation:fiction-programme-affiliation",
+  "dataset": "book-fictional-osint",
+  "dtype": "relation",
+  "schemaVersion": "0.10.1",
+  "source": {
+    "schema": "org.starintel/core@1/person",
+    "id": "person:fiction-rivera-science"
+  },
+  "destination": {
+    "schema": "org.starintel/core@1/org",
+    "id": "org:fiction-delta-lab"
+  },
+  "predicate": "listed-as-speaker-for",
+  "evidence": [
+    {
+      "schema": "org.starintel/core@1/source",
+      "id": "source:fiction-programme"
+    }
+  ],
+  "verificationStatus": "fictional teaching assertion"
+}
+#+end_src
+
+The complete fixture adds the synthetic collection context and a plainly
+labeled explanation in =confidenceBasis=. It preserves the older-biography
+tension as exercise metadata in an extension. That extension is book-local
+vocabulary, not a new canonical contract or an implemented query API.
+
+The canonical envelope has provenance and temporal fields, including
+=sourceRetrievedAt= and =observedAt=. Choose fields according to what they
+mean; do not populate every timestamp from the time an import script ran.
+Canonical envelope Unix-time fields use seconds. A source-specific field can
+have a different declared type, so consult the generated contract rather than
+renaming fields by intuition. [cite:@starlang-starintel-0101]
+
+Schema validation can verify the structure of these documents. It cannot
+prove that our fictional source was independently reported, that a person
+attended a talk, or that a relationship remains current. The packet tests keep
+both person IDs distinct and verify the intended evidence link. They do not
+implement an entity-resolution service.
+
+** Location analysis begins by naming the object of the claim
+
+A location statement can refer to several different things:
+
+- the place depicted in an image;
+- where a camera was positioned when an image was made;
+- the place named by a caption;
+- a device's reported position at an acquisition time;
+- a person's presence at a particular time;
+- a venue's public address.
+
+These claims require different evidence. Identifying a building in a scene
+does not identify the photographer. A caption can name a place that is not
+visible in the image. A device observation does not establish who was holding
+the device.
+
+State the narrow claim before analyzing the material. In this exercise the
+claim is "the supplied drawing is consistent with fictional Beacon Hall,"
+not "Alex is there now."
+
+** Geolocate a fictional public scene
+
+Our invented venue drawing has these visible features:
+
+1. Two entrance arches.
+2. A square clock above the entrance.
+3. A low rectangular annex to the right.
+
+The fictional venue directory supplies two candidates. Beacon Hall has those
+three features. Lantern Library has three arches, a round clock, and no annex
+on that side.
+
+#+caption: Two wholly fictional public venues for a controlled comparison. The drawing is an original teaching asset and has no real-world coordinates.
+#+attr_html: :alt Beacon Hall has two arches, a square clock and an annex on its right; Lantern Library has three arches and a round clock. Labels identify the features used in the exercise.
+[[file:assets/fictional-venue-comparison.svg]]
+
+Work from observation to candidate comparison:
+
+1. List visible features without naming a location.
+2. Separate durable geometry from changeable decoration.
+3. Compare feature combinations rather than one eye-catching resemblance.
+4. Record mismatches and possible explanations, such as a different viewpoint
+   or a dated renovation record.
+5. State the spatial resolution the evidence supports.
+6. Preserve an annotated working copy while keeping the supplied original
+   distinguishable.
+
+For our controlled drawing, Beacon Hall is the better-supported candidate
+because the combined geometry agrees and the library has specific mismatches.
+This result is true only within the invented directory. It is not a benchmark
+for an image-search system or proof that such features uniquely identify a real
+building worldwide.
+
+In public-scene research, an authoritative venue map or dated architectural
+image can test a candidate. A generic visual-search match is a lead that still
+needs comparison. Work with images you are allowed to analyze and share;
+uploading an image to an external search service is itself a disclosure.
+
+Keep location and time findings separate. The scene may be identifiable even
+when its capture date is unknown. If a supplied picture was posted today,
+today is a publication observation, not automatically its capture date.
+Metadata can be missing, altered, or associated with a platform-generated
+copy rather than the original file. [cite:@berkeley-protocol-book]
+
+A useful result from S6 is therefore:
+
+#+begin_example
+The fictional scene is consistent with Beacon Hall in the supplied directory.
+Capture time is unknown. The packet does not establish any person's presence,
+camera position outside the depicted scene, or current location.
+#+end_example
+
+** Build a timeline with several clocks
+
+For each item, distinguish:
+
+- Event time: when the described event is said to have happened.
+- Acquisition time: when a sensor or camera obtained the observation.
+- Publication time: when a publisher made an item available.
+- Retrieval time: when the researcher obtained this version.
+- Analysis time: when the researcher assessed it.
+
+Not every source supplies all five. Leave unknown values unknown.
+
+A timeline entry can preserve an interval rather than a point. If a fictional
+newsletter says "during September," do not silently encode 1 September at
+midnight as the event time. If a timestamp has no timezone, keep that
+ambiguity instead of attaching UTC without evidence.
+
+Put the source and interpretation beside the time. "Programme dated 12
+September" and "person attended on 12 September" are different claims. A
+schedule can establish an announced plan without proving attendance.
+
+In the same way, an undated professional page retrieved in October does not
+prove every statement was current in October. Retrieval refreshes your copy;
+it does not refresh the underlying fact.
+
+** Live-location evidence from an opt-in simulation
+
+An active location feed can be useful when participants deliberately share
+their own device observations for a defined task. Our exercise imagines an
+opt-in coordinator for a fictional public field demonstration. Every fix is
+generated data on an invented grid. No device is contacted.
+
+A real browser's Geolocation interface concerns its hosting device and
+requires the user's permission. Its timestamp describes acquisition time;
+=maximumAge= permits a cached fix. Accuracy is a reported radius in metres,
+and the specification does not guarantee the actual device location.
+High-accuracy mode is a request, not a promise. These are API semantics, not
+proof of personal identity. [cite:@w3c-geolocation-book]
+
+For our teaching system, define the permission before the data:
+
+#+begin_example
+Purpose: coordinate the fictional demonstration
+Audience: demo-coordinator
+Active interval: simulation seconds 900 through 1799
+Maximum display age: 60 seconds
+Maximum accepted accuracy radius: 30 metres
+Revocation: stop display immediately when permission is inactive
+Retention: discard demonstration samples when the exercise ends
+#+end_example
+
+The interval, thresholds and labels are course choices. They are not universal
+safety limits or StarIntel defaults. Real implementations need an authenticated
+authorization source, a visible sharing indicator, a clear stop action and an
+enforced retention policy. A sample carrying its own "consent=true" field is
+not an authority to track its sender.
+
+Now examine this synthetic sample:
+
+#+begin_src json
+{
+  "observedAtS": 1000,
+  "receivedAtS": 1005,
+  "accuracyM": 12,
+  "gridEastM": 240,
+  "gridNorthM": 100
+}
+#+end_src
+
+The suffix =S= means seconds on the exercise's simulation clock. The grid is
+not latitude/longitude. This is a course-local data-transfer object, not a
+canonical StarIntel dtype.
+
+At time 1020 the sample is twenty seconds old. At time 1061 it is sixty-one
+seconds old and exceeds our display-age limit. Receiving the same old fix
+again at 1120 does not make it a new observation.
+
+The classifier in =code/osint-evidence/freshness.py= returns five states:
+
+| State | Meaning in this exercise |
+|-------+--------------------------|
+| fresh | permission, age and reported accuracy meet the configured display rule |
+| stale | the observation is older than the permitted display age |
+| coarse | its reported uncertainty exceeds the exercise's threshold |
+| blocked | the grant is inactive, expired, not yet active, malformed, or for another audience |
+| unknown | clocks or measurement fields cannot support the calculation |
+
+"Fresh" means suitable under that rule. It does not mean a person is certainly
+at the point. Do not draw an apparently exact pin when the observation only
+supports an uncertain area, or keep a green "live" badge after a feed stops.
+
+The rule uses acquisition time, checks permission before display eligibility,
+and fails closed on invalid values. It deliberately refuses to extrapolate a
+person's movement from a stale sample. The tests cover cache replay, clock
+ordering, expired/revoked permissions, audience mismatch and invalid accuracy.
+
+For a browser integration, convert timestamp units deliberately. W3C's
+=EpochTimeStamp= uses milliseconds since the Unix epoch, whereas the canonical
+StarIntel common-envelope Unix-time scalar uses seconds. Preserve any useful
+fractional precision in an appropriate source record rather than confusing the
+two units. [cite:@w3c-hrtime-book;@starlang-starintel-0101]
+
+Stopping acquisition, hiding a display, expiring sharing access and deleting
+retained history are separate operations. This small lab implements only the
+display classification over supplied data. It does not claim production
+authentication, revocation delivery, deletion enforcement or a working
+StarIntel tracking service.
+
+** Run the fictional packet and freshness lab
+
+After setting up the pinned canonical SDK from Project 1:
+
+#+begin_src sh
+PYTHONPATH="$PWD/.cache/starintel-doc-canonical" \
+  python3 -m unittest discover \
+  -s books/starintel/code/osint-evidence -p 'test_*.py' -v
+#+end_src
+
+The suite has twelve tests. It checks the five canonical documents against
+the actual SDK and exercises the course-local classifier using only supplied
+values. It performs no searches, location requests or network communication.
+
+Read a green result precisely: the assertions passed at the tested revision.
+It does not certify the quality of a real investigation or a deployed
+permission system.
+
+** Report the answer and its limits
+
+A concise investigation result should contain:
+
+1. The question and scope.
+2. The strongest supported answer.
+3. The sources and the independence of their evidence chains.
+4. The competing explanations considered.
+5. Material contradictions and how time affects them.
+6. What remains unknown.
+7. The next bounded action, if one is justified.
+8. Retention and sharing restrictions relevant to the recipient.
+
+For the fictional case, the public-professional attribution is supported
+within the supplied packet, candidate B remains separate, and S5 is historical
+context requiring time-qualified language. The venue comparison favors Beacon
+Hall within the invented directory. No capture time or current personal
+location is established.
+
+Share the minimum needed for that result. A recipient who needs to confirm a
+programme attribution usually needs the programme, matching professional
+context and reasoning, not unrelated personal information. If the question is
+answered, stop collecting.
+
+** Practice questions and worked answers
+
+1. S1 and S4 agree exactly. Do they provide two independent confirmations?
+
+   No. The packet says S4 copied S1. Preserve the relationship and count the
+   underlying source chain once when discussing independence.
+
+2. Candidate A and candidate B share a name. Should their records be merged?
+
+   No. Keep them separate until distinguishing evidence supports identity.
+   In this packet the professional contexts point to different candidates.
+
+3. S5 lists an earlier organization. Does it disprove S1?
+
+   Not by itself. Compare the relevant dates and the exact predicates.
+   Earlier affiliation and later programme attribution can coexist.
+
+4. The venue drawing matches Beacon Hall. Where was Alex at analysis time?
+
+   Unknown. The supplied drawing does not establish who made it, when it was
+   made, or anyone's present location.
+
+5. A source was retrieved today but carries no publication date. What can be
+   timestamped confidently?
+
+   The retrieval of that version, if it was actually observed. Publication,
+   event and capture times remain separate unknowns.
+
+6. A synthetic fix acquired at 1000 is received again at 1120. With a sixty-
+   second age limit, is it fresh at 1120?
+
+   No. Its acquisition age is 120 seconds. A new receipt does not renew it.
+
+7. A sample is ten seconds old and precise, but the participant revoked the
+   grant. What should the display classifier return?
+
+   Blocked. Meeting a freshness threshold does not restore authorization.
+
+8. A sample claims an acquisition time later than the current simulation
+   clock. Should the application display it as exceptionally fresh?
+
+   No. The temporal evidence is inconsistent. Return unknown and investigate
+   clock or input problems without inventing a position.
+
+9. The canonical relation validates. Has the programme affiliation been
+   proven true in the real world?
+
+   No. Validation establishes the document contract. Here, all statements are
+   explicitly fictional; in real research the sources still require analysis.
+
+10. A dashboard shows no new sample. What is the justified conclusion?
+
+    No new sample has been observed through that path. Device state, network
+    state, permission state and a person's behavior remain separate questions.
+
+** Extension exercise
+
+Add a seventh fictional source that genuinely conflicts with S1 about the same
+programme version. Keep both source records. Write two possible explanations,
+the smallest follow-up question that would distinguish them, and a revised
+claim that stays unresolved until that evidence exists.
+
+Then add a test showing that a revoked grant remains blocked even when a new
+synthetic sample arrives. This connects the research habit of preserving
+contradictions to the engineering habit of making authority and uncertainty
+visible at every boundary.

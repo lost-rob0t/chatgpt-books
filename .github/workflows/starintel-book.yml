@@ -67,6 +67,13 @@ jobs:
           bash books/starintel/code/canonical-records/run-tests .cache/starintel-doc-canonical
           python3 -m py_compile books/starintel/code/canonical-records/*.py
 
+      - name: Run fictional OSINT evidence lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$PWD/.cache/starintel-doc-canonical" python3 -m unittest discover -s books/starintel/code/osint-evidence -p 'test_*.py' -v
+          python3 -m py_compile books/starintel/code/osint-evidence/*.py
+
       - name: Run Project 2 ingest-adapter tests
         run: |
           bash books/starintel/code/ingest-adapter/run-tests

@@ -18,3 +18,5 @@
 
 
 - [[file:canonical-records-pass-10.org][Canonical records practicum and evidence worksheet]]
+
+- [[file:osint-fieldwork-pass-11.org][Fictional OSINT fieldwork and location evidence]]

@@ -1,0 +1,57 @@
+#+title: Fictional OSINT fieldwork pass 11
+
+* Scope
+Date: 2026-10-08. Parent issue #9.
+Book base: =8bebf77dac5abe023ca1bc53351f53980b8f099a=.
+
+Teach bounded public-source research, source verification, identity
+disambiguation, contradictions, public-scene geolocation, timestamp uncertainty,
+and consent-scoped location evidence. Every worked person, organization,
+source statement, venue and position is invented.
+
+The chapter supplies practical research and an offline simulation. It does not
+provide a workflow for covertly locating private people or claim a deployed
+tracking capability.
+
+* Primary-source findings
+- [[https://humanrights.berkeley.edu/wp-content/uploads/2024/02/Berkeley-Protocol.pdf][Berkeley Protocol]], official HRC-hosted PDF, 2022:
+  paragraphs 27, 154--155, 160, 167, 177--180, 184 and 193--194.
+  Counter-hypotheses, contextual preservation, transformations, attribution
+  versus authentication, independence and corroboration are relevant.
+  OHCHR's direct PDF failed; the official Berkeley copy opened.
+- [[https://support.google.com/websearch/answer/2466433?hl=en][Google Search Help]]:
+  quotation marks, site, minus, filetype, before and after operators verified.
+  Date operators concern document updates, not proof of event time.
+- [[https://www.w3.org/TR/2026/CR-geolocation-20260326/][W3C Geolocation]]:
+  acquisition timestamp, cached maximumAge, reported accuracy, permission and
+  recipient responsibilities checked. Actual location is not guaranteed.
+  The document is a Candidate Recommendation Snapshot, not described here as
+  a final 2026 Recommendation.
+- [[https://www.w3.org/TR/hr-time-3/][W3C High Resolution Time]]:
+  EpochTimeStamp uses milliseconds from the Unix epoch.
+- [[https://www.w3.org/TR/prov-overview/][W3C PROV Overview]]:
+  provenance vocabulary is used as conceptual background only.
+- [[https://www.rfc-editor.org/info/rfc2606/][RFC 2606]]:
+  documentation domains keep search examples separate from real sources.
+
+* StarIntel authority
+StarLang main remains =fa1c8f4fb0590526c39aa3e9bc4a7e6eac30bea7=.
+The common envelope and person/org/source/relation vocabulary were rechecked.
+The existing Python SDK pin remains
+=6aa8051dc7ea560943a60a25e1d600467f2778bc=.
+
+The new packet contains five canonical documents. Its outer course packet and
+the synthetic simulation observation are explicitly not canonical dtypes.
+The display classifier does not collect location or implement production
+authorization. A trusted exercise grant is not interchangeable with an
+untrusted client assertion of consent.
+
+* Verification
+No local executor is available. New tests and the EPUB are AUTHORED / UNTESTED
+until the exact-head hosted checks execute. The focused workflow adds twelve
+offline tests after the existing canonical SDK closure check. Its existing
+validated-EPUB artifact step will produce the downloadable book.
+
+The SVG is original editable source. XML/accessibility metadata is asserted
+by the lab; full rendered ebook review remains separate from structural
+EPUBCheck validation.
