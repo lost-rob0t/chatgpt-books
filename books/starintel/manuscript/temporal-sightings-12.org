@@ -1,0 +1,417 @@
+* Chapter -- Multiple Sightings over Time
+:PROPERTIES:
+:ID:       b93cd156-6ccf-49af-8975-2c1c23b4c49b
+:END:
+
+A single sighting says that an instrument reported something. A sequence adds
+time, but it does not automatically add a reliable track. Before drawing a line
+between points, we need to know which equipment produced the observations,
+where the receivers were, how their clocks relate, and which gaps the collection
+system could have caused.
+
+This chapter uses fictional, explicitly enrolled BLE beacons belonging to one
+laboratory. Two fixed receivers and an owned receiver cart observe the equipment
+in a controlled, invented workspace. The next chapter uses the same evidence to
+describe equipment behavior. Neither chapter identifies people or infers their
+private routines.
+
+The actual hardware has not been selected. We assume dedicated fictional
+beacons with a documented advertising configuration. We do not assume that a
+phone, headset or other Bluetooth product advertises continuously, exposes the
+same identifiers, or supports the same scanning features.
+
+#+caption: The owned-equipment lab keeps receiver context, raw sightings and derived asset states separate. Missing or unsupported evidence remains visible in the final profile.
+#+attr_html: :alt A flow diagram joins raw sightings with enrollment, clocks, receiver poses, coverage and calibration; eligible observations branch into a supported zone estimate or an unknown state, then feed a profile that preserves gaps.
+[[file:assets/owned-equipment-evidence.svg]]
+
+** State the measurement problem first
+
+Our question is deliberately small:
+
+#+begin_example
+For an enrolled laboratory asset, can the supplied sightings support
+a west-bay or east-bay classification during each evaluation window?
+
+When does the evidence support a change of zone, and when must the answer
+remain unknown?
+#+end_example
+
+This is a zone-classification exercise. It is not a claim that ordinary RSSI
+measurements provide GPS-like coordinates. A zone answer can be useful for
+finding owned equipment even when a defensible two-dimensional position is
+unavailable.
+
+Bluetooth advertising and scanning are separate activities, and advertising
+broadcasts do not provide a receiver acknowledgement. A repeated payload can
+appear on more than one advertising channel. Counting every received row as a
+new equipment event would therefore overstate the evidence.
+[cite:@bluetooth-primer-owned]
+
+Write down the assumed beacon state, scan configuration, receiver software,
+observation window and expected collection coverage. If these conditions are
+unknown, a missing sighting is difficult to interpret.
+
+** Keep four identities separate
+
+The lab distinguishes:
+
+1. Enrolled asset identity: the owned piece of equipment.
+2. Transmitter identity or binding: the operator-approved relationship between
+   that asset and its configured beacon.
+3. Receiver identity: the instrument that recorded the sighting.
+4. Observation identity: the particular receiver record being processed.
+
+A radio address is an observed transport attribute. It is not a durable
+inventory identity. Bluetooth supports private addressing, so an address can
+change. The official privacy guidance treats private addresses as a privacy
+mechanism, not an invitation to reconstruct identities across unrelated
+observations. [cite:@bluetooth-privacy-owned]
+
+The exercise's enrollment registry is trusted input supplied by the fictional
+operator. A time-bounded binding explicitly associates a known address with an
+enrolled beacon for that experiment. An unknown address remains unresolved;
+similar signal strength, a matching name or temporal proximity does not create
+a new binding.
+
+This registry is also not a cryptographic authentication claim. An identifier
+in a received payload can be copied. The lab's duplicate and replay tests
+concern repeated records in the supplied dataset; they do not establish
+over-the-air replay protection for generic Bluetooth advertisements.
+
+** A receiver coordinate is instrument context
+
+Our fixed receivers occupy local positions at the west and east ends of an
+invented twenty-metre workspace. The cart has separately recorded receiver
+poses at designated stops.
+
+A sighting should retain the receiver pose that was applicable when the
+measurement was made. It must not inherit the cart's latest pose merely because
+the record was ingested later.
+
+For example, suppose the cart records a beacon at the west stop and uploads
+the record after moving to the east stop. Attaching the east-stop coordinate
+to that old measurement changes the experimental geometry. Sorting records
+correctly does not repair a wrong pose association.
+
+Keep two statements separate:
+
+#+begin_example
+Receiver R observed an enrolled beacon while R was at pose P.
+
+The beacon's position or zone is estimated as Q by method M,
+using observations O and calibration C.
+#+end_example
+
+The first is instrument context. The second is an inference with assumptions
+and uncertainty. Copying P into Q produces a false location claim.
+
+Our local coordinates are metres in a fictional room frame. They are not
+latitude and longitude. If a real deployment later needs a geographic map, it
+must define and validate the transformation between its local frame and the
+map's coordinate reference system.
+
+** Build a sighting record that can survive reprocessing
+
+The raw teaching records preserve the information needed to revisit a result:
+
+- the receiver and its observation identifier;
+- the observed radio attribute and applicable enrollment binding;
+- the receiver's acquisition clock reading;
+- the clock correction and its uncertainty;
+- the ingestion or receipt time;
+- RSSI with its unit;
+- the receiver pose and the interval for which that pose is valid;
+- scan or coverage state;
+- the calibration session and processing version used later.
+
+Do not replace the raw measurement with the eventual zone label. A revised
+calibration should be able to produce a new analysis from the same retained
+observations.
+
+The canonical StarIntel =observation= type can represent measurement content.
+The common envelope supplies identities and provenance; fields such as
+=observerId=, =subjectId=, =observedProperty=, =value=, =rawValue=, =unit= and
+=method= provide additional vocabulary. Local coordinate and experiment-specific
+structures remain explicitly documented payload content rather than invented
+top-level schema fields. [cite:@starlang-starintel-0101]
+
+A canonical observation fixture is included directly from the executable lab
+so its published field names stay aligned with the tested example:
+
+#+begin_src json
+#+include: "../code/owned-beacon-lab/fixtures/observation.json"
+#+end_src
+
+The example is synthetic. Its receiver context does not assert the beacon's
+position, and its experiment payload does not introduce a new schema dtype.
+
+** Reconcile clocks before comparing receivers
+
+An acquisition timestamp and an ingestion timestamp answer different questions.
+The first concerns the measurement; the second concerns the data pipeline.
+
+Some real collector APIs expose an acquisition time on a receiver-local clock.
+For example, Android's =ScanResult.getTimestampNanos()= reports time since boot.
+It is not a UTC timestamp. =getRssi()= reports dBm, while transmit-power
+information can be unavailable. [cite:@android-scanresult-owned]
+
+The chapter's clock model is a teaching assumption:
+
+#+begin_example
+receiver reading = shared experiment time + receiver offset
+corrected observation time = receiver reading - receiver offset
+#+end_example
+
+If receiver A reads 1005 with an offset of +5 seconds, its corrected time is
+1000. If B reads 998 with an offset of -2 seconds, its corrected time is also
+1000. Their records can arrive at different ingestion times without describing
+different acquisition times.
+
+A correction is an estimate, not a guarantee. Retain a bound or other justified
+description of its uncertainty. If an observation is corrected to 1000 with an
+uncertainty of one second, treat its time support as an interval from 999 to
+1001 for the relevant association decision.
+
+Two overlapping time intervals do not establish a strict order. If one
+observation's latest plausible time precedes another's earliest plausible time,
+the ordering is supported by that model. Otherwise, retain the ambiguity.
+
+Clock synchronization is its own engineering problem. NTP's specification
+distinguishes offset, delay, dispersion and jitter; our supplied constant
+offsets do not implement that protocol or establish its error guarantees.
+[cite:@rfc5905-owned]
+
+Most importantly, aligning receiver timestamps for grouping sightings is not
+radio time-of-flight ranging. This lab does not measure propagation time.
+
+** Remove duplicate records without erasing useful observations
+
+Suppose a receiver record is delivered twice because an uploader retried.
+Processing both copies should not double its influence.
+
+The course data uses explicit receiver/sample identities so that this case is
+deterministic. A repeated identity with the same content is a duplicate. A
+repeated identity with different content is a conflict that deserves an
+explanation, not a silently selected winner.
+
+Different receivers observing the same transmission remain different
+instrument observations. Conversely, a repeated advertisement at one receiver
+does not necessarily represent a new asset movement. These are different
+deduplication questions.
+
+Preserve the reason a row was dropped or held aside. Useful counters include
+raw rows, accepted unique observations, duplicate rows, conflicting identities,
+unknown enrollment bindings and invalid measurements. Without those counters,
+a changing pipeline can make equipment appear more or less active even when
+only the ingestion behavior changed.
+
+Do not describe dataset deduplication as a security guarantee. A copied beacon
+payload with a new observation identity is not detected as a replay by a
+receiver-record deduplicator.
+
+** Why signal strength alone is not a ruler
+
+RSSI is a measured signal-strength indicator. Position estimation introduces a
+model connecting that measurement to geometry. Reference power, antennas,
+orientation, obstructions, reflections and receiver characteristics can affect
+the relationship.
+
+The Bluetooth Core 6.0 overview explains the calibration needed for RSSI-based
+distance estimation and its limitations. Ordinary RSSI, Direction Finding and
+Channel Sounding are different measurement capabilities; the latter methods
+must not be assumed simply because a device supports Bluetooth.
+[cite:@bluetooth-core6-owned;@bluetooth-ranging-owned]
+
+Here is a sensitivity example, not a measured result. Under a chosen
+log-distance model with path-loss exponent two, a six-decibel error in the
+relevant signal-strength difference changes the inferred distance by about a
+factor of two. Changing the assumed exponent or environment changes the
+relationship. More decimal places in the calculated distance do not remove
+that model uncertainty.
+
+Averaging may reduce some random variation. It does not automatically remove
+a persistent bias from a metal obstruction or a changed receiver orientation.
+Closely spaced packets can share the same bias and should not be treated as a
+large collection of independent geometric constraints.
+
+This is why the executable lab starts with calibrated zone fingerprints.
+It asks whether the observed pattern resembles a supported zone under the
+experiment's conditions. It leaves ambiguous and poorly supported windows
+unclassified.
+
+** Calibrate a deliberately small zone model
+
+The fictional lab uses two zones, =west-bay= and =east-bay=. Calibration rows
+come from separately labeled placements of owned equipment. Test rows are held
+out from those calibration placements.
+
+The course model uses median RSSI fingerprints and a conservative acceptance
+policy. Its supplied thresholds require enough receiver support, sufficiently
+recent and time-aligned observations, an acceptable residual from a known
+fingerprint, and enough separation between the best two candidates.
+
+These thresholds are exercise parameters. They are not universal Bluetooth
+accuracy claims. A minimum receiver separation is a geometry heuristic here;
+it does not prove measurement independence or make a two-receiver arrangement
+a full two-dimensional ranging system.
+
+The cart's calibrated stop is part of its measurement context. A fingerprint
+learned with the cart at one stop must not be reused as though it applied at
+every point on the cart's route.
+
+Before testing, document:
+
+- which labeled placements form calibration;
+- which sessions are held out;
+- the receiver and pose configuration;
+- the signal preprocessing rule;
+- the decision thresholds;
+- what produces an unknown result;
+- which quantities will be evaluated.
+
+Changing the thresholds after inspecting the held-out answers turns that set
+into development data. Use a separate final evaluation set if you tune on it.
+
+** Form windows with explicit coverage
+
+A window is a grouping rule, not an event observed by a radio. Record its
+duration and how boundary cases are handled.
+
+Each window needs two kinds of evidence:
+
+1. Positive sightings from eligible, enrolled observations.
+2. Coverage information about which receivers were expected and able to
+   observe during that interval.
+
+If a receiver was offline, its lack of sightings cannot be used as negative
+evidence about the beacon. If a moving receiver's pose is stale, that receiver
+may be unable to support the position model even though its radio is working.
+
+A coverage-qualified empty window still requires careful wording: the beacon
+was not observed by this configured collection process. That does not prove it
+was absent, powered off, or outside a precisely known boundary.
+
+Show missingness explicitly. A zero RSSI value is not a valid replacement for
+a missing measurement, and carrying forward the last zone label indefinitely
+makes a historical observation look current.
+
+** Make transitions conservative
+
+A single changed classification can be noise. The lab requires repeated
+accepted support before recording a zone transition. This introduces a
+tradeoff: fewer false transitions, but some delay in recognizing a genuine
+change.
+
+Unknown windows reset continuity. The sequence
+
+#+begin_example
+west-bay -> unknown interval -> east-bay
+#+end_example
+
+supports two separated observations. It does not prove the path taken between
+them, the time of a boundary crossing, or continuous visibility.
+
+Do not draw an uninterrupted track through a coverage gap. If a visualization
+connects points for readability, make the unobserved segment visibly different
+and label it as a gap rather than a measured route.
+
+A smoothed line is another derived product. Its assumptions, input identities
+and processing version belong with the result. Smoothing cannot create
+observations in intervals where no eligible evidence exists.
+
+** Separate observation, estimate and display age
+
+The most recent accepted estimate has an age. A display should expose that age,
+the supporting observations, and whether the relevant coverage and permission
+conditions still apply.
+
+An old estimate becoming stale does not mean the equipment has moved. A new
+packet arriving late does not make its old acquisition time recent. A receiver
+returning after an outage does not retroactively fill the outage.
+
+This distinction also protects analysis from a common feedback loop: a UI
+carries forward a zone, another process exports that display state as a fresh
+observation, and the system then treats its own assumption as new evidence.
+Derived estimates should retain their original observation times and lineage.
+
+** Evaluate the claim you actually make
+
+A zone classifier should be evaluated on zone labels. A metric position model
+requires independent ground-truth coordinates before you can report
+localization error.
+
+For a hypothetical position estimate, the planar error in a known local frame
+is the distance between the predicted and ground-truth coordinates at matched
+times. Report a distribution such as median and a predeclared high percentile,
+not only the best example. Also report how many cases produced no estimate.
+
+For our zone baseline, useful outputs include:
+
+- a confusion matrix on labeled held-out windows;
+- accuracy among accepted classifications;
+- the fraction of eligible windows receiving an accepted classification;
+- the rate of incorrect or unsupported transitions;
+- transition-detection delay under a declared timing convention;
+- stale, uncovered and unknown-window counts;
+- acquisition-to-ingestion latency;
+- duplicate and invalid-row rates.
+
+A method that abstains almost everywhere may have high accepted-case accuracy
+and poor utility. A method that always produces a zone may have high coverage
+and unacceptable error. Show both.
+
+** Worked reasoning checks
+
+1. Two rows have the same receiver and sample identity after an upload retry.
+   How much independent evidence was added?
+
+   None by that repeated row. Keep one observation and record the duplicate
+   handling. Investigate if their contents differ.
+
+2. A moving receiver's latest coordinate is east, but the sighting was acquired
+   earlier at its west stop. Which pose applies?
+
+   The pose valid at acquisition time. If that association cannot be supported,
+   exclude it from a geometry-dependent estimate or mark the result unknown.
+
+3. Two receivers' corrected times differ by a small amount, but their clock
+   uncertainties are larger than the allowed association interval. Are they
+   safely simultaneous?
+
+   Not under that rule. Keep the temporal uncertainty visible rather than
+   treating nominal corrections as exact.
+
+4. The east receiver is offline and reports no beacon. Does the west receiver
+   alone prove a west-bay location?
+
+   Not if the model requires both receivers. Coverage failure should reduce the
+   available inference, not strengthen a convenient conclusion.
+
+5. A new radio address appears with the same advertised name. Is it the same
+   enrolled beacon?
+
+   Unknown unless the approved enrollment process supplies the binding. The
+   lab does not infer identity across unrelated address changes.
+
+6. A zone changes after a long unobserved interval. Is the transition time known?
+
+   No. Report separated supported states and the intervening gap. Do not invent
+   a crossing time.
+
+7. A distance formula prints 3.142 metres. Has the measurement acquired
+   millimetre-level accuracy?
+
+   No. Numerical formatting does not measure model error, receiver calibration
+   error or environmental uncertainty.
+
+** Project checkpoint
+
+The companion lab in =code/owned-beacon-lab/= supplies the data, processing
+rules and tests. Its README identifies the actual commands and parameter
+values. Read the report alongside the raw and rejected-row counts before
+interpreting a zone sequence.
+
+The checkpoint is complete only when the exact lab revision has run and the
+results match the declared experiment. Passing those tests establishes the
+controlled exercise; it does not certify unspecified hardware or a deployed
+StarIntel location service.

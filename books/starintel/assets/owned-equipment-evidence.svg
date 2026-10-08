@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="690" viewBox="0 0 900 690" role="img" aria-labelledby="title desc">
+<title id="title">Owned-equipment evidence pipeline</title>
+<desc id="desc">Raw receiver sightings are interpreted with enrollment, clock, receiver-pose, coverage and calibration context. Eligible unique observations produce a zone result or an unknown result. Only supported new evidence can confirm state changes; gaps are preserved.</desc>
+<rect width="900" height="690" fill="white"/>
+<defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0 L10 4 L0 8Z" fill="#334a58"/></marker></defs>
+<g font-family="sans-serif" fill="#182633" text-anchor="middle">
+<text x="450" y="36" font-size="24">From sightings to supported equipment states</text>
+<text x="450" y="62" font-size="16">Fictional owned BLE equipment; local zone classification</text>
+<g stroke="#334a58" stroke-width="2" fill="#edf3f6">
+<rect x="45" y="95" width="375" height="100" rx="8"/>
+<rect x="480" y="95" width="375" height="100" rx="8"/>
+<rect x="170" y="250" width="560" height="105" rx="8"/>
+<rect x="65" y="415" width="340" height="95" rx="8"/>
+<rect x="495" y="415" width="340" height="95" rx="8"/>
+<rect x="150" y="570" width="600" height="80" rx="8"/>
+</g>
+<g font-size="18">
+<text x="232" y="124">Raw sightings</text>
+<text x="232" y="153" font-size="16">Receiver/sample identity, acquisition clock,</text>
+<text x="232" y="177" font-size="16">receipt time, RSSI and observed address</text>
+<text x="667" y="124">Experiment context</text>
+<text x="667" y="153" font-size="16">Enrollment, clock bounds, receiver poses,</text>
+<text x="667" y="177" font-size="16">coverage and held-out calibration design</text>
+<text x="450" y="280">Eligible unique observations</text>
+<text x="450" y="309" font-size="16">Preserve rejections and provenance; never copy</text>
+<text x="450" y="333" font-size="16">receiver coordinates onto the observed asset</text>
+<text x="235" y="445">Supported zone estimate</text>
+<text x="235" y="474" font-size="16">Declared method, parameters and age</text>
+<text x="665" y="445">Unknown / uncovered / stale</text>
+<text x="665" y="474" font-size="16">Preserve the gap and its reason</text>
+<text x="450" y="604">Equipment profile and confirmed state events</text>
+<text x="450" y="633" font-size="16">New support, explicit denominators, no invented path through gaps</text>
+</g>
+</g>
+<g stroke="#334a58" stroke-width="2" fill="none" marker-end="url(#arrow)">
+<path d="M232 195 L350 250"/><path d="M667 195 L550 250"/>
+<path d="M350 355 L235 415"/><path d="M550 355 L665 415"/>
+<path d="M235 510 L350 570"/><path d="M665 510 L550 570"/>
+</g>
+</svg>

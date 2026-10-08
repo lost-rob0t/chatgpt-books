@@ -1,0 +1,435 @@
+* Chapter -- Profiling Enrolled Equipment
+:PROPERTIES:
+:ID:       7a82401a-2f23-4bd5-a0d3-bd78f8019470
+:END:
+
+An equipment profile summarizes what a defined collection process observed
+about an enrolled asset. It can help answer practical questions: was the
+laboratory beacon visible when its receivers were operating, did its observed
+zone change, did ingestion become delayed, or did a new firmware configuration
+change the collected data?
+
+The profile must retain its measurement conditions. A table of signal strengths
+without receiver, pose, coverage and time context can make a receiver outage
+look like an equipment failure.
+
+This chapter continues the fictional owned-beacon lab. The subjects are
+enrolled laboratory equipment, not people. No profile in the exercise describes
+a person's identity, home, workplace, habits or intentions.
+
+** Define the profile's purpose and unit
+
+Choose the unit before aggregating. Useful units include:
+
+- one enrolled asset during one test session;
+- one receiver and pose during a coverage interval;
+- one hardware/configuration combination during calibration;
+- one zone-estimation method on a held-out evaluation set.
+
+A profile mixing these units is hard to interpret. An asset moving between two
+receivers can show an RSSI change even when its transmitter behavior remains
+constant. A receiver moving on the cart can show a similar change while the
+asset remains stationary.
+
+Write a profile contract:
+
+#+begin_example
+Subject: enrolled asset in the fictional laboratory registry
+Window: a named experiment interval
+Purpose: summarize visibility and supported zone changes
+Inputs: accepted observations plus receiver coverage and pose history
+Exclusions: unknown bindings, conflicting duplicates, unsupported clock/pose data
+Output: counts, denominators, uncertainty and evidence links
+#+end_example
+
+The profile is a derived analysis. Give it its own identity, processing version
+and input references so a later implementation can reproduce or replace it.
+
+** Start with a data-quality profile
+
+Before asking what the equipment did, ask what happened to the data.
+
+Retain counts for:
+
+1. Raw received records.
+2. Exact duplicate records.
+3. Conflicting observation identities.
+4. Unknown or out-of-interval enrollment bindings.
+5. Invalid clock, RSSI or receiver-pose records.
+6. Accepted unique observations.
+7. Windows with usable collection coverage.
+8. Windows with a supported zone result.
+9. Windows that remain stale, uncovered or otherwise unknown.
+
+These categories need clear rules. If one row fails multiple checks, specify
+whether a primary rejection reason is recorded or several reason flags are
+counted. Do not present overlapping reason counts as though they add up to
+the total.
+
+A deduplicated observation can contribute to more than one analytical view,
+but it does not become a new observation each time it is displayed. Keep
+observation counts separate from window-result counts.
+
+The chapter before this one also required new evidence for repeated-state
+confirmation. Recomputing a label twice from the same samples must not
+manufacture a second independent confirmation.
+
+** Use coverage-aware visibility
+
+A raw count answers how many records arrived. It does not answer how reliably
+the equipment was observed.
+
+Compare two fictional sessions. The first receiver was operational throughout
+the session. The second was offline for half of it. Ten sightings in each
+session do not establish equal detection behavior.
+
+Define the denominator alongside the numerator. For example:
+
+#+begin_example
+observation visibility fraction =
+  covered windows with at least one accepted observation
+  / windows meeting the declared coverage rule
+
+zone-output availability =
+  eligible evaluation windows with an accepted zone
+  / all eligible evaluation windows
+#+end_example
+
+These are different quantities. A beacon may be observed but lack enough
+receiver support for a zone estimate. A window may have coverage but contain
+an unrecognized address that cannot be assigned to an enrolled asset.
+
+Also report wall-clock coverage. Excluding uncovered windows from a conditional
+fraction should not hide a collection system that was unavailable most of the
+time.
+
+For every percentage, preserve the integer counts. "Ten of twelve covered
+windows" is inspectable. A percentage with no denominator conceals both scale
+and selection.
+
+Our course parameters are not a product guarantee. The tests define what
+counts as coverage and eligibility for the fictional dataset. A real collector
+needs operational evidence that its radio, scan configuration, clock and pose
+were usable.
+
+** Advertising cadence is an observation of a sampling system
+
+A dedicated beacon may be configured to advertise on an interval, but a receiver
+does not necessarily report every transmission. Transport loss, scan windows,
+filtering, scheduling and platform behavior affect the observed sequence.
+
+The Bluetooth primer describes advertising timing and repeated broadcast
+behavior. Android's permission guidance also warns that some permission choices
+can affect which beacons are visible. Neither a general Bluetooth setting nor a
+single collector API promises a complete packet stream.
+[cite:@bluetooth-primer-owned;@android-bluetooth-permissions-owned]
+
+Therefore distinguish:
+
+- configured advertising behavior, if supplied by the enrolled device's
+  documented configuration;
+- observed inter-arrival intervals at a specified receiver;
+- deduplicated analytical observation intervals;
+- ingestion inter-arrival intervals after batching or retries.
+
+If three observations reach storage together, that may be an upload batch
+rather than a burst of radio activity. Use acquisition time when describing
+the observation sequence and ingestion time when measuring pipeline latency.
+
+A long gap can justify investigating the collection chain. It does not by
+itself diagnose a depleted battery, deliberate shutdown, movement or a changed
+owner behavior.
+
+** Summarize signals under comparable conditions
+
+For a single receiver pose and configuration, median RSSI and a spread measure
+can describe the supplied observations. A robust spread summary may be more
+informative than a mean alone when a small number of values are unusual.
+
+Always include the sample count and the filtering rule. A summary from three
+samples has different evidential weight from one observed across many
+independent placements and sessions. Many adjacent packets from one static
+condition should not be mistaken for broad environmental coverage.
+
+Do not pool measurements indiscriminately across:
+
+- different receiver hardware;
+- different antenna orientation;
+- different cart stops;
+- materially different obstructions;
+- changed transmit-power configuration;
+- different scanning or filtering settings.
+
+You may report those conditions together in a comparative table. The labels
+must remain visible so a difference is not automatically attributed to the
+asset.
+
+A profile can say that the distribution changed after a firmware update.
+Establishing that the update caused the change requires a controlled comparison
+or other supporting evidence. The timeline alone does not identify the cause.
+
+** Profile movement as supported state changes
+
+The companion dataset includes accepted west-bay and east-bay windows,
+deliberate coverage gaps, an unresolved radio alias and a covered interval with
+no accepted sightings.
+
+The intended report grid is:
+
+| Report time | Intended evidence situation |
+|-------------+-----------------------------|
+| 100, 110 | repeated west-bay support |
+| 120, 130 | repeated east-bay support |
+| 140 | receiver coverage gap |
+| 150 | radio alias without an applicable enrollment binding |
+| 160, 170 | west-bay support through an explicitly enrolled rotated alias |
+| 180 | coverage present, no accepted sightings |
+| 190, 200 | renewed west-bay support |
+| 210, 220 | repeated east-bay support |
+
+These are declared synthetic test cases. They are not measurements from a
+real Bluetooth installation.
+
+Under the specified confirmation policy, acquisition or reacquisition differs
+from a continuously supported change. An unknown interval resets continuity.
+A new confirmed label after that interval should not imply the path or state
+through the gap.
+
+The fixture's target behavior includes first acquisition at 110, a confirmed
+change at 130, reacquisition at 170, reacquisition at 200, and another confirmed
+change at 220. This sequence is the test's expected reasoning target; use the
+actual execution report to establish whether an implementation produced it.
+
+Reacquisition at the same zone does not establish continuous occupancy. The
+asset might have stayed, moved and returned, or remained unobserved for some
+other reason. The supplied evidence does not choose among those explanations.
+
+** Keep a behavioral vocabulary appropriate to equipment
+
+Useful profile statements include:
+
+- "observed in twelve receiver records after exact deduplication";
+- "zone estimate unavailable in these named windows";
+- "last accepted observation acquired at this experiment time";
+- "a different address was linked only after an explicit enrollment update";
+- "signal spread changed under a different receiver pose";
+- "ingestion delay increased while acquisition intervals remained similar."
+
+Each statement points to measurements or a declared processing rule.
+
+Avoid statements that outrun the evidence, such as "the asset was switched
+off" when only sightings are absent, or "the equipment followed this path" when
+only separated zones were supported.
+
+A device's association with a person does not authorize a profile of that
+person. Keep the enrollment scope, ownership and purpose with the experiment.
+If the requested question changes from equipment behavior to someone's private
+routine, that is a different task and requires a different assessment.
+
+** Evaluate profiles with ground truth kept outside the model
+
+Calibration teaches the model what the exercise's supported zones look like.
+Held-out ground truth evaluates its outputs. Do not feed the evaluation answers
+back into the model while claiming they remain an independent test.
+
+Separate whole sessions or placement conditions when adjacent samples share
+context. Splitting nearly identical neighboring rows across calibration and
+evaluation can make the test unrealistically easy.
+
+Freeze the model and thresholds before the final evaluation. If a result
+changes because you adjusted the margin threshold after inspecting mistakes,
+record that as development work and evaluate the revised model on different
+held-out cases.
+
+Useful evaluation questions include:
+
+1. Which labeled windows received an accepted zone?
+2. Among those accepted windows, how many labels were correct?
+3. Which true zones were confused with others?
+4. How often did the model abstain?
+5. How did performance change with a missing receiver or an altered pose?
+6. How often did a transition rule react to noise?
+7. How long did confirmation delay a real scripted change?
+8. How much acquisition-to-ingestion latency did the pipeline add?
+
+Metrics should expose failures as well as successful classifications. Report
+unclassified windows as unclassified; do not remove them silently from the
+denominator used to claim overall usefulness.
+
+** A small error-metric worksheet
+
+Consider ten fictional eligible windows. A method accepts eight labels, of
+which seven match the held-out ground truth.
+
+#+begin_example
+accepted-label accuracy = 7 / 8
+zone-output availability = 8 / 10
+correct accepted output per eligible window = 7 / 10
+#+end_example
+
+These ratios answer different questions. The first alone makes the method
+look better than a report that also shows its abstentions.
+
+Suppose a second method accepts all ten windows and labels seven correctly.
+Both methods produce seven correct accepted outputs, but one abstains twice
+while the other makes three wrong assignments. Which is preferable depends on
+the cost of an unknown answer versus a wrong answer. State that decision
+context instead of presenting one metric as universally decisive.
+
+For transition metrics, define an event-matching rule before scoring:
+which scripted change corresponds to which reported change, how much timing
+tolerance is allowed, and how unmatched detections are counted. Do not award
+multiple true positives to repeated reports of one scripted transition.
+
+For continuous position estimates, retain the localization error distribution
+and the estimate-availability denominator. The zone baseline in this lab does
+not emit precise positions, so it does not have a measured metre-level
+localization score to advertise.
+
+** Express the result in canonical records
+
+Use an =asset= record for enrolled equipment identity. A receiver is equipment
+too, but its role as observer must remain distinct from the measured subject.
+
+Use =observation= records for individual or explicitly grouped measurements,
+and an =analysis= record for the derived profile. The current canonical
+=analysis= vocabulary includes =inputIds=, =method=, =findings=, =conclusions=,
+=limitations=, =uncertaintySources= and =unresolved=.
+[cite:@starlang-starintel-0101]
+
+The lab's canonical fixtures are validated through the same pinned SDK as the
+earlier book exercises. Their outer experiment packet is a course container,
+not a new StarIntel dtype.
+
+A useful analysis describes:
+
+- the enrolled subject and observation interval;
+- the method and parameter version;
+- which observations and calibration records it used;
+- the supported zone or visibility findings;
+- coverage gaps and excluded inputs;
+- limitations and unresolved alternatives;
+- the time at which the analysis was produced.
+
+Do not store an estimated local-grid coordinate as a geographic =geo-point=
+by renaming x to longitude and y to latitude. The canonical type requires its
+declared geometry fields and coordinate semantics. A schema-valid pair of
+numbers can still describe the wrong frame.
+
+The separate geographic example in the fixtures is explicitly synthetic and
+exists to demonstrate the canonical geotype boundary. It does not georeference
+the fictional room or assign a beacon the receiver's position.
+
+The following strict analysis fixture intentionally describes an abstention
+case rather than inventing a successful location result:
+
+#+begin_src json
+#+include: "../code/owned-beacon-lab/fixtures/analysis.json"
+#+end_src
+
+Its existence demonstrates record structure. Execution results belong in the
+lab report generated by the tested code.
+
+** Design an equipment-profile view that shows uncertainty
+
+A useful operator view can show:
+
+- asset identity and enrolled experiment scope;
+- latest accepted observation time;
+- current display age and stale status;
+- supported zone, or unknown;
+- receiver coverage for the relevant interval;
+- count of distinct supporting observations;
+- calibration/model version;
+- recent acquisition, change and reacquisition events;
+- a link to raw observations and rejection reasons.
+
+Keep receiver trajectories visually distinct from inferred asset states.
+Show missing intervals as gaps. Avoid drawing a continuous equipment route
+where the system only classified a few separated zones.
+
+A profile exported for another reader should carry the same qualifications.
+A screenshot of a green pin without an acquisition timestamp can conceal that
+the evidence is old or weak.
+
+This is a proposed view design. The book's offline lab does not implement a
+live dashboard, permission service, hardware scanner or StarIntel actor that
+performs those functions.
+
+** Failure exercises with answers
+
+1. Two sessions have the same number of sightings, but one has half as much
+   receiver uptime. Is their visibility equal?
+
+   The raw counts are equal. Conditional visibility requires the appropriate
+   covered-time or covered-window denominator, and wall-clock coverage must
+   also be reported.
+
+2. A receiver uploads a batch after reconnecting. What does the ingestion burst
+   establish about advertising cadence?
+
+   Very little by itself. Compare acquisition timestamps and deduplicated
+   records before interpreting the equipment's observed radio behavior.
+
+3. Reusing one set of observations produces the same zone twice. Does that
+   satisfy a two-confirmation transition rule?
+
+   It should not in this lab. Require new eligible supporting observations so
+   a repeated computation does not manufacture independent evidence.
+
+4. A previously unseen radio address has a familiar name. What goes into the
+   enrolled asset's profile?
+
+   No automatic identity link. Preserve an unresolved observation or exclusion
+   according to scope until the trusted enrollment process supplies evidence.
+
+5. The model performs well on rows adjacent to its calibration rows. Has it
+   shown generalization across receiver poses?
+
+   No. Evaluate separate placement/pose sessions that actually test that
+   difference.
+
+6. A profile reports 95 percent accuracy but omits its abstention count. What
+   should you ask for?
+
+   The numerator, denominator, acceptance rule, eligible-window count and
+   coverage/unknown breakdown. High accepted-case accuracy may coexist with
+   low output availability.
+
+7. A west-bay result appears before a gap and another west-bay result after it.
+   How long was the asset continuously in west-bay?
+
+   The evidence does not establish continuous occupancy through the gap.
+   Report the observed episodes separately.
+
+8. RSSI falls after a battery replacement. Does that prove the new battery is
+   defective?
+
+   No. Check placement, antenna orientation, receiver conditions, configuration
+   and other relevant changes before making a causal diagnosis.
+
+9. The canonical analysis record validates. Is its conclusion correct?
+
+   The record meets the selected structural contract. Source quality,
+   experimental design, calculations and interpretation still require review.
+
+10. A local x/y estimate is placed into longitude/latitude fields and passes
+    range checks. What failed?
+
+    Coordinate semantics. Numerical range validity does not establish a valid
+    transformation between reference frames.
+
+** Extension project
+
+Add one new fictional held-out session in which the receiver cart changes
+pose and one fixed receiver loses coverage. Keep enrollment bindings and clock
+uncertainty explicit. Predict which windows should remain classifiable before
+running the code.
+
+Then compare two predeclared acceptance thresholds. Report both accepted-label
+accuracy and output availability, preserve all unknown windows, and explain
+which tradeoff is appropriate for the equipment-finding task.
+
+Finish with a short analysis record whose claims can be traced back to the
+observations. That is the central skill of equipment profiling: useful summaries
+that remain honest about how they were measured.

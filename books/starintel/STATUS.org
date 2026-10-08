@@ -9,8 +9,10 @@ The reader-spine and canonical-0.10.1 expansion merged through PR #153 as
 =8bebf77dac5abe023ca1bc53351f53980b8f099a=. All exact-head checks and its
 post-merge main CI passed.
 
-The active slice is a fictional OSINT fundamentals and location-evidence
-chapter with a small offline evidence/freshness lab.
+The fictional OSINT fieldwork chapter merged through PR #154 as
+=53958ae3811c20741c17a040c629e72085095ab1=. Its exact-head tests, EPUBCheck and
+post-merge main CI passed. The active slice adds two owned-equipment chapters
+and a shared offline temporal-sighting/profile lab.
 
 Project 1 historical document-contract work, Project 2 service-backed ingest
 evidence, and Project 3 milestone A actor-dispatch evidence are already merged.
@@ -200,7 +202,7 @@ workflow-pinned Pandoc 3.10.1. EPUBCheck is unavailable locally; the CI-produced
 validated EPUB and remote exact-head checks still gate publication. Existing service/actor test evidence is unchanged and was not rerun by
 this local practicum.
 
-* Active slice -- Fictional OSINT fieldwork / Pass 11
+* Merged fictional OSINT fieldwork -- Pass 11 / PR #154
 
 Authored:
 - a substantive research-method chapter with a fictional professional identity
@@ -216,6 +218,25 @@ No local executor is available for this pass. Python tests, publication and
 EPUB validation must run in hosted CI on the exact branch head. Until those
 checks pass, the new lab is AUTHORED / UNTESTED. The classifier is course-local,
 not a production StarIntel location or authorization service.
+
+* Active slice -- Owned-equipment fieldwork / Pass 12
+
+Authored two distinct chapters:
+- Multiple Sightings over Time;
+- Profiling Enrolled Equipment.
+
+The shared experiment uses fictional explicitly enrolled dedicated BLE beacons,
+known fixed receivers and an owned-moving receiver. It keeps acquisition and
+ingestion time, clock bounds, receiver poses, enrollment, deduplication,
+calibration, coverage, abstention and transition support separate.
+
+Canonical fixtures use the existing generated 0.10.1 authority. The local room
+grid is not silently converted into longitude/latitude. The course classifier
+does not implement a radio collector, precise coordinate-ranging system or
+production identity/permission service.
+
+Execution status must be established by the exact-head hosted workflow.
+Hardware type remains unspecified; no real device or network access is used.
 
 * Active research / missing executable proofs
 

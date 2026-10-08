@@ -302,3 +302,22 @@ three synthetic canonical fixtures through the pinned SDK, negative cases,
 exact JSON numbers, book-local duplicate-member admission, explicit legacy
 preservation and current-input identity. Ten worked lifecycle failure answers
 connect Gate A to Gate B without claiming a service-backed 0.10.1 trace.
+
+* Owned-equipment fieldwork chapters added in Pass 12
+** Multiple Sightings over Time
+Goal: distinguish receiver pose from inferred equipment location, align clocks
+with uncertainty, preserve acquisition/ingestion time, deduplicate supplied
+records, require enrollment and coverage, classify conservative zones and keep
+unobserved intervals visible.
+Implementation: =manuscript/temporal-sightings-12.org= plus the shared
+=code/owned-beacon-lab/= offline project.
+Scope: fictional enrolled dedicated BLE beacons, fixed and owned-moving
+receivers, local metre grid, no actual capture or unspecified hardware claims.
+** Profiling Enrolled Equipment
+Goal: produce provenance-bearing equipment summaries with explicit units and
+denominators; separate visibility, output availability, signal variation and
+state transitions; evaluate held-out error/abstention tradeoffs.
+Implementation: =manuscript/equipment-profiling-13.org= and the same lab.
+Boundary: equipment behavior only; no private-person identity or routine
+inference. Canonical asset/observation/analysis/geotype fixtures consume the
+existing StarLang-generated SDK.
