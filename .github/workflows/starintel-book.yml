@@ -74,6 +74,13 @@ jobs:
           PYTHONPATH="$PWD/.cache/starintel-doc-canonical" python3 -m unittest discover -s books/starintel/code/osint-evidence -p 'test_*.py' -v
           python3 -m py_compile books/starintel/code/osint-evidence/*.py
 
+      - name: Run owned-equipment temporal and profile lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash books/starintel/code/owned-beacon-lab/run-tests .cache/starintel-doc-canonical
+          python3 -m py_compile books/starintel/code/owned-beacon-lab/*.py
+
       - name: Run Project 2 ingest-adapter tests
         run: |
           bash books/starintel/code/ingest-adapter/run-tests

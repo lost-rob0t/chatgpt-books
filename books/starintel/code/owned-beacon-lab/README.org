@@ -1,0 +1,191 @@
+#+title: Offline enrolled-equipment beacon lab
+
+* Scope and status
+This is a standard-library Python teaching model with fictional equipment,
+receivers, operator enrollment, signal strengths, clocks, coverage and positions.
+It opens no hardware, sockets, packet capture, scanner, account or live service.
+It installs nothing. It models no person. Do not point it at a private-person
+dataset or treat it as a field-ready collector or positioning service.
+
+The inference implementation is book-local course code, not a StarIntel service.
+=fixture_data.py= contains course DTOs; only =fixtures/*.json= are canonical
+StarIntel documents. The strict fixture test imports the real pinned SDK and
+fails if the required SDK or format checker is unavailable.
+
+Authoring status: UNTESTED until the commands below actually run in the
+target environment. Assertions are authored expected behavior, not recorded
+experimental results. =run_lab.py= prints the answer key produced by that
+execution. Do not copy a numerical result into the manuscript or change a
+claim to TESTED before checking the run log and exact commit.
+
+* Run without installing anything
+From this directory, with an existing Python 3 environment:
+
+#+begin_src sh
+python3 -m unittest discover -s . -p 'test_lab.py' -v
+python3 run_lab.py > owned-beacon-report.json
+#+end_src
+
+The inference code and its 27 tests use only Python's standard library.
+The additional three fixture-validation tests require the already provisioned
+=starintel-doc= checkout at =6aa8051dc7ea560943a60a25e1d600467f2778bc= and
+=jsonschema[format]==4.26.0=, as in the existing canonical-records practicum:
+
+#+begin_src sh
+bash run-tests /path/to/pinned/starintel-doc
+#+end_src
+
+The runner verifies the SDK commit, tracked-file cleanliness and vendored
+schema closure offline before all tests. It does not clone, install, update,
+regenerate schemas or write product repositories. =PYTHONDONTWRITEBYTECODE=1=
+also prevents imports from adding cache files to the SDK checkout.
+The report is printed only after the tests succeed.
+
+* What is independently known
+- An operator supplies stable asset IDs and explicit time-bounded radio-alias
+  bindings. These entries are fictional enrollment records, not inference.
+- Radio aliases are not authentication. A copied known alias is outside this
+  toy model's threat guarantees. Unknown aliases remain unlinked; similar RSSI,
+  address format, timing or payload never merges identities.
+- Receiver position is instrument context. Fixed receivers occupy =(0,0)= and
+  =(20,0)= metres. The owned rover has a =rover-west= pose at =(2,0)= for
+  =[0,150)= and a =rover-east= pose at =(18,0)= for =[150,500)=.
+- Coordinates are in =fictional-workshop-grid-metres=. They are not geographic
+  latitude/longitude. The separate canonical geo-point/location fixtures are
+  schema-only invented examples and are never inputs to zone classification.
+- All raw receiver clocks already have a supplied transform into one
+  simulation timescale. They are not arbitrary platform timestamps. Applying
+  this subtraction to an uncalibrated monotonic-since-boot device clock would
+  be invalid.
+
+* Pipeline and course decisions
+The exercises preserve raw receiver time and receipt time separately.
+Corrected time is =receiver_time_s - clock_offset_s=. A supplied clock-error
+bound gives a closed possible-observation interval. That whole interval must
+fit exactly one explicit identity binding and one dated receiver pose.
+Any other binding for that alias or receiver pose that intersects even part
+of the possible-observation interval makes association ambiguous. A closed
+uncertainty interval includes its endpoints; validity intervals are half-open,
+so an exact handover instant belongs only to the new interval. Duplicate
+overlapping registry entries are conservatively rejected too.
+Future observations, excessive uncertainty and stale samples are rejected.
+Conservative age uses the interval's earliest possible observation time.
+
+Deduplication groups the complete supplied session by =(receiver_id,sample_id)=.
+An identical payload with a later receipt time is a replay of that supplied
+sample identity. Conflicting payloads under one identity quarantine the whole
+key, regardless of input order. All rows under a conflicting key count as
+=conflicting_rows=, including any exact repetitions inside that quarantined
+group; those repetitions are not also counted as =duplicate_replays=.
+This says nothing about whether ordinary BLE
+advertisements authenticate freshness. Identical payloads with different
+sample IDs are not automatically declared the same transmitter event.
+
+The baseline fits a median RSSI fingerprint for each zone/receiver/pose from
+calibration rows only. A receiver at a new pose needs separate calibration.
+The test cases are separately authored and cannot be passed to =fit=.
+They are synthetic holdout fixtures, not a representative real-world sample.
+
+The intentionally explicit course gates are:
+- Maximum conservative sample age: 15 s
+- Maximum clock uncertainty: 2 s
+- Maximum outer uncertainty span for a receiver pair: 4 s
+- At least two distinct receivers with separation at least 10 m
+- Winning mean absolute fingerprint residual at most 8 dB
+- Margin between the two best mean residuals at least 6 dB
+
+These are policy knobs for the exercise, not established physical constants.
+Separation does not by itself establish real RF coverage or multilateration.
+Residual and margin are scores, not probabilities or calibrated confidence.
+There is no RSSI-to-distance, coordinate solve, device GPS output or metre-error
+benchmark in this lab.
+
+A health entry asserts the receiver was scheduled and healthy throughout the
+four-second reporting frame. Missing health means unknown coverage. Even
+adequate synthetic receiver coverage plus nondetection does not establish that
+equipment was absent, off or unused. One accepted receiver sample can contribute
+to visibility while still being insufficient for a zone estimate.
+
+* Work through the examples
+1. Inspect the two stable asset IDs and the three explicit alias bindings.
+   Remove the second cart binding: the rotated alias must stop resolving.
+   There is no automatic rotation-linking routine.
+2. Compare the raw west/east receiver clocks with corrected observation time
+   and receipt time. Widen an uncertainty interval until it crosses the
+   rover-pose or enrollment boundary; the sample must be withheld.
+3. Run the held-out cases. Find successful static and moving-receiver examples,
+   a low-margin case, an out-of-calibration case, stale evidence, poor receiver
+   separation, unknown coverage and an unlisted alias.
+4. Find the deliberately misleading accepted fingerprint. It exists so the
+   learner must report errors among accepted estimates as well as abstentions.
+   Do not tune the calibration or thresholds after inspecting this test label.
+5. Inspect the cart timeline. Its authored scene is west at reports 100/110,
+   east at 120/130, a coverage gap at 140, an unlisted alias at 150, west with
+   an explicitly enrolled rotated alias at 160/170, covered nondetection at
+   180, west at 190/200 and east at 210/220.
+6. Trace the two-result confirmation rule. Every selected receiver/sample
+   support identity must be novel, not merely one row in the support set.
+   The complete corrected acquisition interval must lie strictly after the
+   greatest earlier valid interval's upper bound. Touching, overlapping or
+   delayed historical evidence cannot advance confirmation, even when it has
+   new sample IDs and a later report time. Rejected results and gaps reset
+   confirmation continuity but preserve this acquisition high-water mark;
+   valid intervals on rejected results can advance the mark. Missing intervals
+   do not erase it. Events record endpoint reports only and never draw a path.
+7. Compare the cart and work-light summaries. Window visibility and unique
+   receiver-sample support are different denominators. Several receivers
+   seeing one transmission are not several equipment-use events.
+
+* Read the generated answer key honestly
+=held_out_evaluation= reports all test cases, accepted estimates, abstentions,
+wrong accepted estimates, availability, error conditional on acceptance,
+correct results over all cases and synthetic adequate-coverage rate.
+A zero denominator produces JSON =null=, not a reassuring zero error rate.
+
+=equipment_summaries= separates covered windows, visible covered windows,
+covered nondetection, unknown coverage, zone availability and unique accepted
+receiver-sample counts. These describe instrumentation visibility and
+classification opportunities. They do not establish equipment operation,
+daily routines, occupants, social relationships or a person's habits.
+
+
+=audit= reconciles raw input rows using mutually exclusive primary dispositions:
+
+#+begin_example
+raw_rows = invalid_sample + conflicting_rows + duplicate_replays
+           + normalization_rejected_unique_rows + accepted_unique_rows
+#+end_example
+
+Malformed rows are removed first. Entire conflicting-key groups are then
+quarantined. Exact replays are counted only in the remaining groups. Each
+surviving unique row either fails normalization for its first reported reason
+or is accepted. Reason counters such as =stale= and =unknown_identity= break
+down =normalization_rejected_unique_rows=; do not add them to that total again.
+=conflicting_keys= counts groups, while =conflicting_rows= counts input rows.
+This accounting describes the complete supplied offline session, not an
+online assertion that earlier results are immune to a later conflicting replay.
+
+The two-result transition output distinguishes =acquired= from =changed=.
+Reacquisition after a gap is not a transition across that gap. Endpoints do
+not supply a route, speed, dwell duration or continuous occupancy.
+
+* Canonical fixture boundary
+=fixtures/observation.json= preserves an original receiver sample, a corrected
+=observedAt=, a receipt =collectedAt= and receiver-local grid context under
+=extensions.course=. Its =observerId= is the receiver asset and =subjectId=
+is the enrolled equipment. Receiver position never becomes a device position.
+
+=fixtures/analysis.json= is an authored single-receiver abstention example,
+with =inputIds=, =findings=, =conclusions=, =limitations=,
+=uncertaintySources= and =unresolved=. The test checks it against the lab's
+single-receiver case. It contains no invented top-level zone/RSSI fields.
+The fixture's =UNTESTED= claim label describes its authoring status; the actual
+test log supplies execution evidence.
+
+Canonical authority was inspected at:
+[[https://github.com/lost-rob0t/star-lang/blob/fa1c8f4fb0590526c39aa3e9bc4a7e6eac30bea7/specs/starintel/0.10.1/core.star][StarLang org.starintel/core@1 version 0.10.1]].
+Relevant declarations are =document=, =observation=, =analysis=, =asset=,
+=geo=, =geo-point= and =location=. The strict SDK tests check roundtrips,
+reference closure for this fixture set, unknown-field rejection, date/time
+format rejection and geographic coordinate typing/ranges. They are not a
+claim that an older server runtime accepts these canonical records.

@@ -1,0 +1,21 @@
+{
+  "dataset": "book-owned-beacon-synthetic",
+  "schemaVersion": "0.10.1",
+  "collector": "starintel-book-owned-beacon-lab",
+  "collectionMethod": "manually authored fictional offline teaching fixture",
+  "tags": [
+    "synthetic",
+    "owned-equipment",
+    "book-example"
+  ],
+  "sensitivity": "internal",
+  "visibility": "private",
+  "id": "location:owned-lab-schema-only",
+  "dtype": "location",
+  "name": "Fictional schema-only location; unused by the classifier",
+  "geometry": {
+    "schema": "org.starintel/core@1/geo-point",
+    "id": "geo-point:owned-lab-schema-only"
+  },
+  "locationType": "fictional teaching example"
+}

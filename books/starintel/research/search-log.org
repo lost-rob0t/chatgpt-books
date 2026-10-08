@@ -91,3 +91,12 @@ High Resolution Time and PROV, RFC 2606, and current StarLang source.
 Result: wholly fictional worked packet, query/source/contradiction worksheets,
 fictional venue comparison, and an offline consent-scoped freshness lab.
 Details: [[file:osint-fieldwork-pass-11.org][Pass 11 research record]].
+
+* 2026-10-08 -- Owned-equipment temporal sightings and profiling
+Question: how can multiple sightings support conservative state estimates and
+equipment summaries without confusing receiver position, timestamps, coverage
+or identity assumptions with observed asset movement?
+Sources: Bluetooth SIG primer/Core6/privacy/ranging, Android ScanResult and
+permission documentation, RFC5905, current StarLang declarations and pinned SDK.
+Outcome: two substantive chapters and a fictional offline zone/profile lab.
+Details: [[file:owned-equipment-pass-12.org][Pass 12 research record]].

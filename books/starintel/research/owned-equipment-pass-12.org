@@ -1,0 +1,86 @@
+#+title: Owned-equipment temporal sightings and profiling pass 12
+
+* Scope and source state
+Date: 2026-10-08. Existing parent issue #9.
+Book base: =53958ae3811c20741c17a040c629e72085095ab1=.
+StarLang authority: =fa1c8f4fb0590526c39aa3e9bc4a7e6eac30bea7=.
+Python SDK: =6aa8051dc7ea560943a60a25e1d600467f2778bc=.
+
+Two requested chapters teach temporal multisighting geolocation and profiling
+of the user's own enrolled equipment. All worked data is fictional, and actual
+hardware remains unspecified. Dedicated enrolled BLE beacons are an explicit
+teaching assumption, not a claim about phones or headphones.
+
+* Primary research
+- [[https://www.bluetooth.com/bluetooth-le-primer/][Bluetooth SIG primer]]:
+  advertising/scanning are distinct states; advertising is unreliable broadcast;
+  identical payload can repeat across advertising channels; timing is not a
+  guarantee that every configured transmission appears in a collector.
+- [[https://www.bluetooth.com/core-specification-6-feature-overview/][Bluetooth Core 6.0 overview]]:
+  RSSI distance estimation depends on reference calibration and environmental
+  effects.
+- [[https://www.bluetooth.com/download/bluetooth-security-and-privacy-best-practices-guide/][Bluetooth privacy guidance]]:
+  address changes make observed radio attributes unsuitable as a universal
+  persistent asset identity. The lab uses an explicit operator enrollment map;
+  it does not infer links across unknown addresses.
+- [[https://developer.android.com/reference/android/bluetooth/le/ScanResult][Android ScanResult]]:
+  RSSI is dBm; observation time can be a receiver-local time since boot, not UTC;
+  transmit power can be unavailable.
+- [[https://developer.android.com/develop/connectivity/bluetooth/bt-permissions][Android permissions]]:
+  collection/permission settings can affect visible beacons. Missingness must
+  not be attributed automatically to asset absence.
+- [[https://www.bluetooth.com/learn-about-bluetooth/feature-enhancements/channel-sounding/][Channel Sounding]]:
+  cooperative ranging is a distinct capability, not supplied by generic RSSI.
+- [[https://www.rfc-editor.org/info/rfc5905/][RFC 5905]]:
+  clock offset and uncertainty vocabulary. Supplied constant offsets in the
+  course data do not implement synchronization or time-of-flight ranging.
+
+The book's separate inference/design rule is that receiver coordinates describe
+the observing instrument and must not be copied onto observed emitters as a
+measured device location. That rule is not attributed as a direct quotation or
+experimental result from the Core 6 overview.
+
+* Canonical mapping
+The common document envelope and asset/observation/analysis/geo-point/location
+declarations were read from current core.star. There is no Bluetooth-specific
+observation dtype to invent. Course measurement structures must be documented
+payloads or separate wrappers. Decimal/geotype semantics are preserved.
+Receiver context, inferred equipment state and profiling results remain
+separate records.
+
+* Experiment design
+The local model is a conservative west/east zone baseline with supplied
+calibration. Clock uncertainty and valid enrollment/receiver-pose intervals
+restrict eligible sightings. Replay-like repeated receiver/sample identities
+are data deduplication cases, not a cryptographic replay-detection claim.
+Repeated evaluations of the same support cannot create new transition evidence.
+Unknown/coverage gaps reset continuity rather than generating a path.
+
+Profiles expose raw/accepted/rejected counts, denominators, calibration/test
+separation, visibility, abstention and transition semantics. No person
+profiling, actual RF capture, device access, new software installation or
+product-runtime change is performed.
+
+* Verification boundary
+Chapter text, canonical fixtures and lab tests must be checked on the exact
+published head. Local execution is not assumed available. Hosted CI owns the
+reproducible SDK tests, publication and EPUBCheck result. Rendered SVG review
+is separate from XML or EPUB structural validation.
+
+Thresholds, synthetic positions and expected test sequences are course design,
+not measured Bluetooth performance or a platform accuracy guarantee.
+
+* Review-driven edge cases
+Independent review required acquisition-time progression for confirmed state
+events, not merely fresh record IDs and later receipt/report times. The lab
+retains an acquisition high-water mark so delayed historical sightings cannot
+become a new current transition. Touching/overlapping acquisition bounds do not
+prove strict progression.
+
+Identity and pose association now reject any competing validity interval that
+intersects the possible observation interval, including a partial overlap.
+Raw-row accounting also distinguishes quarantined conflict rows from conflict
+keys and reconciles duplicates, normalization rejections and accepted records.
+
+These cases are explicit regression targets. Actual execution status remains
+tied to the corrected exact-head tests.

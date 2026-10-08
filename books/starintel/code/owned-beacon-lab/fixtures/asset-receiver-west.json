@@ -1,0 +1,17 @@
+{
+  "dataset": "book-owned-beacon-synthetic",
+  "schemaVersion": "0.10.1",
+  "collector": "starintel-book-owned-beacon-lab",
+  "collectionMethod": "manually authored fictional offline teaching fixture",
+  "tags": [
+    "synthetic",
+    "owned-equipment",
+    "book-example"
+  ],
+  "sensitivity": "internal",
+  "visibility": "private",
+  "id": "asset:owned-lab-receiver-west",
+  "dtype": "asset",
+  "name": "Fictional fixed west receiver",
+  "assetType": "owned classroom receiver"
+}

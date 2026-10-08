@@ -7,4 +7,6 @@
 #+include: "runtime-post-actor-09.org"
 #+include: "bulk-lifetime-04.org"
 #+include: "service-trace-05.org"
+#+include: "temporal-sightings-12.org"
+#+include: "equipment-profiling-13.org"
 #+include: "glossary-07.org"

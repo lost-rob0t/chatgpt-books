@@ -1,0 +1,21 @@
+{
+  "dataset": "book-owned-beacon-synthetic",
+  "schemaVersion": "0.10.1",
+  "collector": "starintel-book-owned-beacon-lab",
+  "collectionMethod": "manually authored fictional offline teaching fixture",
+  "tags": [
+    "synthetic",
+    "owned-equipment",
+    "book-example"
+  ],
+  "sensitivity": "internal",
+  "visibility": "private",
+  "id": "geo-point:owned-lab-schema-only",
+  "dtype": "geo-point",
+  "geometryType": "point",
+  "coordinateReferenceSystem": "EPSG:4326",
+  "longitude": "0",
+  "latitude": "0",
+  "placeName": "Fictional schema-only point; unused by the classifier",
+  "notes": "Invented geodetic example only. The local metre grid is never written into longitude or latitude and no conversion is implied."
+}
