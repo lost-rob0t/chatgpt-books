@@ -96,7 +96,7 @@
           "claimId": "C1",
           "status": "supported within fictional packet",
           "contradictions": [
-            "A superseded biography uses a different former affiliation."
+            "An earlier biography lists a different affiliation; the packet does not establish whether the assertions concern the same interval."
           ],
           "validityLabel": "at the fictional programme date",
           "realWorldAssertion": false

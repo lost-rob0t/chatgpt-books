@@ -324,10 +324,9 @@ Our invented venue drawing has these visible features:
 1. Two entrance arches.
 2. A square clock above the entrance.
 3. A low rectangular annex to the right.
-4. A canal along the south frontage.
 
 The fictional venue directory supplies two candidates. Beacon Hall has those
-four features. Lantern Library has three arches, a round clock, and no annex
+three features. Lantern Library has three arches, a round clock, and no annex
 on that side.
 
 #+caption: Two wholly fictional public venues for a controlled comparison. The drawing is an original teaching asset and has no real-world coordinates.

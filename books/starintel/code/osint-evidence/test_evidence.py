@@ -33,6 +33,10 @@ class EvidenceTests(unittest.TestCase):
     def test_revocation_and_audience_gate(self):
         self.assertEqual(self.state(grant={**GRANT, "active": False}), "blocked")
         self.assertEqual(self.state(audience="unrelated-reader"), "blocked")
+        for value in (None, "", " ", 17):
+            with self.subTest(audience=value):
+                self.assertEqual(self.state(grant={**GRANT, "audience": value},
+                                            audience=value), "blocked")
 
     def test_expiry_and_future_grant(self):
         self.assertEqual(self.state(now=1800), "blocked")
@@ -49,7 +53,7 @@ class EvidenceTests(unittest.TestCase):
         self.assertEqual(self.state({**SAMPLE, "accuracyM": 80}), "coarse")
 
     def test_invalid_values_fail_closed(self):
-        for value in (None, -1, True, float("nan"), float("inf"), "12"):
+        for value in (None, -1, True, float("nan"), float("inf"), "12", 10**400):
             with self.subTest(value=value):
                 self.assertEqual(self.state({**SAMPLE, "accuracyM": value}), "unknown")
         self.assertEqual(self.state({**SAMPLE, "observedAtS": True}), "unknown")
@@ -57,10 +61,10 @@ class EvidenceTests(unittest.TestCase):
 
     def test_grant_limits_are_validated(self):
         for changed in ({"expiresAtS": 900}, {"maxAgeS": -1},
-                        {"maxAccuracyM": float("nan")}, {"active": "yes"}):
+                        {"maxAccuracyM": float("nan")}, {"maxAccuracyM": 10**400},
+                        {"active": "yes"}):
             with self.subTest(changed=changed):
-                self.assertIn(self.state(grant={**GRANT, **changed}),
-                              {"blocked", "unknown"})
+                self.assertEqual(self.state(grant={**GRANT, **changed}), "blocked")
 
     def test_input_is_not_mutated(self):
         sample, grant = deepcopy(SAMPLE), deepcopy(GRANT)
