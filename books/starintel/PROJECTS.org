@@ -67,6 +67,16 @@ Failure scenarios: invalid input, boundary failure, contradictory/edge cases, an
 Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
 Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
 Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+*** Milestone A -- Search contract and visibility lab
+Implemented in =code/search-lab/= and =manuscript/search-15.org=.
+Deliverable: a bounded search-result reader and pagination client, canonical
+synthetic fixtures, actual pinned index projection capture, hermetic Lisp
+contract checks and an opt-in five-record HTTP visibility experiment.
+Hermetic execution does not establish authentication middleware or live
+Clouseau semantics. The service tier requires a dedicated configured stack.
+Project 3 actor/target recovery remains owned by PR #136 and is unchanged.
+Further milestones: actual parser containment/security cases and adopted
+canonical index coverage, followed by independently researched inference.
 ** Project 5 -- Debug a Broken Pipeline
 :PROPERTIES:
 :ID:       fa271d01-af9e-5892-b544-4ef1f20cf63d
@@ -99,3 +109,4 @@ Failure scenarios: invalid input, boundary failure, contradictory/edge cases, an
 Visuals: at least one architecture or execution-flow figure plus traces/plots when useful.
 Research requirements: verify version-sensitive APIs and theoretical claims from primary sources before implementation.
 Expected deliverable: runnable implementation, tests, design notes, diagrams, exercises, and an exportable project chapter.
+

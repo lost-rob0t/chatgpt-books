@@ -1,0 +1,104 @@
+#+title: Chapter 15 / Project 4 -- Pinned Search Lab
+
+* Purpose and evidence boundary
+This is a search client and inspection lab, not a local search engine.
+Canonical fixtures use the same generated SDK authority as Project 1.
+Historical runtime fixtures in the optional HTTP tier are explicitly different.
+
+Hermetic local evidence: 23 Python tests and 15 Lisp scenario checks passed.
+Python runs the real pinned JavaScript index under a capture callback and the
+real canonical SDK. SBCL runs unchanged selected upstream parser/handler/scope
+compiler/egress forms with dependency doubles declared in =hermetic.lisp=.
+These checks do not prove credential authentication, HTTP middleware, Lucene
+analysis, query containment, actual indexing, ranking or durable visibility.
+
+The service runner performs actual HTTP requests and synthetic writes. It is
+NOT part of hermetic discovery. Its assertions are UNTESTED in local authoring;
+absence of a service is not a skip or a pass. Use it only in a dedicated stack.
+No actor-failure or target-recovery experiment is duplicated from PR #136.
+
+* Immutable inputs and dependencies
+- Server: =ce14c77ccd2f51f543410fdeef3d78fb9978b769=.
+- Canonical SDK: =6aa8051dc7ea560943a60a25e1d600467f2778bc=.
+- Python 3.11+, =jsonschema[format]==4.26.0=, Node.js, SBCL.
+- Local verification: Python 3.12.14, Node v24.19.0, SBCL 2.2.9;
+  see =research/search-pass-15.org= for the full captured environment.
+
+#+begin_src sh
+git clone https://github.com/lost-rob0t/starintel-server .cache/search-server
+git -C .cache/search-server checkout ce14c77ccd2f51f543410fdeef3d78fb9978b769
+git clone https://github.com/lost-rob0t/starintel-doc .cache/search-sdk
+git -C .cache/search-sdk checkout 6aa8051dc7ea560943a60a25e1d600467f2778bc
+bash books/starintel/code/search-lab/run-tests .cache/search-server .cache/search-sdk
+#+end_src
+
+The runner checks HEAD and tracked-file cleanliness. It installs nothing and
+edits neither checkout. No credentials or external service writes are used.
+The Node VM executes trusted code from the verified pin, not untrusted input
+programs. The form extractor handles the selected pinned forms; it is not a
+general Common Lisp parser or runtime loader.
+
+* Optional real service experiment
+Provision a fresh local StarIntel stack at the server pin using its maintained
+stack tooling. This lab deliberately does not copy Docker/Nix deployment logic.
+Its prerequisite checklist is concrete:
+
+1. Running StarIntel HTTP, RabbitMQ ingest, CouchDB and connected Clouseau.
+2. Install =source/views/search.json= from this pin as =_design/search= in the
+   configured default database. Confirm the installed body and =fts= index.
+3. Public mode enabled; set =STAR_PUBLIC_SEARCH_DATASETS=book-public= before
+   runtime configuration loads. A wildcard public list fails this experiment.
+4. Provision four valid credentials in the server credential store. Supply them
+   from a keyring or environment, never a checked-in configuration:
+
+| Environment variable | Tenant | Required scopes |
+|----------------------+--------+-----------------|
+| =STAR_SEARCH_LAB_WRITER= | default | identity:read, documents:write, documents:read, dataset:book-public, dataset:book-private, tenant:default |
+| =STAR_SEARCH_LAB_OTHER_WRITER= | other | identity:read, documents:write, documents:read, dataset:book-public, tenant:other |
+| =STAR_SEARCH_LAB_READER= | default | identity:read, search:read, dataset:book-public, tenant:default |
+| =STAR_SEARCH_LAB_NOSEARCH= | default | identity:read, dataset:book-public, tenant:default; deliberately no search:read |
+
+Do not grant admin or wildcard dimensions to READER/NOSEARCH. Authentication
+binding must match the declared tenants. The script first requires all four
+credentials to succeed at =/auth/context=, then performs the search denials.
+The current schema is historical =0.9.0= wire format; writes clone the existing
+=code/records/fixtures/person.json= and assign a fresh per-run synthetic identity.
+This is no claim that canonical 0.10.1 ingest migration has completed.
+
+Set =STAR_SEARCH_LAB_URL= to an HTTP(S) loopback base URL without a path,
+username/password or query, and =STAR_SEARCH_LAB_DISPOSABLE=1=. Then:
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/service_checks.py --seed
+#+end_src
+
+The runner writes five synthetic records into =book-public=/=book-private=,
+uses authenticated by-ID read-back with a 30-second deadline per record,
+then separately polls exact search-visible sets with a 30-second deadline.
+Three default-tenant public records allow one-row pagination; one private
+record and one other-tenant public record are negative/positive scope controls.
+The public set must contain four identities and the restricted reader set
+three. It checks eleven actual HTTP denial/input cases and tenant egress.
+A twelve-page budget, ten-second request timeout and response byte budget bound
+the client. Search output is a sanitized JSON summary; credentials are never
+included. Keep the stack quiescent and delete the entire disposable deployment
+when finished; the script does not delete records from an existing corpus.
+
+For a service failure experiment, stop only Clouseau in that isolated stack:
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/service_checks.py --expect-backend-failure
+#+end_src
+
+This mode requires a 5xx response rather than a successful empty page. A
+backend that maps its failure to 404 or another status needs an explicitly
+reviewed assertion, not a fabricated pass. Restore the service manually.
+No target recovery or actor failure is simulated.
+
+* Files
+- =lab.py=: version-pin checks, projection capture, URL encoding, hit interpretation.
+- =index_projection.js=: exact index function execution with captured emissions.
+- =extract_forms.py=: fail-closed selection of actual upstream definitions.
+- =hermetic.lisp=: explicit doubles and executable upstream-function checks.
+- =test_*.py=: hermetic SDK/projection/client/selection checks.
+- =service_checks.py=: opt-in actual HTTP experiment; never silently skipped.

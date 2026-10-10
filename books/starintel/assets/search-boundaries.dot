@@ -1,0 +1,14 @@
+digraph SearchBoundaries {
+  graph [rankdir=TB, bgcolor="white"];
+  node [shape=box, fontname="DejaVu Sans", fontsize=11];
+  public [label="Public GET /api/v1/search\nq <= 512; limit 1..50"];
+  private [label="Authenticated documents.search\nsearch:read; limit 1..100"];
+  owned [label="Server public dataset list\ntenant:*; caller overrides rejected"];
+  caller [label="Caller dataset and tenant scopes\ndefault requested tenant: default"];
+  compile [label="Parenthesized query AND scope clauses\nAuthorization before backend request"];
+  index [label="CouchDB search / fts\nClouseau index; include_docs"];
+  scrub [label="Strip server tenant metadata\nInterpret rows; retain provenance"];
+  public -> owned -> compile;
+  private -> caller -> compile;
+  compile -> index -> scrub;
+}

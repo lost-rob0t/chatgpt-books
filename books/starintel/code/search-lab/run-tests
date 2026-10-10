@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd)"
+SERVER="${1:?usage: run-tests PINNED-SERVER PINNED-SDK}"
+SDK="${2:?usage: run-tests PINNED-SERVER PINNED-SDK}"
+export STAR_SEARCH_LAB_SERVER="$(cd "$SERVER" && pwd)"
+export PYTHONPATH="$(cd "$SDK" && pwd)${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONDONTWRITEBYTECODE=1
+python3 - "$HERE" "$STAR_SEARCH_LAB_SERVER" "$SDK" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from lab import require_pin, SERVER_PIN, SDK_PIN
+require_pin(Path(sys.argv[2]), SERVER_PIN)
+require_pin(Path(sys.argv[3]), SDK_PIN)
+PY
+python3 -m unittest discover -s "$HERE" -p 'test_*.py' -v
+EXTRACTED="$(mktemp)"
+trap 'rm -f "$EXTRACTED"' EXIT
+python3 "$HERE/extract_forms.py" "$STAR_SEARCH_LAB_SERVER" "$EXTRACTED"
+sbcl --script "$HERE/hermetic.lisp" "$EXTRACTED"

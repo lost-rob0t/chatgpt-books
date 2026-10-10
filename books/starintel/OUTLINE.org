@@ -150,14 +150,21 @@ Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modific
 Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
-** Chapter 15 -- Search
-Goal: develop working intuition, precise terminology, and an implementation/debugging angle for search.
-Dependencies: previous chapter.
-Examples: one minimal trace plus one realistic example tied to an accumulating project where possible.
-Exercises: ★ comprehension, ★★ implementation, ★★★ debugging/modification; add harder research/design work where appropriate.
-Visuals: a diagram, trace, or plot when structure/state/change is easier to see than read.
-Expected code: executable examples and tests when the topic is implementable.
-Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
+** Chapter 15 -- Document Search
+Goal: trace stored documents through selected index fields, caller/public scope,
+query parsing, full-text results and bounded pagination without confusing
+canonical data authority with historical server implementation.
+Dependencies: canonical document model, ingestion, control-plane API and CouchDB.
+Implementation: =manuscript/search-15.org= and =code/search-lab/=.
+Examples: public versus authenticated routes; index shadowing; canonical fullName
+coverage gap; identity/revision interpretation; durable-read/search-visibility ladder.
+Tests: real pinned SDK and JavaScript index, extracted Lisp functions with explicit
+hermetic doubles, plus opt-in actual HTTP tests requiring a provisioned local stack.
+Exercises: comprehension, client implementation, index adoption, debugging and
+adversarial parser test design. No graph traversal capabilities are asserted.
+Visuals: editable/rendered search authorization and visibility diagrams.
+Evidence: server ce14c77ccd2f51f543410fdeef3d78fb9978b769; canonical SDK
+6aa8051dc7ea560943a60a25e1d600467f2778bc; live service tier remains UNTESTED.
 ** Chapter 16 -- Graphs
 Goal: develop working intuition, precise terminology, and an implementation/debugging angle for graphs.
 Dependencies: previous chapter.
@@ -321,3 +328,4 @@ Implementation: =manuscript/equipment-profiling-13.org= and the same lab.
 Boundary: equipment behavior only; no private-person identity or routine
 inference. Canonical asset/observation/analysis/geotype fixtures consume the
 existing StarLang-generated SDK.
+

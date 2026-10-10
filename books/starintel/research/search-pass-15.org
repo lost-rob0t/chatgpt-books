@@ -1,0 +1,124 @@
+#+title: Chapter 15 Search -- Source and Verification Evidence
+:PROPERTIES:
+:ID:       8f923f18-6c6c-4120-9628-33e667f386d6
+:END:
+
+* Scope and coordination -- 2026-10-09 America/New_York
+Issue #156, parent #9. Base book commit
+=c650565f7604fbe57033e0ed3cb5bde060a7adfd= includes merged #153 and #155.
+Open #136 remains responsible for Project 3 actor handler failure and target
+recovery. Its API snapshot reports merge conflicts; this search slice does not
+modify =code/actor-runtime/= or its chapter and does not resolve #136.
+
+* Immutable primary sources
+Server =ce14c77ccd2f51f543410fdeef3d78fb9978b769=:
+- =cli/http-contract-documents.lisp=: authenticated documents.search operation,
+  search:read, required q, positive limit, bookmark/sort/dataset/tenant parameters.
+- =source/frontends/http-contract-routes.lisp=: public mode surface; public scopes
+  built from server dataset list (fallback wildcard) plus tenant:*; public
+  override rejection; 512-character q cap; 25 default / 50 maximum; final mounts.
+- =source/frontends/http-authorization-routes.lisp=: authenticated search handler,
+  default requested tenant, shared limit parser, sort/bookmark forwarding.
+- =source/frontends/http-boundary-core.lisp=: shared maximum 100; strict parse and
+  range rejection; tenant stripping from stored fields, docs and outbox payloads.
+- =source/authorization/policy.lisp=, =services.lisp= and =services-final.lisp=:
+  scope dimensions, escaped literals, final audited query compiler; wildcard
+  dimensions omit constraints even when a requested value is supplied.
+- =source/views/search.json=: actual selected field projection, analyzers,
+  nested data precedence, tenant fallback and stored fields.
+- =docker/couchdb-search.ini=: Dreyfus service configuration.
+- =schema/starintel-schema.lock.json=: historical 0.9.0 wire / 0.9.1 release.
+- Upstream =t/http-public-api-integration-test.lisp= and
+  =t/authorization-policy-test.lisp=: inspected as test definitions, not counted
+  as locally executed upstream HTTP/security tests.
+
+Canonical SDK =6aa8051dc7ea560943a60a25e1d600467f2778bc=:
+actual generated schema/manifest and SDK validator used. Its generated release
+closure points to StarLang =9198370f7a6f3e2a5ea00af3efdb6d705e102650=.
+Canonical fullName validity versus historical full_name index selection is
+executable evidence; overlapping fname/name fields do not establish runtime
+0.10.1 ingest adoption.
+
+Official Apache CouchDB 3.5 search documentation inspected:
+- https://docs.couchdb.org/en/stable/ddocs/search.html
+- https://docs.couchdb.org/en/stable/api/ddoc/search.html
+Used narrowly for Clouseau, field selection, analyzer, include_docs and bookmark
+semantics. Other runtime details above come from the pinned project sources.
+
+* New executable evidence -- TESTED hermetically
+Environment captured locally:
+- Python 3.12.14; jsonschema[format] 4.26.0.
+- Node.js v24.19.0.
+- SBCL 2.2.9.debian.
+- Pandoc 3.10.1; EPUBCheck 5.3.0.
+- Graphviz dot 2.43.0; editable DOTs also rendered to PNG for visual inspection.
+
+#+begin_src sh
+bash books/starintel/code/search-lab/run-tests PINNED-SERVER PINNED-SDK
+python3 -m py_compile books/starintel/code/search-lab/*.py
+bash -n books/starintel/code/search-lab/run-tests
+#+end_src
+
+Observed: 23 Python unittest cases passed and 15 Lisp scenario checks passed.
+The runner checked both actual HEADs and tracked-file cleanliness.
+
+Actual upstream code executed:
+- exact checked-in JS index body, with a Node index-emission capture callback;
+- canonical SDK validation of synthetic fixtures;
+- extracted unchanged query parsers, public/authenticated handler bodies,
+  scope-literal construction, final scope compiler and tenant scrubbing.
+
+Doubles: HTTP wrapper, principal representation and action gate, JSOWN object
+representation, audit sink, connection macro, CouchDB request/result/failure.
+These are declared in hermetic.lisp. They do not establish credential store,
+real middleware, actual JSON string parsing, Lucene query containment, analyzers,
+ranking, service indexing or persistence. Backend failure propagation in a
+double is not a measured live status-code mapping.
+
+* Maintained regressions -- TESTED locally
+The following commands ran successfully on this source change:
+
+#+begin_src sh
+bash books/starintel/code/records/run-tests
+bash books/starintel/code/canonical-records/run-tests PINNED-SDK
+PYTHONPATH=PINNED-SDK python3 -m unittest discover -s books/starintel/code/osint-evidence -p 'test_*.py' -v
+bash books/starintel/code/owned-beacon-lab/run-tests PINNED-SDK
+bash books/starintel/code/ingest-adapter/run-tests
+bash books/starintel/code/ambiguous-bulk/run-tests
+bash books/starintel/code/bulk-job-lifetime/run-tests
+bash books/starintel/code/live-stack/run-tests
+python3 -m unittest discover -s books/starintel/code/actor-runtime -p 'test_*.py' -v
+make test
+python3 tools/check-pandoc-org-reader
+python3 tools/test-prepare-org-for-pandoc
+bash tools/build-fixture
+java -jar EPUBCHECK-5.3.0-JAR dist/bootstrap-fixture.epub
+python3 tools/check-epub-fixture dist/bootstrap-fixture.epub
+make check BOOK=starintel
+python3 tools/check-book-citations books/starintel/dist/starintel.epub starintel-search-runtime-20261009 'Search Contracts, Authorization Compiler and Full-Text Index'
+#+end_src
+
+Historical record tests used the existing pinned adapter
+=5857914a1e34ad18a6956b8ff0df5349de0ca099= and the schema from auto-dig
+=6479c0a9dc88ce9fed183515fc4df5d245de0b3a=. This is a historical compatibility
+regression, not canonical schema authority. STARINTEL_DOC_ROOT/STARINTEL_SCHEMA
+were supplied for this separate checkout.
+
+=make check= invoked the maintained =make book= build. Both the final book and
+bootstrap fixture reported: =0 fatals / 0 errors / 0 warnings / 0 infos=.
+The book EPUB contains Chapter 15, both newly rendered SVGs, rendered citations
+and bibliography entries. XML parsing checked XHTML, OPF and SVG members. Both
+new figures were visually inspected as rendered PNGs; labels and arrows are
+legible. No generated EPUB is committed to Git.
+
+* Boundaries still UNTESTED locally
+- =service_checks.py --seed=: actual HTTP, credential verification, scope
+  middleware, durable read-back, Clouseau, exact sets and pagination.
+- =service_checks.py --expect-backend-failure=: actual backend status mapping.
+- Adversarial Lucene query containment and concurrent-write paging consistency.
+- Existing pinned Sento upstream suite, Docker service trace, Nix flake check
+  and Emacs ERT/Org-roam sync; required tool/runtime stacks were not available.
+
+The existing service-backed actor/ingest jobs remain in CI. The new workflow
+step runs only the new hermetic lab, not an invented service pass. Exact PR
+head CI outcomes remain authoritative for hosted checks. No merge is requested.

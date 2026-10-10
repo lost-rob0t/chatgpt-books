@@ -81,6 +81,17 @@ jobs:
           bash books/starintel/code/owned-beacon-lab/run-tests .cache/starintel-doc-canonical
           python3 -m py_compile books/starintel/code/owned-beacon-lab/*.py
 
+      - name: Run pinned Chapter 15 hermetic search lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y sbcl nodejs
+          git clone https://github.com/lost-rob0t/starintel-server .cache/search-server
+          git -C .cache/search-server checkout ce14c77ccd2f51f543410fdeef3d78fb9978b769
+          bash books/starintel/code/search-lab/run-tests .cache/search-server .cache/starintel-doc-canonical
+          python3 -m py_compile books/starintel/code/search-lab/*.py
+          bash -n books/starintel/code/search-lab/run-tests
+
       - name: Run Project 2 ingest-adapter tests
         run: |
           bash books/starintel/code/ingest-adapter/run-tests
@@ -128,6 +139,11 @@ jobs:
           dot -Tsvg books/starintel/assets/ingest-settlement.dot -o /tmp/starintel-ingest-settlement.svg
           dot -Tsvg books/starintel/assets/actor-dispatch.dot -o /tmp/starintel-actor-dispatch.svg
           dot -Tsvg books/starintel/assets/canonical-record-evidence.dot -o /tmp/starintel-canonical-record-evidence.svg
+
+      - name: Validate search diagram sources
+        run: |
+          dot -Tsvg books/starintel/assets/search-boundaries.dot -o /tmp/search-boundaries.svg
+          dot -Tsvg books/starintel/assets/search-visibility.dot -o /tmp/search-visibility.svg
 
       - name: Build StarIntel book
         run: make book BOOK=starintel
@@ -233,4 +249,5 @@ jobs:
 
       - name: Flake check
         run: sudo nix flake check -L
+
 

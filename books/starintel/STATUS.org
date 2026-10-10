@@ -335,3 +335,8 @@ service-backed test.
 Publication and merge state are governed by the current task instructions and
 exact-head checks; this file does not itself grant merge authority.
 
+
+
+* Search chapter -- 2026-10-09
+Chapter 15 / Project 4 milestone A: source-verified document search chapter and
+hermetic lab added; live HTTP tier remains UNTESTED. No Project 3 recovery changes.

@@ -1,0 +1,570 @@
+* Chapter 15 -- Document Search: From Stored JSON to Authorized Evidence
+:PROPERTIES:
+:ID:       c28dc507-faf2-4e26-b1ba-bc2b8236e7af
+:END:
+
+A search result is an observation made through a particular query, index and
+visibility policy. It is not the database itself. If you remember only one
+operational distinction from this chapter, remember that accepting a document,
+reading it back by identity, and finding it through full-text search are three
+different observations. Each proves something useful; none substitutes for the
+other two.
+
+Consider a fictional cooperative. An ingest adapter submits its record, receives
+an HTTP success, and immediately searches for its name. The search returns no
+rows. A rushed diagnosis is "CouchDB lost the document." A better diagnosis asks:
+was this an asynchronous acceptance, did the record reach durable storage, did
+the index select the name field, did the query use the correct field, and was
+this caller allowed to see that dataset and tenant? Those questions locate a
+boundary you can inspect instead of turning every failure into a server restart.
+
+This chapter begins Project 4, Add Search or Inference. Its deliverable is a
+small search client, an executable inspection of the maintained index, and
+contract tests. It does not implement a replacement authorization engine or a
+parallel StarIntel database. It also does not claim relationship traversal,
+vector retrieval, graph ranking, or automatic inference is available through
+these two document-search routes.
+
+** Evidence and version map
+
+The runtime source inspected for this chapter is =lost-rob0t/starintel-server=
+at =ce14c77ccd2f51f543410fdeef3d78fb9978b769=. The book base is
+=c650565f7604fbe57033e0ed3cb5bde060a7adfd=. Source inspection is DOCUMENTED
+behavior at an immutable revision, not a claim that every deployed service uses
+that revision. [cite:@starintel-search-runtime-20261009]
+
+Canonical new records remain StarLang-generated =org.starintel/core@1=
+=0.10.1= documents. The synthetic canonical fixtures are validated through the
+same pinned SDK as Project 1:
+=6aa8051dc7ea560943a60a25e1d600467f2778bc=. The inspected server still has a
+historical lock: wire schema =0.9.0=, release/profile =0.9.1=. A search chapter
+cannot promote that runtime into a completed =0.10.1= ingest migration merely
+because some index fields overlap. [cite:@starintel-doc-canonical-20261007;
+@starlang-starintel-0101;@starintel-server-20261005]
+
+| Boundary | Authority or implementation | What the lab establishes |
+|-----------+-----------------------------+--------------------------|
+| Canonical document shape | Generated StarLang release consumed by the SDK | Synthetic fixtures pass the real SDK |
+| HTTP search contract | Server operation registry and mounted handlers | Pinned functions and source-verified parameters |
+| Index projection | Checked-in =source/views/search.json= | Actual JavaScript emissions under a capture callback |
+| Query parsing and scope compilation | Extracted, unchanged Lisp functions | Hermetic execution with explicit dependency doubles |
+| Credential verification and middleware | Running server | Only the opt-in service lab can exercise this |
+| Persistence, analyzers, ranking, bookmarks | Running CouchDB and Clouseau | Not proved by projection or handler doubles |
+
+The Python tests and fifteen Lisp scenario checks are TESTED locally. The
+service runner is an executable test target and remains UNTESTED until it runs
+against a correctly provisioned stack. The research note records the exact
+commands and limitations. A green hermetic check must never be relabeled as a
+successful HTTP or Clouseau experiment.
+
+** Choose the search surface deliberately
+
+The two interfaces share a backend but establish their authority differently.
+The authenticated operation is =documents.search=, declared in
+=cli/http-contract-documents.lisp= and finally mounted in
+=source/frontends/http-contract-routes.lisp=. Its stable route is
+=GET /api/v1/documents/search=. It requires =search:read=.
+
+The public-read route is =GET /api/v1/search=. Whether it permits anonymous
+requests depends on server public-mode configuration. "Public-read surface"
+describes the route's policy, not an immutable promise that every deployment
+allows anonymous access. Its handler creates a server-owned public authorization
+context; it does not reuse the caller's supplied identity or scopes.
+[cite:@starintel-search-runtime-20261009]
+
+| Behavior at the inspected pin | Public search | Authenticated document search |
+|-------------------------------+---------------+-------------------------------|
+| Required =q= | Nonempty string | Nonempty string |
+| Default =limit= | 25 | 25 |
+| Accepted =limit= range | 1 through 50 | 1 through 100 via shared parser |
+| Explicit query-length cap in handler | 512 Lisp characters | No matching 512-character handler check |
+| Dataset selection | Server public list | Authorized caller scopes and optional requested dataset |
+| Tenant selection | Public context grants =tenant:*= | Requested =tenant=, defaulting to =default= |
+| Caller =dataset= or =tenant= parameter | Rejected with HTTP 400 | Compiled through authorization |
+| =bookmark= | Forwarded | Forwarded |
+| =sort= forwarding | Not forwarded by this handler | Forwarded if supplied |
+| Backend request | =search/fts=, =include_docs=true= | =search/fts=, =include_docs=true= |
+
+The shared parser is named =bounded-query-integer= and its docstring mentions
+clamping. Its implementation rejects values outside the range; it does not
+silently clamp them. Tests are more useful than relying on the helper's name.
+For example, public =limit=51= yields =query_parameter_out_of_range=, while
+=limit=2x= yields =invalid_query_parameter=. Missing or empty =q= yields
+=missing_query_parameter=. A 513-character public query yields
+=search_query_too_long=. Caller public-scope parameters yield
+=public_scope_is_server_owned=.
+
+The authenticated cap is easy to miss: its handler does not supply an explicit
+maximum, so it inherits =+http-max-query-limit+=100. Conversely, lack of the
+public query-length check is not evidence that the authenticated route accepts
+unlimited requests. Transport, proxy, parser and backend constraints remain
+separate. The lab tests the inspected handler boundary, not an imaginary
+unbounded deployment.
+
+** Public visibility is a deployment decision
+
+The public handler builds scopes from =*public-search-datasets*=, initialized
+from =STAR_PUBLIC_SEARCH_DATASETS=. At the inspected pin the fallback is
+=("*")=. Its public context also carries =search:read= and =tenant:*=.
+An operator combining public and private collections must configure the public
+list explicitly. A route that rejects a caller's =dataset= parameter can still
+expose an overly broad server-configured dataset set.
+
+For a disposable teaching deployment choose:
+
+#+begin_example
+STAR_PUBLIC_SEARCH_DATASETS=book-public
+Public-mode: enabled for this experiment
+Allowed public records: book-public across tenants
+Private fixture dataset: book-private
+#+end_example
+
+Do not infer a tenant restriction from a dataset restriction. The inspected
+public context grants all tenants, so a =book-public= record in tenant =other=
+can be publicly visible. This is intentional in the lab's expected set and
+makes the two dimensions visible. Choosing a public dataset name is an
+operational publication decision, not a confidentiality label in the canonical
+schema.
+
+Public search rejects an attempted override before sending a backend request:
+
+#+begin_src python
+from lab import request_path
+path = request_path('public', 'fname:bookneedle', dataset='book-private')
+# The server should reject this parameter with HTTP 400.
+#+end_src
+
+Authentication does not let an administrator turn the public route into a
+private search console. The route uses its own public context. Use the
+=documents.search= surface for caller-authorized retrieval. Conversely, an
+anonymous caller is not entitled to ingest documents or dispatch targets just
+because the read plane is configured public.
+
+#+caption: Public and authenticated search establish different scopes before calling the same CouchDB full-text index.
+#+attr_html: :alt Public search uses server-owned datasets and wildcard tenancy; authenticated search uses caller scopes; both compile backend constraints before returning scrubbed hits.
+[[file:assets/search-boundaries.svg]]
+
+** Authorization belongs before the backend query
+
+The maintained =authorized-search-query= builds a parenthesized user query and
+adds dataset and tenant clauses. Restricted scope values are escaped through
+=lucene-escape=, quoted by =lucene-term=, and combined as disjunctions within
+each dimension. The dimensions are conjoined with the user query.
+
+For this non-administrator principal:
+
+#+begin_example
+search:read
+dataset:book-public
+tenant:default
+#+end_example
+
+and =q=fname:bookneedle=, the useful shape is:
+
+#+begin_example
+(fname:bookneedle) AND (dataset:"book-public") AND (tenant_id:"default")
+#+end_example
+
+This is an explanatory trace of the actual compiler's structure. It is not a
+client-side permission check. A client sending a dataset name cannot grant
+itself that dataset. The authenticated route requests =default= tenancy when
+no =tenant= parameter is supplied; a principal granted only =tenant:other=
+must request the appropriate tenant or face denial.
+
+A restricted request for an unauthorized dataset or tenant produces an
+authorization error rather than an apparently successful empty search. This
+matters for both UX and debugging: distinguish "the search ran and found no
+rows" from "this identity cannot run that scoped search." The service lab
+expects HTTP 403 for those requests and first verifies that each fixture
+credential can authenticate. Otherwise a broken credential could masquerade as
+a policy test.
+
+Wildcard and administrator cases deserve separate inspection. In this compiler,
+wildcard dimensions omit that dimension's constraint; an optional requested
+value does not turn a wildcard grant into the same constrained query produced
+for a restricted principal. Do not use the table's ordinary restricted example
+to predict administrator behavior. A narrowing UI should not assume that its
+requested dataset constrains an administrator backend query at this pin.
+
+Filtering rows after an unscoped backend search is a poor substitute for backend
+scoping. Even if the UI drops unauthorized documents, counts, ordering and
+bookmarks can describe a larger corpus. The inspected compiler explicitly aims
+to scope the backend request. Its string construction alone does not establish
+that every hostile Lucene expression is safely contained. Adversarial query
+parser behavior is a further service-level security test, not a guarantee made
+by this educational harness.
+
+The final implementation also emits search-query audit information when
+observability is enabled. The audit text bound of 16,384 UTF-8 bytes is a
+retention bound on one audit event, not the public query-admission limit.
+Keep audit retention, input validation and result pagination separate when
+reading source. A log event can prove that a query reached the compiler without
+proving backend success or complete results.
+
+** Stored documents become selected index fields
+
+The server calls =cl-couch:fts-search= against the default CouchDB database,
+design document =search= and index =fts=. This is the maintained full-text
+search path. It is different from a CouchDB view or Mango selector.
+
+For this path CouchDB requires a connected Clouseau service. A database can
+store JSON while its full-text service is unavailable. The official search
+API uses bookmarks for subsequent pages, and =include_docs= asks for embedded
+documents. These backend semantics must be verified with an actual service;
+a callback that captures JavaScript index emissions cannot reproduce analyzers,
+ranking or bookmark generation. [cite:@couchdb-search-api-book;
+@couchdb-search-index-book]
+
+The checked-in index declares a per-field analyzer configuration:
+
+| Indexed field | Explicit analyzer |
+|---------------+-------------------|
+| =content= | =standard= |
+| =name= | =keyword= |
+| =dataset= | =keyword= |
+| =tenant_id= | =keyword= |
+| Other indexed fields | Default =standard= |
+
+The keyword analyzer retains a value as a single token; standard analysis
+segments text. This distinction means a name field and a content field need
+not behave like interchangeable substring searches. The lab captures emitted
+values but does not run either analyzer. [cite:@couchdb-search-index-book]
+
+Read the projection function as code, not as a list of imagined searchable
+schema properties. It explicitly adds =tenant_id=, =dataset=, =dtype=, =title=
+and =summary=. It processes selected source metadata, selected domain fields,
+and =schema_org.sameAs=. It recursively handles arrays of scalars, keeps
+strings/numbers/booleans, and ignores nulls or arbitrary object values. All
+captured scalar index calls set =store=true=.
+
+For selected domain fields, =doc.data[field]= wins whenever it is not
+JavaScript =undefined=; otherwise the function uses =doc[field]=. That creates
+an important historical compatibility lesson:
+
+#+begin_example
+Top level name: Example Cooperative
+Nested data.name: Older Display Name
+Indexed name: Older Display Name
+#+end_example
+
+If =data.name=null=, the nested key still wins the selection, but the scalar
+adder ignores null. There is no indexed =name= in this case, even if the
+top-level name contains text. The lab executes the exact checked-in function
+and tests both cases. It does not "fix" them in a local imitation.
+
+The function supplies =tenant_id= from server metadata, falls back to the older
+=tenant= field, and finally uses =default=. This internal index dimension is
+part of the current server's authorization implementation. It is not permission
+to add =tenant_id= to a canonical =0.10.1= document builder.
+
+There is no explicit =index("default", ...)= call in the checked-in projection.
+The teaching queries therefore specify fields, such as =fname:bookneedle=,
+instead of assuming an unqualified term searches every emitted field.
+
+** Canonical validation and index coverage are different contracts
+
+The canonical synthetic organization has =id=, =schemaVersion=, =dtype=,
+=dataset=, provenance fields and =name=. The real SDK accepts it, and the
+maintained index function emits its =name=. That overlap does not prove this
+historical server accepts the full canonical record through its write boundary.
+
+The canonical synthetic person has =fname= and =lname=. These names overlap
+with the index selection too. Add canonical =fullName="Alex Example"= and
+validate it again: the SDK accepts the field. The inspected index selects
+=full_name=, not =fullName=. Capturing its emissions proves that it omits the
+canonical combined-name field while still emitting =fname=. This is a concrete
+migration coverage gap, not a reason to rename the canonical key.
+
+A future migration should update the relevant runtime/index consumer against
+generated canonical authority and test the adopted field mapping. It should
+not normalize canonical records into historical keys silently or teach the old
+index as the new specification. Nor should a book declare the migration done
+because a single overlapping =name= example works.
+
+Build an index-coverage ledger:
+
+| Canonical field or structure | Observation at this historical index pin | Engineering consequence |
+|------------------------------+-------------------------------------------+-------------------------|
+| =name= on synthetic org | Emitted | Can study projection without asserting ingest adoption |
+| =fname= on synthetic person | Emitted | Useful fielded fixture query |
+| =fullName= | Not emitted under that spelling | Canonical validity does not imply query coverage |
+| Arbitrary extension members | Not traversed generically | Search capability requires an intentional mapping |
+| Document references and relations | No traversal implemented by these handlers | A matching relation document is not a graph walk |
+
+This ledger connects Gate A, canonical data, to Gate D, investigation retrieval,
+without blurring their authority. A valid stored record can remain invisible to
+a query for an omitted field. An index hit can also be an old record whose
+embedded document still needs a version-aware reader.
+
+** Interpret a page as retrieval evidence
+
+A typical explanatory page looks like this; it is a synthetic response fixture,
+not captured service output:
+
+#+begin_src json
+{
+  "total_rows": 99,
+  "bookmark": "opaque+/=",
+  "rows": [{
+    "id": "org:book-example",
+    "order": [1.4, "org:book-example"],
+    "fields": {"name": "Example Cooperative"},
+    "doc": {
+      "_id": "org:book-example",
+      "_rev": "1-demo",
+      "dtype": "org",
+      "dataset": "book-synthetic"
+    }
+  }]
+}
+#+end_src
+
+The row identity locates the record. =fields= is the stored index projection;
+=doc= is the embedded document requested by the handler. Neither the sort
+order nor a relevance value is the truth confidence of a claim. Do not turn a
+high-ranked record into a verified observation or collapse conflicting records
+simply because their names are similar.
+
+The illustrative =total_rows=99= does not mean this one-row page contains 99
+records. Keep page size, result count, retrieved unique identities, and corpus
+size as different measurements. An index order tuple is backend retrieval
+metadata, not a canonical document revision. Retain the embedded document's
+identity, revision if present, dataset, dtype and provenance when handing a hit
+to downstream analysis. A later by-ID read may observe a different revision.
+
+The current server removes its injected =tenant_id= from stored fields,
+embedded documents and embedded outbox payloads on egress. The hermetic Lisp
+check executes those actual scrubbing functions. Scrubbing metadata is separate
+from excluding unauthorized documents: removing a tenant label cannot repair a
+leaked record. The live test checks which synthetic identities are returned,
+as well as whether tenancy metadata leaked.
+
+The book's =interpret_page= helper refuses an error envelope, an invalid row
+shape, duplicate identities within a page, a row/document identity disagreement,
+and direct server-tenant leaks. Those are client-side educational checks, not
+new server guarantees. A fields-only row remains a fields-only hit; the helper
+does not manufacture a complete document from index fields.
+
+For production, validate the embedded payload with the appropriate version
+reader, retain original response evidence where appropriate, and record the
+query/surface/time/version context of a retrieval. Canonical provenance lives
+with the record; query execution context describes how you obtained that
+record. They complement each other.
+
+** Pagination needs a bounded client
+
+Treat the bookmark as an opaque continuation value. Preserve the same query
+and sort while continuing it. The CouchDB search API documents bookmarks and
+sorting parameters; its bookmark is not a document ID or an integer offset.
+[cite:@couchdb-search-api-book]
+
+The lab sends =limit=1= to make continuation behavior impossible to overlook.
+Its client URL-encodes =q= and =bookmark=, stops on an empty page, rejects a
+missing or repeated bookmark on a nonempty page, tracks repeated identities
+across pages, and caps the number of requests. The page budget is a client
+resource policy, not the server's result-limit contract.
+
+#+begin_src python
+from lab import interpret_page, next_bookmark, request_path
+hits, bookmark = interpret_page(page)
+continuation = next_bookmark(previous_bookmark, bookmark, hits)
+if continuation is not None:
+    path = request_path('authenticated', original_query,
+                        limit=1, bookmark=continuation)
+#+end_src
+
+The variables here belong to the caller's loop; see =service_checks.py= for the
+complete executable client. A useful terminal condition is an empty page, not
+"the bookmark exists." A short page may deserve another request. A repeated
+bookmark with records deserves explicit diagnosis, not an endless loop.
+
+The lab intentionally requires a quiescent synthetic corpus for its exact-set
+pagination assertion. It does not prove snapshot isolation across concurrent
+writes. If an investigation needs an export with reproducible membership,
+design a documented export/snapshot policy instead of treating a paged search
+as a durable frozen dataset.
+
+** The visibility ladder is a debugging method
+
+#+caption: HTTP acceptance, durable read-back, index projection and authorized hits are separate observations.
+#+attr_html: :alt An accepted record must reach durable storage, selected index fields and analyzer state before an authorized query can return it; omitted fields or scope exclusions can produce no hit.
+[[file:assets/search-visibility.svg]]
+
+Work through this ladder with a single synthetic identity:
+
+1. Record the request route, payload version and acceptance response. Do not
+   label asynchronous acceptance as a completed durable write.
+2. Poll an authorized by-ID read with a deadline. Preserve identity and revision
+   when it becomes visible. Failure to read it does not yet locate an index bug.
+3. Execute or inspect the exact index projection on that payload. Is the query
+   field emitted? Does an old nested field shadow the intended top-level value?
+4. Check the installed design document and functioning search service. The
+   checked-in JSON file is a proposed installation source, not evidence that
+   the live database currently has that exact revision installed.
+5. Check the fielded query and authorization dimensions. Is the caller in the
+   correct dataset and tenant? Is the public list intentionally configured?
+6. Interpret the response as a page. Preserve failures, distinguish zero rows
+   from denial, and keep continuation bounded.
+
+For this chapter a durable read without a search hit is an informative intermediate
+state. It may indicate a projection mismatch, index/backend state, query mismatch
+or visibility exclusion. It is not enough evidence to claim eventual index lag
+was the cause. Name the next measurement that would distinguish those cases.
+
+** Run the reproducible lab
+
+From the repository root, fetch the two immutable pins and run:
+
+#+begin_src sh
+git clone https://github.com/lost-rob0t/starintel-server .cache/search-server
+git -C .cache/search-server checkout ce14c77ccd2f51f543410fdeef3d78fb9978b769
+git clone https://github.com/lost-rob0t/starintel-doc .cache/search-sdk
+git -C .cache/search-sdk checkout 6aa8051dc7ea560943a60a25e1d600467f2778bc
+bash books/starintel/code/search-lab/run-tests .cache/search-server .cache/search-sdk
+#+end_src
+
+The dependencies are Python 3.11+, =jsonschema[format]==4.26.0=, Node.js and
+SBCL. The runner installs nothing, verifies both HEADs and tracked-file
+cleanliness, and extracts selected forms to a temporary file. It never edits
+the server checkout. The checked-in JavaScript index function executes in a
+Node VM with an =index= capture callback; this is a trusted pinned-source
+experiment, not a general sandbox for untrusted index programs.
+
+The Python suite validates canonical fixtures, observes projection precedence
+and omissions, exercises strict response interpretation and continuation
+failures, and checks fail-closed form selection. The Lisp harness loads actual
+query parsers, public/authenticated handler bodies, scope compiler functions
+and tenant scrubbing. Its CouchDB call, connection boundary, JSON representation,
+identity/action gate and audit sink are explicit dependency doubles.
+
+That division matters. The extracted compiler is real; the principal is a list
+of scopes supplied by the harness. Missing-capability testing verifies the
+compiler reaches the action-gate double, not that deployed credential policy
+or HTTP middleware works. The backend double verifies request construction,
+not Lucene semantics. The JSON double tests list/object scrubbing, not real
+string parsing. The service runner exists to cross those remaining boundaries.
+
+The second tier requires a dedicated local stack at the same runtime pin with
+CouchDB/Clouseau and the checked-in search design installed. Its README specifies
+four credentials and public dataset configuration. Credentials are supplied
+only through environment variables; none is printed or written into fixtures.
+It creates five historical synthetic records through the maintained
+=/api/v1/documents= contract, waits for by-ID read-back, then waits separately
+for expected search sets. These historical fixtures are copied from the book's
+existing runtime record example and are explicitly not the canonical SDK
+fixtures.
+
+Three records belong to =book-public= in tenant =default=, one to
+=book-private= in =default=, and one to =book-public= in tenant =other=.
+Public search should retrieve four; the restricted default-tenant reader should
+retrieve three. The run then tests eleven HTTP denial/input cases and walks
+one-result pages. This is a meaningful positive control: "the forbidden record
+was absent" alone is weak if no allowed record was ever visible.
+
+#+begin_src sh
+# Provision the isolated stack and environment as specified in the lab README.
+python3 books/starintel/code/search-lab/service_checks.py --seed
+#+end_src
+
+No service deployment was available during local authoring, so these live
+assertions remain UNTESTED. Failed setup, schema rejection, authentication
+failure, a deadline, or unexpected identity set must fail the run. The tool
+never converts inability to reach a service into a skipped green result.
+
+For a backend fault exercise stop only Clouseau in that disposable deployment,
+run =--expect-backend-failure=, and restore it yourself. This checks for a
+server/backend failure rather than apparent success; exact status mapping may
+need a separately documented case if your stack returns a non-5xx error.
+No actor restart or persisted-target recovery logic is implemented here.
+Project 3 PR #136 owns that work.
+
+** Common mistakes and their repairs
+
+| Mistake | Why it fails | Better next step |
+|---------+--------------+-----------------|
+| Search immediately after HTTP acceptance and blame storage | Acceptance, read-back and search visibility differ | Observe each boundary with deadlines |
+| Add canonical =tenant_id= because the index uses it | Internal runtime metadata is not schema authority | Let the maintained server stamp its own tenant metadata |
+| Rename =fullName= into historical =full_name= silently | Hides a consumer migration gap | Keep canonical records and test index adoption explicitly |
+| Use public search for a private analyst's dataset | The route uses public server scopes | Use authenticated =documents.search= |
+| Assume public scope-override rejection means safe public configuration | Default dataset list is wildcard | Inspect and configure server-owned public datasets |
+| Treat =fields= as the complete document | It is a selected stored projection | Read/validate =doc= or perform an authorized by-ID read |
+| Interpret ranking as evidence confidence | Retrieval order is not claim verification | Inspect record provenance and conflicting evidence |
+| Put a bookmark directly into a URL | Reserved characters can change the request | Use a query-string encoder |
+| Restart every service on a missing hit | Destroys useful intermediate evidence | Locate the first unproven boundary |
+| Call projection capture a full-text integration test | No analyzer or service was executed | Keep hermetic and service-backed evidence separate |
+
+** Exercises and worked answers
+
+*** Exercise 1 -- Explain an empty page (★)
+
+A write returned success. By-ID read-back has not run. Search returns no rows.
+Name what is established and the next useful observation.
+
+Answer: the write boundary accepted the request and the search returned an empty
+page for that query/context. Durable storage has not been observed. Attempt an
+authorized by-ID read with a deadline before diagnosing the index.
+
+*** Exercise 2 -- Predict public visibility (★)
+
+The public list is =book-public= and its context grants =tenant:*=. A record in
+=book-public= belongs to =other=. A second record in =book-private= belongs to
+=default=. Which one should the teaching public search retrieve?
+
+Answer: the first can be visible, provided its indexed terms match. The second
+should be excluded by dataset scope. The public route's tenant wildcard is not
+a default-tenant restriction.
+
+*** Exercise 3 -- Extend canonical index coverage (★★)
+
+Add a canonical =fullName= to the synthetic person and validate it. Confirm the
+current index omits that spelling. Propose an upstream migration test without
+changing the canonical document's key.
+
+Answer: the existing projection test demonstrates the omission. A migration
+should add an intentional canonical field mapping and query it through the
+adopted runtime/index. Include a conflicting historical =data.full_name= case
+so precedence is a documented choice rather than an accidental fallback.
+The book does not perform that product-repository migration.
+
+*** Exercise 4 -- Make a safe paging client (★★)
+
+Extend the client to persist a retrieval ledger containing surface, query,
+retrieval time, source pin, unique identities and observed revisions. Keep
+credentials out of that ledger. Explain its consistency limitation.
+
+Answer: the ledger makes the observed traversal inspectable, but does not create
+a server snapshot. Concurrent mutation can change later pages or by-ID reads.
+A claim of reproducible corpus membership needs an explicit export policy.
+
+*** Exercise 5 -- Diagnose an allowed record that stays invisible (★★★)
+
+All five by-ID reads succeed, the reader credential authenticates, and public
+search never sees any of the allowed records. List three distinguishing checks.
+
+Answer: compare installed =search/fts= design content against the source pin;
+verify Clouseau is functioning and inspect its errors; inspect actual field
+emissions and the compiled fielded query. Check public dataset configuration
+before assuming the search index is broken. Do not accept an empty result as
+a successful authorization proof when the positive controls failed.
+
+*** Exercise 6 -- Test query containment (★★★)
+
+Design service-level adversarial cases for nested Boolean expressions,
+unbalanced parentheses and caller-written dataset/tenant terms. State what the
+hermetic compiler tests cannot prove.
+
+Answer: a string containing appended scope clauses does not prove how the real
+Lucene parser evaluates hostile syntax. Record whether parsing fails or whether
+only authorized fixture identities appear, with allowed positive controls.
+Run the real parser and middleware at an immutable pin. Treat any unauthorized
+identity as a failure, regardless of displayed counts or scrubbed metadata.
+
+*** Exercise 7 -- Bound the next chapter (★★★)
+
+A relation record appears in full-text search. Can the client claim it traversed
+a person-to-organization graph?
+
+Answer: no. Retrieving a relation document is different from resolving typed
+endpoints, joining records and traversing edges under a visibility policy.
+Those require their own maintained contracts and tests. Chapter 16 remains a
+separate research/implementation boundary; this chapter invents none of them.
