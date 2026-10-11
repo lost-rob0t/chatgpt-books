@@ -5,7 +5,12 @@ const vm = require('node:vm');
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 const design = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const emissions = [];
+// Course-only ceiling; this is not a CouchDB/Clouseau production limit.
+const MAX_EMISSIONS = 2048;
 const context = vm.createContext({index: (field, value, options) => {
+  if (emissions.length >= MAX_EMISSIONS) {
+    throw new Error(`search lab emission budget exceeded (${MAX_EMISSIONS})`);
+  }
   emissions.push({field, value, options});
 }});
 // The runner checks an immutable, clean source pin before executing this code.

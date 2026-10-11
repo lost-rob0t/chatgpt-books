@@ -102,3 +102,16 @@ No target recovery or actor failure is simulated.
 - =hermetic.lisp=: explicit doubles and executable upstream-function checks.
 - =test_*.py=: hermetic SDK/projection/client/selection checks.
 - =service_checks.py=: opt-in actual HTTP experiment; never silently skipped.
+
+* Bounded local index capture
+The Node capture wrapper limits each synthetic document to 2,048 emitted index
+field/value pairs. The ceiling belongs to this teaching harness, *not* to
+CouchDB/Clouseau or the production StarIntel server. The exact pinned server
+index function remains unchanged. A document that would exceed this budget
+raises an error and produces no partial JSON output; this is a failed lab
+observation, not evidence that the document is unindexable in production.
+
+Run =python3 -m unittest test_emission_budget -v= from the search-lab directory
+(or use the existing =run-tests= suite with its pinned dependencies). Boundary
+tests accept exactly 2,048 emissions, reject 2,049, and preserve regular
+small-document projections. The injected array is synthetic, not collected data.
