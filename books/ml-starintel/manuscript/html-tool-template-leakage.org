@@ -1,0 +1,85 @@
+#+title: HTML Tool Use: Auditing Structural Template Leakage
+:PROPERTIES:
+:ID:       3bc01645-5577-56ec-9d68-d63ed0f28130
+:END:
+
+* A train/test split can leak without repeated URLs
+
+A held-out page does not become independent merely because its title, record ID,
+URL, or selector values differ from the training page. The underlying DOM
+skeleton can be copied across different named families, allowing a benchmark
+to reward template memorization rather than genuine generalization.
+
+This lab belongs to BK08's offline evaluation boundary. It does not train or
+modify Worker 7's model. All examples are synthetic; the results below are
+regression controls, not performance estimates on production web data.
+
+* Three failure modes to audit before scoring
+
+1. *Family contamination:* the same declared =family= appears in multiple
+   partitions, even when the HTML has been restyled.
+2. *Structural-template contamination:* two independently named families have
+   pages with the same ordered tag/attribute-name skeleton, even when text,
+   HTML comments, IDs, class values, and relative URLs have changed.
+3. *Identity contamination:* an example ID is duplicated across partitions.
+
+The checker compares *every supplied static page*, not just visited pages.
+Gold actions execute against their actual HTML via the existing bounded
+=offline_html_trace_executor.py= oracle before any scores are emitted. Bad gold
+extractions or navigation terminate the audit with =gold_mismatch=.
+
+** Structural fingerprint: deliberately conservative
+
+The fingerprint records ordered opening/closing tags, attribute *names*, and
+whether text nodes exist. It ignores literal text and all attribute *values*.
+A SHA-256 digest identifies the canonical token stream. This is not a general
+near-duplicate detector: adding wrappers or significant nodes changes the
+signature. Shared generic layout skeletons can cause conservative grouping;
+operators should inspect rejected split design, not suppress guards to obtain
+a desired metric. Declared family grouping remains mandatory even when
+structure changes.
+
+* Run the reproducible controls
+
+From the repository root:
+
+#+begin_src sh :eval never
+cd books/ml-starintel/code/html-tool-benchmark
+python -m unittest -v test_html_template_split_audit.py
+python html_template_split_audit.py --demo
+python html_template_split_audit.py --train train.jsonl --dev dev.jsonl --test test.jsonl
+#+end_src
+
+All three JSONL files use the canonical eight-field offline oracle record
+schema: =id=, =family=, =pages=, =start=, =gold_trace=, =candidate_trace=,
+=gold_extractions=, =gold_visited=. No network requests occur. All split files
+must be nonempty and together contain at most 128 examples in this bounded
+lab. The auditor fails closed before calculating the three per-split metric
+reports whenever identity, family, template or gold evidence is inconsistent.
+
+* Experiment: demonstrate the false-green baseline
+
+A naive family-only audit accepts two samples under =family_a= and =family_b=
+when their HTML is identical except for names and selector values. That split
+is not independent. In =test_html_template_split_audit.py=, the
+=text_href_and_id_value_changes_do_not_mask_clone= and
+=identical_templates_across_different_families_are_rejected= controls make
+the cross-family clone observable and require the new auditor to reject it.
+
+For an additional experiment, change the *tag nesting* of one fixture without
+changing the declared family. The structural digest should now change, yet the
+family guard still prevents the edited fixture moving to another partition.
+Report these two outcomes separately; one cannot replace the other.
+
+* Interpretation and limits
+
+A successful audit guarantees only the implemented exact family-and-structure
+constraints for the supplied finite corpus. It cannot prove the absence of
+semantic overlap, duplicates produced by a different DOM layout, or temporal
+leakage from subsequently observed webpages. This is a static, local,
+pre-scoring check. Do not promote the five demonstration fixtures to model
+benchmarks; the demo deliberately includes a malformed candidate selector.
+
+Record the exact baseline commit, fixture digest inventory, sample counts,
+CLI output, regression results, and publishing status before claiming a
+REVIEWED or DONE curriculum milestone.
