@@ -176,3 +176,21 @@ Research: verify primary definitions, current APIs, and non-obvious historical c
 - Project 5 (ML-Enriched StarIntel Pipeline) begins after the foundations it needs and reappears in later chapters for extension/testing.
 * Capstone
 The final major project in [[file:PROJECTS.org][PROJECTS.org]] is an integrated capstone, not a toy appendix. It must include requirements, architecture, implementation, tests, failure analysis, visuals, research provenance, and a reproducible deliverable.
+
+** BK10 interface-first checkpoint (issue #152; not the final capstone)
+The synthetic-only [[file:projects/project-05-world-model-capstone/README.org][frozen world-model interface witness]] is a dependency-gated
+adapter seam, not a finished learned-model lab. Its editable
+[[file:projects/project-05-world-model-capstone/pipeline.dot][architecture diagram]] and
+[[file:projects/project-05-world-model-capstone/dependencies.json][commit/feature-state matrix]] separate verified baseline behavior from
+missing BK01--BK09 component contracts (issues #143--#151).
+
+Curriculum order: provenance/splits (Chapters 2--5) -> classification,
+metrics and calibration (7--8) -> neural/embedding representations
+(11--12) -> retrieval/graph (15--16) -> deployment/performance and the
+StarIntel adapter boundary (18--20) -> BK01/BK02 world-model states ->
+BK03/BK04 optional LLM -> BK05/BK06 optional diffusion futures ->
+BK07/BK08 HTML tool proposal/evaluation -> BK09 llm-log classification.
+The final capstone chapter must not be added to =manuscript/index.org=
+or treated as DONE until the owned component interfaces have stable,
+tested implementation SHAs, a shared frozen evaluation split, and a
+full exact-head book/EPUB conformance run.
