@@ -231,7 +231,8 @@ def run_trace(pages: dict[str, str], start: str, actions: list[dict[str, Any]]) 
                 raise TraceFailure("parse_bounds", "extracted text is too large")
             outputs[key] = value
         elif op == "follow" and set(action) == {"op", "kind"}:
-            if action["kind"] not in {"next", "detail"} or selected is None or selected.tag != "a":
+            if (not isinstance(action["kind"], str) or action["kind"] not in {"next", "detail"}
+                    or selected is None or selected.tag != "a"):
                 raise TraceFailure("invalid_action", "follow requires selected anchor and typed kind")
             if "href" not in selected.attrs:
                 raise TraceFailure("missing_target", "selected anchor has no href")

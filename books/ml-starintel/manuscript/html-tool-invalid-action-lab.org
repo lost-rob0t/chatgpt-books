@@ -1,0 +1,37 @@
+#+title: HTML Trace Evaluation: An Invalid-Action Boundary
+:PROPERTIES:
+:ID:       75c582e0-5e9d-4fb7-84da-4498f432c285
+:END:
+
+* Why malformed predictions belong in a benchmark
+A tool-call predictor is not obligated to return valid arguments. A JSON object or array is syntactically valid JSON but invalid for the =follow.kind= vocabulary, which allows only =next= and =detail=. The scorer must report a typed failure for one candidate, not abort the entire benchmark. This is a bounded, fully offline laboratory exercise; no live HTML is fetched.
+
+* Reproduce the defect (RED)
+The original condition in =run_trace= performed set membership before type validation. This raises Python =TypeError: unhashable type: 'list'= when =kind= is =[]= or another JSON array. A JSON object triggers the same untyped exception. =evaluate= catches the benchmark's =TraceFailure=, not arbitrary programmer exceptions, so an invalid prediction could halt scoring. This is an observed defect in the earlier branch implementation, not an assertion about model quality.
+
+* Typed boundary (GREEN)
+Validate =isinstance(kind, str)= before membership in the two-value vocabulary. Invalid values then raise =TraceFailure("invalid_action", ...)=. =evaluate= keeps the example, marks the failure and records zero sequence/extraction/navigation success for that candidate. Valid =next= and =detail= traces continue unchanged.
+
+Executable files live at [[file:../code/html-tool-benchmark/offline_html_trace_executor.py][the bounded evaluator]] and [[file:../code/html-tool-benchmark/test_trace_action_types.py][the regression tests]]. From the repository root:
+
+#+begin_src sh :eval never
+cd books/ml-starintel/code/html-tool-benchmark
+python3 -m unittest -v test_trace_action_types
+python3 offline_html_trace_executor.py --demo
+#+end_src
+
+* Test design and scope
+The native suite exercises JSON-like arrays, objects, nested values, scalars, serialized round-trips, both =next= and =detail= fixtures, deterministic repeatability and gold-trace compatibility. It never requests a URL or requires credentials. This is not an exhaustive property proof of all malformed JSON objects; the harness still requires larger schema-boundary and end-to-end exporter tests.
+
+* Exercises
+** Beginner
+Explain why membership in ={"next", "detail"}= is unsafe for a JSON array, even though it is safe for a string. Identify the only two accepted kinds.
+
+** Intermediate
+Add a new malformed candidate record to a static JSONL file. Show the =invalid_action= failure in the per-case report without changing the gold trace. Why must the scorer not reclassify this as a successful navigation?
+
+** Advanced
+Construct a deterministic matrix that replaces every action argument with JSON null, booleans, numbers, strings, arrays and objects. Record any uncaught exceptions separately from typed failures. Keep successful traces as positive controls, and do not mutate dataset or evaluation policy to force green tests.
+
+* Verification label
+=TESTED LOCALLY= refers only to the accompanying Python unit suite and offline CLI reproduction. Full book build, EPUBCheck and GitHub Actions remain separate gates and must not be inferred from a local test result.
