@@ -1,0 +1,17 @@
+digraph bk10 {
+  graph [rankdir=LR, bgcolor="white", fontname="DejaVu Sans"];
+  node [shape=box, fontname="DejaVu Sans", style="rounded"];
+  edge [fontname="DejaVu Sans"];
+  obs [label="Frozen synthetic\nobservations + SHA-256"];
+  state [label="Strict schema\n+ baseline encoder"];
+  future [label="One-step candidate\nfutures (not calibrated)"];
+  policy [label="Deterministic policy\n(not an LLM)"];
+  tool [label="Allowlisted local\nHTML field extraction"];
+  eval [label="Held-out truth\nopened after prediction"];
+  report [label="Stable JSON report\nprovenance + MAE"];
+  optional [shape=box, style="dashed,rounded", label="Optional BK01–BK09 models\nNOT CONNECTED / UNVERIFIED"];
+  obs -> state -> future -> policy -> tool -> report;
+  future -> eval -> report;
+  optional -> future [style=dashed, label="future pinned adapter"];
+  optional -> policy [style=dashed];
+}

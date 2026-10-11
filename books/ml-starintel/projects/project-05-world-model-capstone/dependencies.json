@@ -1,0 +1,18 @@
+{
+  "version": "bk10.dependency-matrix.v0",
+  "observed_at_utc_date": "2026-10-11",
+  "repository": "lost-rob0t/chatgpt-books",
+  "main_commit_sha": "c650565f7604fbe57033e0ed3cb5bde060a7adfd",
+  "notes": "Issues #143-151 were open as of this inspection. They are issues, not pull requests. No component implementation commits or stable executable contracts were verified. All optional adapters remain disabled.",
+  "components": [
+    {"worker": "BK01", "issue": 143, "name": "world-model-foundations", "state": "issue-open-interface-unverified", "commit_sha": null, "contract": null},
+    {"worker": "BK02", "issue": 144, "name": "tiny-learned-world-model", "state": "issue-open-interface-unverified", "commit_sha": null, "contract": null},
+    {"worker": "BK03", "issue": 145, "name": "tiny-llm-training", "state": "issue-open-interface-unverified", "commit_sha": null, "contract": null},
+    {"worker": "BK04", "issue": 146, "name": "tiny-llm-inference", "state": "issue-open-interface-unverified", "commit_sha": null, "contract": null},
+    {"worker": "BK05", "issue": 147, "name": "diffusion-basics", "state": "issue-open-interface-unverified", "commit_sha": null, "contract": null},
+    {"worker": "BK06", "issue": 148, "name": "diffusion-trajectories", "state": "issue-open-interface-unverified", "commit_sha": null, "contract": null},
+    {"worker": "BK07", "issue": 149, "name": "html-tool-calling-model", "state": "issue-open-interface-unverified", "commit_sha": null, "contract": null},
+    {"worker": "BK08", "issue": 150, "name": "html-tool-benchmark", "state": "issue-open-interface-unverified", "commit_sha": null, "contract": null},
+    {"worker": "BK09", "issue": 151, "name": "llm-log-classifier", "state": "issue-open-interface-unverified", "commit_sha": null, "contract": null}
+  ]
+}

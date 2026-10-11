@@ -1,0 +1,209 @@
+#+title: BK10 -- StarIntel World-Model Capstone: Executable Interface Checkpoint
+:PROPERTIES:
+:ID:       669f6464-ead0-5afa-8c6f-613096c11b96
+:END:
+
+* Status and purpose
+
+*TESTED LOCALLY: narrow, deterministic Python fixture witness; UNTESTED: learned
+world-model integration, StarIntel runtime adapter and final book export.* This
+checkpoint belongs to [[https://github.com/lost-rob0t/chatgpt-books/issues/152][issue #152]], not the final capstone. BK01--BK09 separately own
+their chapters/labs in issues #143--#151. There are no verified component
+implementation SHAs or stable executable interfaces in the recorded matrix
+([[file:dependencies.json][dependencies.json]]). Accordingly, this implementation intentionally uses a
+zero-trained deterministic baseline and fails closed for absent adapters.
+
+It demonstrates an *interface*, not simulated evidence of learned intelligence.
+Neither its observations nor its HTML page describe a real person, real
+incident, or a live StarIntel dataset. It neither talks to a real StarIntel
+server nor implements its Target, registry, leases, actor dispatch or database.
+
+* Run without downloading data
+
+#+begin_src sh
+cd books/ml-starintel/projects/project-05-world-model-capstone
+python3 -m unittest -v test_capstone.py
+python3 run_toy.py
+python3 run_toy.py --output artifacts/toy-report.json
+# Optional diagram render, if Graphviz is installed:
+dot -Tsvg pipeline.dot -o artifacts/pipeline.svg
+#+end_src
+
+The Python implementation uses only the standard library. It does not read an
+environment token, open a network connection, fetch HTML, install a model, or
+access the user's local StarIntel stores. In this checkpoint, generated
+=artifacts/= are disposable and are not canonical fixtures.
+
+* The six boundaries
+
+#+begin_example
+sha256-frozen observations -> strict record decoder -> encoded observed state
+       -> deterministic one-step candidate generator -> policy/typed tool call
+       -> allowlisted static-HTML executor -> result + held-out evaluation
+                         ^                                 ^
+                    future model                       tool model
+                    NOT CONNECTED                      NOT CONNECTED
+#+end_example
+
+Editable diagram: [[file:pipeline.dot][pipeline.dot]]. A rendered diagram is
+generated locally, not obtained from an image service.
+
+** 1. Evidence boundary (frozen reader input)
+
+=fixtures/manifest.json= pins the exact SHA-256 of =observations.json=,
+=truth.json= and =status.html=. The program verifies bytes before parsing.
+Observation input is =bk10.observations.v0=, containing 2--256 strictly ordered
+integer-time rows with EXACTLY =document_id=, =t=, =source=, =kind= and =count=.
+Only synthetic document identities (=synthetic:...=), the
+=synthetic-counter= source and =count= kind are accepted. No raw text, target,
+metadata extension or hypothetical next-count field is accepted in this
+narrow synthetic fixture schema.
+
+This locally scoped version is *not* a canonical StarIntel document version,
+namespace or an alternative to generated Star Language. A future adapter may
+only consume the *server-pinned* generated 0.10.1 contract from the authoritative
+StarIntel repositories. The current toy contains no such adapter and therefore
+makes no canonical conformance claim.
+
+** 2. Classification/encoding boundary
+
+=validate_observations= confirms the record kind; =encode_state= returns
+=bk10.capstone.v0= with =as_of=, =observed_count=, =delta=,
+=observation_digest=, =n_observations= and an exact
+=estimator= identifier. It takes only the observation rows, never
+=truth.json=. The change estimate is the difference between the last two
+counts. This is arithmetic, not a trained classifier or latent representation.
+
+Future BK01/BK02 components must define an explicit adapter mapping from
+validated observations to a versioned state DTO. The adapter must specify
+state dimension, numeric dtype, feature availability as-of time, model artifact
+SHA, training split manifest and uncertainty semantics. Reject mismatched
+interfaces rather than inferring dimension conversions or unrecorded weights.
+
+** 3. Prediction and candidate futures
+
+=candidate_futures= emits exactly three integer-valued candidate counts at
+=forecast_t= =as_of+1=, called =down=, =center= and =up=. Each has an integer
+=weight_ppm=; sum must equal 1,000,000. The =center= candidate comes from
+last-count plus last observed difference, clipped to the declared count range.
+The down/up branches are +/-1 from that center. Weights 250000, 500000,
+250000 are *hand-set teaching weights, not estimated likelihoods or calibrated
+probabilities*. Candidate support is not a confidence interval. Learned
+rollouts (BK02) and trajectory diffusion (BK06) are OPTIONAL providers behind
+this envelope; samples must not silently acquire probability weights.
+
+** 4. Policy and local tool-call boundary
+
+The baseline =request_offline_tool= always emits the exact typed call
+={contract, action="extract_field", page_id="frozen-status-note", field="status"}=.
+The executor accepts only this complete call; it extracts exactly one text
+field from a limited UTF-8 local HTML fixture using the stdlib HTML parser.
+There is no URL, follow action, filesystem selector, browser, or network mode.
+A future BK07 model may *propose* a call but cannot authorize execution;
+call validation and page scope live at the executor boundary. BK08 supplies
+holdout templates/labels and reports exact-call, argument, extraction and
+sequence success without training/test page-family overlap.
+
+** 5. Optional tiny LLM / diffusion / llm-log interfaces
+
+Future integrations are opt-in and pinned to tested implementation commits.
+The function =require_component= rejects a
+missing, untested or version-mismatched optional component. No stand-in outputs
+are counted as learned results.
+
+- *Tiny LLM (BK03/BK04):* input would be bounded, sanitized context + a
+  declared schema version + deterministic decode config; output must be a
+  schema-checked proposal, with a recorded tokenizer/model artifact and
+  max-token budget. The LLM never directly writes StarIntel records.
+- *Diffusion (BK05/BK06):* input would be =state@as_of=, horizon and seed;
+  output a bounded list of trajectories with the sampling-step count and
+  checkpoint hash. Measure coverage/diversity separately from probabilistic
+  calibration; don't assume samples are independent or equally likely.
+- *HTML caller (BK07/BK08):* receives a frozen page ID and bounded DOM
+  representation, returns a typed tool *proposal*. Compare to gold tool-call
+  sequences, then execute under the independent local allowlist.
+- *llm-log classifier (BK09):* reads synthetic or sanitized metadata only,
+  declares label taxonomy and fitted artifact hash, and returns class scores
+  plus calibration metadata. Raw prompts, tokens with secrets and real logs
+  are outside the fixture. Do not turn classifier classes into runtime authority.
+
+** 6. Evaluation boundary (held-out truth)
+
+The code reads =truth.json= only *after* encoded state, candidates, tool call
+and tool result have been computed. It requires the held-out time equal the
+one-step horizon. The exact frozen single example predicts center=5, truth=6:
+absolute error=1 count and candidate-support-hit=true (the =up= branch gives
+6). These are deterministic fixture arithmetic checks over *one deliberately
+constructed case*; they are not model quality or operational performance.
+
+Future components need a declared train/dev/test fixture split, full provenance
+of model selection and a representative held-out sample. Track MAE/RMSE for
+point forecasts; coverage *with its nominal level* and calibration for
+probabilistic forecasting; diversity/mode collapse for trajectory sampling;
+exact call and extraction success for tool models; macro-F1/PR and ECE with
+binning choices for llm-log. Include failure cases and contamination audits.
+
+* Honest CPU/model comparison contract
+
+All rows below describe *what must be measured*. Only the deterministic
+baseline's one-example error is actually exercised here. Symbols: =N=
+parameters, =T= autoregressive output tokens, =K= diffusion denoise steps,
+=L= transformer layers, =D= model width, =S= context length, =B= bytes/value,
+=E= training examples times epochs. They are cost drivers, not measured CPU
+seconds. Hardware, precision, thread count, BLAS/PyTorch version and batch
+shape must be recorded in each future experiment manifest.
+
+| Component | Fitted parameters | CPU training effort | CPU inference driver | Required task metric | Evidence |
+|-
+| This arithmetic baseline | 0 | None | O(number of input observations) | 1-case absolute error=1; candidate hit | TESTED fixture only |
+| BK01/BK02 learned latent dynamics | UNVERIFIED | E x forward/backward cost | horizon x transition cost | held-out MAE/RMSE, rollout drift | NOT RUN |
+| BK03 tiny transformer | UNVERIFIED | E x attention/MLP fwd+bwd | prefill + T decode steps | held-out cross-entropy/perplexity | NOT RUN |
+| BK04 cached/quantized inference | inherits BK03 | no retraining assumed; quantify separately | KV cache approx 2 x L x S x D x B per sample plus weights | tokens/s, peak RSS, schema-valid rate | NOT RUN |
+| BK05 toy denoiser | UNVERIFIED | E x denoiser fwd+bwd | K x denoiser cost per sample | held-out denoising loss/sample quality | NOT RUN |
+| BK06 trajectory diffusion | UNVERIFIED | E x trajectory denoiser cost | K x denoiser cost x sampled futures | coverage, diversity, endpoint error | NOT RUN |
+| BK07/BK08 HTML tool caller | UNVERIFIED | E x parser/ranker/model cost | context encode + call decode | exact call, argument, extraction, sequence success | NOT RUN |
+| BK09 llm-log classifier | UNVERIFIED | E x features/classifier cost | feature transform + classifier | macro-F1, PR, calibration error | NOT RUN |
+
+A future run must record both parameter count and parameter *storage* for
+weight precision, optimizer state during training and KV-cache activation
+memory where relevant. The count alone is not CPU time. Compare learned
+components to a simple deterministic baseline using the *same split and metric*,
+not an unrelated benchmark corpus.
+
+* Curriculum/editorial integration gate
+
+This checkpoint depends conceptually on Chapters 2--5 (dataset provenance,
+validation, point-in-time features and splits), 7--8 (classification and
+calibration), 11--12 (neural models and embeddings), 15--16 (retrieval/graph
+features), 17 (active learning), 18 (monitoring), 19 (performance) and 20
+(StarIntel adapters), then BK01/BK02/BK05/BK06 for world-model futures,
+BK03/BK04 for language generation and runtime, BK07/BK08 for bounded tool
+proposals, and BK09 for telemetry labels and feedback. Those downstream
+chapters are *not claimed DONE*. Keep this Org file *out* of
+=manuscript/index.org= until the component interfaces exist and all final
+capstone requirements are met; this is an interface checkpoint that can be
+validated independently of their branches.
+
+See [[file:../../OUTLINE.org][book outline]],
+[[file:../../PROJECTS.org][five-project progression]] and
+[[file:dependencies.json][current dependency matrix]].
+
+* Reproducibility and failure exercises
+
+- Delete or alter a fixture byte without revising its SHA-256: the run must
+  reject it, not recompute a convenient new evidence identity.
+- Add =next_count= to an observation: the schema must reject this future-label
+  leak before fitting/prediction.
+- Supply duplicate document IDs, disordered timestamps or bool-as-integer
+  measurements: schema validation must reject them.
+- Ask for =follow= / an external page / a secret field: tool executor must
+  reject the request rather than passing it to an arbitrary browser.
+- Ask for BK03/BK06/BK09 outputs before a pinned tested implementation: fail
+  closed. A heuristic output cannot count as a trained-model benchmark.
+- Change the truth label *after* computing the candidate futures: reported
+  loss changes, candidate selection does not.
+
+This is a frozen/synthetic, zero-network, zero-training first seam. In later
+revisions, the final acceptance requires stable, jointly versioned executable
+interfaces, each independently passing its worker test suite, and an exact-head
+book + EPUBCheck validation of the fully included capstone chapter.

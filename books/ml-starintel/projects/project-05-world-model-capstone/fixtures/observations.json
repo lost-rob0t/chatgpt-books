@@ -1,0 +1,8 @@
+{
+  "version": "bk10.observations.v0",
+  "records": [
+    {"document_id": "synthetic:obs-00", "t": 0, "source": "synthetic-counter", "kind": "count", "count": 2},
+    {"document_id": "synthetic:obs-01", "t": 1, "source": "synthetic-counter", "kind": "count", "count": 3},
+    {"document_id": "synthetic:obs-02", "t": 2, "source": "synthetic-counter", "kind": "count", "count": 4}
+  ]
+}

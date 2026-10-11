@@ -1,0 +1,9 @@
+{
+  "assets": {
+    "observations.json": "b2848164360ca402db26ffceddde7c0ca18c39f8698da15016f310eb315e8dfd",
+    "status.html": "9462b6eba8dede11c4e51af0406b712ba0d89e910be383adea9245970be2fdb6",
+    "truth.json": "765e88d7694b5d804ab47e649c71b44a9226fd6a4929894f5f1637883facb254"
+  },
+  "source": "deterministic synthetic toy; no human observations",
+  "version": "bk10.fixture-manifest.v0"
+}

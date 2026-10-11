@@ -1,0 +1,40 @@
+#+title: Capstone design note -- frozen observations to bounded candidate futures
+:PROPERTIES:
+:ID:       0e22026b-e525-5f2c-b530-e4588c51e873
+:END:
+
+* Capstone interface checkpoint (not a finished chapter)
+
+The capstone's central engineering question is not "can a small model predict
+anything?" but "can one substitute learned components without violating the
+observation, time, provenance, evaluation and tool-execution contracts?" The
+minimal answer is encoded by the [[file:README.org][executable interface checkpoint]] and
+its deterministic fixture. A model is a function behind a boundary; it does
+not receive permission to fetch new evidence, redefine truth, or create
+canonical StarIntel records simply because it produced a plausible string.
+
+A strict one-step trace is:
+
+#+begin_example
+observed:    count@t0 = 2; count@t1 = 3; count@t2 = 4
+encoded:     as_of=t2, last=4, observed delta=+1
+proposed:    t3 counts 4 / 5 / 6 with HAND-ASSIGNED weights
+policy:      request status from frozen synthetic HTML page ID
+executor:    validate operation and page; return "scheduled"
+held-out:    reveal count@t3=6 AFTER prediction; |5-6|=1
+#+end_example
+
+The center prediction is a simple last-difference heuristic. Nothing was
+trained. The artificial branching weights are not a posterior distribution.
+A reader should be able to replace the heuristic with BK02's fitted model
+only once it provides a documented, pinned encoder/state/rollout interface.
+BK06 may then add trajectory proposals; BK03/BK04 may propose language or
+structured actions; BK07/BK08 may propose/test HTML extraction calls; BK09
+may label synthetic run metadata. No one provider owns the policy or tool
+executor. Use the shared dataset split so optional models cannot earn credit
+by inspecting their own held-out labels.
+
+For independent reproduction, execute =python3 -m unittest -v
+ test_capstone.py= and =python3 run_toy.py= from this directory. Until stable
+BK01--BK09 interfaces are available, this note stays separate from the book's
+exported manuscript and the final capstone PR remains gated.
