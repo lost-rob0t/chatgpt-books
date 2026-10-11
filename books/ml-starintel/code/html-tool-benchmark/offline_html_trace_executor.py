@@ -147,14 +147,15 @@ def resolve_page(raw: Any, base: str = "/") -> str:
     if not isinstance(raw, str) or not raw or len(raw) > 512 or any(ord(c) < 33 for c in raw):
         raise TraceFailure("unsafe_navigation", "invalid page reference")
     try:
+        raw.encode("utf-8")  # reject unpaired surrogates before URL normalization
         split_raw = urlsplit(raw)
         if split_raw.query or split_raw.fragment or "%" in split_raw.path or any(
             segment in {".", ".."} for segment in split_raw.path.split("/")
         ):
             raise TraceFailure("unsafe_navigation", "ambiguous or traversing page reference")
         merged = urlsplit(urljoin(ORIGIN + base, raw))
-    except ValueError as exc:
-        raise TraceFailure("unsafe_navigation", "malformed page authority") from exc
+    except (ValueError, UnicodeError) as exc:
+        raise TraceFailure("unsafe_navigation", "malformed page authority or Unicode") from exc
     if (merged.scheme != "https" or merged.netloc != "fixture.invalid"
             or merged.username is not None or merged.password is not None
             or merged.query or merged.fragment or "//" in merged.path):
@@ -172,7 +173,10 @@ def _validate_pages(pages: Any) -> dict[str, str]:
             raise TraceFailure("unsafe_navigation", "invalid page path")
         if not isinstance(html, str):
             raise TraceFailure("parse_bounds", "HTML must be text")
-        nbytes = len(html.encode("utf-8"))
+        try:
+            nbytes = len(html.encode("utf-8"))
+        except UnicodeEncodeError as exc:
+            raise TraceFailure("parse_bounds", "fixture HTML is not valid UTF-8") from exc
         total += nbytes
         if nbytes > MAX_PAGE_BYTES or total > MAX_TOTAL_PAGE_BYTES:
             raise TraceFailure("parse_bounds", "fixture payload exceeds budget")

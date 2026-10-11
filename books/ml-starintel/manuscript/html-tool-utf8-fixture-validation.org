@@ -1,0 +1,69 @@
+#+title: HTML Tool-Use Benchmark Lab — UTF-8 Fixture Integrity
+:PROPERTIES:
+:ID:       150d13a1-9b11-454c-941a-48646af067a0
+:END:
+
+* Objective
+This lab validates an edge case in the offline HTML execution oracle: JSON's
+=\uXXXX= escape syntax can express unpaired UTF-16 surrogate code points even
+though such values cannot be serialized as ordinary UTF-8 fixture bytes. A
+benchmark that accepts them until SHA-256 hashing raises a raw
+=UnicodeEncodeError= instead of recording a reproducible typed failure. That
+would make benchmark availability depend on one malformed record rather than a
+specified input boundary.
+
+* Reproduce the failure and verify the correction
+Only static fixtures and in-memory traces are involved. No HTTP requests,
+credentials, model weights, or training code are needed.
+
+#+begin_src sh :eval never
+cd books/ml-starintel/code/html-tool-benchmark
+python3 -m unittest -v test_fixture_utf8_boundaries
+python3 -m unittest -v \
+  test_offline_html_trace_executor \
+  test_html_trace_perturbations \
+  test_trace_action_types \
+  test_fixture_utf8_boundaries
+python3 offline_html_trace_executor.py --demo > /tmp/bk08-utf8-demo.json
+#+end_src
+
+The regression intentionally inserts ="\\ud800"= and ="\\udfff"= into
+valid JSONL records as escaped input. Without the guard, page-byte budgeting
+raises raw =UnicodeEncodeError= when serializing fixture HTML. Correct
+behavior is =TraceFailure("parse_bounds", ...)=, before HTML parsing or
+provenance digests. A surrogate in a page URL instead yields the typed
+=unsafe_navigation= category, since it violates the static fixture path
+contract. Both cases fail closed, without altering gold traces.
+
+** Positive controls
+A Unicode scalar string containing non-ASCII Latin text and emoji must still
+execute, extract the intended text, and produce deterministic SHA-256 page
+provenance. We do not reject all non-ASCII input: the boundary is valid UTF-8,
+not ASCII-only data. The existing table, card, pagination, detail and malformed
+HTML fixture families retain their original gold extraction and navigation
+results.
+
+* Engineering analysis
+Do not apply =errors="ignore"= or =errors="replace"= to malformed strings:
+either option silently changes the page bytes and therefore the benchmark
+identity, which would invalidate fixture hashes. Validate exact UTF-8
+encodability and report the typed failure instead. This check belongs in
+fixture page validation and static navigation normalization, ahead of parser
+execution. Keep invalid *gold fixture* data separate from an invalid *model
+prediction*; a corrupt fixture must not be scored as a model failure.
+
+* Exercises
+1. ★ Explain why escaped unpaired surrogate data can survive =json.loads= but
+   cannot produce valid UTF-8 fixture bytes.
+2. ★★ Add a regression case for a malformed surrogate in a second page of a
+   pagination fixture. Assert the page budget validation rejects it before any
+   anchor is followed.
+3. ★★★ Extend the corpus export manifest to distinguish UTF-8 validation
+   failures from legitimate parser/selector errors. Assert that retrying an
+   unchanged invalid record yields the same failure category.
+
+* Verification status
+This lab is TESTED only when the named Python unit tests and static CLI are
+run on the exact source revision. The complete book =make book= / =make check=
+workflow and official EPUBCheck require the full repository build context;
+local Org rendering alone is not equivalent to those gates.
