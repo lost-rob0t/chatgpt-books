@@ -1,0 +1,114 @@
+#+title: HTML Tool Use: Audited Held-Out Baselines
+:PROPERTIES:
+:ID:       ca5f2518-b764-5ab4-bfdc-8e48a66583a5
+:END:
+
+* Split integrity comes before model scoring
+
+A benchmark can report an impressive extraction score while silently reusing a
+page template across evaluation partitions. In BK08 the *gold* labels are
+needed to verify that the static fixture oracle is internally consistent, but
+they must not be input features for a held-out predictor.
+
+The five original synthetic source families are tables, cards, pagination,
+detail, and malformed markup. Their older metadata assigned pagination to
+development and detail to test. Both families contain an anchor with =id= and
+=href= attributes and text; they therefore share a normalized DOM skeleton.
+That original assignment fails the published =html_template_split_audit.py=
+with =split_leakage=. This is a real correctness constraint, not an opportunity
+to turn off the auditor.
+
+The lab freezes an *audited* allocation: tables/cards to train,
+pagination/detail to development, and malformed markup to test. Every neutral
+variant remains in its source-family partition. It deliberately overrides the
+older generator's distribution annotation only for this experiment; it checks
+that the original annotation remains internally consistent before doing so.
+The final corpus has 24 train, 24 development, and 12 test records, all synthetic.
+These are *variants*, not 60 independent observed websites. The template check
+must succeed before any method's scores are computed.
+
+* Two transparent, strictly offline predictors
+
+- =static_heuristic=: select a text-bearing leaf with a usable ID/class; if the
+  only candidates are navigational anchors leading to a supplied static page,
+  follow that link and extract there. The target extraction field is learned
+  from training, never read from held-out gold.
+- =train_only_node_ranker=: inspect gold-selected nodes *in train only*; count
+  five transparent DOM features on positive and competing negative nodes;
+  compute Laplace-smoothed feature log-odds; rank visible leaves of each
+  held-out start page. It does not learn to navigate. This is an intentionally
+  small inspectable baseline, not Worker BK07's model or a production classifier.
+
+Every predictor invocation receives only the four fields =id=, =family=,
+=pages=, and =start=. The other four canonical oracle fields are stripped
+before prediction. The published executor scores each submitted predicted
+trace *after* the split-leakage and gold-validity audit. There is no network
+access, model weight download, or claim of real-world generalization.
+
+* Reproduce the source and controls
+
+From the repository root, with Python 3.10+:
+
+#+begin_src sh :eval never
+cd books/ml-starintel/code/html-tool-benchmark
+python -m unittest -v test_html_heldout_baselines.py
+python -m unittest discover -p 'test_*.py'
+python html_heldout_baselines.py --demo
+#+end_src
+
+For independently supplied JSONL partitions, all three are required:
+
+#+begin_src sh :eval never
+python html_heldout_baselines.py --train train.jsonl --dev dev.jsonl --test test.jsonl
+#+end_src
+
+Each JSONL record must contain exactly the eight canonical oracle fields:
+=id=, =family=, =pages=, =start=, =gold_trace=, =candidate_trace=,
+=gold_extractions=, =gold_visited=. The files are local, size-bounded, and
+parsed with the existing strict JSONL reader. The auditor refuses overlapping
+identities, source families, or normalized DOM templates across partitions.
+Invalid gold execution fails before scoring. A reference trace is never part
+of a prediction view.
+
+* Read extraction and exact sequence separately
+
+A *valid extraction* is not a *gold-identical action sequence*. The static
+heuristic extracts the right answer on this tiny 60-variant corpus (all three
+splits yield extraction success 1.0), yet its exact sequence success is 0.5
+in train and 0.0 in development and test. Different unique selectors can lead
+to the same correct value; do not merge these metrics.
+
+The node ranker fits 24 synthetic training examples from two families. On the
+24 development navigation examples it has extraction success 0.0; it lacks
+link-following behavior. On the 12 malformed-markup test examples it happens
+to extract correctly, although sequence success remains 0.0. Do not treat
+this toy result as evidence of a generalization capability. Compare the
+=exact_call_accuracy=, =argument_accuracy=, =extraction_success=,
+=navigation_success=, =sequence_success=, and typed =failure_counts= returned
+for *each split and predictor*.
+
+* Try to falsify the audit
+
+1. Revert the partition allocation to the older generator =split= labels.
+   =test_generator_declared_split_is_actually_leaky= demonstrates the real
+   =split_leakage= rejection between pagination and detail templates.
+2. Clone a train page's normalized skeleton into test with different =id=
+   and =family= fields. The program must reject it *before* scoring.
+3. Change a held-out record's =gold_trace= and =gold_extractions= after fitting.
+   Direct predictor outputs must remain byte-identical because these fields
+   are excluded from its four-field input view. This does *not* authorize
+   scoring tampered gold: the full corpus auditor would reject it.
+4. Compare extraction and sequence metrics on the same cases. A predictor
+   that extracts the right value through a different valid selector should
+   not be labeled fully gold-sequence-correct.
+
+* Status and boundaries
+
+This is a deterministic offline educational experiment: source, tests,
+fixture provenance, and exact-head check status must be recorded separately.
+The 60 rows are repeated controlled perturbations of five prototypes. A model
+card or production performance claim would require genuinely independent
+held-out websites, an appropriate published protocol, and additional tests.
+The full book build, official EPUBCheck, and hosted CI are distinct gates;
+label them NOT RUN until they actually execute. The BK07 training/decoder
+implementation remains outside this lab.
