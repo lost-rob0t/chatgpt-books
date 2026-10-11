@@ -1,0 +1,18 @@
+digraph bk01_coverage {
+  graph [label="BK10 isolated synthetic coverage gate; not runtime capture proof", labelloc=t, fontsize=17, rankdir=LR];
+  node [shape=box, style=rounded, fontsize=11];
+  receipt [label="Independently frozen invented inventory\nID + observedAt / pinned SHA-256"];
+  envelope [label="Observed event envelope\nseals + self-declared completeness"];
+  check [shape=diamond, style=solid, label="Exact receipt, timebase\n& seal agreement?"];
+  rejection [shape=octagon, label="REJECT\nmissing != observed zero"];
+  windows [label="Native BK01: 3 x 60s\ncomplete categorical windows"];
+  filter [label="Fixed-parameter belief filter\n(no training)"];
+  futures [label="P(next high) / candidates\ntruth remains held out"];
+  loss [label="Loss of three source events\nself-consistent forged seals", shape=box];
+  receipt -> check [label="independent input"];
+  envelope -> check;
+  loss -> envelope [label="changes input"];
+  check -> rejection [label="NO"];
+  check -> windows [label="YES"];
+  windows -> filter -> futures;
+}

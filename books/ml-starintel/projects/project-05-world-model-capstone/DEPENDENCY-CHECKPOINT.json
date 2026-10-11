@@ -1,0 +1,33 @@
+{
+  "version": "bk10.bk01.coverage-dependency-checkpoint.v0",
+  "as_of_utc_date": "2026-10-12",
+  "repository": "lost-rob0t/chatgpt-books",
+  "main_commit_sha": "c650565f7604fbe57033e0ed3cb5bde060a7adfd",
+  "bk10_before_commit_sha": "e2da74b2f5648d93d9b228c9c9a2eb32acd94b44",
+  "bk10_branch": "worker/152-world-model-capstone",
+  "contract": "bk10.bk01.fixed-inventory-coverage.v0",
+  "provider_source": {
+    "worker": "BK01",
+    "issue": 143,
+    "branch": "worker/143-world-model-foundations",
+    "commit_sha": "679bd8f231dc76157fb3aaef06b54842d0f17c32",
+    "blob_sha": "b12863b2792dc3961ef05343fe455667605251c7",
+    "path": "books/ml-starintel/code/world-models-01/world_models.py",
+    "native_local_execution": "30/30 local BK10 tests with exact provider blob",
+    "independent_review": "NOT VERIFIED",
+    "exact_head_required_ci": "NO RUNS OR STATUSES RETURNED",
+    "integration_ready": false
+  },
+  "other_component_candidates": [
+    {"worker": "BK02", "issue": 144, "branch_state": "0 ahead; 34 behind", "feature": "NOT VERIFIED", "integration_ready": false},
+    {"worker": "BK03", "issue": 145, "branch_state": "0 ahead; 0 behind", "feature": "NOT VERIFIED", "integration_ready": false},
+    {"worker": "BK04", "issue": 146, "commit_sha": "cf581464cea6167d9bd1983b19aedca961c74156", "feature": "KV-cache candidate only", "integration_ready": false},
+    {"worker": "BK05", "issue": 147, "branch_state": "0 ahead; 0 behind", "feature": "NOT VERIFIED", "integration_ready": false},
+    {"worker": "BK06", "issue": 148, "commit_sha": "151ed124852be96aea45d3c26d37d1ec27452885", "feature": "trajectory candidate", "integration_ready": false},
+    {"worker": "BK07", "issue": 149, "commit_sha": "a947f50f2b9229c61bf58d147ff02f4dbaae9c0c", "feature": "HTML tool policy candidate", "integration_ready": false},
+    {"worker": "BK08", "issue": 150, "commit_sha": "a2e37c2e1e49ec3238f541eaa1a36f3a1918bea7", "feature": "HTML executor candidate", "integration_ready": false},
+    {"worker": "BK09", "issue": 151, "branch_state": "0 ahead; 34 behind", "feature": "NOT VERIFIED", "integration_ready": false}
+  ],
+  "pull_request_state": "No open PR for issues 143-152 in connected GitHub App repository PR search",
+  "rule": "Stable interface requires independent review and successful terminal exact-head required CI; local experiments do not suffice"
+}

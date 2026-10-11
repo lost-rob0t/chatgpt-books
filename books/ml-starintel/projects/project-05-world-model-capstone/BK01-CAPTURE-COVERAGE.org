@@ -1,0 +1,127 @@
+#+title: BK10 -- A Missing Observation Is Not an Observed Zero
+:PROPERTIES:
+:ID:       4537c403-12a6-5674-9f31-5c6e88bb0b17
+:END:
+
+* Scope and prerequisite
+
+This is a *TESTED local synthetic experiment*, not a finished production
+StarIntel adapter. It belongs to [[https://github.com/lost-rob0t/chatgpt-books/issues/152][BK10 issue #152]] and assumes the *candidate*,
+unmerged BK01 fixed-parameter predictive-state API from [[https://github.com/lost-rob0t/chatgpt-books/issues/143][issue #143]].
+Read the capstone's [[file:CAPSTONE.org][existing pipeline explanation]] before this lab and
+its [[file:BK06-TRAJECTORY-SEAM.org][continuous trajectory integration]] afterward. BK01 owns
+its model and chapter; this work owns only the synthetic capture boundary.
+The source from BK01 is pinned to commit
+=679bd8f231dc76157fb3aaef06b54842d0f17c32=, Git blob
+=b12863b2792dc3961ef05343fe455667605251c7=.
+Neither this witness nor Git-blob identity makes BK01 reviewed or CI-green.
+
+* What the counterexample establishes
+
+BK01's =aggregate_synthetic_events= counts event IDs in three 60-second
+windows. As its docstring correctly warns, its caller, not the function,
+asserts window completeness. The native filter maps high/low counts into a
+posterior and then forecasts the next high/low bucket. Its ten numerical
+prior/transition/emission probabilities are *fixed*, not trained.
+
+A complete invented inventory of five input events produces counts =[0,2,3]=
+and next-window =P(high)=0.5059188644380984=. If the last three events
+silently disappear and a producer rewrites both its event digest and its
+=complete=true= seals, the same native algorithm accepts =[0,2,0]= and
+returns =P(high)=0.3541110514301061=. This is not an upstream bug: the
+producer supplied a false completeness premise.
+
+BK10's new gate binds the invented input to a *separately frozen* tuple of
+source ID plus observed timestamp (SHA-256
+=ee9d63ba24cc5e9c4dee8ec857de2dfb30d62094a672faeafe1321fb43d9c292=).
+It verifies provider Git source bytes, exact schema, event inventory, ordered
+window boundaries and per-window source IDs *before* calling the native
+filter. Rewriting all caller-controlled fields after event loss no longer
+passes the frozen receipt check.
+
+#+begin_example
+Independent INVENTED receipt (fixed digest)
+          |                    Invented events + self-asserted seals
+          +----------------------+----> exact inventory comparison
+                                            | valid
+                                 checked 60-second windows
+                                            |
+                         native BK01 fixed categorical belief filter
+                                            |
+                              one-step P(high), no truth read
+
+Attacker omits 3 events -> invents 'complete=true' -> RECEIPT MISMATCH
+                                                  -> REJECT, not ZERO
+#+end_example
+
+The editable diagram is =bk01-capture-gate.dot=; an SVG may be regenerated with
+=dot -Tsvg bk01-capture-gate.dot -o bk01-capture-gate.svg=.
+
+* Native and provider-absent reproduction
+
+The BK01 branch has not been merged. Export the candidate source explicitly
+through the approved GitHub App and *verify* its Git blob before executing it.
+Do not use an unknown package with the same import name. In a source-available
+checkout with both components, use the known absolute path:
+
+#+begin_src sh
+cd books/ml-starintel/projects/project-05-world-model-capstone
+export BK10_BK01_PROVIDER_PATH=/absolute/path/to/pinned/world_models.py
+python3 -W error -m unittest -v test_bk01_coverage_gate.py
+python3 run_bk01_coverage.py --provider "$BK10_BK01_PROVIDER_PATH" \
+  --output artifacts/bk01-coverage-witness.json
+#+end_src
+
+The pure frozen-contract regressions require no upstream file and remain
+runnable on BK10 alone; the native cases are explicitly *SKIPPED* when no
+provider source exists. No synthetic truth is included in the prediction
+payload. The one held-out observation is consulted only after forecasts.
+Never substitute an arbitrary or stale BK01 implementation to avoid a skip.
+
+* Evaluated result, limits, and surprising metric
+
+In the executed local pinned-provider run, 30 of 30 Python tests passed.
+The unguarded counterfactual's next-high probability differed by
+=0.1518078130079923=. Against the *one held-out low* outcome, clean Brier was
+=0.255953897394335=, while the corrupted input's Brier was *lower*
+(=0.12539463674493526=). A fortunate single-outcome score cannot establish
+that the capture was correct: the corrupted forecast was based on fabricated
+coverage. No calibration/generalization claim follows from one example.
+
+| Component | Fitted state | CPU training | Measured median CPU inference, local | Honest metric |
+|-
+| Native BK01 filter/aggregate | 0 trainable; 10 fixed probability scalars | None | 41.337 us | One-step P(high), fixed synthetic |
+| BK10 gate + native BK01 | 0 trainable | None | 169.775 us | Rejects false complete-source inventory |
+| BK06 continuous trajectory candidate | 16 fitted mixture scalars + 128 nontrained schedule scalars in earlier BK10 experiment | NOT RUN this experiment | NOT RUN this experiment | Different 4-history/6-future domain; no unit conversion |
+| BK02 learned state, BK03 LLM, BK05 base diffusion, BK09 llm-log | No current feature implementation verified | NOT RUN | NOT RUN | Dependency-gated |
+
+These are 400-iteration *local Python 3.13.5 / x86-64* medians, not throughput or
+precision claims. Native and gated timing scopes differ. The VM exposed an
+Intel Xeon Platinum 8370C; total-process RSS was not measured.
+
+* What production would need that this receipt does not prove
+
+An independently frozen synthetic SHA-256 *cannot* establish live data-source
+completeness. The test's receipt is hard-coded and could have been forged at
+fixture creation. A production adapter would need an authorized source's
+scope-specific monotonic offset/cursor or signed capture manifest, watermark,
+late-event policy, window-close acknowledgement, event identity and provenance,
+retention/replay contract and canonical schema validation. Otherwise report
+=unknown/missing= and abstain from this filter; never fabricate zero counts.
+This gate does not confer target, actor, database or runtime authority.
+
+* Curriculum sequence and exercises
+
+After Chapters 2--5 (provenance, validation, point-in-time features, and
+leakage), first run this categorical coverage exercise. Then read BK01's
+state-space model, compare the incompatible unit/time semantics in the
+[[file:BK06-TRAJECTORY-SEAM.org][BK06 trajectory seam]], and only afterward attach BK02's learned dynamics
+when a reviewed interface exists. Tool use (BK07/BK08), optional LLM runtime
+(BK03/BK04), and llm-log outcomes (BK09) remain separate typed boundaries.
+
+Exercises: (1) delete one input event and update all mutable metadata, then
+explain why the frozen receipt rejects it; (2) move an event 60 seconds and
+predict the self-consistency failure; (3) identify which new *external*
+source receipt would be necessary before allowing an observed zero; (4)
+repeat the Brier comparison over a properly separated multi-episode fixture,
+without treating a retrospectively chosen corruption as an improvement.
