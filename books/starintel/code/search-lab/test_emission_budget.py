@@ -7,7 +7,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parent
 SCRIPT = ROOT / os.environ.get("INDEX_SCRIPT", "index_projection.js")
-DESIGN = ROOT / "search.json"
+DESIGN = Path(os.environ["STAR_SEARCH_LAB_SERVER"]) / "source/views/search.json"
 
 
 def emit(doc):
