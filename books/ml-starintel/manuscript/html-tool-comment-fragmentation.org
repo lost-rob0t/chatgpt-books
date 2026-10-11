@@ -1,0 +1,96 @@
+#+title: HTML Benchmark Lab: When a Comment Hides a Leaked Template
+:PROPERTIES:
+:ID:       fd1ff911-0336-54a2-96ab-2c386e50de28
+:END:
+
+* Scope and reproducibility
+This lab belongs to BK08, the offline HTML tool-use dataset and evaluation
+work on issue #150. It changes dataset provenance and split validation only;
+it does not train or modify BK07 models, decoders, or selectors. All pages
+remain deterministic in-memory HTML, with no HTTP access. Code lives in
+=file:../code/html-tool-benchmark/html_template_split_audit.py= and
+=file:../code/html-tool-benchmark/test_template_comment_fragmentation.py=.
+
+* A meaningful RED control
+The original cross-family audit normalizes a static page's DOM into opening
+element tags, attribute *names*, text-presence markers, and closing markers.
+It deliberately ignores literal text and attribute values. However,
+=HTMLParser= may deliver text in multiple callbacks if an HTML comment
+appears inside a text node. The original tokenizer emitted one =text= token
+for *each* callback.
+
+#+begin_src html
+<section><span>Grace</span></section>
+<section><span>Gr<!-- harmless annotation -->ace</span></section>
+#+end_src
+
+These are the same DOM template for the benchmark's purposes, and both
+produce the gold extraction =Grace=. Before the correction, the two pages
+had different structural fingerprints. Renaming the second example's family
+and placing it in a held-out split was therefore sufficient to escape a
+family-only leakage check *and* the supposedly stronger template check.
+
+The targeted native RED suite demonstrates this with an actual gold-valid
+cross-split clone, not a mocked digest. On the pre-change source, seven of
+12 new tests failed. The CLI mistakenly returned a successful audit for the
+contaminated split.
+
+* Correct canonicalization
+A DOM token sequence records one =text= marker for each *contiguous
+text-bearing slot*. Adjacent parser text fragments, including those separated
+by comments or decoded character references, collapse into one slot. Actual
+element openings/endings remain explicit boundaries. Whitespace-only nodes
+continue to be ignored as before; no URL, text, or attribute value becomes
+part of the digest.
+
+#+begin_example
+Raw HTML -> BoundedParser -> DOM element/text nodes
+                                 |
+                                 v
+                       bounded structural walk
+                                 |
+                adjacent nonempty text fragments -> one marker
+                                 |
+                     SHA-256 canonical token JSON
+                                 |
+                     held-out split ownership check
+#+end_example
+
+This is a *template-leakage* guard, not an HTML-equivalence theorem or a
+semantic clone detector. Structural changes, such as inserting =<strong>=,
+still change the digest. Template equality alone cannot prove that independently
+authored pages are related; the benchmark intentionally fails closed when the
+same shape crosses held-out partitions.
+
+* Reproduce the result
+Run from the repository root, using only the Python standard library:
+
+#+begin_src sh
+cd books/ml-starintel/code/html-tool-benchmark
+python -m unittest -v test_template_comment_fragmentation
+python -m unittest discover -s . -p 'test_*.py'
+python html_template_split_audit.py --demo
+#+end_src
+
+The twelve added regressions cover intra-word comments, repeated comments,
+character references, nested tags, genuine structural differences, clean
+controls, permutations, an adversarial held-out clone, and CLI failure status.
+The corrected snapshot passed 102 native tests (90 previously published and
+12 added); two repeated CLI evaluations produced identical bytes. These
+numbers describe controlled local tests, not model benchmark performance.
+
+* Exercises
+1. ★ Reproduce the pre-fix digest mismatch and explain why it was a split
+   integrity failure rather than an extraction mismatch.
+2. ★★ Insert an HTML comment between two characters of a label in a test
+   partition, leave gold extraction unchanged, and verify the audit refuses
+   to score contaminated splits.
+3. ★★★ Introduce a genuine new element around half the label; explain why
+   preserving the different digest matters. Design another non-semantic
+   parser-fragmentation case without changing the bounded parser contract.
+
+* Verification boundary
+Native Python unit tests, =compileall=, Pandoc Org->HTML and local standalone
+EPUB3 smoke validation are reproducible. Full-repository =make book=,
+=make check BOOK=ml-starintel=, official EPUBCheck, and GitHub exact-head CI
+must be marked NOT RUN unless actually executed against a complete checkout.

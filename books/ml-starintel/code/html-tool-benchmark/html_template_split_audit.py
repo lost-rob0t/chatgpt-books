@@ -42,7 +42,12 @@ def template_digest(html: str) -> str:
     while pending:
         node, closing = pending.pop()
         if isinstance(node, str):
-            if node.strip():
+            # HTMLParser emits separate data callbacks around comments and
+            # character references. Those fragments form one text-bearing DOM
+            # slot until an actual element boundary intervenes. Without this
+            # normalization, a comment inserted inside a word evades the
+            # cross-family template-leakage check.
+            if node.strip() and (not tokens or tokens[-1] != ["text"]):
                 tokens.append(["text"])
         elif closing:
             tokens.append(["end"])
