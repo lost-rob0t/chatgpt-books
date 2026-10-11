@@ -1,0 +1,150 @@
+** Advanced Lab -- Predictive Futures with Conditional Sequence Diffusion
+:PROPERTIES:
+:ID:       f84a44a8-3961-4a73-a21d-e60940f23406
+:END:
+
+An observation stream tells us what has been recorded, not what /must/ happen next. A point forecast hides a difficult distinction: two incompatible futures can both be compatible with the same measured history. This lab makes that distinction observable in a small, completely synthetic StarIntel-style stream. We generate multiple numerical futures, compare them with a deterministic autoregressive control, and explicitly separate prediction quality from diversity.
+
+*Evidence tier:* The accompanying NumPy-only reference implementation and its seven regression tests ran locally on CPython 3.13.5 / NumPy 2.3.5 with seed 148. These are *Tier C synthetic measurements*, not evidence about real intelligence events, people, devices, causal dynamics, or deployment performance. Project 1's separate pinned CPython 3.12.3 / NumPy 2.5.3 environment has not yet been rerun for this lab. This chapter is DRAFT rather than DONE, and its placement in the finished book awaits the world-model integrator.
+
+*** 1. The forecasting contract comes before the model
+
+One episode has ten time-ordered observations. The first four measurements are history =h=(h_0,...,h_3)= and the last six are evaluation-only future =y=(y_1,...,y_6)=. Every event carries a synthetic =episode_id=, =event_id=, monotone =time_index=, numeric measurement, and =provenance_tier: C-synthetic=. These records are *StarIntel-style teaching envelopes*, not generated or validated Star Language wire documents. No actor, routing, registry, or storage semantics are simulated or claimed.
+
+The generator selects a modest common linear drift and then a hidden left/right future branch. It adds small seeded measurement noise. The branch is intentionally not observable in =h=, so an honest predictor should sometimes represent both futures. The hidden branch is generator ground truth for understanding the task, *not* an inference-time input or a feature supplied to either model.
+
+Entire episodes belong to either training (160) or test (48). Model fitting sees only training episodes, while each test forecast receives just =h=. Test futures are read *after* prediction to score outputs. No random record-level split can mix observations from one episode across these partitions. This is a narrow controlled protocol; it is not an empirical real-world leakage audit.
+
+#+begin_example
+Synthetic event stream -> group by episode -> train/test separation
+                                       |
+                   history (4 values) + future (train only)
+                                       |
+                              train prior and AR
+                                       |
+                  held-out history (4) -> predicted futures (6)
+                                       |
+                           withheld future -> scoring
+#+end_example
+
+This diagram is the execution-flow source for the lab. A production port must add canonical schema validation, provenance, observation-time/ingest-time distinctions, missing-data policy, actor capabilities, and storage authorization at the StarIntel adapter boundary. Do not silently reinterpret these toy JSON fields as a 0.10.1 generated contract.
+
+*** 2. First compare against an autoregressive rollout
+
+The baseline uses a ridge-stabilized least-squares fit to one-step transitions from *training* episodes:
+
+\[
+\hat x_{t+1}=b_0+b_1x_t+b_2(x_t-x_{t-1}).
+\]
+
+To forecast six steps it predicts one step, appends that prediction to the state, and repeats. Thus errors can accumulate through the recursive rollout. It returns exactly one candidate future; repeating it sixteen times does not create uncertainty. The baseline deserves the same held-out episodes and metrics as a richer model, not a worse evaluation split.
+
+The conditional diffusion lab uses a different anchor calculated from *observed history only*:
+
+\[
+c(h)_j=h_3+j\frac{h_3-h_0}{3},\quad j=1,\ldots,6.
+\]
+
+Subtracting =c(h)= transforms the future into a six-dimensional residual =r=(y-c(h))/s=; =s= is an endpoint standard deviation computed solely on the training set. The model's conditioning is deliberately limited to this history-derived translation and a globally fitted residual distribution; it is /not/ a learned attention model, an environment simulator, or a state transition policy.
+
+*** 3. Fit a bimodal residual density, not an oracle
+
+We split training residuals with deterministic two-means, obtaining a mixture of two multivariate Gaussians with means =mu_k=, empirical weights =pi_k=, and a shared isotropic within-component variance =sigma^2=. These parameters are estimated from training futures. Test branch labels and future values are never used for fitting. The two modes are not hand-selected by the evaluator, although the toy generator was designed to make two clusters plausible.
+
+This analytic mixture is a deliberate educational intermediate step: instead of assuming a powerful neural denoiser has been learned, it gives us a tractable *fitted* conditional density with a mathematically computable denoiser. We can then test the reverse diffusion machinery independently of optimizer convergence. Worker 5's separate diffusion-from-scratch unit owns the general forward-noise, learned-denoiser and sampling foundations. Once its interface stabilizes, the advanced lab can reuse those shared primitives rather than duplicate its pedagogy.
+
+The classical Gaussian DDPM forward process [cite:@ho2020ddpm] on the six-dimensional residual is
+
+\[
+q(x_t\mid r)=\mathcal N(\sqrt{\bar\alpha_t}r,(1-\bar\alpha_t)I),
+\qquad \bar\alpha_t=\prod_{i=1}^{t}(1-\beta_i).
+\]
+
+For a fitted component =k= the marginal at noise level =t= remains Gaussian, with
+
+\[
+v_t=\bar\alpha_t\sigma^2+1-\bar\alpha_t,\qquad
+x_t\mid k\sim\mathcal N(\sqrt{\bar\alpha_t}\mu_k,v_t I).
+\]
+
+Bayes' rule gives the responsibility of each component after seeing =x_t=:
+
+\[
+w_{tk}(x_t)\propto\pi_k\exp\!\left(-\frac{\|x_t-\sqrt{\bar\alpha_t}\mu_k\|^2}{2v_t}\right).
+\]
+
+For that component, the conditional clean-residual mean is
+
+\[
+m_{tk}(x_t)=\mu_k+\frac{\sqrt{\bar\alpha_t}\sigma^2}{v_t}
+ (x_t-\sqrt{\bar\alpha_t}\mu_k).
+\]
+
+Therefore the mixture denoiser and its implied noise estimate are
+
+\[
+\hat r_0=\sum_k w_{tk}m_{tk},\qquad
+\hat\epsilon_t=\frac{x_t-\sqrt{\bar\alpha_t}\hat r_0}
+ {\sqrt{1-\bar\alpha_t}}.
+\]
+
+We initialize =x_T= from seeded standard Gaussian noise and perform 64 DDPM-style Gaussian reverse updates with the posterior-variance schedule. Each seed yields a possible residual future; multiplying by =s= and adding =c(h)= restores the trajectory. Because the approximate single-Gaussian reverse steps do not reproduce every finite-step mixture exactly, a beautiful two-cluster plot is not a correctness proof; distributional evaluation still matters.
+
+*** 4. Run the reference experiment
+
+The standalone lab lives under =books/ml-starintel/labs/trajectory-diffusion/=. It depends on NumPy and the Python standard library. The research workflow already pins NumPy 2.5.3 in Project 1; its exact pinned-version validation remains a separate gate for this new lab.
+
+#+begin_src sh
+python3 -m unittest discover -s books/ml-starintel/labs/trajectory-diffusion -p 'test_*.py' -v
+python3 books/ml-starintel/labs/trajectory-diffusion/trajectory_diffusion.py \
+  --seed 148 --episodes 208 --train 160 --draws 16 \
+  --output /tmp/bk06-trajectory-report.json \
+  --events-jsonl /tmp/bk06-synthetic-events.jsonl
+#+end_src
+
+The default report contains all metric values and experiment parameters, deterministically serialized as JSON. Use the seed and partition sizes recorded in that report rather than cherry-picking a visually appealing trajectory. Repeating the invocation must preserve the report bytes under the same NumPy environment. The tests also confirm that changing an unseen test future cannot change the corresponding forecast.
+
+*** 5. Compare distributions without cheating with best-of-K
+
+We compute the following quantities *on the same 48 held-out episodes*:
+
+- *ADE:* mean absolute deviation per future step. Compare the AR path, the mean of sixteen diffusion paths, and a single random diffusion draw separately. The mean of two incompatible futures might itself be implausible.
+- *Best-of-K/minADE:* hindsight picks the closest of =K= candidates to the truth. This is an *oracle diversity diagnostic*, not an operational one-shot accuracy or fair improvement over a deterministic baseline. As =K= grows, it can improve by search alone.
+- *Energy score:* for full trajectory vectors, =ES(F,y)=E||X-y|| - (1/2) E||X-X'||=. Lower is better. Its two terms jointly penalize implausible errors and inappropriate spread; the implementation uses a finite-sample empirical estimator.
+- *Endpoint pairwise absolute distance:* estimates diversity at the sixth step, including sample-pair self-comparisons. More spread alone is not better.
+- *Endpoint coverage at tolerance 0.5:* counts a truth if at least one of sixteen sampled final values lies within 0.5 synthetic units. This is *set coverage*, not calibrated interval coverage or a probability of an actual future event.
+
+Local CPU run (CPython 3.13.5, NumPy 2.3.5, 2026-10-11):
+
+| Metric | Observed Tier C value |
+|--------+-----------------------|
+| Train/test episodes | 160 / 48 |
+| Reverse steps / candidates | 64 / 16 |
+| AR ADE | 1.804292 |
+| Diffusion sample-mean ADE | 1.918703 |
+| Diffusion single-sample average ADE | 1.953058 |
+| Diffusion oracle minADE@16 | 0.060629 |
+| AR energy score | 4.921497 |
+| Diffusion energy score | 3.043481 |
+| Diffusion endpoint pairwise absolute distance | 2.873405 |
+| Diffusion endpoint coverage within 0.5 (any of 16) | 1.000000 |
+
+*Interpretation:* On this exact synthetic fixture the deterministic AR baseline has a slightly lower point ADE than the diffusion sample mean, whereas the sampled diffusion distribution has a lower empirical energy score. The striking oracle minADE@16 and full endpoint set coverage mainly show that candidate sampling spans the deliberately simple two-branch fixture. They must *not* be advertised as forecasting real adverse events, as calibrated individual probabilities, or as a generalized advantage of diffusion over AR models.
+
+*** 6. When this complexity helps -- and when it wastes effort
+
+Conditional diffusion is potentially useful when the *output* is a coherent joint future, not just the next scalar, and several distinct trajectories should survive until downstream analysis. TimeGrad studies probabilistic diffusion forecasting for multivariate time series [cite:@rasul2021timegrad], while Diffuser studies trajectory-level generative modeling in planning [cite:@janner2022diffuser]. Neither paper establishes that our fitted two-Gaussian synthetic example transfers to real StarIntel event streams.
+
+This lab spends 64 reverse steps for each batch of candidate trajectories and stores multiple futures. A simple AR rollout is much cheaper if the conditional future is nearly unimodal, the decision only requires an expected value, compute/latency budgets are strict, or the data are too sparse to estimate multiple modes. Larger =K= also increases oracle metric optimism and cost. Future experiments must measure wall time and distribution shift rather than declaring diffusion the winner on score alone.
+
+The toy has severe omissions: no missing-not-at-random observations, entity-resolution uncertainty, changing sensor availability, exogenous interventions, causal identification, long-range interactions, calibrated risk ranking, or actual StarIntel schema validation. It must *never* turn sampled futures into observed facts. A later adapter could emit clearly labeled forecast/provenance artifacts after schema and authorization work, but no such adapter is provided here.
+
+*** 7. Lab exercises and falsification probes
+
+1. *Conditioning ablation:* set the observed-trend velocity to zero and compare both point ADE and energy score. Does the bimodal residual model absorb all of the lost information, or is the history-derived conditioner doing real work?
+2. *Diversity without accuracy:* multiply learned residual means by two. Endpoint spread should grow; test whether energy score improves or deteriorates. A model can be more diverse and worse.
+3. *Mode collapse:* deliberately train on episodes from only one hidden branch (for research only), then evaluate both branches. The two-means fit may fail or produce misleading clusters. Preserve that outcome as a failure case.
+4. *Sampling cost:* sweep reverse steps and candidate counts while timing on one pinned CPU environment. Plot energy score, oracle minADE and wall time separately. Never use minADE as the sole tuning objective.
+5. *StarIntel boundary:* sketch a versioned adapter that would consume generated/validated observation documents at an explicit as-of cutoff and write a separate *prediction* artifact with model revision, training-data provenance, seed, uncertainty definition, and expiry. Keep this sketch outside Star Language spec authority.
+
+*Checkpoint status:* IMPLEMENTED and TESTED only on the declared Tier C CPU environment. This is an advanced standalone draft, not the finished diffusion foundations chapter, not a canonical 0.10.1 integration, and not a deployed world model.

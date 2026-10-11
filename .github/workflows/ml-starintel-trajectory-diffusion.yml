@@ -1,0 +1,45 @@
+name: ml-starintel-trajectory-diffusion
+
+on:
+  pull_request:
+    paths:
+      - 'books/ml-starintel/labs/trajectory-diffusion/**'
+      - 'books/ml-starintel/manuscript/chapter-diffusion-trajectories.org'
+      - '.github/workflows/ml-starintel-trajectory-diffusion.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'books/ml-starintel/labs/trajectory-diffusion/**'
+      - 'books/ml-starintel/manuscript/chapter-diffusion-trajectories.org'
+      - '.github/workflows/ml-starintel-trajectory-diffusion.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cpu-toy-lab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.3'
+      - name: Install narrow pinned lab dependency
+        run: python -m pip install --disable-pip-version-check numpy==2.5.3
+      - name: Execute real CPU unit tests
+        run: >-
+          python -m unittest discover
+          -s books/ml-starintel/labs/trajectory-diffusion
+          -p 'test_*.py' -v
+      - name: Verify deterministic two-run synthetic manifest and report
+        shell: bash
+        run: |
+          set -euo pipefail
+          LAB=books/ml-starintel/labs/trajectory-diffusion/trajectory_diffusion.py
+          python "$LAB" --seed 148 --events-jsonl /tmp/bk06-events-a.jsonl --output /tmp/bk06-report-a.json
+          python "$LAB" --seed 148 --events-jsonl /tmp/bk06-events-b.jsonl --output /tmp/bk06-report-b.json
+          cmp /tmp/bk06-events-a.jsonl /tmp/bk06-events-b.jsonl
+          cmp /tmp/bk06-report-a.json /tmp/bk06-report-b.json
+          test "$(wc -l </tmp/bk06-events-a.jsonl)" -eq 2080
+          cat /tmp/bk06-report-a.json
