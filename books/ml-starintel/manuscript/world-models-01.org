@@ -1,0 +1,142 @@
+** World Models I -- Beliefs, Transitions, and the Next Observation
+:PROPERTIES:
+:ID:       957826c5-b47c-4593-a0f7-6814ca208d33
+:END:
+
+A record says what was reported. A *predictive state* summarizes what a model currently believes about the process that might generate the *next* record. Those are different objects. The first belongs to an evidence trail; the second is a model-dependent estimate that must be reproducible, revisable, and accompanied by uncertainty.
+
+This interlude is a deliberately small bridge from the Chapter 6 predictive baseline to dynamic models. The example is an *exactly specified, two-state hidden Markov model*, not a trained world-model benchmark. It uses six invented =event= documents, four declared-complete observation windows, and standard-library Python. We can derive each update with arithmetic, see where uncertainty enters, and test failures without importing a neural-network framework. A later lab can learn transition/emission parameters or richer latent states, but is not implemented here.
+
+*** 1. Three things we should not conflate
+
+A *world state* \(s_t\) would describe the underlying physical or logical system in full; we almost never observe it directly. A *latent state* \(z_t\) is the model's compact surrogate for relevant hidden structure. A *belief* \(b_t(z)\) is a probability distribution over possible latent states after observing evidence available through time \(t\). The belief is what the toy program stores and updates.
+
+A *world model* predicts observations from states and describes how those states evolve. A *policy* chooses actions. In a controlled dynamical system we might use \(p(z_{t+1}\mid z_t,a_t)\), but the present experiment has **no actions, rewards, targets, or policy**. Even a confident prediction is not an instruction. This separation matters for intelligence workflows: observation provenance and predictive estimates do not themselves warrant an operational decision. The influential early World Models study couples learned representations and recurrent dynamics to a separately trained controller; the distinction is architectural rather than rhetorical [cite:@ha2018worldmodels]. Later latent-imagination work likewise uses a learned model *inside* an explicitly distinct control-learning method [cite:@hafner2020dreamcontrol].
+
+The toy's latent regimes are named =quiet= and =busy=. These are invented activity states, not labels for people, organizations, locations, intent, or risk. A recorded signal count is binned as =low= (0 or 1) or =high= (at least 2). The binning rule is a declared measurement definition, not learned evidence of the true regime.
+
+*** 2. Generative assumptions before arithmetic
+
+Let \(z_t\in\{Q,B\}\), \(y_t\in\{L,H\}\), and let the model parameters be fixed controls:
+
+\[
+\pi_0=[P(Q_0),P(B_0)]=[0.60,0.40],
+\]
+\[
+T=\begin{bmatrix}0.85&0.15\\0.25&0.75\end{bmatrix},\qquad
+E=\begin{bmatrix}0.80&0.20\\0.30&0.70\end{bmatrix}.
+\]
+
+Rows of \(T\) are current states \(Q,B\); columns are next states \(Q,B\). Rows of \(E\) are states \(Q,B\); columns are observations \(L,H\). Every entry is in \([0,1]\), and each row sums to one. The exercise assumes that the next state depends only on the current state, and that an observation depends on the contemporaneous latent state rather than all older measurements:
+
+\[
+p(z_{0:n},y_{0:n})=p(z_0)\prod_{t=0}^{n}p(y_t\mid z_t)
+\prod_{t=1}^{n}p(z_t\mid z_{t-1}).
+\]
+
+These are *assumptions*, not properties of StarIntel documents. A hidden-Markov model is not a claim that real intelligence events obey Markov dynamics. State-space filtering has a long history; Kalman's original treatment uses state transitions and uncertain measurements to update hidden state estimates [cite:@kalman1960filtering]. Our finite-state example uses sums rather than the Gaussian matrix equations of a Kalman filter.
+
+*** 3. Derive the filter in two operations
+
+Given the posterior belief \(b_{t-1}(i)=P(z_{t-1}=i\mid y_{0:t-1})\), first *predict* the new state:
+
+\[
+\bar b_t(j)=\sum_i b_{t-1}(i)T_{ij}.
+\]
+
+Then *condition* that prediction on the observed bucket \(y_t\):
+
+\[
+\ell_t=\sum_j E_{j,y_t}\bar b_t(j),\qquad
+b_t(j)=\frac{E_{j,y_t}\bar b_t(j)}{\ell_t}.
+\]
+
+For \(t=0\) use \(\bar b_0=\pi_0\), since there was no preceding transition in the toy's initial condition. The normalizer \(\ell_t\) is the likelihood of the incoming observation under the one-step prediction. If \(\ell_t=0\), the observation contradicts the model: do not divide by zero or silently accept it.
+
+The first sealed window contains zero synthetic signals, hence observation \(L\). The calculation is small enough to audit by hand:
+
+\[
+\ell_0=0.60(0.80)+0.40(0.30)=0.60,
+\]
+\[
+b_0(B)=\frac{0.40(0.30)}{0.60}=0.20,
+\qquad b_0(Q)=0.80.
+\]
+
+That posterior is a new belief *about the hidden regime* after observing the low bucket. It is not a new canonical StarIntel fact. A useful invariant is \(\sum_j b_t(j)=1\). Every exercise test checks normalization and refuses malformed probability matrices.
+
+*** 4. Predict the next observation, not just the next state
+
+The model's next-state prediction is \(\bar b_{t+1}=b_tT\). A prediction of the next *observed* bucket additionally marginalizes the latent state:
+
+\[
+P(y_{t+1}=H\mid y_{0:t})
+=\sum_j \left[\sum_i b_t(i)T_{ij}\right]E_{j,H}.
+\]
+
+After the first low window, \(\bar b_1(B)=0.80(0.15)+0.20(0.75)=0.27\). Therefore
+
+\[
+P(y_1=H\mid y_0=L)=0.73(0.20)+0.27(0.70)=0.335.
+\]
+
+This 0.335 is a probability forecast, not a hard assertion that the next report will be high. The fully deterministic fixture's subsequent windows are high, high, low; it lets us compare the emitted trace to these exact derivations. The model could be wrong for that sequence despite internally consistent arithmetic.
+
+A \(k\)-step *unconditional* rollout from current posterior \(b_t\) is \(b_tT^k\) followed by the emission marginal. Notice what the code does **not** do: it does not turn an imagined future high count into a real update. Conditioning on self-generated guesses would confuse prediction with new evidence and tend to create spurious certainty. This exercise records the forecast for each horizon without feeding it back as an observed event.
+
+*** 5. Where uncertainty is and is not measured
+
+The code reports the binary posterior entropy
+
+\[
+H(b_t)=-\sum_{j\in\{Q,B\}} b_t(j)\log_2 b_t(j)
+\]
+
+in bits, with \(0\log 0=0\). Zero entropy means the model's *state belief* is concentrated on one of its own two labels; it does **not** establish that the model is correct. Forecast probabilities also admit a Bernoulli outcome variance \(p(1-p)\). Both are *conditional on the supplied parameters*.
+
+The fixture fixes \(T\), \(E\), and \(\pi_0\) by construction. It neither estimates parameters nor quantifies epistemic uncertainty over model choice, parameter drift, sensor completeness, source reliability, or distribution shift. In practice, forecasts should be evaluated chronologically, calibrated on held-out windows and compared with a baseline. Confidence in a model output is not evidence of correctness without that evaluation.
+
+*** 6. StarIntel boundary: events are evidence, beliefs are derived
+
+The canonical Star Language source at =specs/starintel/0.10.1/core.star= defines persistent =event= and =observation= documents extending =document=. As observed in the generated 0.10.1 schema, both require =id=, =dataset=, =dtype=, and =schemaVersion=; the shared document supports an =observedAt= Unix-time field. This book pins source blob =2910288cc9e70a76f6e904cdb66ee6d915e94fa1= and generated schema blob =537163da436f67a973e280d1704e32bdba5b888b= as research evidence. The user's canonical generator and validators, not the toy adapter, own schema authority.
+
+For teaching, =world_models.py= constructs *synthetic* =event= dictionaries with =schemaVersion= =0.10.1= and =observedAt=, then summarizes them by complete 60-second windows. It retains contributing event IDs so a derived window can be traced back to inputs. The sequence is:
+
+#+caption: A synthetic, observation-only inference boundary. Input event records remain distinct from derived windows, hidden-state beliefs and forecasts; no policy or canonical write-back is implemented.
+#+attr_html: :alt Six synthetic 0.10.1-shaped event records pass through completeness-assumed window aggregation into four low/high observations, then a Bayesian filter produces posterior beliefs and forward emission predictions; the raw records remain outside the model and there is no feedback action.
+[[file:assets/world-models-01.svg]]
+
+A critical catch: **no events returned** is not automatically a certified zero-count observation. Missing connectors, delayed messages and unclosed time windows can all produce an apparent zero. The helper requires the caller to declare a fixed set of *sealed* windows. Only in the synthetic fixture do we know those windows to be complete. A production adapter would need event-time/watermark and provenance contracts, deduplication, canonical validation and late-arrival revision policy; none is claimed implemented.
+
+There is also a strict time boundary. The test =test_future_publication_cannot_change_past_forecast= compares the first two filtered windows with and without later fixture records. Past predictions remain identical. You must not rewrite a past as-of belief with knowledge of later observations while pretending it was available earlier. A later forensic replay may calculate a *smoothed* posterior using future information, but that is a different, clearly labeled task.
+
+*** 7. Run the deterministic fixture and try to break it
+
+From the repository root:
+
+#+begin_src sh
+python3 -m unittest discover -s books/ml-starintel/code/world-models-01 -p 'test_*.py' -v
+python3 books/ml-starintel/code/world-models-01/world_models.py
+#+end_src
+
+The first line tests the pure-standard-library filter, input admission and anti-leakage boundaries. The second prints four windows and the current posterior, next-high forecast, and entropy. An excerpt from a locally executed CPython 3.13.5 fixture (not a production benchmark):
+
+#+begin_example
+t=1700000040 count=0 y=low P(busy|data)=0.200000 P(next_high|data)=0.335000 H=0.721928bits
+t=1700000100 count=2 y=high P(busy|data)=0.564179 P(next_high|data)=0.444254 H=0.988082bits
+#+end_example
+
+The regression suite deliberately includes duplicate document IDs, invalid version or type, missing timestamps, out-of-window records, malformed stochastic matrices, and a mathematically impossible observation. Each must fail instead of producing a made-up prediction. The tests do not claim a StarIntel server, CouchDB, RabbitMQ, canonical admission API, or learned neural model ran.
+
+*** 8. Exercises and failure analysis
+
+1. ★ Recompute \(P(B_1\mid y_0=L)\) from the given posterior and transition table. Explain why this is not identical to \(P(B_0\mid y_0=L)\).
+2. ★★ Change the high threshold from two signals to three *as a new versioned experiment*. Explain why predictions change even if latent parameters remain fixed: the observation meaning changed.
+3. ★★ Add an explicit =unknown/missing= observation bucket rather than turning incomplete windows into zeros. Write a regression that skips measurement updating but still advances the transition clock, and label this rule as a model assumption.
+4. ★★ Implement a log-likelihood trace \(\sum_t\log \ell_t\) and compare it with a constant-probability observation baseline under a chronological split. Do not estimate parameters on test windows.
+5. ★★★ Create a synthetic late-arrival event for an already sealed window. Specify whether to invalidate/recompute the previous belief chain or create an explicit new revision; preserve the original as-of forecast and audit source IDs.
+6. ★★★ Derive how a learned transition matrix could be estimated from labeled synthetic state sequences. Which model uncertainties remain unmeasured, and how will you test held-out transition drift?
+
+*** 9. Reading the sources responsibly
+
+Kalman's 1960 paper gives an early rigorous state-estimation context [cite:@kalman1960filtering]. Ha and Schmidhuber's 2018 world-model architecture demonstrates compressed latent representations, recurrent dynamics and a separate controller [cite:@ha2018worldmodels]. Hafner and colleagues' 2020 Dreamer work connects imagined state rollouts to policy learning [cite:@hafner2020dreamcontrol]. None of these experiments are replicated by our finite-state fixture. Their role is to frame the concepts and motivate later, independently tested labs.

@@ -1,0 +1,30 @@
+#+title: World Models I -- primary-source and synthetic-boundary research pass
+:PROPERTIES:
+:ID:       eae23a96-3cf4-4ac9-b33c-fe51126d7a0a
+:END:
+
+* Research question
+How can a beginner implement and audit predictive latent state without confusing StarIntel event evidence with inferred state, self-generated future data, or a policy that takes actions?
+
+* Primary sources inspected -- 2026-10-11
+- R. E. Kalman (1960), /A New Approach to Linear Filtering and Prediction Problems/, /Journal of Basic Engineering/ 82(1):35--45, DOI 10.1115/1.3662552. Publisher/DOI bibliographic metadata and original abstract inspected. Result: uncertainty-aware state transitions and observation-based filtering predate neural 'world models'. Claim status: DOCUMENTED, not reproduced Kalman filter.
+- David Ha and Jürgen Schmidhuber (2018), /World Models/, arXiv 1803.10122, https://arxiv.org/abs/1803.10122, initial submission 2018-03-27. Original authors' abstract inspected. Result: compressed spatiotemporal model distinct from learned compact policy. Claim status: DOCUMENTED, neural training NOT RUN.
+- Danijar Hafner, Timothy Lillicrap, Jimmy Ba, Mohammad Norouzi (2020), /Dream to Control: Learning Behaviors by Latent Imagination/, ICLR 2020, https://mlanthology.org/iclr/2020/hafner2020iclr-dream/. Original conference record and author metadata inspected. Result: latent rollouts are used for a *separate* behavior-learning method. Claim status: DOCUMENTED, Dreamer NOT RUN.
+
+* Canonical StarIntel boundary -- read-only upstream evidence
+- GitHub App read =lost-rob0t/star-lang= =specs/starintel/0.10.1/core.star=, blob =2910288cc9e70a76f6e904cdb66ee6d915e94fa1=, 2026-10-11. Original Star Language declares =org.starintel/core@1= version =0.10.1= and persistent =event= and =observation= extending =document=; shared document includes optional =observedAt= Unix-time.
+- GitHub App read =specs/starintel/0.10.1/generated/schema.json=, blob =537163da436f67a973e280d1704e32bdba5b888b=, 2026-10-11. Generated =Event= / =Observation= definitions require =id=, =dataset=, =dtype=, =schemaVersion=. This is source-bound inventory only. Toy checks are not canonical JSON Schema validation and do not claim deployment.
+- Keep legacy Project 1 0.9 frozen conformance experiments independent; do NOT silently migrate or overwrite their pinned fixture. The new synthetic code intentionally uses fresh 0.10.1-shaped documents and runs without the older adapter.
+
+* Executed fixture and boundary evidence
+- Environment: CPython 3.13.5 (local), standard library only; deterministic fixed matrices and six invented event records.
+- =python3 -m unittest discover -s books/ml-starintel/code/world-models-01 -p 'test_*.py' -v=: 13 focused tests PASSED locally on this draft (real output recorded at authoring time).
+- =python3 books/ml-starintel/code/world-models-01/world_models.py=: four synthetic windows emitted, first =P(B|L)=0.2= and next-high =0.335= as hand-derived; no network calls or stochastic sampling.
+- Graphviz =dot -Tsvg=: diagram source generated SVG locally. Source fixture and exact data-generation logic are committed together if publication succeeds.
+- =make book BOOK=ml-starintel= / =make check BOOK=ml-starintel=: status recorded separately from test evidence; do not claim unless executed.
+- Limitations: no parameter fitting, learned features, real entities, consumer APIs, RabbitMQ/CouchDB, latency benchmark, StarIntel admission integration, temporal calibration or operational claims. Sealed windows exist only by synthetic fixture declaration.
+
+* Follow-up
+- Add a missing-observation model and explicit late-arrival revision story before treating zero counts as evidence in a non-synthetic pipeline.
+- Introduce parameter fitting and held-out calibration only with a separate, predeclared evaluation design.
+- Keep Worker 02's end-to-end learned-model lab separate from this foundation.

@@ -168,6 +168,12 @@ Visuals: a diagram, trace, or plot when structure/state/change is easier to see 
 Expected code: executable examples and tests when the topic is implementable.
 Research: verify primary definitions, current APIs, and non-obvious historical claims before drafting.
 
+* Separate interlude -- World Models I: predictive state and latent dynamics
+Goal: develop a first-principles state-space and latent-dynamics foundation with fixed-parameter HMM filtering, uncertainty accounting and one-step/horizon rollouts. This is *not* the Worker 02 learned end-to-end lab, and does not implement a decision/policy engine.
+Reader-facing file: [[file:manuscript/world-models-01.org][World Models I -- Beliefs, Transitions, and the Next Observation]].
+Executable standard-library fixture: =code/world-models-01/world_models.py= with =test_world_models.py=.
+Status: DRAFT / focused local tests executed; whole-book build/check and hosted exact-head CI required before editorial DONE.
+
 * Project integration map
 - Project 1 (Investigation Dataset Pipeline) begins after the foundations it needs and reappears in later chapters for extension/testing.
 - Project 2 (Entity Resolution System) begins after the foundations it needs and reappears in later chapters for extension/testing.

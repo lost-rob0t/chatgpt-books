@@ -1,0 +1,14 @@
+digraph world_models_01 {
+  graph [rankdir=LR, fontname="DejaVu Sans", bgcolor="white", nodesep="0.60", ranksep="0.9", label="World Models I: observation-only predictive state", labelloc=t];
+  node [shape=box, style="rounded,filled", fillcolor="#f4f6fb", color="#303f5d", fontname="DejaVu Sans", margin="0.20,0.14"];
+  edge [color="#303f5d", fontname="DejaVu Sans", arrowsize=0.8];
+  events [label="Invented StarIntel-shaped\nevent documents (6)\nIDs and observedAt preserved"];
+  windows [label="Synthetic sealed windows\ncounts [0, 2, 3, 1]\nlow/high observation"];
+  filter [label="Bayesian filtering\nP(z[t] | observations ≤ t)\nlatent Q / B"];
+  forecast [label="Forward prediction\nP(next bucket = high)\nuncertainty + as-of time"];
+  policy [label="No action / policy\nNo write-back", fillcolor="#ffffff", style="dashed,rounded"];
+  events -> windows [label="aggregate + source IDs"];
+  windows -> filter [label="measurement update"];
+  filter -> forecast [label="transition + emission"];
+  forecast -> policy [style=dashed, arrowhead=none, label="deliberately separated"];
+}

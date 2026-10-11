@@ -17,3 +17,7 @@
 #+include: "chapter-05.org"
 
 #+include: "chapter-06.org"
+
+* World-model interlude -- predictive state (issue #143)
+
+#+include: "world-models-01.org"
