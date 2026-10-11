@@ -1,0 +1,46 @@
+#+title: BK10 interface lab -- BK06 six-step trajectory futures without fabricated unit conversions
+
+* Purpose and dependency gate
+This is a BK10-owned optional adapter *checkpoint*, not the completed ML-StarIntel capstone. It uses the BK06 source-bearing candidate at commit =151ed124852be96aea45d3c26d37d1ec27452885=, exact Git blob =5be4412b67bb43a8bc4bff84f62c987ba9651a55=, imported as immutable /verified bytes/ from a local provider file. The provider belongs to BK06's =books/ml-starintel/labs/trajectory-diffusion/trajectory_diffusion.py= on its own branch, not BK10; it is neither vendored into this branch nor declared reviewed, merged, or exact-head-CI-green. Keep this chapter out of the production manuscript index until BK06's interface is stable and the whole book is checked.
+
+The important lesson is a failed assumption: =capstone.py= encodes *nonnegative integer count aggregates* at three contiguous abstract ticks. BK06 expects *four signed continuous synthetic measurements*, then returns *six real-valued future measurements* per draw. Unit ticks are not 60-second BK01 windows and not BK10 count ticks with compatible physical meaning. A type cast, padding with a synthetic fourth count, inventing six target counts or treating samples as calibrated branch probabilities would silently change the task. This adapter deliberately refuses all of them.
+
+* Exact bounded interfaces
+1. =bk10.bk06.synthetic-history.v1= accepts exactly four events from one =synthetic-episode-NNNN= episode at 0,1,2,3. Each has only =event_id=, =episode_id=, =time_index=, =kind=, =measurement=, =provenance_tier=. All measurements are finite real numbers; every provenance tier must be =C-synthetic=; the event IDs and SHA-256 of the canonicalized four-event envelope must match. The value's units are declared: BK06 synthetic signed continuous measurement, not a count. No held-out future, training label, person, source actor, canonical StarIntel wire record or arbitrary metadata enters prediction.
+2. BK06's native =ConditionalDiffusion.fit= sees entire *training episodes only*, with a disjoint episode-ID split. Its =forecast(history, samples, seed)= receives only the four-float history tuple. =samples= is in 1..64, =seed= in 0..2^32-1; BK06 itself has a broader 4096-sample allowance, deliberately narrowed here.
+3. =bk10.bk06.candidate-futures.v1= returns a six-tick sequence at 4..9 for each sampled trajectory. Every coordinate must be finite and numeric. =source_commit=, =source_blob=, input digest, synthetic episode, timebase, seed and exact output array dimensions are verified at the boundary. There are *no probability weights*; Monte Carlo sample indices do not imply likelihood rank.
+4. =score_after_forecast= accepts precisely six held-out event records at ticks 4..9 from the same episode *after* forecasts exist. The scored output is a single-episode mean-of-samples MAE and the indicator that *any* endpoint sample fell within 0.5 units of truth. This indicator is not calibrated interval coverage or a policy decision. It also records independent frozen forecast and truth digests.
+
+#+caption: BK06 native synthetic trajectory interface. Forecasting never sees future events; render the editable Graphviz source with =dot -Tsvg bk06-trajectory-seam.dot -o bk06-trajectory-seam.svg=.
+[[file:bk06-trajectory-seam.dot][Editable Graphviz diagram source]]
+
+* Executable native evidence
+The local verification used *exactly* the BK06 Git blob, checked using =SHA1("blob " + length + NUL + bytes)= before compilation. The local source bytes are identical to the remotely inspected blob and are not committed here. CPython 3.13.5, NumPy 2.3.5, Linux x86-64; 96 episodes generated with seed 148, first 72 training and 24 held out, first held-out episode selected after fitting, 16 draws at seed 248, 64 reverse steps.
+
+- Native output shape: 16 candidate sequences × 6 future ticks; histories at 0..3.
+- Native BK06 fitted mixture's estimated scalars: 12 component means, 2 mixture weights, one shared variance and one scale = *16*. Two length-64 arrays define the fixed reverse-noise schedule; these 128 nontrainable scalars are not model weights. Python/NumPy object overhead and training memory are not included in this scalar count.
+- Single held-out synthetic mean-trajectory MAE: *1.218219*; BK06 autoregressive baseline MAE on this same episode: *1.970445*. The endpoint hit indicator was true across the 16 draws. *Do not generalize from one test episode* or compare this directly to BK10's integer-count one-step error of 1.
+- Measured 30-repeat CPU medians on AMD EPYC 9V74: training a mixture on 72 episodes *0.605035 ms*; BK06 16-draw forecast *2.205996 ms*; BK10 validation plus 16-draw forecast *2.239552 ms*; 4-draw validated forecast *2.078673 ms*, 64 draws *3.337099 ms*. These timings exclude fixture generation, Python startup and source loading. They are not throughput/production claims; see separate =CPU-BENCH.json= checkpoint.
+- Regression suite: *20/20 PASS* with native provider source supplied, including missing/future event rejection, unit/timebase mismatch, nonfinite result, forged pin, held-out truth isolation and deterministic native replay. The native-only tests explicitly *skip* if that source is not made available; a skipped native check is never called PASS.
+
+* Run in a workspace containing the BK06 source candidate
+#+begin_src sh
+# Once the BK06 file is legitimately supplied from its pinned branch:
+BK10_BK06_PROVIDER=/path/to/verified/trajectory_diffusion.py \
+  python3 -W error -m unittest -v test_bk06_trajectory_bridge.py
+BK10_BK06_PROVIDER=/path/to/verified/trajectory_diffusion.py \
+  python3 benchmark_bk06_bridge.py
+# There is NO automated network retrieval, no dependence on runtime credentials.
+#+end_src
+
+* Curriculum links and untested boundaries
+Review dataset/provenance and splits in [[file:../../OUTLINE.org][ML-StarIntel outline]], the independent BK06 draft =books/ml-starintel/manuscript/chapter-diffusion-trajectories.org= on its separate branch, and [[file:README.org][BK10 project README]]. The BK01/BK02 world-state adapter is a different domain; a future handoff must separately define data units, time span, numeric normalization, state uncertainty, training regime, actor provenance and a loss/metric shared with the baseline. The optional BK03/BK04 language proposal, BK07/BK08 HTML selection and BK09 llm-log classification still require their own reviewed interfaces. Do not infer that one native BK06 synthetic run makes a full world-model capstone ready.
+
+* Regression exercises
+- Change event 1's tick from 1 to 4, or change =provenance_tier=: the input must be rejected.
+- Modify history after it has been hashed: the adapter must reject the mismatched provenance digest.
+- Feed BK10 =count= events, 3 events, 10 events, or 60-second windows: no implicit conversion is permitted.
+- Give the forecast a fake source blob, extra horizon, probability weights, or nonfinite coordinate: reject before scoring.
+- Change only the six held-out measurements: forecast bytes remain unchanged and measured error changes.
+
+No book-level build, official EPUBCheck or GitHub exact-head PR CI was run for this checkpoint. They remain acceptance gates, *NOT RUN*, not PASS.

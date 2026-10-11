@@ -1,0 +1,17 @@
+digraph trajectory_seam {
+  rankdir=LR; graph [label="BK10 / BK06 optional synthetic-continuous interface", labelloc=t, fontname="DejaVu Sans"];
+  node [shape=box, fontname="DejaVu Sans", fontsize=10];
+  "BK06 generated episode" -> "episode-ID split" [label="96, seed 148"];
+  "episode-ID split" -> "72 training episodes";
+  "72 training episodes" -> "native fitted mixture" [label="fit only here"];
+  "episode-ID split" -> "24 held-out episodes";
+  "24 held-out episodes" -> "4 history events" [label="first episode, ticks 0..3"];
+  "4 history events" -> "BK10 contract + digest" [label="finite real, Tier-C, IDs"];
+  "BK10 contract + digest" -> "native fitted mixture" [label="4 floats only"];
+  "native fitted mixture" -> "16 sampled 6-step futures" [label="seed 248, no probability weights"];
+  "24 held-out episodes" -> "6 sealed future events" [label="ticks 4..9, gold"];
+  "16 sampled 6-step futures" -> "independent held-out scoring";
+  "6 sealed future events" -> "independent held-out scoring";
+  "BK10 integer count witness" [color=red, fontcolor=red];
+  "BK10 integer count witness" -> "BK10 contract + digest" [style=dashed, color=red, label="INCOMPATIBLE: no casting/padding"];
+}

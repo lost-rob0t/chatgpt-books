@@ -1,6 +1,6 @@
 {
   "bk10_branch": "worker/152-world-model-capstone",
-  "bk10_input_head_sha": "4cd0d759755bc8a5766ed8d6f2ecf57148f40b28",
+  "bk10_input_head_sha": "bbde98776d6cd60f0dfcc251c59c6525e5a02b8d",
   "candidate_definition": "A source-bearing worker branch ahead of main; not a tested, reviewed, or contract-stable dependency.",
   "component_prs": "No open PR associated with issues #143-151 found by current GitHub App repository PR search; no relevant review submissions were available.",
   "components": [
@@ -125,17 +125,17 @@
     },
     {
       "branch": "worker/150-html-executor-metamorphic-20261011",
-      "branch_head_sha": "f83b7cc7267c2bf0fbbbad85ff3cb2bd5d2d5f1a",
-      "commit_sha": "f83b7cc7267c2bf0fbbbad85ff3cb2bd5d2d5f1a",
+      "branch_head_sha": "43005988813bee6968baab4d1f39d435e80f9e16",
+      "commit_sha": "43005988813bee6968baab4d1f39d435e80f9e16",
       "contract": null,
       "exact_head_pr_checks_verified": false,
       "independent_review_verified": false,
       "integration_ready": false,
       "issue": 150,
       "name": "html-tool-benchmark",
-      "notes": "Commit ahead of main; source confirmed through GitHub App, not editorially accepted.",
+      "notes": "New BK08 preflight-inventory candidate at 4300598, 5 commits ahead of main; source Git blob refreshed. Unreviewed, no exact-head PR checks.",
       "open_component_pr_verified": false,
-      "source_blob_sha": "71b4f0f61625e1b9add04a9e157405cd8d42c5df",
+      "source_blob_sha": "c215772977fe8e2d395b6c8a011e2966e3174c50",
       "source_path": "books/ml-starintel/code/html-tool-benchmark/offline_html_trace_executor.py",
       "state": "candidate-implementation-unreviewed",
       "worker": "BK08"
@@ -159,7 +159,7 @@
     }
   ],
   "main_commit_sha": "c650565f7604fbe57033e0ed3cb5bde060a7adfd",
-  "observed_at_utc_date": "2026-10-11",
+  "observed_at_utc_date": "2026-10-12",
   "readiness_rule": "Require independently approved versioned interface, non-stale branch head, and successful terminal required CI checks on exact reviewed head before integration-ready=true.",
   "repository": "lost-rob0t/chatgpt-books",
   "version": "bk10.dependency-matrix.v1",
