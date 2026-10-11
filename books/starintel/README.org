@@ -28,3 +28,21 @@ As of 2026-10-05, canonical new StarIntel documents are defined by StarLang =org
 Record primary-source work under =research/= and bibliography metadata in =references.bib=. Never let version-sensitive prose outrun current documentation.
 * Build
 From repository root: =make book BOOK=starintel= and =make check BOOK=starintel=. Bootstrap manuscripts are outlines, not release-ready books.
+
+
+* 2026-10-11 edition check: distinguish historical status from current runtime
+
+The preceding 2026-10-05 paragraph is intentionally retained as dated
+migration history. A new GitHub App source check on 2026-10-11 found
+=lost-rob0t/starintel-server= =master= at
+=0137ead90ab9560b5a5090f0b62c1b59aac08c68=, with the
+=0.10.1= generated Star Language lock pinned to
+=96d26c338078676ec1dc6928755901636c9f7ef0=.
+This is DOCUMENTED source/lock adoption, not a claim that the book has
+executed a new 0.10.1 end-to-end RabbitMQ/CouchDB/actor trace. Historical
+Project 1 compatibility exercises retain their exact older runtime pins.
+
+The new Chapter 5 provenance practicum runs three synthetic document
+subtypes through the already-pinned canonical SDK, extends the existing
+executable tests, and explicitly separates schema validity, referential
+resolution, authorization, transport, durability and actor execution.

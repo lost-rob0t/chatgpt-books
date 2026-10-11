@@ -1271,6 +1271,134 @@ graphs, testing, security, deployment, Quasar, automated research and the
 capstone all become easier once "which contract owns this representation?" and
 "what observation proves this transition?" become reflexes.
 
+*** Project 1 extension -- A Valid Claim Is Not Yet a Durable Fact
+:PROPERTIES:
+:ID:       bb11e7da-b1a6-4b66-ae11-202610110001
+:END:
+
+A source record, an observation, and a relation are three *different
+documents*, even when a single synthetic exercise connects them.  The
+0.10.1 authority defines =source=, =observation=, and =relation= as persistent
+document types, each extending the common =document= envelope.  The base
+requires =id=, =dataset=, =dtype=, and =schemaVersion=; =rev= is optional.
+The =relation= additionally requires typed =source= and =destination=
+references and a =predicate=. [cite:@starlang-starintel-0101]
+
+This workshop extends Project 1 without replacing its accepted historical
+migration or canonical SDK practicum.  It uses fictional records in
+=code/canonical-records/fixtures/provenance-*.json=; no real subject, source,
+network collection, or storage system is involved.
+
+**** A three-document evidence chain
+
+#+caption: An editable source-to-ingest evidence ladder. Solid arrows end at the book's local schema boundary; subsequent arrows demand separate runtime observations.
+#+attr_html: :alt A JSON document passes a duplicate-key guard and the generated canonical SDK. Later HTTP, RabbitMQ, CouchDB, authorized read-back and actor boundaries each require independent evidence.
+[[file:assets/canonical-record-evidence.svg]]
+
+The editable source is =assets/canonical-record-evidence.dot=.  The separate
+local provenance chain is:
+
+#+begin_example
+source:book-premise-001
+  -- cited by sources[] -->
+observation:book-premise-001 (observedAt = 0)
+  -- cited by evidence[] -->
+relation:book-evidence-membership
+  source      = person:book-alex
+  destination = org:book-example
+  predicate   = member-of
+#+end_example
+
+The =source= describes a *made-up notebook premise*.  The =observation=
+retains an explicit Unix epoch =0= to exercise the minimum-boundary case;
+it is not a credible date for a real-world membership claim.  The =relation=
+uses two already-present Project 1 endpoints and a directional, informative
+predicate.  Both its =sources[]= and =evidence[]= carry typed
+=org.starintel/core@1/<dtype>= references, not embedded copies of the
+other documents.
+
+The fixture's =confidence="0.7500"= is a schema-valid decimal string,
+but the book does not claim it is calibrated.  A causal identifier
+=causationId="book-action-001"= is an asserted string in this offline
+fixture, not proof that an actor executed.  Likewise =collectionStatus="raw"=
+does not upgrade a synthetic premise into verified evidence.
+
+**** Run the generated-contract checks
+
+The new =test_provenance_chain.py= is discovered by the existing pinned
+canonical SDK runner.  It invokes =starintel_canonical.Document= and
+=sdk.validate_document=; it does *not* define a parallel schema.
+The complete concrete document subtype is selected by =dtype=, not by
+testing only the definitions-only JSON Schema root. [cite:@starintel-doc-canonical-20261007]
+
+#+begin_src sh
+bash books/starintel/code/canonical-records/run-tests \
+  .cache/starintel-doc-canonical
+#+end_src
+
+The canonical runner verifies the exact SDK revision and its offline
+release closure first.  The new cases intentionally distinguish:
+
+| Input / action | Expected local finding | What is still unknown |
+|----------------+------------------------+-----------------------|
+| Three synthetic canonical fixture documents | accepted by generated SDK | actual provenance truth |
+| =observedAt= equal to integer =0= | accepted | real-world observation date |
+| Negative, fractional, or string Unix time | rejected | ingest admission behavior |
+| Reference missing its =schema= component | rejected | reference target existence |
+| Correctly shaped reference to absent evidence | accepted | evidence resolution |
+| Cross-dataset, well-formed reference | accepted | authorization to traverse |
+| Unknown =collectionStatus= enum | rejected | actual reviewer verification |
+| Missing base document identity | rejected | CouchDB record identity |
+| No =rev= in a new fixture | retained as absent | future storage revision |
+
+The negative cases are important.  A *green* SDK validation tells you the
+object conforms to its generated concrete dtype.  It does not contact
+CouchDB, check that references resolve, decide who can read across datasets,
+establish source independence, or run an actor.  The SDK is the *admission
+shape* boundary, not the *evidence support* boundary.
+
+**** Current-versus-historical runtime pins
+
+The 2026-10-05 book README's claim that the server main branch still used
+a 0.9.1/0.9.0 lock is an *historical snapshot*.  On 2026-10-11, a GitHub App
+read found server =master= at
+=0137ead90ab9560b5a5090f0b62c1b59aac08c68=, with
+=schema/starintel-schema.lock.json= pinning StarLang
+=96d26c338078676ec1dc6928755901636c9f7ef0= and
+=release_version=schema_version=0.10.1=.
+That is DOCUMENTED runtime *configuration and source adoption*; this workshop
+does not reproduce end-to-end service-backed 0.10.1 ingest or actor dispatch.
+The original historical Project 1 compatibility test keeps its own
+explicit older pins. [cite:@starlang-starintel-0101]
+
+To trace the live repository, inspect the matching pinned server source:
+[[https://github.com/lost-rob0t/starintel-server/blob/0137ead90ab9560b5a5090f0b62c1b59aac08c68/schema/starintel-schema.lock.json][generated release lock]],
+[[https://github.com/lost-rob0t/starintel-server/blob/0137ead90ab9560b5a5090f0b62c1b59aac08c68/source/databases/document-update.lisp][optimistic document update]],
+and [[https://github.com/lost-rob0t/starintel-server/blob/0137ead90ab9560b5a5090f0b62c1b59aac08c68/source/databases/outbox.lisp][mutation/outbox]].  The update path
+has bounded revision retries and a create-only guard *inside* that loop.
+Do not turn this source observation into a publisher-confirm, persistence,
+or replay-crash claim without an executed service trace.
+
+**** Failure exercises and answer constraints
+
+1. Delete =observation.sources[0].schema=.  Which check fails?  Explain
+   why a missing target with a *valid* reference shape instead passes.
+2. Change =observedAt= from =0= to =-1= and then to ="0"=.  Locate the
+   =unix-time= scalar in canonical =core.star=; avoid inventing a new rule.
+3. Move the observation into a second dataset but leave the relation's
+   evidence reference untouched.  Why can schema validation still pass?
+   Which authorization/query boundary must prove permitted traversal?
+4. Supply an HTTP 2xx, a local =basic-publish= return, and no read-back.
+   Identify which stages remain unproved; do not call the record durable.
+5. Put a CouchDB =_rev= token into a proposed *new* canonical fixture.
+   Explain why storage projection (= _id= / =_rev=), canonical =id= / =rev=,
+   and broker event identity must be kept conceptually separate.
+
+Answer rule: quote the exact input, checker, and observed result.  Never
+promote hypothetical results to TESTED.  For the first three exercises the
+new offline unit tests are executable.  The last two are reasoning exercises
+until a disposable 0.10.1 stack is actually run.
+
 * Part II -- Runtime Boundaries
 :PROPERTIES:
 :ID:       0c12048d-5649-460c-b4b4-65056e3fafbf

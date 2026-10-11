@@ -1,0 +1,13 @@
+{
+  "id": "source:book-premise-001",
+  "dataset": "book-synthetic",
+  "dtype": "source",
+  "schemaVersion": "0.10.1",
+  "description": "Fictional handwritten premise created solely for this offline lesson.",
+  "retrievedAt": "2026-10-11T00:00:00Z",
+  "sourceKinds": [
+    "human"
+  ],
+  "collectionStatus": "raw",
+  "collector": "starintel-book-fixture"
+}

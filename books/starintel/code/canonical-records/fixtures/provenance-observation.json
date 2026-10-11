@@ -1,0 +1,20 @@
+{
+  "id": "observation:book-premise-001",
+  "dataset": "book-synthetic",
+  "dtype": "observation",
+  "schemaVersion": "0.10.1",
+  "observedAt": 0,
+  "observedProperty": "synthetic-membership-premise",
+  "rawValue": "invented-notebook-assertion",
+  "sources": [
+    {
+      "schema": "org.starintel/core@1/source",
+      "id": "source:book-premise-001"
+    }
+  ],
+  "collectionStatus": "raw",
+  "correlationId": "book-flow-001",
+  "collector": "starintel-book-fixture",
+  "confidence": "0.7500",
+  "confidenceBasis": "Uncalibrated synthetic lesson value."
+}

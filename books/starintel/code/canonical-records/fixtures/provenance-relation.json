@@ -1,0 +1,31 @@
+{
+  "id": "relation:book-evidence-membership",
+  "dataset": "book-synthetic",
+  "dtype": "relation",
+  "schemaVersion": "0.10.1",
+  "source": {
+    "schema": "org.starintel/core@1/person",
+    "id": "person:book-alex"
+  },
+  "destination": {
+    "schema": "org.starintel/core@1/org",
+    "id": "org:book-example"
+  },
+  "predicate": "member-of",
+  "sources": [
+    {
+      "schema": "org.starintel/core@1/source",
+      "id": "source:book-premise-001"
+    }
+  ],
+  "evidence": [
+    {
+      "schema": "org.starintel/core@1/observation",
+      "id": "observation:book-premise-001"
+    }
+  ],
+  "collectionStatus": "raw",
+  "correlationId": "book-flow-001",
+  "causationId": "book-action-001",
+  "notes": "Synthetic membership premise, not an independently verified real-world relationship."
+}
