@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 import hashlib
 from html.parser import HTMLParser
 import json
+import math
 from pathlib import Path
 import re
 import sys
@@ -28,6 +29,7 @@ MAX_OUTPUTS = 24
 MAX_TEXT = 2_048
 MAX_SAMPLES = 128
 MAX_DATASET_BYTES = 2_097_152
+MAX_JSON_DEPTH = 64
 VOID_TAGS = frozenset("area base br col embed hr img input link meta param source track wbr".split())
 NAME_RE = re.compile(r"[a-z][a-z0-9_]{0,63}\Z")
 ID_RE = re.compile(r"[A-Za-z][A-Za-z0-9_-]{0,63}")
@@ -356,10 +358,55 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     raw = path.read_bytes()
     if len(raw) > MAX_DATASET_BYTES:
         raise TraceFailure("invalid_record", "dataset file oversized")
+    def bounded_nesting(line: str) -> str:
+        depth = 0
+        quoted = False
+        escaped = False
+        for char in line:
+            if quoted:
+                if escaped:
+                    escaped = False
+                elif char == "\\":
+                    escaped = True
+                elif char == '"':
+                    quoted = False
+            elif char == '"':
+                quoted = True
+            elif char in "{[":
+                depth += 1
+                if depth > MAX_JSON_DEPTH:
+                    raise TraceFailure("invalid_record", "JSON nesting exceeds depth limit")
+            elif char in "}]":
+                depth -= 1
+                if depth < 0:
+                    raise TraceFailure("invalid_record", "invalid JSON nesting")
+        return line
+
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        fields: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in fields:
+                raise TraceFailure("invalid_record", "duplicate JSON object key")
+            fields[key] = value
+        return fields
+
+    def reject_nonfinite(token: str) -> None:
+        raise TraceFailure("invalid_record", "non-standard JSON numeric constant")
+
+    def finite_float(token: str) -> float:
+        value = float(token)
+        if not math.isfinite(value):
+            raise TraceFailure("invalid_record", "non-finite JSON numeric value")
+        return value
+
     try:
-        result = [json.loads(line) for line in raw.decode("utf-8").splitlines() if line.strip()]
-    except (UnicodeError, json.JSONDecodeError) as exc:
-        raise TraceFailure("invalid_record", "malformed JSONL") from exc
+        result = [
+            json.loads(bounded_nesting(line), object_pairs_hook=unique_object, parse_constant=reject_nonfinite,
+                       parse_float=finite_float)
+            for line in raw.decode("utf-8").splitlines() if line.strip()
+        ]
+    except (UnicodeError, json.JSONDecodeError, RecursionError, OverflowError) as exc:
+        raise TraceFailure("invalid_record", "malformed or excessively nested JSONL") from exc
     return result
 
 

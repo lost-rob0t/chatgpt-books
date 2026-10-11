@@ -1,0 +1,69 @@
+#+title: HTML Tool-Use Benchmark: JSONL Gold-Trace Integrity
+:PROPERTIES:
+:ID:       ac9260a2-8855-47d6-a310-4721d1951ddc
+:END:
+
+* Goal
+
+A benchmark is reproducible only if its dataset has one unambiguous meaning.
+This BK08 lab extends the *offline* static-HTML evaluator, not the BK07 model.
+Its reader, [[file:../code/html-tool-benchmark/offline_html_trace_executor.py][offline_html_trace_executor.py]], now rejects ambiguous or
+non-standard JSONL *before* executing gold or candidate tool traces.
+
+* The actual failure
+
+Default =json.loads= overwrites repeated object keys, including keys inside
+page inventories, extraction targets and action arguments. The following is
+an intentionally incomplete record used to demonstrate ambiguity:
+
+#+begin_src json
+{"id":"tables_01","id":"shadowed_01"}
+#+end_src
+
+Previously that input decoded without an error. The corrected reader uses
+=object_pairs_hook= to inspect all object members and returns typed
+=invalid_record= for duplicates, even if both values are equal. An escaped
+key such as ="\\u0069d"= is checked *after* JSON key decoding.
+
+The default decoder also accepts =NaN= and =Infinity= extensions. Exponent
+overflow such as =1e999= can silently become an infinite float. This lab
+rejects non-finite numbers, enforces structural JSON depth <= 64 and retains
+the existing 2 MiB dataset-byte budget. A quote-aware depth scanner ignores
+literal ={[]= inside HTML strings and handles escaped quotes; a raw bracket
+count would reject valid fixtures.
+
+* Run the executable lab
+
+From the repository root:
+
+#+begin_src sh
+python -m unittest discover -s books/ml-starintel/code/html-tool-benchmark \
+  -p 'test_jsonl_integrity.py' -v
+python -m unittest discover -s books/ml-starintel/code/html-tool-benchmark \
+  -p 'test_*.py' -v
+python books/ml-starintel/code/html-tool-benchmark/offline_html_trace_executor.py --demo
+#+end_src
+
+The regression test [[file:../code/html-tool-benchmark/test_jsonl_integrity.py][test_jsonl_integrity.py]] covers root/nested duplicate
+keys, escaped aliases, non-finite constants, overflow, deep JSON, quoted
+brackets, a poisoned later JSONL line and valid non-ASCII controls.
+
+* Interpret the boundary
+
+A malformed *dataset* is =invalid_record=; a well-formed dataset with a wrong
+candidate selector receives an evaluation failure. Do not turn input
+corruption into an apparent model failure or silently drop a poisoned line.
+Dataset integrity is distinct from template-family leakage control.
+
+* Exercises
+
+1. Duplicate the =selector= key in a gold action and verify import rejection.
+2. Put 128 ={[= pairs into an HTML string; explain why depth stays bounded.
+3. Poison only the second JSONL row and show why the whole batch fails.
+4. Add legitimate UTF-8 text and verify repeatable fixture SHA-256 results.
+
+* Verification status
+
+The native Python regressions and standalone Org rendering are independently
+testable. Full book build, EPUBCheck and hosted candidate CI require their
+own successful runs; this lab alone does not establish those release gates.
