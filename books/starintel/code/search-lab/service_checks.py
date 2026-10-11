@@ -55,7 +55,7 @@ def wait_document(base, identity, token):
 
 
 def collect(base, surface, query, token=None):
-    seen, previous = set(), None
+    seen, previous, bookmarks = set(), None, set()
     for _ in range(12):
         params = {'limit': 1}
         if previous: params['bookmark'] = previous
@@ -67,8 +67,11 @@ def collect(base, surface, query, token=None):
             if hit.identity in seen: raise ValueError('duplicate identity across pages')
             if hit.document is None: raise ValueError('include_docs response omitted document')
             seen.add(hit.identity)
-        previous = next_bookmark(previous, bookmark, hits)
-        if previous is None: return seen
+        continuation = next_bookmark(previous, bookmark, hits)
+        if continuation is None: return seen
+        if continuation in bookmarks: raise ValueError('bookmark cycle across pages')
+        bookmarks.add(continuation)
+        previous = continuation
     raise ValueError('pagination exceeded lab page budget')
 
 

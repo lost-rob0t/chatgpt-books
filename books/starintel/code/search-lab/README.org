@@ -115,3 +115,16 @@ Run =python3 -m unittest test_emission_budget -v= from the search-lab directory
 (or use the existing =run-tests= suite with its pinned dependencies). Boundary
 tests accept exactly 2,048 emissions, reject 2,049, and preserve regular
 small-document projections. The injected array is synthetic, not collected data.
+
+* Bounded pagination cycle check
+The optional HTTP client's twelve-page limit remains the final resource bound,
+but a shorter non-adjacent bookmark cycle (for example =A -> B -> A=) now
+fails at the first recurrence instead of resubmitting an earlier cursor.
+Continuation tokens are opaque; the client does not derive identities or
+ordering from their contents. Repeated result identities remain a separate
+error even when bookmarks themselves are distinct.
+
+=python3 -m unittest test_bookmark_cycle -v= executes network-free response
+doubles with the real =collect=, =interpret_page= and =next_bookmark= helpers.
+These tests do *not* prove live CouchDB/Clouseau bookmark guarantees or stable
+membership under concurrent writes; the opt-in HTTP tier remains untested.
