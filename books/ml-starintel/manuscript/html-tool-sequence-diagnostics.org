@@ -1,0 +1,98 @@
+#+title: HTML Tool-Use Benchmark — Sequence Diagnostics and Counterfactual Controls
+:PROPERTIES:
+:ID:       9b8a3e93-f886-5d49-8f27-364bf0e5996d
+:END:
+
+* Status and scope
+This is an original, deterministic offline companion lab for issue #150. It scores the
+*shape and arguments* of predicted tool actions; it does not navigate a live site,
+execute browser code, evaluate learned weights, or verify extracted HTML values.
+Those operations belong to the separate frozen-fixture executor and extraction gate.
+This distinction prevents a trace similarity score from masquerading as extraction
+success. No model training or decoder changes are included (BK07 #149 owns those).
+
+* Why positional matching is insufficient
+Consider the following gold sequence:
+
+#+begin_example
+select(article.card)
+extract(.title, title)
+extract(.score, score)
+#+end_example
+
+A prediction that omits =extract(.title, title)= still contains a perfectly correct
+score extraction. A positional comparison reports the final extraction as an argument
+mismatch because all subsequent positions have shifted. That compounds one error
+into several. The sequence evaluator instead uses a minimum-unit-edit alignment,
+with a fixed precedence for ties and explicit *missing*, *extra*, *wrong-tool*,
+*wrong-field*, *wrong-selector* and *wrong-navigation-selector* categories.
+
+#+begin_example
+                 GOLD                      PREDICTED
+          select(article.card)       select(article.card)   [exact]
+          extract(.title, title)       <missing>            [delete]
+          extract(.score, score)      extract(.score,score)  [exact]
+#+end_example
+
+The edit distance is one, rather than two cascading positional errors. An inserted
+navigation action similarly creates one insertion, not a chain of false substitutions.
+A sequence comparison can be exact even if the browser later fails; execution-based
+success must be reported separately.
+
+* Reproduce offline
+From the benchmark source directory (no special packages required):
+
+#+begin_src sh
+python3 trace_diagnostics.py --demo > trace-report.json
+python3 -m unittest -v test_trace_diagnostics.py
+#+end_src
+
+For an external collection of *synthetic/static fixture* predictions, provide one
+JSON object per line in =cases.jsonl=:
+
+#+begin_src json
+{"id":"demo-01","gold":[{"tool":"select","args":{"selector":"article.card"}}],"predicted":[{"tool":"select","args":{"selector":"[data-record]"}}]}
+#+end_src
+
+Then run:
+
+#+begin_src sh
+python3 trace_diagnostics.py --input cases.jsonl --output diagnostics.json
+#+end_src
+
+Output reports are serialized in deterministic ID order. Input may not be a symlink.
+Cases are capped at 5,000, actions at 32 per trace and JSONL line bytes at 65,536.
+Invalid tool names, argument shapes, duplicate IDs, and invalid UTF-8/JSON fail
+closed. This is a synthetic evaluator; do not provide collected credentials or
+private person data.
+
+* Metrics and interpretation
+- =exact_call=: perfectly matched aligned tool+argument calls divided by the
+  maximum length of each gold/prediction pair, aggregated across examples.
+- =tool_accuracy=: aligned tool identity matches divided by the same denominator.
+- =argument_accuracy=: perfectly matched arguments among aligned same-tool pairs.
+- =sequence_success=: fraction of traces with zero edit operations.
+- =edit_distance=: unit-cost insertions, deletions or substitutions. Same-tool
+  selector and field substitutions are tracked independently.
+
+These are syntactic trace-comparison metrics, not extraction, retrieval or browser
+execution measurements. An empty gold/prediction pair counts as sequence-exact,
+but contributes zero matching calls with a denominator of one. That convention is
+explicit rather than hiding a zero-division or silently inflating accuracy.
+
+* Failure experiments
+1. Remove the middle extraction call and verify the later extraction still aligns.
+2. Insert an extra navigation action and count exactly one insertion.
+3. Replace a field name while keeping the selector fixed; classify =wrong_field=.
+4. Change =follow_next= to =follow_detail=; classify =wrong_tool=.
+5. Compare reports generated from the same cases in different JSONL orders; their
+   bytes must be identical after canonical ordering.
+6. Introduce a 33-action prediction; ensure budget rejection, not a partial score.
+
+* Boundaries for later integration
+The companion benchmark generator/fixtures are separately reviewed. This module can
+consume their gold/predicted JSONL pairs when that integration is authorized; it
+never imports, re-uploads or repackages blocked prior implementation. A future
+acceptance suite should combine sequence diagnostics with independent extraction
+and cross-template leakage gates, and perform full book/EPUBCheck validation on an
+approved GitHub branch before any release claim.
