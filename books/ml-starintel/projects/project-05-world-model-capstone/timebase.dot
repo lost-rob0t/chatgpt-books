@@ -1,0 +1,15 @@
+digraph BK10Time {
+  graph [rankdir=LR, bgcolor="white", fontsize=12, label="BK10 unit-tick boundary / gated adapters", labelloc="t"];
+  node [shape=box, style=rounded, fontname="DejaVu Sans", fontsize=11];
+  obs [label="Frozen abstract count samples\nt=0:2, t=1:3, t=2:4"];
+  gate [label="Strict schema + contiguous ticks"];
+  state [label="Encoder revalidates\nas_of=2, delta=+1"];
+  candidates [label="Heuristic future at t=3\ncounts 4 / 5 / 6"];
+  tool [label="Static HTML allowlist\nstatus=scheduled"];
+  truth [label="Held-out count=6\nabsolute error=1"];
+  bk01 [label="BK01 60-second complete windows"];
+  bk06 [label="BK06 4-to-6 continuous trajectories"];
+  obs -> gate -> state -> candidates -> tool -> truth;
+  bk01 -> state [style=dashed, label="unimplemented time/provenance adapter"];
+  bk06 -> candidates [style=dashed, label="unimplemented shape/domain adapter"];
+}

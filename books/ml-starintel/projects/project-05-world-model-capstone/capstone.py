@@ -75,6 +75,9 @@ def validate_observations(raw: Any) -> list[dict[str, Any]]:
         t = _int(record["t"], "record.t", 0, MAX_OBSERVATIONS)
         if t <= last_time:
             raise ContractError("record: timestamps must be strictly increasing")
+        # Count differences are defined per contiguous unit tick.
+        if last_time >= 0 and t != last_time + 1:
+            raise ContractError("record: timestamps must be contiguous unit ticks")
         last_time = t
         if record["source"] != "synthetic-counter" or record["kind"] != "count":
             raise ContractError("record: unsupported source/kind")
@@ -83,6 +86,7 @@ def validate_observations(raw: Any) -> list[dict[str, Any]]:
 
 
 def encode_state(records: list[dict[str, Any]], *, observation_digest: str) -> dict[str, Any]:
+    validate_observations({"version": "bk10.observations.v0", "records": records})
     # Explicitly no learned parameters, prior future observations, or fitted state.
     latest, previous = records[-1], records[-2]
     return {

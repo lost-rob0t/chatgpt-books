@@ -8,9 +8,9 @@
 *TESTED LOCALLY: narrow, deterministic Python fixture witness; UNTESTED: learned
 world-model integration, StarIntel runtime adapter and final book export.* This
 checkpoint belongs to [[https://github.com/lost-rob0t/chatgpt-books/issues/152][issue #152]], not the final capstone. BK01--BK09 separately own
-their chapters/labs in issues #143--#151. There are no verified component
-implementation SHAs or stable executable interfaces in the recorded matrix
-([[file:dependencies.json][dependencies.json]]). Accordingly, this implementation intentionally uses a
+their chapters/labs in issues #143--#151. BK01, BK04, BK06, BK07 and BK08 have GitHub-App-verified *candidate source*
+commits, but no independently reviewed, exact-head-green integration interface
+([[file:dependencies.json][dependency matrix]]). Accordingly, this implementation intentionally uses a
 zero-trained deterministic baseline and fails closed for absent adapters.
 
 It demonstrates an *interface*, not simulated evidence of learned intelligence.
@@ -52,8 +52,7 @@ generated locally, not obtained from an image service.
 
 =fixtures/manifest.json= pins the exact SHA-256 of =observations.json=,
 =truth.json= and =status.html=. The program verifies bytes before parsing.
-Observation input is =bk10.observations.v0=, containing 2--256 strictly ordered
-integer-time rows with EXACTLY =document_id=, =t=, =source=, =kind= and =count=.
+Observation input is =bk10.observations.v0=, containing 2--256 contiguous unit-tick rows with EXACTLY =document_id=, =t=, =source=, =kind= and =count=.
 Only synthetic document identities (=synthetic:...=), the
 =synthetic-counter= source and =count= kind are accepted. No raw text, target,
 metadata extension or hypothetical next-count field is accepted in this

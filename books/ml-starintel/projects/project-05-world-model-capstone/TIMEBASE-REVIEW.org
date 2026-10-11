@@ -1,0 +1,107 @@
+#+title: BK10 integration checkpoint — unit-tick correctness and optional provider gates
+:PROPERTIES:
+:ID:       e47d2a4d-eb1b-5298-bb9c-4d649c1a985e
+:END:
+
+* Failure: increasing timestamps are not contiguous timestamps
+Issue [[https://github.com/lost-rob0t/chatgpt-books/issues/152][#152]] contains an executable zero-training capstone. Its baseline uses
+the last two counts as a per-tick delta, then predicts at =as_of+1=.
+Before this checkpoint =validate_observations= only enforced =t > previous_t=.
+Consequently input with t=0,1,3 was accepted, but the difference between t=1
+and t=3 was incorrectly treated as a one-tick change. The source is frozen
+synthetic aggregate counts, not a live event stream. Gaps must be rejected,
+not imputed as zeros or silently resampled.
+
+The correction enforces =t == previous_t + 1= for every adjacent pair while
+accepting any valid non-negative integer origin. The public =encode_state=
+entry point revalidates its rows so direct callers cannot bypass the gate.
+A malformed or partial BK01 window cannot be declared complete by this rule.
+
+#+begin_example
+obs t=0,count=2 -> t=1,count=3 -> t=2,count=4
+                      contiguous gate
+                             |
+                    state: as_of=2, delta=1
+                             |
+                   candidates t=3: 4,5,6
+                             |
+           independent allowlisted HTML extraction
+                             |
+               reveal held-out count=6
+#+end_example
+
+Editable diagram: [[file:timebase.dot][timebase.dot]]; render it with
+=dot -Tsvg timebase.dot -o timebase.svg=. Dashed diagram edges explicitly
+denote unimplemented BK01/BK06 adapters, not runtime integration.
+
+* Model and time-domain boundaries
+BK10 uses *abstract contiguous unit ticks*. No wall-clock origin, UTC offset,
+window completeness signal or event-level provenance is supplied. BK01's
+candidate binary filter expects complete aligned *60-second windows* with
+event-source identifiers. BK06's candidate diffusion example expects four
+continuous numeric observations and produces six continuous future readings.
+No lossless mapping is currently established. Converting a BK10 tick to
+seconds, padding a missing interval or fabricating an event source is forbidden
+by this integration contract.
+
+The frozen count witness still has a center=5 forecast and held-out count=6:
+=absolute_error=1= for *one synthetic case*. Its 250000/500000/250000
+scenario weights are hand assigned, not calibrated. This does not measure
+generalization, model uncertainty or operational detection quality.
+
+* Reproduce the red/green and regression boundaries
+Run in this project directory:
+
+#+begin_src sh
+python3 -m unittest -v test_capstone.py test_capstone_timebase.py test_dependency_matrix.py
+python3 run_toy.py
+dot -Tsvg timebase.dot -o timebase.svg
+#+end_src
+
+Against exact parent BK10 source blob
+=f45e31fed9f6fcedb1744d8404e8030a5d4c6b71=, the new timebase
+tests produced 4 failures out of 10 because malformed gaps passed the old
+validator. With the correction, the combined suite passes 30 tests: 14
+existing BK10 regressions, 10 timebase regressions, 6 matrix regressions.
+Local Python evidence does not imply full book, EPUBCheck or CI execution.
+
+* Optional component dependency matrix
+[[file:dependencies.json][dependencies.json]] freezes issue number, worker
+branch, exact observed commit and source blob, independent review state and
+exact-head-check state. Candidate implementations were observed at:
+- BK01 =679bd8f231dc76157fb3aaef06b54842d0f17c32=
+- BK04 =cf581464cea6167d9bd1983b19aedca961c74156=
+- BK06 =151ed124852be96aea45d3c26d37d1ec27452885=
+- BK07 =a947f50f2b9229c61bf58d147ff02f4dbaae9c0c=
+- BK08 =f83b7cc7267c2bf0fbbbad85ff3cb2bd5d2d5f1a=
+
+None has a reviewed versioned interface or verified terminal exact-head PR
+checks. BK02/BK03/BK05/BK09 have no independently verified current
+source-bearing implementation ahead of main. No candidate is integration ready.
+The matrix does *not* silently change =require_component= behavior.
+
+* CPU sizes and evaluation are different questions
+| Provider | Fitted state | Training effort | CPU inference driver | Same-fixture metric |
+|-
+| BK10 arithmetic | zero parameters | none | validation linear in number of rows; one-step O(1) | n=1 absolute error 1 |
+| BK01 binary filter | zero fitted parameters, fixed probabilities | none | forward pass per complete window | NOT RUN |
+| BK02 latent dynamics | size not verified | epochs x examples x transitions | rollout steps x transition | NOT RUN |
+| BK03/BK04 tiny LLM | model size unverified | tokens x attention/MLP backward passes | prefill plus token-by-token decode; cache RAM rises with context | NOT RUN |
+| BK05/BK06 trajectory diffusion | BK06 has toy residual mixture | examples x noise steps x denoiser training | reverse steps x sampled trajectories | NOT RUN on shared data |
+| BK07/BK08 tool calling | BK07 candidate policy; BK08 is an evaluator | DOM examples x model passes | DOM encoder + typed actions + independent executor | separate frozen HTML tasks |
+| BK09 metadata classifier | no verified implementation | labeled records x feature/classifier passes | features plus scoring | NOT RUN |
+
+Parameter count alone is not latency. Future experiment manifests must fix
+CPU, RAM, threads, precision, software versions, train/test separation, seed,
+artifact SHAs, sample counts, peak RSS, wall/CPU time, and task metrics
+before comparing alternatives. No invented model accuracy or CPU benchmark is
+promoted by this interface checkpoint.
+
+* Curriculum and acceptance
+Read provenance, time-availability and split chapters first (2--5), followed
+by classification/calibration (7--8), learned representations (11--12) and
+deployment/integration (18--20). See [[file:../../OUTLINE.org][outline]]
+and [[file:../../PROJECTS.org][the full project map]]. BK01--BK09 own their
+labs independently; this note does not rewrite or include their manuscripts.
+The final exported capstone remains dependency-gated until stable reviewed
+interfaces, native joint fixtures, full book and EPUB validation are real.
