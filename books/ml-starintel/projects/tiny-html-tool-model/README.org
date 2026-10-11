@@ -1,0 +1,137 @@
+#+title: Tiny HTML Tool-Calling Model — A CPU-Only Structured Policy Lab
+:PROPERTIES:
+:ID:       39d9e863-8ac1-4f1d-ac79-e43dc19acb63
+:END:
+
+* Scope and evidence
+This chapter is the BK07/#149 model lab for /Machine Learning for StarIntel/. The code is an original, deliberately small *structured linear sequence policy*, not a transformer, browser agent, production scraper, or pretrained LLM. It makes two local tool calls from a bounded DOM snapshot. All experiments operate on static HTML; the =follow= tool returns a relative link without requesting it. No private websites, authentication, remote calls, or StarIntel documents are involved.
+
+The included tests are deterministic local controls. Success on four hand-written training examples is an *in-sample sanity check*, not a held-out benchmark or a claim about general HTML. BK08/#150 owns offline page families, gold traces, template-leakage-safe splits, and independent benchmark results. BK07 accepts those records through a narrow JSONL boundary once that interface is finalized; it must not clone BK08's generator.
+
+* Why predict tool calls rather than scrape directly?
+For a narrow task, a model does not need to emit arbitrary code or HTML. It needs to select one admissible element and then choose an admissible operation. The constrained output vocabulary is:
+
+#+begin_src json
+[
+  {"tool": "select", "node": "n2"},
+  {"tool": "extract", "field": "text"}
+]
+#+end_src
+
+or:
+
+#+begin_src json
+[
+  {"tool": "select", "node": "n2"},
+  {"tool": "follow"}
+]
+#+end_src
+
+These are *local* handles assigned in DOM preorder. They are not persistent CSS selectors. This makes the first exercise easy to inspect: the reader can compare the compact DOM node table, the selected handle, the validated trace, and the returned value without network ambiguity. A future project may add CSS selector synthesis with independent tests. It must not confuse a preorder handle with a stable remote selector.
+
+* The boundary before the model
+=CompactDOM= uses Python's =html.parser.HTMLParser= to turn an input string into a bounded, inspectable list of nodes. Limits are 16,384 input characters, 128 elements, and 24 nested open elements. Each row includes its handle, tag, selected noncredential attributes, and a bounded normalized descendant-text preview. Script/style content does not become a candidate field. Malformed markup is tolerated where the parser can recover; limit violations fail closed.
+
+The candidate generator is deliberately *not learned*. It enumerates only actions the executor can fulfill: text/title/data-value extraction from an available node, or =follow= for a relative =href= on an anchor. An absolute URL, scheme-bearing href such as =javascript:=, unknown node, arbitrary attribute, extra JSON key, or invented tool name never becomes an executable prediction.
+
+#+begin_example
+static HTML string
+      |
+      v
+bounded CompactDOM -- preorder node handles, normalized text
+      |
+      v
+admissible (node, tool, field) candidates
+      |
+      v
+learned score: weight · feature(candidate, instruction)
+      |
+      v
+argmax with deterministic tie-breaking
+      |
+      v
+select + extract/follow JSON -> validator -> local executor
+#+end_example
+
+There are two independent gates. The *candidate generator* constrains what may be proposed; the *schema validator* checks the exact two-call structure again before execution. Validation does not assume the score function is correct. A learned model can select the wrong admissible element; a malformed/unadmitted call cannot be executed.
+
+* Derive the smallest supervised model
+Let a compact DOM and instruction form a context \(x\). The deterministic candidate set is \(C(x)\). For candidate \(c\) build a sparse feature vector \(\phi(x,c)\) containing tool and field identity, element tag, instruction/tool combinations, and overlap between instruction terms and visible element text or identifying hints.
+
+The model stores one integer weight per observed feature. Its prediction is:
+
+\[
+  \hat c = \operatorname*{argmax}_{c\in C(x)} w^{\mathsf T}\phi(x,c).
+\]
+
+For a supervised example with gold candidate \(c^*\), a perceptron update happens only on an error:
+
+\[
+  w \leftarrow w + \phi(x,c^*) - \phi(x,\hat c).
+\]
+
+No gradient library, GPU, pretrained weights, or stochastic network call is involved. Rows are shuffled using a local seeded PRNG, and candidate ties follow DOM/candidate order. The fit routine records errors per epoch so a student can detect nonconvergence rather than assuming that a training invocation proves learning.
+
+This model is expressive enough to learn useful tool/name associations from small offline controls, but it is *not* a language model. Tokens are normalized word features; there is no causal attention, positional embedding, text generation, or neural representation. That limitation is intentional here: you can explain every score and every mistake before replacing the ranker with a tiny transformer later.
+
+* A complete offline example
+Place each record on one JSONL line. A current BK07 model input row has four required keys:
+
+#+begin_src json
+{
+  "html": "<main><span>Ignored</span><span>Value</span></main>",
+  "instruction": "extract Value text",
+  "gold_calls": [
+    {"tool": "select", "node": "n2"},
+    {"tool": "extract", "field": "text"}
+  ],
+  "expected": "Value"
+}
+#+end_src
+
+=gold_calls= is evaluated by the same validator and local executor used for predictions. A row with an expected value inconsistent with its gold trace is rejected before training. This prevents a quietly corrupted label from looking like a legitimate learning difficulty.
+
+The example above is the BK07 *consumer contract*, not a claim that BK08 has adopted exactly these field names. The actual BK08 stable fixture adapter must be checked by commit SHA before cross-worker integration. BK07 will read its train/dev/test partitions without editing or regenerating them.
+
+Run from this lab directory with Python 3.11+:
+
+#+begin_src sh
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v test_tiny_html_policy.py
+PYTHONDONTWRITEBYTECODE=1 python3 tiny_html_policy.py \
+  --train /operator/offline/train.jsonl \
+  --evaluate /operator/offline/test.jsonl \
+  --epochs 20 --seed 7
+#+end_src
+
+The second command requires the operator to supply existing *local* JSONL files. It does not download or create the BK08 dataset. Its JSON report includes mistakes per epoch, number of nonzero weights, in-sample scores, and evaluation scores. A row limit of 1,000 and file-size limit of 2 MB prevent accidental unbounded ingestion in this teaching implementation.
+
+* Two metrics, two questions
+A strict /exact-call accuracy/ counts examples whose entire predicted two-call JSON structure equals the gold trace: same selected node, operation, and extraction field. /Extraction success/ executes the predicted admissible trace against the local DOM and compares the resulting value to =expected=. The latter can succeed even with a different, equivalent selector (for example a containing element with the same normalized text); that is not an exact call match.
+
+For \(N\) accepted evaluation examples:
+
+\[
+  \mathrm{ExactCall} = \frac{1}{N}\sum_{i=1}^{N} I(\hat{T}_i = T_i^*),
+  \qquad
+  \mathrm{Success} = \frac{1}{N}\sum_{i=1}^{N} I(E(x_i,\hat{T}_i)=v_i^*).
+\]
+
+An extra third metric, *sequence success*, is BK08's responsibility when a task spans multiple page states. Here =follow= stops at returning a relative href and has no page-navigation side effect. Calling this fixture a multi-page scraping success would be false.
+
+* Fault-injection and debugging exercises
+1. **Understanding:** Change =extract= to =follow= for an element without a local relative href. Explain which validation condition rejects the trace and why changing weights cannot override it.
+2. **Implementation:** Make two nodes contain the same text and force the model to select a container instead of its child. Compare exact-call and extraction-success scores. Explain why the metrics disagree.
+3. **Debugging:** Train with only card-style examples and evaluate on a table-style fixture held out by template family. Inspect candidate scores, element hints, and failure cases; do not combine the splits after seeing the result.
+4. **Advanced:** Replace the fixed two-call grammar with a finite-state decoder for bounded =select -> extract|follow -> stop= sequences; add parser tests to reject every unsupported transition before considering a neural decoder.
+5. **Systems:** Integrate BK08's gold-trace adapter after its schema is stable. Pin the BK08 commit, verify no template-family overlap, report exact-call and task metrics by page family, and measure CPU memory and inference latency on a named environment.
+
+* Limits and future integration
+This project has no side-effectful fetcher, private target data, provenance graph, or StarIntel 0.10.1 output adapter. A reader must not publish its local result as a canonical intelligence document. If that is added later, use the real generated Star Language contract and the authoritative ingestion client rather than inventing a wire schema.
+
+A pretrained/transformer upgrade may learn richer representations or variable-length action traces, but it must preserve the same hard candidate/grammar validator, offline split policy, and independently scored tool-execution success. An in-sample four-case fit does not justify such an upgrade by itself.
+
+* Integration status
+- BK07 model, validator, local executor, tests: *TESTED* in focused offline Python tests when their recorded command is available.
+- BK08 canonical fixture/split/benchmark consumption: *NOT YET INTEGRATED*; no BK08 fixture file is modified by this project.
+- Full ML-StarIntel book index inclusion and independent editorial review: *PENDING*; this dedicated file preserves existing book manuscript IDs and chapter ownership.
+- Live browsing, production extraction, StarIntel serialization: *NOT IMPLEMENTED* by design.
