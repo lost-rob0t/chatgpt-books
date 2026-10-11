@@ -1,0 +1,103 @@
+** LAB -- Tiny autoregressive inference: why the KV cache must be equivalent
+:PROPERTIES:
+:ID:       a920f91f-10fd-50b4-850b-693c9d8903a4
+:END:
+
+*Status: TESTED on a synthetic, untrained, single-head reference implementation; NOT YET TESTED against the BK03 trained tiny model.* This optional lab anticipates the later from-scratch LLM project. It does not replace BK03's tokenizer, training loop, weights, or model implementation.
+
+*** 1. What is being cached?
+
+In a decoder-only transformer, a generated token can attend to previous tokens but not future tokens. Given a query =q_t= and the keys and values from positions =0...t=, a single head produces
+
+\[
+ a_t = \operatorname{softmax}(q_t K_{0:t}^{T}/\sqrt{d_k}) V_{0:t}.
+\]
+
+The first time through, the model projects the prompt into queries, keys, and values. In the next decoding step, all *previous* keys and values can usually be reused instead of being projected again. The newly generated token supplies one new key and one new value for each attention layer. That is a KV cache. The full decoder architecture and causal attention originate in [cite:@vaswani2017attention]; the cache implementation here is a teaching reference, not a reproduction of a particular production implementation.
+
+#+begin_example
+Uncached step t:                Cached step t:
+  entire prefix                  new token
+    |                               |
+  Q, K, V for 0..t               new q_t, k_t, v_t
+    |                               |
+  causal attention              append to cached K,V
+    |                               |
+  last-position logits           last-position logits
+    |                               |
+  choose token                   choose token
+#+end_example
+
+The mathematical equivalence criterion is *not* simply that both paths produce plausible text. For each prompt prefix =P=, with the same model weights, attention mask, numerical precision and positional treatment, the full-recompute next-token logits should agree with the cached logits within a declared numerical tolerance. If the next-token logits diverge substantially, identical final text for a few prompts can conceal a bug.
+
+*** 2. A deliberately small but real causal attention head
+
+The source =projects/tiny-llm-inference/kv_cache.py= defines a deterministic, untrained one-head reference with vocabulary size 11 and head width 4. It computes token embeddings, separate query/key/value projections, scaled dot-product causal attention, and a vocabulary projection. Its full-prefix evaluator computes all positions' attention afresh; its incremental =step(token, cache)= computes only the new position and stores immutable keys and values. Both paths call the same attention and projection primitives to prevent unrelated numerical differences.
+
+The exercise intentionally excludes feedforward layers, layer normalization, position embeddings, grouped-query attention, rotary positions, batching and GPU kernels. These features matter in production, and an actual BK03 adapter must account for them rather than pretending this oracle implements a full transformer. Crucially, the public teaching interface is *only* the following; it does not require changes to BK03-owned files:
+
+#+begin_src python
+class PrefixModel(Protocol):
+    vocab_size: int
+    def full_logits(self, prefix: Sequence[int]) -> tuple[float, ...]: ...
+
+class CachedModel(PrefixModel, Protocol):
+    def empty_cache(self) -> KVCache: ...
+    def step(self, token: int, cache: KVCache) -> tuple[tuple[float, ...], KVCache]: ...
+#+end_src
+
+BK03 can later implement this protocol with its own tokenizer/model. A multilayer trained decoder will need layer-indexed KV cache state, not the single-head =KVCache= value object used in this oracle. Do not edit BK03 training sources to make the test pass: implement a separate inference adapter.
+
+*** 3. Computation, state and failure modes
+
+For =T= tokens and fixed head width =d=, a full single attention evaluation computes =O(T^2 d)= dot-product work for all causal positions. Repeating that *full evaluation* each next-token step can approach =O(T^3 d)= across a growing sequence. With cached previous K/V, each incremental position compares one query to =T= stored keys, =O(T d)= attention arithmetic per step and =O(T^2 d)= across a generated sequence. These are operation-count sketches; Python object overhead, projection costs, output-layer costs, cache copying, and prefill work must also be measured. The reference deliberately prioritizes inspectability over optimal buffer allocation.
+
+For conventional ungrouped multihead attention, logical cache payload is approximately
+
+\[
+ 2 \times L \times H \times T \times d_h \times b
+\]
+
+bytes for =L= layers, =H= key/value heads, =T= cached positions, =d_h= scalars per head, and =b= bytes per scalar. For grouped-query or multi-query attention, use the actual *KV head count*, not the query head count. Python tuple/object allocation and allocator overhead are not part of this equation. The =scalar_count= accessor reports logical scalars and does *not* pretend to measure resident memory.
+
+Three important failure modes are covered by executable assertions: (1) dropping prior K/V changes the attention result, (2) modifying a prior cache breaks branching and concurrent decoding, and (3) passing an invalid token, nonfinite logits, or cache with mismatched dimensions must fail clearly. For deterministic greedy sampling, equal logits choose the lowest token ID.
+
+*** 4. Run the conformance tests
+
+From the repository root (CPython 3.10+ with the standard library):
+
+#+begin_src sh
+python3 -m unittest discover \
+  -s books/ml-starintel/projects/tiny-llm-inference \
+  -p 'test_kv_cache.py' -v
+#+end_src
+
+The ten tests compare actual logits after every prefix, check several autoregressive decode traces, assert immutable-cache branching, and exercise invalid inputs. A deliberate mutation that replaces =cache.keys + (key,)= with =(key,)= triggers three failing tests; restoring the implementation yields 10/10 passing on the recorded run. This is a behavioral RED/GREEN test, not a static source-string assertion.
+
+*** 5. Run a matched-settings CPU benchmark
+
+#+begin_src sh
+python3 books/ml-starintel/projects/tiny-llm-inference/bench_kv_cache.py \
+  --prompt-length 12 --steps 24 --repeats 3
+#+end_src
+
+The script warms both code paths, asserts token-for-token equality, and reports the median wall-clock duration, generated-token throughput, and =tracemalloc= *Python-traced peak allocations* for both paths, plus every raw elapsed sample. The sequence length, output projection, sampling method, and generated-token count are identical. Cache prefill is included. Wall-clock timings depend on the process and machine, so rerun for a new CPU rather than copying the example figures.
+
+*Measured example (2026-10-11, process-local):* Linux 6.18.44 x86_64, Python 3.13.5, AMD EPYC 9V74 80-Core Processor as reported by =/proc/cpuinfo=, 5 logical CPUs reported to this process, 12-token prompt, 24 new tokens, 3 timed repetitions, greedy decoding; single untrained head, =width=4=, =vocab=11=. =perf_counter_ns= supplies durations; =tracemalloc= supplies Python-traced allocation peaks. These observations are not measured production transformer performance.
+
+| Full-prefix path | Median seconds | Median generated tokens/s | Median Python-traced peak bytes |
+|------------------+----------------+---------------------------+---------------------------------|
+| Uncached         |    0.076366426 |                     314.3 |                          277792 |
+| Cached           |    0.006351411 |                    3778.7 |                           27152 |
+
+The relative difference is attributable to the *particular toy reference and settings*; it does not justify extrapolating speedups to a multilayer trained model or different hardware. The measured JSON and the code's own counterexamples should be retained with benchmark provenance.
+
+*** 6. Exercises and acceptance boundary
+
+1. ★ Explain why the cache stores previous *keys and values* instead of recomputing all prior queries.
+2. ★★ Intentionally drop the older cached keys, confirm the behavioral regression fails, then restore the implementation.
+3. ★★ Write an adapter that implements the two public protocols for a BK03-defined tiny model without editing its training files. Verify full-prefix and cached logits to a tolerance appropriate for that model's dtype.
+4. ★★★ Extend the adapter to layer-indexed caches and positional encodings. Test prompts longer than the training context, cache reset, token-by-token mask consistency, and numerical differences under lower-precision arithmetic.
+5. ★★★ Measure output-token latency separately from prompt prefill, and compare memory with =tracemalloc= versus resident set size without treating them as equivalent quantities.
+
+*Next increment:* integrate the public BK03 inference interface, then add controlled float32/quantized-weight parity/error and constrained JSON grammar/parser rejection. None of those features is claimed by this single-head reference.

@@ -17,3 +17,5 @@
 #+include: "chapter-05.org"
 
 #+include: "chapter-06.org"
+
+#+include: "tiny-llm-kv-cache.org"
