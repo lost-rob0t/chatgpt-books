@@ -1,0 +1,70 @@
+#+title: HTML Tool Use: Metamorphic Fixture Quality Gates
+:PROPERTIES:
+:ID:       c40e5444-7928-5991-99b1-2474f9c65f7d
+:END:
+
+* Scope and provenance
+This BK08 lab belongs to [[file:../README.org][Machine Learning for StarIntel]] and
+issue [[https://github.com/lost-rob0t/chatgpt-books/issues/150][#150]]. It is a deterministic *offline* oracle test, not model training,
+web scraping, or evidence about model accuracy. The companion executor is
+[[file:../code/html-tool-benchmark/offline_html_trace_executor.py][offline_html_trace_executor.py]].
+
+* Why unchanged traces need changed HTML
+A selector model can pass while memorizing a template. Here, we perturb a
+static fixture's bytes without changing the selector's intended target,
+extraction value or same-origin navigation. An assertion verifies the actual
+output of the HTML parser rather than trusting a saved expected JSON object.
+
+Five synthetic source families are tested: tables, cards, pagination, detail
+pages, and malformed markup. For each family four strictly neutral decoration
+patterns and three non-random variant identifiers produce =5*4*3=, or *60*,
+executable gold invariants. The four decorations prepend/append an HTML
+comment or a =meta= element. Each changed page has a distinct SHA-256 digest.
+
+* What does not count as a model error?
+A negative control deliberately duplicates the first selected element's
+selector-identifying attributes. If the locator now matches two elements,
+our oracle reports =selector_ambiguous=. A silent first-match result would
+mean the *fixture* is invalid for deterministic gold evaluation, not that a
+candidate model made a mistake. There are five such collision controls.
+
+* Leakage policy
+The benchmark defines a single origin =source_family= for all variants.
+Every derivative retains its original family's split assignment. No structural
+variant is allowed to migrate independently to train/dev/test. For production
+experiments, enforce grouping at the template lineage level as well as the
+family level; a table template copied and cosmetically rewritten is not an
+independent test sample. The assignment in this lab is a *synthetic split
+control*, not a measured generalization result.
+
+* Run
+From the repository root, run:
+
+#+begin_src sh
+python3 books/ml-starintel/code/html-tool-benchmark/html_trace_perturbations.py --verify
+python3 -m unittest discover -s books/ml-starintel/code/html-tool-benchmark -p 'test_*.py'
+make book BOOK=ml-starintel
+make check BOOK=ml-starintel
+#+end_src
+
+The first command prints a stable one-line JSON report containing the number
+of passing neutral variants, number of detected selector collisions, and split
+assignment. No network access or credentials are required. The book commands
+require the repository build environment and must be marked NOT RUN until
+actually executed.
+
+* Debugging exercises
+1. ★ Explain why identical extraction JSON is insufficient if the source HTML
+   never changes. Confirm that each injected decoration changes the byte hash.
+2. ★★ Replace the ambiguity guard with first-match selection in a temporary
+   local copy and observe the collision-control failure. Restore the guard.
+3. ★★★ Add a new table template with different DOM structure. Prove that all
+   derivatives of its lineage remain in one partition. Avoid claiming a new
+   family-level model benchmark from this small constructed control.
+
+* Claims and limitations
+TESTED: these fixed, in-memory HTML cases execute without external HTTP,
+with the exact fixture bytes hashed and the oracle verifying selector
+uniqueness. The parser supports only the bounded selector subset described in
+the companion executor. UNTESTED: arbitrary browser HTML/CSS, model learning,
+live scraping, and generalization across independent real websites.

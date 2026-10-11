@@ -1,0 +1,177 @@
+#+title: ML-StarIntel Lab — Execute HTML Tool Traces Against Static Pages
+:PROPERTIES:
+:ID:       4ef7f306-74c4-5f72-8517-9918d8de64a6
+:END:
+
+* The evaluation trap
+A trace can look perfectly formatted and still return the wrong fact. A predicted
+=select(#card-title)= action may be syntactically valid while the actual static
+page contains a different selector. Comparing predicted and gold JSON alone
+cannot establish that a scraper extracted the correct value.
+
+This lab adds a *small, fully offline execution oracle*. It interprets a deliberately
+restricted HTML tool vocabulary against finite, byte-pinned synthetic documents.
+It does not call a browser, fetch a URL, train a model, run JavaScript, or pretend
+to implement the complete CSS specification. Its purpose is to make basic
+extraction and navigation outcomes falsifiable with reproducible tests.
+
+* Runnable deliverables
+The runnable code is [[file:../code/html-tool-benchmark/offline_html_trace_executor.py][offline_html_trace_executor.py]].
+The native regression suite is [[file:../code/html-tool-benchmark/test_offline_html_trace_executor.py][test_offline_html_trace_executor.py]].
+From the repository root, run:
+
+#+begin_src sh
+python3 -m unittest discover -s books/ml-starintel/code/html-tool-benchmark -p 'test_offline_html_trace_executor.py' -v
+python3 books/ml-starintel/code/html-tool-benchmark/offline_html_trace_executor.py --demo
+#+end_src
+
+For an external, *local* JSONL dataset whose records follow the documented
+schema, use:
+
+#+begin_src sh
+python3 books/ml-starintel/code/html-tool-benchmark/offline_html_trace_executor.py --evaluate static-pages.jsonl
+#+end_src
+
+No network is accessed by either command. The executable prints one sorted,
+compact JSON report with a terminal newline; repeated runs with unchanged bytes
+produce identical reports.
+
+* Static execution vocabulary
+Every action is a strict JSON object; extra keys are rejected rather than ignored.
+
+| Action | Required arguments | Result |
+|--------+--------------------+--------|
+| =select= | =selector= | Select exactly one element on the current page. |
+| =extract= | =field=, optional =attribute= | Copy bounded normalized text or a present attribute. |
+| =follow= | =kind= either =next= or =detail= | Follow the currently selected anchor to an allowlisted static page. |
+
+Selectors intentionally accept only =tag=, =#id=, =.class=, =tag#id=,
+=tag.class=, and =tag#id.class=. There are no descendant selectors, XPath,
+attribute-query operators, script evaluation, or implicit first-match behavior.
+Zero matches and multiple matches are *different typed failures*.
+
+A =follow= action does not accept a free-form URL argument. The destination
+comes from the chosen anchor's =href= and must be a relative or same-origin
+HTTPS fixture path. External hosts, HTTP, credentials, query strings, fragments,
+percent-encoded paths, traversal segments, malformed IPv6 hosts, and missing
+static destinations fail closed.
+
+** Example — detail navigation
+Given a starting document containing:
+
+#+begin_src html
+<a id="detail" href="item.html">Read details</a>
+#+end_src
+
+and a second document at =/details/item.html= containing:
+
+#+begin_src html
+<main><p class="label">Margaret</p></main>
+#+end_src
+
+the gold trace is:
+
+#+begin_src json
+[
+  {"op":"select","selector":"a#detail"},
+  {"op":"follow","kind":"detail"},
+  {"op":"select","selector":"p.label"},
+  {"op":"extract","field":"name"}
+]
+#+end_src
+
+Expected output: ={"name":"Margaret"}=. Expected visited page sequence:
+=/details/index.html=, =/details/item.html=. Each visited page also contributes
+a SHA-256 digest computed over its exact UTF-8 HTML bytes.
+
+* Cases and authoritative gold
+Each dataset row contains exactly =id=, =family=, =pages=, =start=,
+=gold_trace=, =candidate_trace=, =gold_extractions=, and =gold_visited=.
+A page inventory is a mapping from local absolute fixture paths to static HTML
+strings. The demonstration exercises five independent *case categories*:
+
+- Table cell extraction.
+- Card-like markup extraction.
+- Pagination to another static page.
+- Detail-page navigation.
+- Malformed but recoverable HTML.
+
+The oracle *first executes the gold trace*. If the supplied expected fields or
+page sequence contradict the HTML, the entire evaluation fails with
+=gold_mismatch=. This is intentional: bad labels must not become a model error.
+Only after validating gold does the oracle execute the candidate trace.
+
+* Metrics and diagnostic categories
+The per-example report distinguishes:
+
+- =exact_call_accuracy=: positional equality of entire action objects, divided
+  by the longer trace length (minimum one).
+- =tool_accuracy=: positional equality of action names under the same denominator.
+- =argument_accuracy=: fraction of argument objects matching exactly among
+  positionally aligned actions whose tool names agree (zero when none match).
+- =extraction_success=: exact agreement on every named output value after actual
+  static HTML execution.
+- =navigation_success=: exact agreement on the ordered visited-page sequence.
+- =sequence_success=: exact action-list equality *and* successful execution.
+
+The positional metrics are intentionally simple. They are *not* edit-alignment
+metrics, do not claim to handle insertions optimally, and should be studied beside
+the separate BK08 sequence-diagnostics component. The executable classifies
+=selector_zero=, =selector_ambiguous=, =invalid_action=, =missing_target=,
+=unsafe_navigation=, =parse_bounds=, =gold_mismatch=, and outcome/sequence
+mismatches. It reports exceptions as categories, never as invented extraction
+successes.
+
+* Boundedness and reproducibility
+The interpreter admits at most 32 pages, 64 KiB per page, 512 KiB total fixture
+HTML, 2,048 parsed elements per page, nesting depth 40, 96 actions per trace,
+24 output fields, and 128 evaluation examples. Extracted text is capped at
+2,048 UTF-8 bytes. Local JSONL files are limited to 2 MiB and symlinks are
+rejected. These are *lab budgets*, not empirically established production limits.
+
+The byte-exact SHA-256 page digests defend against accidentally evaluating a
+changed synthetic page against frozen gold. They do not make synthetic content
+an independent factual source. The evaluator also rejects duplicate example IDs
+and gold labels that disagree with actual HTML execution.
+
+* Native results — controlled demonstration
+:PROPERTIES:
+:TEST_STATUS: TESTED
+:END:
+
+On 2026-10-11, Python's native unittest runner executed *33 tests successfully*.
+The RED control exposed an uncaught =ValueError= for malformed IPv6 URL input;
+the corrected executor maps it to the typed =unsafe_navigation= result and the
+33-test suite passes. The deterministic five-family demo returns 4 successful
+extractions, 4 successful navigation sequences, and 4 exact successful action
+sequences out of 5 records. The remaining card example deliberately selects a
+missing ID and is classified as =selector_zero=. These are controlled fixture
+observations, *not* learned-model accuracy results.
+
+Full =make book BOOK=ml-starintel=, =make check BOOK=ml-starintel=, EPUBCheck,
+and hosted CI are NOT RUN for this standalone increment until it is integrated
+with the complete repository and a reviewable branch/PR. Pandoc Org rendering
+is an independent local format smoke test, not a substitute for those gates.
+
+* Exercises
+** ★ Detect a stale gold value
+Change one HTML text node in =demo_records()= without changing the expected
+=gold_extractions= field. Explain why execution halts with =gold_mismatch= rather
+than reporting a failed predicted model call.
+
+** ★★ Prove a navigation boundary
+Change the pagination anchor to =https://example.org/next= and the detail anchor
+to =../outside.html=. Add a regression proving both fail with
+=unsafe_navigation= and do not create a new page digest.
+
+** ★★★ Design a split-safe extension
+Design new fixture families while ensuring that literal HTML structures,
+template families, and derived near-duplicates do not leak across train/dev/test.
+Explain how an independent cross-split structural audit complements, rather
+than replaces, this page-execution oracle. Do not train on held-out family pages.
+
+* Next integration boundary
+Attach the static execution oracle to BK08 dataset/evaluation orchestration
+*after* a genuine reviewed integration point exists. Preserve the raw gold
+trace, exact HTML bytes, and metrics schema in the audit record. BK07 owns
+model/training/decoder code; this lab supplies only evaluation ground truth.
