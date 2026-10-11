@@ -1,0 +1,101 @@
+#+title: HTML Tool-Use Benchmark Lab: Preflight the Entire Fixture Inventory
+:PROPERTIES:
+:ID:       8e818c72-22fa-590c-8d9b-2b377ab9c121
+:END:
+
+* Purpose and status
+
+This lab is an original BK08 (#150) deterministic, offline test of the
+static HTML execution oracle.  It does not train a model, crawl a website,
+or establish real-world model accuracy.  The checks below test a fixture
+validation boundary; they are separate from BK07 (#149) model work.
+
+* Failure mechanism
+
+An HTML benchmark can include several pages but a particular gold trace
+visits only one.  Previously, the oracle verified the byte and inventory
+budgets for every page, yet parsed only pages reached through the trace.
+An *unvisited* second page with too many nodes or excess nesting remained
+undetected.  Thus two implementations could score the same gold trace while
+one contained an invalid hidden fixture page.  A different candidate trace
+could later encounter that invalid page, compromising comparisons.
+
+The deterministic RED control adds an unreachable page containing more than
+=MAX_NODES= elements, or nesting beyond =MAX_DEPTH=.  The original oracle
+returned a successful result for the valid trace rather than rejecting the
+invalid fixture inventory.  No HTTP request is involved.
+
+* Execution boundary
+
+The corrected oracle parses the entire static inventory once per =run_trace=
+invocation, applies the same parser node/depth budgets to each page, then
+reuses those parsed trees when the gold or candidate trace visits/revisits
+pages.  The traversal and exact SHA-256 report are still *visit-scoped*:
+unvisited pages must not appear in =visited= or =page_sha256=.  Structural
+preflight and observed page visits are different concepts.
+
+#+begin_example
+fixture inventory (all bounded pages)
+       |\
+       | +--> parse/validate page A --+--> cache tree A
+       | +--> parse/validate page B --+--> cache tree B
+       | +--> parse/validate page C --+--> cache tree C
+       |
+       +--> gold/candidate actions: select -> extract -> follow
+                                      |
+                                      +--> cached page tree
+                                      +--> observed visit/digest
+#+end_example
+
+The parser tolerates malformed HTML where its bounded rules permit; this
+preflight does not claim to be an HTML5 conformance validator.  Since the
+fixture inventory is already bounded to 32 pages and 512 KiB total HTML,
+preflight has a finite input budget.  It increases work for traces that
+visit few pages, while caching eliminates repeated parses of revisited pages.
+
+* Reproduce
+
+From the repository root, with Python 3 available:
+
+#+begin_src sh :eval never
+python -m unittest discover \
+  -s books/ml-starintel/code/html-tool-benchmark \
+  -p 'test_*.py' -v
+python books/ml-starintel/code/html-tool-benchmark/offline_html_trace_executor.py --demo
+python books/ml-starintel/code/html-tool-benchmark/html_trace_perturbations.py --verify
+#+end_src
+
+The dedicated =test_fixture_inventory_preflight.py= asserts rejection of
+unvisited node/depth bombs, rejection through =evaluate= (not just direct
+=run_trace=), one parse per page even with repeated navigation, unchanged
+valid extraction and navigation scores, stable page-order handling, and
+visit-scoped exact HTML digests.  The test is source-faithful: invalid
+unvisited pages were incorrectly accepted before the correction.
+
+* Interpret the evidence
+
+- A typed =parse_bounds= error for *any* invalid supplied page means the
+  fixture is rejected before a candidate score can be used.
+- Successful scores only describe already-bounded static fixtures; they do
+  not prove that a model learned any tool-selection behavior.
+- =page_sha256= is evidence for *visited* pages, not an export inventory or
+  a cryptographic signature of an entire corpus.
+- RED/GREEN native unit tests and standalone Pandoc rendering are separate
+  from the repository-wide =make book BOOK=ml-starintel=,
+  =make check BOOK=ml-starintel=, and official EPUBCheck gates.  Record
+  gates not actually executed as NOT RUN, not PASS.
+
+* Exercises
+
+1. ★ Explain why checking every HTML byte length is not equivalent to
+   checking every page's parser node/depth limits.
+2. ★★ Add a fixture with three pages and a gold trace that visits only
+   one.  Demonstrate that a deeply nested unused page fails with
+   =parse_bounds= but a normal unused page does not change the score.
+3. ★★ Extend the repeated-navigation test to return to the first page
+   twice, and instrument parser construction to prove each tree is parsed
+   exactly once per invocation.
+4. ★★★ Design an explicit *corpus-export* inventory digest separate from
+   the visit-scoped trace digests.  Explain why a digest cannot replace
+   this parser preflight and why changing candidate actions should not
+   alter the underlying fixture's identity.

@@ -186,8 +186,27 @@ def _validate_pages(pages: Any) -> dict[str, str]:
     return cleaned
 
 
+def _preflight_parsed_pages(prepared: dict[str, str]) -> dict[str, Element]:
+    """Parse and bound every supplied page, including pages no gold trace visits.
+
+    The resulting immutable-by-convention trees are reused on revisits. A bad
+    unvisited page must not be hidden by otherwise successful gold traces.
+    """
+    parsed: dict[str, Element] = {}
+    for path, html in prepared.items():
+        parser = BoundedParser()
+        try:
+            parser.feed(html)
+            parser.close()
+        except (RecursionError, OverflowError) as exc:
+            raise TraceFailure("parse_bounds", f"cannot parse bounded fixture page: {path}") from exc
+        parsed[path] = parser.root
+    return parsed
+
+
 def run_trace(pages: dict[str, str], start: str, actions: list[dict[str, Any]]) -> dict[str, Any]:
     prepared = _validate_pages(pages)
+    parsed = _preflight_parsed_pages(prepared)
     if not isinstance(actions, list) or len(actions) > MAX_ACTIONS:
         raise TraceFailure("invalid_action", "trace action budget exceeded")
     current = resolve_page(start)
@@ -203,13 +222,7 @@ def run_trace(pages: dict[str, str], start: str, actions: list[dict[str, Any]]) 
         if path not in digests:
             digests[path] = hashlib.sha256(prepared[path].encode("utf-8")).hexdigest()
         visited.append(path)
-        parser = BoundedParser()
-        try:
-            parser.feed(prepared[path])
-            parser.close()
-        except (RecursionError, OverflowError) as exc:
-            raise TraceFailure("parse_bounds", "cannot parse bounded HTML") from exc
-        return parser.root
+        return parsed[path]
 
     root = load(current)
     for index, action in enumerate(actions):
