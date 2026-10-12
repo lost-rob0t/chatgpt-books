@@ -127,7 +127,7 @@ class MultiLabelFailureDiagnosticsTests(unittest.TestCase):
 
     def test_baselines_report_primary_and_multilabel_counts_separately(self):
         report = run_bench(projected_partitions())
-        self.assertEqual(report["schema"], "bk08.heldout-node-baselines/v4")
+        self.assertEqual(report["schema"], "bk08.heldout-node-baselines/v5")
         for method in report["baselines"].values():
             for split in method.values():
                 self.assertEqual(sum(split["failure_counts"].values()), split["samples"])
@@ -142,7 +142,7 @@ class MultiLabelFailureDiagnosticsTests(unittest.TestCase):
         cases = (
             ("offline_html_trace_executor.py", "schema", "bk08.static-html-execution/v4"),
             ("html_template_split_audit.py", "audit", "bk08.template-held-out/v4"),
-            ("html_heldout_baselines.py", "report", "bk08.heldout-node-baselines/v4"),
+            ("html_heldout_baselines.py", "report", "bk08.heldout-node-baselines/v5"),
         )
         for filename, key, version in cases:
             with self.subTest(script=filename):

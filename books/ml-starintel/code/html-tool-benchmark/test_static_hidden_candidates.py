@@ -84,7 +84,7 @@ class StaticHiddenCandidateTests(unittest.TestCase):
     def test_existing_heldout_report_still_evaluates_all_families(self):
         report = run_bench(projected_partitions())
         self.assertEqual(report["audit"]["samples"], 60)
-        self.assertEqual(report["schema"], "bk08.heldout-node-baselines/v4")
+        self.assertEqual(report["schema"], "bk08.heldout-node-baselines/v5")
         for method in report["baselines"].values():
             self.assertEqual(sum(report_row["samples"] for report_row in method.values()), 60)
 
@@ -94,7 +94,7 @@ class StaticHiddenCandidateTests(unittest.TestCase):
         first = subprocess.run(command, capture_output=True, check=True).stdout
         second = subprocess.run(command, capture_output=True, check=True).stdout
         self.assertEqual(first, second)
-        self.assertEqual(json.loads(first)["report"]["schema"], "bk08.heldout-node-baselines/v4")
+        self.assertEqual(json.loads(first)["report"]["schema"], "bk08.heldout-node-baselines/v5")
 
 
 if __name__ == "__main__":

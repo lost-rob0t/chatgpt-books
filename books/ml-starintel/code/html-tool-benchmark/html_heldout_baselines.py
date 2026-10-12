@@ -224,14 +224,56 @@ def _predict(view: dict[str, Any], field: str, weights: dict[str, float] | None,
     return trace + [{"op": "select", "selector": "#navigation_budget_exhausted"}]
 
 
+
+PAIRED_SUCCESS_METRICS = ("extraction_success", "navigation_success", "sequence_success")
+
+
+def _paired_counts(heuristic_cases: list[dict[str, Any]],
+                   ranker_cases: list[dict[str, Any]], metric: str) -> dict[str, int]:
+    """Compare exact matched IDs, never independently averaged split scores.
+
+    Outcomes must be binary. This is descriptive paired evidence over fixture
+    variants; no statistical independence or web generalization is implied.
+    """
+    if metric not in PAIRED_SUCCESS_METRICS:
+        raise TraceFailure("invalid_record", "unsupported paired success metric")
+
+    def index(cases: list[dict[str, Any]]) -> dict[str, int]:
+        if not isinstance(cases, list) or not cases:
+            raise TraceFailure("invalid_record", "paired report needs scored examples")
+        result: dict[str, int] = {}
+        for case in cases:
+            if not isinstance(case, dict) or not isinstance(case.get("id"), str):
+                raise TraceFailure("invalid_record", "paired report requires example IDs")
+            id_ = case["id"]
+            outcome = case.get(metric)
+            if not id_ or id_ in result or type(outcome) is not int or outcome not in (0, 1):
+                raise TraceFailure("invalid_record", "duplicate ID or nonbinary scored outcome")
+            result[id_] = outcome
+        return result
+
+    heuristic = index(heuristic_cases)
+    ranker = index(ranker_cases)
+    if heuristic.keys() != ranker.keys():
+        raise TraceFailure("invalid_record", "paired methods scored different IDs")
+    counts = {"both": 0, "heuristic_only": 0, "ranker_only": 0, "neither": 0}
+    for id_ in sorted(heuristic):
+        left, right = heuristic[id_], ranker[id_]
+        bucket = ("both" if left and right else "heuristic_only" if left else
+                  "ranker_only" if right else "neither")
+        counts[bucket] += 1
+    return counts
+
 def run_bench(partitions: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
     """Leakage/gold audit FIRST; predictions receive no held-out labels."""
     evidence = audit_and_evaluate(partitions)
     ranker = TrainOnlyNodeRanker(partitions["train"])
     field = _field(partitions["train"])
     scored: dict[str, Any] = {}
+    scored_cases: dict[str, dict[str, list[dict[str, Any]]]] = {}
     for method in ("static_heuristic", "train_only_node_ranker"):
         split_reports: dict[str, Any] = {}
+        method_cases: dict[str, list[dict[str, Any]]] = {}
         for part in SPLITS:
             derived = []
             for source in partitions[part]:
@@ -241,17 +283,29 @@ def run_bench(partitions: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
                                           if method == "static_heuristic" else ranker.predict(view))
                 derived.append(row)
             report = evaluate(derived)
+            method_cases[part] = report["cases"]
             failures = Counter(case["failure"] or "none" for case in report["cases"])
             split_reports[part] = {"samples": report["samples"], "metrics": report["metrics"],
                                    "failure_counts": dict(sorted(failures.items())),
                                    "failure_reason_counts": report["failure_reason_counts"]}
         scored[method] = split_reports
+        scored_cases[method] = method_cases
+    paired_outcomes: dict[str, Any] = {}
+    for part in SPLITS:
+        heuristic_cases = scored_cases["static_heuristic"][part]
+        ranker_cases = scored_cases["train_only_node_ranker"][part]
+        paired_outcomes[part] = {
+            "samples": len(heuristic_cases),
+            **{metric: _paired_counts(heuristic_cases, ranker_cases, metric)
+               for metric in PAIRED_SUCCESS_METRICS},
+        }
     return {
-        "schema": "bk08.heldout-node-baselines/v4",
+        "schema": "bk08.heldout-node-baselines/v5",
         "audit": {key: evidence[key] for key in ("samples", "templates", "family_count", "template_reuse_count")},
         "ranker_fit": {"train_examples": ranker.trained_examples, "train_families": ranker.trained_families,
                        "feature_count": len(ranker.weights)},
         "baselines": scored,
+        "paired_outcomes": paired_outcomes,
     }
 
 

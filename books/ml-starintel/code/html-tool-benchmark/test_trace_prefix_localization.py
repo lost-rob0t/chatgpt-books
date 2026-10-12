@@ -121,7 +121,7 @@ class TracePrefixLocalizationTests(unittest.TestCase):
 
     def test_train_only_baselines_emit_metric_without_extra_labels(self):
         output = run_bench(projected_partitions())
-        self.assertEqual(output["schema"], "bk08.heldout-node-baselines/v4")
+        self.assertEqual(output["schema"], "bk08.heldout-node-baselines/v5")
         self.assertEqual(output["ranker_fit"]["train_examples"], 24)
         for method in output["baselines"].values():
             for partition in method.values():

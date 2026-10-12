@@ -1,0 +1,74 @@
+#+title: Paired evaluation of two offline HTML baselines
+:PROPERTIES:
+:ID:       110e2cc5-e924-5f00-a750-be12f0e84be5
+:END:
+
+* The comparison must use the same records
+A mean score for each predictor cannot establish *which* examples they
+both solved or failed. For paired evaluation we need exact ID alignment.
+For each example define two binary outcomes: H for the static heuristic and
+R for the train-only node ranker. One split's 2×2 contingency table is:
+
+|                | Ranker succeeds | Ranker fails |
+|----------------+-----------------+--------------|
+| Heuristic succeeds | both            | heuristic_only |
+| Heuristic fails | ranker_only     | neither |
+
+Here =both= means both predictors succeed; =neither= means both fail.
+The four cells sum to the split's example count. The heuristic marginal is
+=(both+heuristic_only)/N=; ranker's is =(both+ranker_only)/N=. Matching
+marginals do *not* imply agreement. For example, two predictors can each
+solve half the examples but have zero jointly solved examples.
+
+* What the offline code actually measures
+- [[file:../code/html-tool-benchmark/html_heldout_baselines.py][html_heldout_baselines.py]] audits family and template assignments and verifies gold traces *before* scoring.
+- Each predictor receives only =id=, =family=, =pages=, =start=; neither gets the held-out gold calls, extracted strings, or visited-page labels.
+- The scorer evaluates *identical example IDs* separately for each predictor.
+- =paired_outcomes= contains one contingency table per split and per binary
+  metric: =extraction_success=, =navigation_success=, and =sequence_success=.
+- Mismatched/duplicated IDs, missing outcomes, and nonbinary values are
+  =invalid_record=, not silently treated as failures. All established mean
+  metrics and typed failure summaries remain present.
+
+The schema for this new report is =bk08.heldout-node-baselines/v5=. This is
+an *offline descriptive* paired comparison, not a confidence interval,
+significance test, production scraper accuracy estimate, or independence
+claim. The demonstration's 60 observations are synthetic variants of five
+prototypes and must not be presented as 60 independent websites.
+
+* Reproduce the run
+From the repository root with Python installed:
+
+#+begin_src sh
+python3 books/ml-starintel/code/html-tool-benchmark/html_heldout_baselines.py --demo
+python3 -m unittest discover -s books/ml-starintel/code/html-tool-benchmark -p 'test_*.py'
+#+end_src
+
+The same script accepts =--train TRAIN.jsonl --dev DEV.jsonl --test
+TEST.jsonl=. Offline fixtures are mandatory; the tool does not fetch URLs.
+The runnable paired assertions are in
+[[file:../code/html-tool-benchmark/test_paired_baseline_outcomes.py][test_paired_baseline_outcomes.py]].
+
+* Inspect disagreement before declaring a winner
+For each split and each metric, compare both marginals with the four paired
+cells. If =heuristic_only= is high, review the exact examples where the
+train-only ranker failed; if =ranker_only= is high, inspect the reverse.
+Large =neither= means both approaches need work, not that they agree on a
+correct action. Because extraction, navigation and sequence success are
+independent requirements, their three paired tables must stay separate.
+
+* Failure lab and exercises
+1. Construct H=[1,0,1,0] and R=[0,1,0,1]. Check equal 50% marginals
+   alongside zero jointly solved cases and four disagreements.
+2. Permute the ranker result order while retaining IDs; the matrix must be
+   unchanged. Remove or duplicate an ID; the evaluator must fail closed.
+3. Change a held-out fixture to copy a training page with a new =family=;
+   the template auditor must reject it *before* producing any comparison.
+4. Run both =--demo= invocations and compare bytes. Avoid interpreting
+   these correlated synthetic variants as a real-web performance sample.
+
+* Evidence and scope
+This lab supplies deterministic synthetic checks only. No external model,
+network browser, live website, confidence calibration, or third-party
+benchmark has been executed. Full production-book build and official
+EPUBCheck must be reported independently from standalone Pandoc validation.
