@@ -98,7 +98,7 @@ def audit_and_evaluate(partitions: dict[str, list[dict[str, Any]]]) -> dict[str,
         per_split[split] = {"samples": measured["samples"], "metrics": measured["metrics"],
                             "failure_reason_counts": measured["failure_reason_counts"]}
     evidence = {
-        "schema": "bk08.template-held-out/v3",
+        "schema": "bk08.template-held-out/v4",
         "samples": len(ids),
         "templates": len(template_examples),
         "family_count": len({value for kind, value in owners if kind == "family"}),

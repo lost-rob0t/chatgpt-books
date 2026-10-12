@@ -1,0 +1,139 @@
+#+title: BK08 Lab — Locate the First Incorrect Tool Action
+:PROPERTIES:
+:ID:       66ef166e-c7fd-5f17-832e-4d812d580a81
+:END:
+
+* Why the first divergence matters
+
+Suppose two static HTML scraper traces each contain two actions. One trace
+gets the first selection wrong but matches the second action; the other gets
+the selection right but changes the extraction field. Each has exactly one
+matching action at the correct index, so the existing =exact_call_accuracy=
+for both is =0.5=. Their error locations are nevertheless different.
+
+The benchmark now exposes two *additional* diagnostics:
+
+- =first_divergence_index=: the zero-based index of the first exact action
+  mismatch; =null= only when the complete gold and candidate traces match.
+- =gold_prefix_fraction=: the length of the identical initial action prefix
+  divided by =max(len(gold_trace), 1)=, aggregated as a per-example mean.
+
+This does not replace exact calls, argument accuracy, field-value precision,
+execution success, navigation success, sequence success, or the typed failure
+reasons. Unlike an aggregate exact-call count, the prefix score says *how
+far* a candidate agreed with the expected sequence before its first change.
+
+* Derive the formula without a model
+
+Let =g= be the authoritative gold action list and =c= the candidate. Define
+=P= as the largest integer for which all action dictionaries at indices
+=0 .. P-1= are equal and in order. Equivalently, compare pairs from the
+start and stop at the first inequality or the end of either list.
+
+#+begin_example
+P = length(longest_common_prefix(g, c))
+gold_prefix_fraction = P / max(length(g), 1)
+first_divergence_index = null if g == c else P
+#+end_example
+
+For =g=[select(#id),extract(name)]=, consider these controlled cases:
+
+| Candidate | Exact call | Gold prefix | First divergence |
+|-----------+------------+-------------+------------------|
+| =[select(#id),extract(name)]= | 1.0 | 1.0 | null |
+| =[select(#wrong),extract(name)]= | 0.5 | 0.0 | 0 |
+| =[select(#id),extract(other)]= | 0.5 | 0.5 | 1 |
+| =[select(#id)]= | 0.5 | 0.5 | 1 |
+| =[select(#id),extract(name),select(#id)]= | 0.666667 | 1.0 | 2 |
+
+The last case is important: a complete *gold prefix* does not imply an exact
+successful trace. The extra action makes =sequence_success= zero. Likewise,
+a candidate that executes an invalid operation after a correct prefix still
+fails with its directly observed typed =TraceFailure=; the prefix merely
+localizes the syntactic divergence. It never reclassifies invalid execution
+as successful extraction.
+
+* Run the authoritative offline evaluation
+
+From =books/ml-starintel/code/html-tool-benchmark= execute the native tests:
+
+#+begin_src sh :results output :exports both
+python -m unittest -v test_trace_prefix_localization
+python -m unittest discover -p 'test_*.py'
+python html_trace_perturbations.py --verify
+#+end_src
+
+The scorer runs both traces against frozen static HTML. The following code
+constructs two adversarial candidates with equal exact-call accuracy, then
+prints the observed first divergence. No network, scraper, LLM, or trained
+model participates.
+
+#+begin_src python :results output :exports both
+from copy import deepcopy
+from offline_html_trace_executor import demo_records, evaluate
+
+original = next(row for row in demo_records() if row["family"] == "tables")
+early, late = deepcopy(original), deepcopy(original)
+early["candidate_trace"][0]["selector"] = "#missing"
+late["candidate_trace"][1]["field"] = "other"
+
+for row in (early, late):
+    case = evaluate([row])["cases"][0]
+    print(case["exact_call_accuracy"],
+          case["gold_prefix_fraction"],
+          case["first_divergence_index"], case["failure"])
+#+end_src
+
+Expected synthetic evidence: the two exact-call scores are both =0.5=,
+while prefix fractions are =0.0= and =0.5= and divergence indices are =0=
+and =1=. The complete tests assert these relationships against the actual
+executor rather than accepting this narrative as proof.
+
+* Propagation through held-out evaluation
+
+The common oracle emits the per-case divergence index and aggregates the
+prefix fraction. The existing leak-checking split auditor forwards the
+metric into train/dev/test only after executing and validating the gold
+reference and checking family/template overlap. The heuristic and train-only
+node ranker continue to receive only the four-field unlabeled observation;
+no held-out gold fields reach those predictors. Neither model weights nor
+fixture templates change in this increment.
+
+The public JSON report shapes change, so each owner-controlled schema
+version advances from =v3= to =v4= together:
+
+| Reporter | Version | Metric surface |
+|----------+---------+----------------|
+| =bk08.static-html-execution= | =v4= | case + aggregate |
+| =bk08.template-held-out= | =v4= | split aggregate |
+| =bk08.heldout-node-baselines= | =v4= | method/split aggregate |
+
+The original =argument_accuracy= still means accuracy *conditional on action
+kind matching at an aligned position*. The existing =exact_call_accuracy=
+still counts matching positions across the maximum gold/candidate length.
+The new prefix metric is deliberately different: a later correct action
+cannot compensate for an earlier divergence.
+
+* Debugging exercises
+
+1. Construct a four-operation paginated trace and alter only its third
+   selector. Compute both =exact_call_accuracy= and =gold_prefix_fraction=.
+2. Swap two adjacent actions and compare the prefix score with an unordered
+   bag-of-actions match. Why is the latter inappropriate for tool execution?
+3. Append a redundant but valid selection after a complete gold trace.
+   Explain why the prefix fraction remains =1= while sequence success is =0=.
+4. Make the operation after a correct prefix invalid. Verify that
+   =failure_reasons= contains the typed error only, not inferred downstream
+   mismatches based on discarded partial results.
+5. Run all three =--demo= entry points twice and compare their exact stdout
+   bytes. Then intentionally clone an HTML template across held-out splits;
+   check that leakage rejection happens before any split metrics are reported.
+
+* Evidence boundary
+
+The examples are synthetic. Native tests and Pandoc standalone export were
+run on a byte-identical snapshot of the published BK08 modules with this
+original change applied. No web traffic, live model, training experiment,
+production accuracy study, complete book build, or official EPUBCheck result
+is implied. A successful local EPUB container/XML parse is not a substitute
+for the book's formal EPUBCheck acceptance gate.

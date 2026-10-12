@@ -301,6 +301,16 @@ def evaluate(records: list[dict[str, Any]]) -> dict[str, Any]:
             actual = {"extractions": {}, "visited": [], "page_sha256": {}}
         denominator = max(len(gold), len(candidate), 1)
         exact = sum(left == right for left, right in zip(gold, candidate)) / denominator
+        # Distinguish an early divergence from a late one even when the
+        # position-wise exact-call count is identical. This is a syntactic
+        # gold-prefix diagnostic, not evidence that an invalid trace executed.
+        prefix_length = 0
+        for left, right in zip(gold, candidate):
+            if left != right:
+                break
+            prefix_length += 1
+        first_divergence_index = None if gold == candidate else prefix_length
+        gold_prefix_fraction = prefix_length / max(len(gold), 1)
         matching_ops = [(left, right) for left, right in zip(gold, candidate)
                         if isinstance(left, dict) and isinstance(right, dict)
                         and left.get("op") == right.get("op")]
@@ -340,6 +350,8 @@ def evaluate(records: list[dict[str, Any]]) -> dict[str, Any]:
             failure = failure_reasons[0]
         items.append({"id": id_, "family": family, "exact_call_accuracy": round(exact, 6),
                       "tool_accuracy": round(same_op, 6), "argument_accuracy": round(argument_accuracy, 6),
+                      "gold_prefix_fraction": round(gold_prefix_fraction, 6),
+                      "first_divergence_index": first_divergence_index,
                       "extraction_success": extraction,
                       "field_value_precision": round(field_precision, 6),
                       "field_value_recall": round(field_recall, 6),
@@ -347,12 +359,12 @@ def evaluate(records: list[dict[str, Any]]) -> dict[str, Any]:
                       "navigation_success": navigation, "sequence_success": sequence,
                       "failure": failure, "failure_reasons": failure_reasons,
                       "observed": actual})
-    keys = ("exact_call_accuracy", "tool_accuracy", "argument_accuracy", "extraction_success",
+    keys = ("exact_call_accuracy", "tool_accuracy", "argument_accuracy", "gold_prefix_fraction", "extraction_success",
             "field_value_precision", "field_value_recall", "field_value_f1",
             "navigation_success", "sequence_success")
     metrics = {key: round(sum(x[key] for x in items) / len(items), 6) for key in keys}
     reasons = Counter(code for case in items for code in case["failure_reasons"])
-    return {"schema": "bk08.static-html-execution/v3", "samples": len(items),
+    return {"schema": "bk08.static-html-execution/v4", "samples": len(items),
             "metrics": metrics, "failure_reason_counts": dict(sorted(reasons.items())),
             "cases": items}
 

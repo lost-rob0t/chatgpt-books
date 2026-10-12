@@ -247,7 +247,7 @@ def run_bench(partitions: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
                                    "failure_reason_counts": report["failure_reason_counts"]}
         scored[method] = split_reports
     return {
-        "schema": "bk08.heldout-node-baselines/v3",
+        "schema": "bk08.heldout-node-baselines/v4",
         "audit": {key: evidence[key] for key in ("samples", "templates", "family_count", "template_reuse_count")},
         "ranker_fit": {"train_examples": ranker.trained_examples, "train_families": ranker.trained_families,
                        "feature_count": len(ranker.weights)},

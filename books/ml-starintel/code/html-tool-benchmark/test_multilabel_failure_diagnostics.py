@@ -112,7 +112,7 @@ class MultiLabelFailureDiagnosticsTests(unittest.TestCase):
 
     def test_report_schema_and_prior_metrics_are_preserved(self):
         result = evaluate(demo_records())
-        self.assertEqual(result["schema"], "bk08.static-html-execution/v3")
+        self.assertEqual(result["schema"], "bk08.static-html-execution/v4")
         self.assertEqual(result["metrics"]["extraction_success"], .8)
         self.assertEqual(result["metrics"]["field_value_f1"], .8)
         self.assertEqual(result["metrics"]["sequence_success"], .8)
@@ -120,14 +120,14 @@ class MultiLabelFailureDiagnosticsTests(unittest.TestCase):
 
     def test_cross_split_audit_exposes_reason_counts_after_leakage_gate(self):
         report = audit_and_evaluate(demo_partitions())
-        self.assertEqual(report["schema"], "bk08.template-held-out/v3")
+        self.assertEqual(report["schema"], "bk08.template-held-out/v4")
         self.assertEqual(report["splits"]["train"]["failure_reason_counts"], {})
         self.assertEqual(report["splits"]["dev"]["failure_reason_counts"], {"selector_zero": 1})
         self.assertEqual(report["splits"]["test"]["failure_reason_counts"], {})
 
     def test_baselines_report_primary_and_multilabel_counts_separately(self):
         report = run_bench(projected_partitions())
-        self.assertEqual(report["schema"], "bk08.heldout-node-baselines/v3")
+        self.assertEqual(report["schema"], "bk08.heldout-node-baselines/v4")
         for method in report["baselines"].values():
             for split in method.values():
                 self.assertEqual(sum(split["failure_counts"].values()), split["samples"])
@@ -140,9 +140,9 @@ class MultiLabelFailureDiagnosticsTests(unittest.TestCase):
     def test_all_three_demo_clis_are_deterministic_and_versioned(self):
         here = Path(__file__).resolve().parent
         cases = (
-            ("offline_html_trace_executor.py", "schema", "bk08.static-html-execution/v3"),
-            ("html_template_split_audit.py", "audit", "bk08.template-held-out/v3"),
-            ("html_heldout_baselines.py", "report", "bk08.heldout-node-baselines/v3"),
+            ("offline_html_trace_executor.py", "schema", "bk08.static-html-execution/v4"),
+            ("html_template_split_audit.py", "audit", "bk08.template-held-out/v4"),
+            ("html_heldout_baselines.py", "report", "bk08.heldout-node-baselines/v4"),
         )
         for filename, key, version in cases:
             with self.subTest(script=filename):
