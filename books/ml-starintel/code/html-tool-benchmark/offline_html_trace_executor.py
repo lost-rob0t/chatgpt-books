@@ -104,38 +104,53 @@ class BoundedParser(HTMLParser):
             self.stack[-1].children.append(data)
 
 
-def _bounded_selector(selector: Any) -> tuple[str | None, str | None, str | None]:
+MAX_SELECTOR_CLASSES = 3
+
+
+def _bounded_selector(selector: Any) -> tuple[str | None, str | None, tuple[str, ...]]:
+    """Parse one bounded compound selector: optional tag, ID, and 0..3 classes.
+
+    ID and class components may appear in either order, as in ordinary CSS.
+    Combinators, attribute expressions, pseudo-classes and selector lists
+    remain unsupported; this is not a browser CSS parser.
+    """
     if not isinstance(selector, str) or len(selector) > 160 or not selector:
         raise TraceFailure("invalid_action", "selector missing or oversized")
     rest = selector
-    tag = id_part = class_part = None
+    tag = id_part = None
+    classes: list[str] = []
     match = TAG_RE.match(rest)
     if match:
         tag, rest = match.group(), rest[match.end():]
-    if rest.startswith("#"):
-        match = ID_RE.match(rest[1:])
-        if not match:
-            raise TraceFailure("invalid_action", "invalid ID selector")
-        id_part, rest = match.group(), rest[match.end() + 1:]
-    if rest.startswith("."):
-        match = CLASS_RE.match(rest[1:])
-        if not match:
-            raise TraceFailure("invalid_action", "invalid class selector")
-        class_part, rest = match.group(), rest[match.end() + 1:]
-    if rest or not (tag or id_part or class_part):
+    while rest:
+        if rest.startswith("#") and id_part is None:
+            match = ID_RE.match(rest[1:])
+            if not match:
+                raise TraceFailure("invalid_action", "invalid ID selector")
+            id_part, rest = match.group(), rest[match.end() + 1:]
+        elif rest.startswith(".") and len(classes) < MAX_SELECTOR_CLASSES:
+            match = CLASS_RE.match(rest[1:])
+            if not match:
+                raise TraceFailure("invalid_action", "invalid class selector")
+            classes.append(match.group())
+            rest = rest[match.end() + 1:]
+        else:
+            raise TraceFailure("invalid_action", "unsupported or over-budget selector syntax")
+    if not (tag or id_part or classes):
         raise TraceFailure("invalid_action", "unsupported selector syntax")
-    return tag, id_part, class_part
+    return tag, id_part, tuple(classes)
 
 
 def select_one(root: Element, selector: Any) -> Element:
-    tag, id_part, class_part = _bounded_selector(selector)
+    tag, id_part, classes = _bounded_selector(selector)
     found: Element | None = None
     stack = [root]
     while stack:
         node = stack.pop()
         if node is not root and (tag is None or node.tag == tag):
-            if (id_part is None or node.attrs.get("id") == id_part) and (
-                class_part is None or class_part in node.attrs.get("class", "").split()
+            node_classes = node.attrs.get("class", "").split()
+            if (id_part is None or node.attrs.get("id") == id_part) and all(
+                class_name in node_classes for class_name in classes
             ):
                 if found is not None:
                     raise TraceFailure("selector_ambiguous", str(selector))

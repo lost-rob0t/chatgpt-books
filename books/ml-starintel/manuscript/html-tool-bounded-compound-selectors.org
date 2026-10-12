@@ -1,0 +1,121 @@
+#+title: BK08 Lab — Bounded Compound Selectors in Static HTML
+:PROPERTIES:
+:ID:       27057bf9-a2e9-44f6-a3b8-57d06a9f6d0b
+:END:
+
+* The selection language is not a browser CSS engine
+
+The static HTML benchmark deliberately runs without a browser, HTTP client,
+JavaScript interpreter, or online model. Gold actions use a *small explicit*
+selector language interpreted by =select_one= in
+=file:../code/html-tool-benchmark/offline_html_trace_executor.py=.
+
+An earlier subset accepted =tag#id.class= but rejected the otherwise
+identical CSS compound =tag.class#id=. That asymmetry made legitimate
+fixture traces fail with =invalid_action= for reasons unrelated to extraction.
+Also, classes could not be intersected: =div.person.selected= was rejected,
+although both class tokens appear together on an ordinary HTML element.
+
+This lab extends the selector subset *without* adding selectors with
+combinators, predicates, dynamic state, external navigation, or JavaScript.
+The extension is tested against the actual bounded parser, selection engine,
+evaluation oracle, split auditor, and offline CLI.
+
+* Exact grammar and invariants
+
+A compound selector contains at most one optional ASCII-lowercase tag, at
+most one ID, and at most three class terms. ID and class terms may appear
+in either order after the tag; a bare ID or class intersection is also valid.
+Every ID/class term follows the original strict token constraints. The input
+remains at most 160 characters. Repeated class terms are redundant but
+permitted within the three-term budget. An ID may not be repeated.
+
+#+begin_example
+VALID:   div#record.person
+VALID:   div.person#record
+VALID:   div.person.selected#record.active
+VALID:   .person.selected
+INVALID: div.person.selected.active.fourth   (class budget)
+INVALID: div#record#other                  (duplicate ID)
+INVALID: div > .person, div:hover, [id=x]  (not in subset)
+#+end_example
+
+Class intersections match an element only if *every* class token is present.
+Selecting two matching elements remains =selector_ambiguous=, and selecting
+none remains =selector_zero=. Invalid syntax remains =invalid_action=. This
+is a deliberate typed distinction, not a guess at browser CSS semantics.
+
+* Evaluate the real oracle and record failures
+
+From =books/ml-starintel/code/html-tool-benchmark= run:
+
+#+begin_src sh :results output :exports both
+python -m unittest -v test_bounded_compound_selectors
+python -m unittest discover -p 'test_*.py'
+python html_trace_perturbations.py --verify
+#+end_src
+
+Then inspect the following small, literal offline example:
+
+#+begin_src python :results output :exports both
+from offline_html_trace_executor import run_trace, TraceFailure
+pages = {"/person.html": (
+    '<div id="person" class="row chosen active">Ada</div>'
+    '<div id="other" class="row chosen">Grace</div>'
+)}
+actions = [
+    {"op": "select", "selector": "div.active#person.chosen.row"},
+    {"op": "extract", "field": "name"},
+]
+print(run_trace(pages, "/person.html", actions)["extractions"])
+try:
+    run_trace(pages, "/person.html", [
+        {"op": "select", "selector": "div.row.chosen"},
+        {"op": "extract", "field": "name"},
+    ])
+except TraceFailure as error:
+    print(error.code)
+#+end_src
+
+Expected synthetic output, verified by the native suite:
+
+#+begin_example
+{'name': 'Ada'}
+selector_ambiguous
+#+end_example
+
+* Why successful extraction and trace equivalence are different
+
+Construct two traces with selectors =span.chosen#record.person= and
+=span#record.person.chosen=. Both can uniquely select the same visible
+node and extract the same text, yet the action dictionaries are different.
+The exact-action and sequence metrics correctly register disagreement;
+extraction and navigation can still succeed. The supplied regression tests
+prove this behavior using =evaluate= rather than assuming semantic equality
+means byte-identical actions.
+
+The canonical split auditor still executes each gold trace before scoring,
+rejects repeated family/template identities across partitions, and never
+passes gold information into the heuristic or train-only baseline predictor.
+This lab does not change the StarIntel wire specification or BK07 training.
+
+* Exercises and failure analysis
+
+1. ★ Explain why a two-class selector can be unambiguous when either class
+   individually matches multiple records.
+2. ★★ Add a fourth class to a passing selector and explain why the *typed*
+   error is =invalid_action=, not =selector_zero=.
+3. ★★ Reverse ID/class order in a gold trace; check extraction success and
+   exact-action accuracy independently.
+4. ★★★ Propose how to add descendant combinators *without* conflating this
+   deliberately bounded parser with a browser CSS engine. Specify a separate
+   grammar version, depth budget, and adversarial tests before coding.
+
+* Scope and verification status
+
+The behavior is limited to deterministic static fixture HTML. It does not
+claim cross-browser parity or performance on real websites. The new tests
+cover parser grammar, ambiguous/zero results, execution, gold scoring,
+leakage-first splits, and repeated one-command JSONL evaluation. Record
+native test and EPUB build results only when actually executed; a standalone
+Pandoc export is not a substitute for the repository production EPUBCheck.
