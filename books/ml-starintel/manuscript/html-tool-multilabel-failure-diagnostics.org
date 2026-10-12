@@ -1,0 +1,141 @@
+#+title: HTML Tool Calling: Multiple Observable Failure Reasons
+:PROPERTIES:
+:ID:       81c201d4-e2d2-5d80-9c3c-0c270986727b
+:END:
+
+* Why a single failure label is not a complete diagnosis
+
+The BK08 offline HTML trace benchmark already tests whether an action sequence
+selects the correct node, extracts correct fields, visits the intended pages,
+and exactly matches a reference trace. Previously its =failure= field kept
+only the *first* failed condition. That is adequate for a stable primary
+failure category but can hide additional observed defects.
+
+Consider the two-page synthetic fixture =pagination=. Its reference trace
+follows an anchor labeled =Next= and extracts =name= from the second page.
+A candidate that selects the anchor and extracts its text instead has three
+independently observed problems: =name= has the wrong value, the intended
+second page was not visited, and the action sequence differs from gold.
+Reporting only =extraction_mismatch= loses the navigation and sequence facts.
+
+The v3 evaluation contract keeps this historical primary =failure= field for
+compatibility and adds an ordered =failure_reasons= list and aggregated
+=failure_reason_counts=. It does NOT change execution, the gold reference,
+field-value scores, or the underlying candidate action trace.
+
+* A deterministic taxonomy, not three exclusive bins
+
+For a *valid* candidate trace, the diagnostics compare three independent
+post-execution properties in this fixed priority order:
+
+| Reason                | Condition |
+|-----------------------+-----------|
+| =extraction_mismatch= | observed field/value map differs from executed gold |
+| =navigation_mismatch= | observed visited-page sequence differs from executed gold |
+| =sequence_mismatch=   | candidate tool-action sequence differs from gold |
+
+The legacy =failure= remains the first reason above. The new
+=failure_reasons= retains *all* true reasons. A clean trace uses an empty
+list and a null primary =failure=.
+
+If execution itself raises a typed =TraceFailure= (for example
+=selector_zero= or =invalid_action=), the case contains ONLY that directly
+observed typed code. The scorer discards partially observed extraction
+results as it did before. It must not invent extraction/navigation mismatch
+labels by comparing a deliberately discarded partial trace with gold.
+
+Consequently, =failure_reason_counts= is a *multi-label histogram*. Its sum
+may exceed the number of samples. The primary =failure_counts= in the held-out
+baseline is different: it places each case in exactly one bucket, including
+=none= for a clean case. Never divide a multi-label count sum by the sample
+count and call it an error rate. If a per-reason incidence rate is useful,
+divide that single reason's case count by the split sample count.
+
+* Reproduce the three simultaneous mismatches
+
+The following example uses the built-in synthetic fixture, never a live
+site. Python execution remains opt-in; opening the Org lab runs nothing.
+
+#+begin_src python :eval never :results output
+import copy
+from offline_html_trace_executor import demo_records, evaluate
+
+row = copy.deepcopy(next(r for r in demo_records() if r['family'] == 'pagination'))
+row['candidate_trace'] = [
+    {'op': 'select', 'selector': '#next-page'},
+    {'op': 'extract', 'field': 'name'},
+]
+result = evaluate([row])
+case = result['cases'][0]
+assert case['failure'] == 'extraction_mismatch'
+assert case['failure_reasons'] == [
+    'extraction_mismatch', 'navigation_mismatch', 'sequence_mismatch'
+]
+assert case['observed']['extractions'] == {'name': 'Next'}
+assert case['observed']['visited'] == ['/pages/one.html']
+assert result['failure_reason_counts'] == {
+    'extraction_mismatch': 1,
+    'navigation_mismatch': 1,
+    'sequence_mismatch': 1,
+}
+print(case['failure_reasons'])
+#+end_src
+
+The example is deliberately modest: one faulty offline fixture, not a
+measured field failure rate or evidence that any real webpage was scraped.
+
+* Trace invalidity must remain fail-closed
+
+A trace that extracts a correct field and *then* selects a nonexistent node
+fails as =selector_zero=. The scorer's contract discards partial extraction,
+returns zero field-value credit, and reports =['selector_zero']= rather than
+manufacturing additional post-execution mismatch labels. This distinction
+matters when teaching the difference between *an observation* and *an
+inference based on missing data*.
+
+* Run the original native lab and integration checks
+
+From the repository root, with standard Python and no network access:
+
+#+begin_src sh :eval never
+cd books/ml-starintel/code/html-tool-benchmark
+python -m unittest -v test_multilabel_failure_diagnostics.py
+python -m unittest discover -p 'test_*.py'
+python offline_html_trace_executor.py --demo
+python html_template_split_audit.py --demo
+python html_heldout_baselines.py --demo
+#+end_src
+
+The three versioned JSON reports advance to =bk08.static-html-execution/v3=,
+=bk08.template-held-out/v3=, and =bk08.heldout-node-baselines/v3=.
+The template-held-out auditor still fails on family or DOM-template leakage
+*before* calculating any split metrics. The node ranker is still fitted on
+train only; this change does not alter its features, weights, or predictors.
+
+* Debugging exercises
+
+1. Replace the candidate selector with a different selector that reaches
+   the same node. Confirm extraction and navigation success stay one while
+   only =sequence_mismatch= appears.
+2. Follow a valid second page containing the same extracted value. Confirm
+   =navigation_mismatch= and =sequence_mismatch= appear together without
+   =extraction_mismatch=.
+3. Force a typed selector failure after a correct extraction. Confirm the
+   failure list contains only the typed execution error and partial field
+   precision/recall/F1 are all zero.
+4. Reverse records in the input list and rerun. The canonical sorted output,
+   reason order, and aggregate counts must not change.
+5. Verify a clean held-out split reports no reasons. Verify a split with 24
+   navigation failures may legitimately report 72 reason occurrences when
+   all 24 cases also have extraction and sequence mismatches.
+
+* Interpretation and verification boundaries
+
+This is a diagnostic contract for a five-family synthetic teaching corpus.
+Multi-label error reporting does not imply independence between reasons:
+extracting from the wrong page often causes both navigation and extraction
+mismatch. A reason histogram should be accompanied by gold fixture identity,
+train/dev/test assignment, exact code commit, and the strict sequence and
+field metrics. A passing local native suite or standalone Pandoc EPUB is
+not equivalent to full repository =make book=, =make check=, official
+EPUBCheck, or hosted CI.

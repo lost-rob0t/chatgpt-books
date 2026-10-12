@@ -6,6 +6,7 @@ Selectors deliberately support a documented small subset, not general CSS.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from dataclasses import dataclass, field
 import hashlib
 from html.parser import HTMLParser
@@ -323,13 +324,20 @@ def evaluate(records: list[dict[str, Any]]) -> dict[str, Any]:
         extraction = int(not failure and predicted == gold_extract)
         navigation = int(not failure and actual["visited"] == gold_visited)
         sequence = int(not failure and candidate == gold)
-        if not failure:
-            if not extraction:
-                failure = "extraction_mismatch"
-            elif not navigation:
-                failure = "navigation_mismatch"
-            elif not sequence:
-                failure = "sequence_mismatch"
+        # The legacy primary failure is preserved for compatibility, but
+        # valid traces can independently fail extraction, navigation, and
+        # trace equivalence. Do not hide secondary errors behind the first.
+        # Invalid traces are fail-closed: inferred semantic mismatches from
+        # discarded partial output would be fabricated evidence.
+        failure_reasons = ([failure] if failure else [
+            reason for condition, reason in (
+                (not extraction, "extraction_mismatch"),
+                (not navigation, "navigation_mismatch"),
+                (not sequence, "sequence_mismatch"),
+            ) if condition
+        ])
+        if failure is None and failure_reasons:
+            failure = failure_reasons[0]
         items.append({"id": id_, "family": family, "exact_call_accuracy": round(exact, 6),
                       "tool_accuracy": round(same_op, 6), "argument_accuracy": round(argument_accuracy, 6),
                       "extraction_success": extraction,
@@ -337,13 +345,16 @@ def evaluate(records: list[dict[str, Any]]) -> dict[str, Any]:
                       "field_value_recall": round(field_recall, 6),
                       "field_value_f1": round(field_f1, 6),
                       "navigation_success": navigation, "sequence_success": sequence,
-                      "failure": failure, "observed": actual})
+                      "failure": failure, "failure_reasons": failure_reasons,
+                      "observed": actual})
     keys = ("exact_call_accuracy", "tool_accuracy", "argument_accuracy", "extraction_success",
             "field_value_precision", "field_value_recall", "field_value_f1",
             "navigation_success", "sequence_success")
     metrics = {key: round(sum(x[key] for x in items) / len(items), 6) for key in keys}
-    return {"schema": "bk08.static-html-execution/v2", "samples": len(items),
-            "metrics": metrics, "cases": items}
+    reasons = Counter(code for case in items for code in case["failure_reasons"])
+    return {"schema": "bk08.static-html-execution/v3", "samples": len(items),
+            "metrics": metrics, "failure_reason_counts": dict(sorted(reasons.items())),
+            "cases": items}
 
 
 def demo_records() -> list[dict[str, Any]]:

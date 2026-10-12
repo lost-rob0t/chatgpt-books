@@ -243,10 +243,11 @@ def run_bench(partitions: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
             report = evaluate(derived)
             failures = Counter(case["failure"] or "none" for case in report["cases"])
             split_reports[part] = {"samples": report["samples"], "metrics": report["metrics"],
-                                   "failure_counts": dict(sorted(failures.items()))}
+                                   "failure_counts": dict(sorted(failures.items())),
+                                   "failure_reason_counts": report["failure_reason_counts"]}
         scored[method] = split_reports
     return {
-        "schema": "bk08.heldout-node-baselines/v2",
+        "schema": "bk08.heldout-node-baselines/v3",
         "audit": {key: evidence[key] for key in ("samples", "templates", "family_count", "template_reuse_count")},
         "ranker_fit": {"train_examples": ranker.trained_examples, "train_families": ranker.trained_families,
                        "feature_count": len(ranker.weights)},

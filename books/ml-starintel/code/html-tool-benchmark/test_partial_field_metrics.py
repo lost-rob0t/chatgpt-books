@@ -78,11 +78,11 @@ class PartialFieldMetricTests(unittest.TestCase):
 
     def test_demo_and_split_auditor_keep_original_strict_gates(self):
         result = evaluate(demo_records())
-        self.assertEqual(result["schema"], "bk08.static-html-execution/v2")
+        self.assertEqual(result["schema"], "bk08.static-html-execution/v3")
         self.assertEqual(result["metrics"]["field_value_f1"], .8)
         self.assertEqual(result["metrics"]["sequence_success"], .8)
         audit = audit_and_evaluate(demo_partitions())
-        self.assertEqual(audit["schema"], "bk08.template-held-out/v2")
+        self.assertEqual(audit["schema"], "bk08.template-held-out/v3")
         self.assertEqual([audit["splits"][p]["metrics"]["field_value_f1"]
                           for p in ("train", "dev", "test")], [1, 0, 1])
 
