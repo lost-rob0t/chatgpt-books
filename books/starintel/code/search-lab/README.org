@@ -145,3 +145,14 @@ synthetic fixture roles and the *declared* disposable configuration. It models
 the pinned server's =tenant-adaptation-for= mapping and public dataset list;
 it does NOT load native authorization machinery or prove real HTTP credential
 acceptance. The opt-in service run remains UNTESTED without that server stack.
+
+* Index projection and embedded-document agreement
+The =interpret_page= teaching client keeps =fields= (stored search-index
+projection) separate from =doc= (the embedded retrieved document). If both
+supply scalar =dataset= or =dtype= strings and disagree, the client rejects
+that hit rather than silently selecting the document value. Such disagreement
+could indicate a changed record or a stale projection; it does not establish
+which observation is current, nor does matching metadata prove a snapshot.
+Missing stored fields remain missing, and a fields-only hit is not promoted
+to a full document. The hermetic =test_index_document_consistency.py= covers
+both disagreements, ordinary hits and existing tenant/revision checks.

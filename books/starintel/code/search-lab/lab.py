@@ -65,6 +65,14 @@ def interpret_page(page: dict) -> tuple[list[Hit], str | None]:
             raise ValueError('row/document identity disagreement')
         if 'tenant_id' in fields or (doc is not None and 'tenant_id' in doc):
             raise ValueError('server tenancy metadata leaked on egress')
+        # Stored index metadata and an embedded document are distinct evidence.
+        # Do not silently choose one when their scalar scope/type disagrees.
+        if doc is not None:
+            for key in ('dtype', 'dataset'):
+                stored, embedded = fields.get(key), doc.get(key)
+                if (isinstance(stored, str) and isinstance(embedded, str)
+                        and stored != embedded):
+                    raise ValueError(f'{key} stored fields and document disagree')
         revision = (doc or {}).get('_rev', (doc or {}).get('rev'))
         if revision is not None and not isinstance(revision, str):
             raise ValueError('search hit has an invalid revision')
