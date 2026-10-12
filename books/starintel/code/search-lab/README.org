@@ -46,15 +46,19 @@ Its prerequisite checklist is concrete:
 1. Running StarIntel HTTP, RabbitMQ ingest, CouchDB and connected Clouseau.
 2. Install =source/views/search.json= from this pin as =_design/search= in the
    configured default database. Confirm the installed body and =fts= index.
-3. Public mode enabled; set =STAR_PUBLIC_SEARCH_DATASETS=book-public= before
-   runtime configuration loads. A wildcard public list fails this experiment.
+3. Public mode enabled with =STAR_PUBLIC_SEARCH_DATASETS=book-public,book-other-public=
+   before runtime configuration loads. A wildcard public list fails this experiment.
+   Set =STAR_TENANT_DATASET_MAP=book-other-public=other= in the *server* process
+   and leave =STAR_TENANT_FALLBACK= unset. The pinned server resolves tenancy
+   from dataset mapping for documents without client-supplied tenant fields;
+   a second dataset is necessary to seed the other-tenant control.
 4. Provision four valid credentials in the server credential store. Supply them
    from a keyring or environment, never a checked-in configuration:
 
 | Environment variable | Tenant | Required scopes |
 |----------------------+--------+-----------------|
 | =STAR_SEARCH_LAB_WRITER= | default | identity:read, documents:write, documents:read, dataset:book-public, dataset:book-private, tenant:default |
-| =STAR_SEARCH_LAB_OTHER_WRITER= | other | identity:read, documents:write, documents:read, dataset:book-public, tenant:other |
+| =STAR_SEARCH_LAB_OTHER_WRITER= | other | identity:read, documents:write, documents:read, dataset:book-other-public, tenant:other |
 | =STAR_SEARCH_LAB_READER= | default | identity:read, search:read, dataset:book-public, tenant:default |
 | =STAR_SEARCH_LAB_NOSEARCH= | default | identity:read, dataset:book-public, tenant:default; deliberately no search:read |
 
@@ -72,11 +76,13 @@ username/password or query, and =STAR_SEARCH_LAB_DISPOSABLE=1=. Then:
 python3 books/starintel/code/search-lab/service_checks.py --seed
 #+end_src
 
-The runner writes five synthetic records into =book-public=/=book-private=,
-uses authenticated by-ID read-back with a 30-second deadline per record,
-then separately polls exact search-visible sets with a 30-second deadline.
-Three default-tenant public records allow one-row pagination; one private
-record and one other-tenant public record are negative/positive scope controls.
+The runner writes five synthetic records across =book-public=, =book-private=,
+and =book-other-public=, uses authenticated by-ID read-back with a 30-second
+ deadline per record, then separately polls exact search-visible sets with a
+30-second deadline. Three default-tenant public records allow one-row
+pagination; the private record remains in the default tenant, while the fifth
+record uses server-side dataset-to-tenant adaptation to the other tenant.
+The fourth and fifth records are negative/positive scope controls.
 The public set must contain four identities and the restricted reader set
 three. It checks eleven actual HTTP denial/input cases and tenant egress.
 A twelve-page budget, ten-second request timeout and response byte budget bound
@@ -128,3 +134,10 @@ error even when bookmarks themselves are distinct.
 doubles with the real =collect=, =interpret_page= and =next_bookmark= helpers.
 These tests do *not* prove live CouchDB/Clouseau bookmark guarantees or stable
 membership under concurrent writes; the opt-in HTTP tier remains untested.
+
+* Hermetic multi-tenant fixture admission contract
+=python3 -m unittest test_tenant_seed_contract -v= checks the five historical
+synthetic fixture roles and the *declared* disposable configuration. It models
+the pinned server's =tenant-adaptation-for= mapping and public dataset list;
+it does NOT load native authorization machinery or prove real HTTP credential
+acceptance. The opt-in service run remains UNTESTED without that server stack.

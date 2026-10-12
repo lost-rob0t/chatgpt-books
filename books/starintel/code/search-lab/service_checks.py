@@ -43,6 +43,15 @@ def fixture(identity, dataset, needle):
     return value
 
 
+def fixture_dataset(ordinal):
+    """A second public dataset lets the server map the fifth seed to tenant other."""
+    if ordinal == 3:
+        return 'book-private'
+    if ordinal == 4:
+        return 'book-other-public'
+    return 'book-public'
+
+
 def wait_document(base, identity, token):
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
@@ -102,7 +111,7 @@ def main():
     ids = ['starintel:person:' + needle + '-' + str(i) for i in range(5)]
     for i, identity in enumerate(ids):
         writer = tokens['OTHER_WRITER'] if i == 4 else tokens['WRITER']
-        dataset = 'book-private' if i == 3 else 'book-public'
+        dataset = fixture_dataset(i)
         status, _ = request(base, '/api/v1/documents', writer, fixture(identity, dataset, needle))
         if status not in (200, 202): raise ValueError(f'historical fixture rejected: HTTP {status}')
         wait_document(base, identity, writer)
