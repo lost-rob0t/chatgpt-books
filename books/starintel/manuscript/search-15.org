@@ -51,8 +51,12 @@ because some index fields overlap. [cite:@starintel-doc-canonical-20261007;
 | Credential verification and middleware | Running server | Only the opt-in service lab can exercise this |
 | Persistence, analyzers, ranking, bookmarks | Running CouchDB and Clouseau | Not proved by projection or handler doubles |
 
-The Python tests and fifteen Lisp scenario checks are TESTED locally. The
-service runner is an executable test target and remains UNTESTED until it runs
+The Python regression suite and sixteen Lisp scenario checks are TESTED in
+exact-head hosted CI at commit =8a40c5a2c45c28ce54942b59e7d72bcb6f0625ef=
+(run =38300524893=), including the Unicode character-versus-byte query check.
+These are hermetic checks on extracted handlers with declared dependency
+doubles, not deployed search-service evidence. The service runner is an
+executable test target and remains UNTESTED until it runs
 against a correctly provisioned stack. The research note records the exact
 commands and limitations. A green hermetic check must never be relabeled as a
 successful HTTP or Clouseau experiment.

@@ -5,7 +5,12 @@ This is a search client and inspection lab, not a local search engine.
 Canonical fixtures use the same generated SDK authority as Project 1.
 Historical runtime fixtures in the optional HTTP tier are explicitly different.
 
-Hermetic local evidence: 23 Python tests and 15 Lisp scenario checks passed.
+Hermetic evidence: the Python regression suite and 16 hermetic Lisp scenario checks
+ran successfully in exact-head hosted CI at commit
+=8a40c5a2c45c28ce54942b59e7d72bcb6f0625ef= (starintel-book run
+=38300524893=, records-and-book job =114982069047=). The initial
+research pass recorded an earlier, smaller 23-Python/15-Lisp snapshot;
+that historical result is not the current scenario count.
 Python runs the real pinned JavaScript index under a capture callback and the
 real canonical SDK. SBCL runs unchanged selected upstream parser/handler/scope
 compiler/egress forms with dependency doubles declared in =hermetic.lisp=.
