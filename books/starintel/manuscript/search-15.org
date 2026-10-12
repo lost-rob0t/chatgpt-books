@@ -113,16 +113,18 @@ expose an overly broad server-configured dataset set.
 For a disposable teaching deployment choose:
 
 #+begin_example
-STAR_PUBLIC_SEARCH_DATASETS=book-public
+STAR_PUBLIC_SEARCH_DATASETS=book-public,book-other-public
+STAR_TENANT_DATASET_MAP=book-other-public=other
 Public-mode: enabled for this experiment
-Allowed public records: book-public across tenants
+Allowed public records: book-public and book-other-public across tenants
 Private fixture dataset: book-private
 #+end_example
 
 Do not infer a tenant restriction from a dataset restriction. The inspected
-public context grants all tenants, so a =book-public= record in tenant =other=
-can be publicly visible. This is intentional in the lab's expected set and
-makes the two dimensions visible. Choosing a public dataset name is an
+public context grants all tenants, so a record in =book-other-public= adapted
+to tenant =other= can be publicly visible. The teaching fixture maps that
+dataset to =other= on the server; the authenticated reader only receives
+=book-public= from tenant =default=. Choosing a public dataset name is an
 operational publication decision, not a confidentiality label in the canonical
 schema.
 
@@ -455,9 +457,10 @@ existing runtime record example and are explicitly not the canonical SDK
 fixtures.
 
 Three records belong to =book-public= in tenant =default=, one to
-=book-private= in =default=, and one to =book-public= in tenant =other=.
-Public search should retrieve four; the restricted default-tenant reader should
-retrieve three. The run then tests eleven HTTP denial/input cases and walks
+=book-private= in =default=, and one to =book-other-public= in =other=
+via server-side =STAR_TENANT_DATASET_MAP=. The explicit public list includes
+both public datasets. Public search should retrieve four; the restricted
+default-tenant reader should retrieve three. The run then tests eleven HTTP denial/input cases and walks
 one-result pages. This is a meaningful positive control: "the forbidden record
 was absent" alone is weak if no allowed record was ever visible.
 
@@ -506,7 +509,8 @@ authorized by-ID read with a deadline before diagnosing the index.
 
 *** Exercise 2 -- Predict public visibility (★)
 
-The public list is =book-public= and its context grants =tenant:*=. A record in
+In a separate hypothetical deployment, the public list is =book-public= and
+its context grants =tenant:*=. A record in
 =book-public= belongs to =other=. A second record in =book-private= belongs to
 =default=. Which one should the teaching public search retrieve?
 
