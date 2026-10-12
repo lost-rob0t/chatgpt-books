@@ -342,6 +342,8 @@ def evaluate(records: list[dict[str, Any]]) -> dict[str, Any]:
         raise TraceFailure("invalid_record", "evaluation sample limit exceeded")
     seen: set[str] = set()
     items: list[dict[str, Any]] = []
+    # Preserve full internal precision for aggregate means; round only at the report boundary.
+    raw_totals: Counter[str] = Counter()
     for record in sorted(records, key=lambda x: x.get("id", "") if isinstance(x, dict) and isinstance(x.get("id"), str) else ""):
         id_, family, pages, start, gold, candidate, gold_extract, gold_visited = _valid_record(record)
         if id_ in seen:
@@ -405,6 +407,18 @@ def evaluate(records: list[dict[str, Any]]) -> dict[str, Any]:
         ])
         if failure is None and failure_reasons:
             failure = failure_reasons[0]
+        raw_totals.update({
+            "exact_call_accuracy": exact,
+            "tool_accuracy": same_op,
+            "argument_accuracy": argument_accuracy,
+            "gold_prefix_fraction": gold_prefix_fraction,
+            "extraction_success": extraction,
+            "field_value_precision": field_precision,
+            "field_value_recall": field_recall,
+            "field_value_f1": field_f1,
+            "navigation_success": navigation,
+            "sequence_success": sequence,
+        })
         items.append({"id": id_, "family": family, "exact_call_accuracy": round(exact, 6),
                       "tool_accuracy": round(same_op, 6), "argument_accuracy": round(argument_accuracy, 6),
                       "gold_prefix_fraction": round(gold_prefix_fraction, 6),
@@ -419,7 +433,7 @@ def evaluate(records: list[dict[str, Any]]) -> dict[str, Any]:
     keys = ("exact_call_accuracy", "tool_accuracy", "argument_accuracy", "gold_prefix_fraction", "extraction_success",
             "field_value_precision", "field_value_recall", "field_value_f1",
             "navigation_success", "sequence_success")
-    metrics = {key: round(sum(x[key] for x in items) / len(items), 6) for key in keys}
+    metrics = {key: round(raw_totals[key] / len(items), 6) for key in keys}
     reasons = Counter(code for case in items for code in case["failure_reasons"])
     return {"schema": "bk08.static-html-execution/v4", "samples": len(items),
             "metrics": metrics, "failure_reason_counts": dict(sorted(reasons.items())),

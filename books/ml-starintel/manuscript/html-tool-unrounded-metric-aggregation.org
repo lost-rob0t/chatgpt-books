@@ -1,0 +1,53 @@
+#+title: BK08 Lab -- Aggregate Before Rounding
+#+subtitle: Avoiding double rounding in an offline HTML tool-call benchmark
+:PROPERTIES:
+:ID:       fca41a97-c3c0-514f-8bd3-f78f4b1104e4
+:END:
+
+* What the evaluator measures
+The BK08 HTML tool benchmark runs gold and candidate actions against static, in-memory HTML. Its case report exposes six-decimal scores so results are compact and stable. The aggregate must nevertheless use *raw case scores*, not the already-rounded presentation values.
+
+This lab concerns the data/evaluation side of [[file:../README.org][Machine Learning for StarIntel]], not BK07's models, training, or decoding. It needs no browser, network access, model weights, or private observations.
+
+* Reproduce the counterexample
+Consider two valid gold/candidate traces where respectively one of three and four of nine actions match exactly. The true mean is
+
+#+begin_example
+(1/3 + 4/9) / 2 = 7/18 = 0.388888888888... => 0.388889
+#+end_example
+
+The six-decimal case values are =0.333333= and =0.444444=. Their mean is =0.3888885=, which may round to =0.388888= under binary floating-point and ties-to-even. That is a *different reported value*. Rounding each individual sample before averaging introduces avoidable bias at report precision.
+
+The failure also applies to field-value precision, recall and F1: two traces with respectively 1/3 and 4/9 correct extracted field-value pairs must have a mean of =0.388889= for each metric. Both gold traces and candidate traces execute validly, so this is a scoring defect rather than an invalid-action edge case.
+
+* Correct accounting boundary
+#+begin_example
+                        in-memory values               JSON report
+    gold/candidate --> raw fractions --+--> means --> round(mean, 6)
+                                       |
+                                       +--> round(case, 6)
+                  DO NOT feed rendered case scores back into the mean.
+#+end_example
+
+Use one raw accumulator for each metric in =offline_html_trace_executor.evaluate=. A case's visible value still has six decimals; aggregate metrics round only after division by sample count. The external case schema, typed failures, leakage pre-audit, and existing ranking/training boundaries remain unchanged. Ordered evaluation by ID preserves reproducibility under input permutations.
+
+* Runnable lab
+From =books/ml-starintel/code/html-tool-benchmark=:
+
+#+begin_src sh
+python -m unittest -v test_unrounded_metric_aggregation
+python -m unittest discover -p 'test_*.py'
+python offline_html_trace_executor.py --demo
+python html_template_split_audit.py --demo
+#+end_src
+
+The new native module tests exactly the two fractions above, case-level presentation invariance, argument/prefix aggregation, partial field-value F1, deterministic record ordering, semantic-failure preservation, and propagation through the held-out template auditor. No test requires web pages beyond two tiny synthetic divs with distinct =id= attributes.
+
+* What to inspect when a regression fails
+1. Does the report's =exact_call_accuracy= mean =0.388889= while case scores remain =0.333333= and =0.444444=? If not, inspect whether the aggregator is summing rendered case dictionaries.
+2. Does =field_value_f1= follow the same raw calculation and retain the existing mismatch taxonomy?
+3. Is the output byte-identical when the two input records are reversed? The evaluator sorts by example ID.
+4. Does the template split audit report the corrected means without moving examples between splits or changing its leakage checks?
+
+* Evidence and limits
+The =1/3= and =4/9= fixture is a deterministic *constructed counterexample*, not a measurement of performance on independent websites. Passing these tests establishes arithmetic/reporting consistency, not model accuracy or generalization. Run the production =make book BOOK=ml-starintel=, =make check BOOK=ml-starintel= and official EPUBCheck only in an actual complete repository checkout with the required toolchain; a standalone Pandoc render does not substitute for those gates.
