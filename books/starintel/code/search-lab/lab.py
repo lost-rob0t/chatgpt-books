@@ -65,7 +65,10 @@ def interpret_page(page: dict) -> tuple[list[Hit], str | None]:
             raise ValueError('row/document identity disagreement')
         if 'tenant_id' in fields or (doc is not None and 'tenant_id' in doc):
             raise ValueError('server tenancy metadata leaked on egress')
-        hits.append(Hit(identity, (doc or {}).get('_rev', (doc or {}).get('rev')),
+        revision = (doc or {}).get('_rev', (doc or {}).get('rev'))
+        if revision is not None and not isinstance(revision, str):
+            raise ValueError('search hit has an invalid revision')
+        hits.append(Hit(identity, revision,
                         (doc or fields).get('dtype'), (doc or fields).get('dataset'), doc, fields))
     bookmark = page.get('bookmark')
     if bookmark is not None and not isinstance(bookmark, str):
