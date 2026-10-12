@@ -188,3 +188,18 @@ single-source and fields-only hits, plus malformed shadowed revisions.
 These are typed search-response observations, not proof that an embedded
 document passed the generated SDK, was durable at query time, or shares a
 snapshot with the index projection.
+
+* Detach retained search evidence from mutable decoded pages
+=Hit= uses a frozen Python dataclass for its outer attributes, but nested JSON
+dictionaries are mutable. Previously =Hit.document= and =Hit.fields= aliased
+the input response's nested objects. A caller changing or reusing that response
+could later change the appearance of retained stored fields and provenance.
+The client now deep-copies both validated payloads into a distinct observation
+snapshot; =Hit.revision= and the original revision-origin fields are unchanged.
+
+=python3 -m unittest test_evidence_detachment -v= covers mutable source pages,
+nested provenance, stored fields, repeat interpretation, fields-only hits and
+conflicting scope/type evidence. This detaches a hit *from its input page*;
+it does not recursively freeze =Hit.document= or validate canonical truth.
+These checks are course-local, not evidence of server-side consistency or
+CouchDB durability.

@@ -1,5 +1,6 @@
 """Search-result interpretation; never a replacement search/authorization engine."""
 from dataclasses import dataclass
+from copy import deepcopy
 import json
 from pathlib import Path
 import subprocess
@@ -84,7 +85,8 @@ def interpret_page(page: dict) -> tuple[list[Hit], str | None]:
             raise ValueError('search hit has an invalid revision')
         revision = storage_rev if storage_rev is not None else canonical_rev
         hits.append(Hit(identity, revision,
-                        (doc or fields).get('dtype'), (doc or fields).get('dataset'), doc, fields,
+                        (doc or fields).get('dtype'), (doc or fields).get('dataset'),
+                        deepcopy(doc), deepcopy(fields),
                         storage_rev, canonical_rev))
     bookmark = page.get('bookmark')
     if bookmark is not None and not isinstance(bookmark, str):
