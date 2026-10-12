@@ -1,0 +1,73 @@
+#+title: JSONL Physical Lines Versus Unicode Data in a Static HTML Corpus
+:PROPERTIES:
+:ID:       49d96342-ea36-5a7f-9cbe-cfec29982bf1
+:END:
+
+* Scope and failure mode
+A BK08 fixture is one JSON object per *physical LF-delimited line*. Records
+contain static HTML strings, including literal Unicode LINE SEPARATOR
+(=U+2028=), PARAGRAPH SEPARATOR (=U+2029=), and NEXT LINE (=U+0085=).
+Those characters are JSON string data, not record boundaries. An ASCII CR
+before LF supports conventional CRLF files. This is a bounded offline loader,
+not a browser or streaming service.
+
+Python's =str.splitlines()= recognizes a broader set of Unicode line
+boundaries than JSONL's physical LF delimiter. That breaks valid strings
+before JSON parsing and can silently accept Unicode separators between JSON
+objects as if they were legitimate record delimiters.
+
+* Executable minimal counterexample
+One object carries a literal U+2028 inside the JSON string and ends with LF:
+
+#+begin_src python :results output :exports both
+import json
+row = {"fixture_html": "<p>A\u2028da</p>"}
+wire = json.dumps(row, ensure_ascii=False) + "\n"
+print("splitlines", len(wire.splitlines()))
+print("LF framing", len([part for part in wire.split("\n") if part]))
+print("round trip", json.loads(wire.split("\n")[0]) == row)
+#+end_src
+
+#+begin_example
+splitlines 2
+LF framing 1
+round trip True
+#+end_example
+
+* Native loader contract
+=read_jsonl= now frames UTF-8-decoded input only on ASCII LF. Empty physical
+lines may contain only ASCII JSON whitespace (space, tab, CR). A bare Unicode
+separator is *not* an ignored blank line. The existing strict JSON parser
+continues to enforce duplicate-key rejection, finite numbers, the numeric
+token budget, and bounded nesting. Page and dataset memory budgets are
+unchanged.
+
+The native regression tests demonstrate that:
+- Literal U+2028/U+2029/U+0085 inside quoted JSON strings survive unchanged.
+- Those code points between JSON objects are rejected as =invalid_record=.
+- LF and CRLF frame records; escaped =\u2028= remains valid.
+- The static HTML extraction oracle may normalize Unicode whitespace to an
+  ordinary space *after* JSONL framing. This is a separate output contract.
+
+* Reproduce locally
+From =books/ml-starintel/code/html-tool-benchmark=:
+
+#+begin_src sh :eval never-export
+python -m unittest -q test_jsonl_unicode_line_framing
+python -m unittest discover -q -p 'test_*.py'
+python offline_html_trace_executor.py --demo
+python html_template_split_audit.py --demo
+python html_heldout_baselines.py --demo
+#+end_src
+
+These synthetic controls cannot establish accuracy on independent websites.
+The standalone Pandoc EPUB is *not* the complete book build or EPUBCheck.
+
+* Exercises
+1. [★] Why can a UTF-8 file be valid while =str.splitlines()= is still the
+   wrong parser for its JSONL record boundaries?
+2. [★★] Add a literal U+2029 in a non-extracted fixture element and verify
+   that loaded records are byte-for-byte deterministic across repeated runs.
+3. [★★★] Specify a canonical JSONL writer and round-trip tests for ordinary
+   LF, CRLF input, quoted Unicode separators, and explicit invalid delimiters.
+   Do not modify the model or training partition.

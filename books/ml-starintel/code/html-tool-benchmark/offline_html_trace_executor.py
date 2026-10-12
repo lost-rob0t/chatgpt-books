@@ -504,7 +504,11 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
         result = [
             json.loads(bounded_nesting(line), object_pairs_hook=unique_object, parse_constant=reject_nonfinite,
                        parse_float=finite_float, parse_int=bounded_integer)
-            for line in raw.decode("utf-8").splitlines() if line.strip()
+            # JSONL uses ASCII LF as its only record delimiter (CRLF also works).
+            # str.splitlines() is too broad: it splits U+2028/U+2029/U+0085
+            # *inside valid JSON strings* and silently accepts those characters
+            # as separators between records. Preserve them as JSON data.
+            for line in raw.decode("utf-8").split("\n") if line.strip(" \t\r")
         ]
     except (UnicodeError, json.JSONDecodeError, RecursionError, OverflowError) as exc:
         raise TraceFailure("invalid_record", "malformed or excessively nested JSONL") from exc
