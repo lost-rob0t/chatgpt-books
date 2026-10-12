@@ -173,3 +173,18 @@ pinned index capture. This is course-local input handling, not a change
 to CouchDB, Clouseau or StarIntel Server's JSON policy. It proves neither
 live search behavior nor canonical StarLang admissibility for non-finite
 numbers.
+
+* Distinct storage and canonical revision evidence
+A historical embedded CouchDB document may expose =_rev= (storage MVCC)
+while a canonical =0.10.1= record may expose =rev= (document contract).
+They are not interchangeable. When both appear, =Hit.storage_revision=
+and =Hit.canonical_revision= retain the two observed values separately.
+The existing =Hit.revision= convenience field remains backward compatible
+(storage value first), but its value alone does not identify the revision
+namespace or establish canonical validation.
+
+=python3 -m unittest test_dual_revision_evidence -v= checks both values,
+single-source and fields-only hits, plus malformed shadowed revisions.
+These are typed search-response observations, not proof that an embedded
+document passed the generated SDK, was durable at query time, or shares a
+snapshot with the index projection.

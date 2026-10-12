@@ -44,6 +44,8 @@ class Hit:
     dataset: str | None
     document: dict | None
     fields: dict
+    storage_revision: str | None = None
+    canonical_revision: str | None = None
 
 
 def interpret_page(page: dict) -> tuple[list[Hit], str | None]:
@@ -73,11 +75,17 @@ def interpret_page(page: dict) -> tuple[list[Hit], str | None]:
                 if (isinstance(stored, str) and isinstance(embedded, str)
                         and stored != embedded):
                     raise ValueError(f'{key} stored fields and document disagree')
-        revision = (doc or {}).get('_rev', (doc or {}).get('rev'))
-        if revision is not None and not isinstance(revision, str):
+        # Storage and canonical revisions are different namespaces of evidence.
+        # Keep the legacy revision convenience field, but preserve both origins.
+        storage_rev = doc.get('_rev') if doc is not None else None
+        canonical_rev = doc.get('rev') if doc is not None else None
+        if any(value is not None and not isinstance(value, str)
+               for value in (storage_rev, canonical_rev)):
             raise ValueError('search hit has an invalid revision')
+        revision = storage_rev if storage_rev is not None else canonical_rev
         hits.append(Hit(identity, revision,
-                        (doc or fields).get('dtype'), (doc or fields).get('dataset'), doc, fields))
+                        (doc or fields).get('dtype'), (doc or fields).get('dataset'), doc, fields,
+                        storage_rev, canonical_rev))
     bookmark = page.get('bookmark')
     if bookmark is not None and not isinstance(bookmark, str):
         raise ValueError('bookmark must be an opaque string')

@@ -334,6 +334,16 @@ metadata, not a canonical document revision. Retain the embedded document's
 identity, revision if present, dataset, dtype and provenance when handing a hit
 to downstream analysis. A later by-ID read may observe a different revision.
 
+An embedded search hit can contain two different kinds of revision evidence:
+CouchDB's storage =_rev= and canonical StarLang's document =rev= where that
+schema applies. They are not alternative spellings of the same contract.
+The lab preserves both as =Hit.storage_revision= and
+=Hit.canonical_revision=; its older =Hit.revision= convenience field
+chooses storage first for compatibility, but cannot identify the namespace.
+A malformed value in either revision field fails interpretation even when
+the other field is well formed. An unvalidated embedded value is still only
+observed search JSON, not independently verified canonical or durable evidence.
+
 The current server removes its injected =tenant_id= from stored fields,
 embedded documents and embedded outbox payloads on egress. The hermetic Lisp
 check executes those actual scrubbing functions. Scrubbing metadata is separate
