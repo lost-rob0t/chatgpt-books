@@ -1,0 +1,102 @@
+#+title: HTML Tool Use: Partial Field-Value Precision and Recall
+:PROPERTIES:
+:ID:       61b7460e-6b50-5428-9c03-0049415608ad
+:END:
+
+* Why binary extraction success is insufficient for diagnosis
+
+The BK08 static HTML executor already reports =extraction_success=, a strict
+binary result requiring *every* extracted field/value to equal the gold map.
+That is the correct completion gate, but two partially useful attempts can
+both receive 0.0. The new field-value precision, recall, and F1 diagnostics
+show *which* kind of partial mismatch occurred without relaxing success.
+
+This is an offline, deterministic teaching metric over synthetic fixtures.
+It measures no production websites and does not change BK07's models,
+training, or decoding. Existing exact-call, argument, navigation, sequence,
+and typed-failure metrics remain intact.
+
+* Count exact (field, value) pairs
+
+Let =G= be the executed gold extraction dictionary and =P= the valid
+candidate's observed dictionary. A correctly extracted pair means both the
+*field name* and the *exact string value* match. A matching key alone is not
+sufficient. Let =c= be the count of exact matching pairs.
+
+#+begin_example
+field_value_precision = c / |P|                 when |P| > 0, else 0
+field_value_recall    = c / |G|                 when |G| > 0, else 0
+field_value_f1        = 2c / (|P| + |G|)        when either nonempty, else 0
+#+end_example
+
+The program rounds each case's diagnostic to six decimal places. A split's
+aggregate is the arithmetic mean of these *per-example rounded* scores, not
+a field-count-weighted micro average. That choice prevents one large fixture
+from silently dominating smaller exercises. It is not a family-balanced
+estimate: repeated variants remain repeated observations.
+
+If the candidate trace fails with =selector_zero=, =invalid_action=, or
+another typed execution error, the executor discards partial observed output
+before computing these diagnostic values. An invalid trace never gains
+partial credit merely for extracting an earlier field. Empty predictions
+receive zero partial-extraction credit. Empty-gold-task validation is a
+*separate* contract, not solved by this new metric.
+
+* Worked example: correct, missing, and invented fields
+
+A two-field gold fixture expects =first=Ada= and =second=Grace=. Four
+candidate outcomes illustrate the difference between binary completion and
+partial diagnostics:
+
+| Candidate output                                     | Extraction success | Precision | Recall | F1 |
+|------------------------------------------------------+--------------------+-----------+--------+----|
+| =first=Ada=, =second=Grace=                          | 1                  | 1         | 1      | 1  |
+| =first=Ada=, =second=Wrong=                          | 0                  | 0.5       | 0.5    | 0.5 |
+| =first=Ada=                                          | 0                  | 1         | 0.5    | 0.666667 |
+| =first=Ada=, =second=Grace=, =extra=Wrong=           | 0                  | 0.666667  | 1      | 0.8 |
+
+Extra field names count against precision; omissions count against recall.
+A value mismatch lowers both. Two wrong values count as zero matching pairs,
+even if both field names are correct. Retain =extraction_success= as the
+strict success criterion; do not redefine it as =F1 > 0=.
+
+* Reproduce on the published source code
+
+From repository root, with Python 3.10+ and no network calls:
+
+#+begin_src sh :eval never
+cd books/ml-starintel/code/html-tool-benchmark
+python -m unittest -v test_partial_field_metrics.py
+python -m unittest discover -p 'test_*.py'
+python offline_html_trace_executor.py --demo
+python html_template_split_audit.py --demo
+#+end_src
+
+Both executable reports advance their versioned schema to =v2= because they
+add three reported metrics. The template-leakage audit still validates gold
+traces and family/template exclusivity *before* scoring each partition.
+The held-out heuristic/ranker pipeline receives its new metrics from the
+same oracle scoring function; no new gold fields become predictor features.
+
+* Try to break the measurement
+
+1. Make the candidate select the wrong node but keep the correct extraction
+   field key. Verify that a wrong value is *not* counted as correct.
+2. Add an extra field after the two correct fields. The binary completion
+   must fall to zero, while recall remains 1.0 and precision drops.
+3. Omit the second field. Precision should remain 1.0, recall should drop,
+   and sequence success must not be confused with extraction completeness.
+4. Extract one correct value and then select a missing node. The whole
+   candidate fails with =selector_zero=; all partial values must be zero.
+5. Reverse input record order and rerun the JSON demo. The sorted report
+   must be byte-identical. Template leak validation must remain enforced.
+
+* Interpretation and publication gates
+
+This is an additional diagnostic, not a new classification task or a claim
+of web generalization. It cannot distinguish a wrong value caused by a poor
+selector from a wrong value caused by page content shift without inspecting
+the typed trace failure and observed pages. Record the exact input corpus,
+fixture provenance, code commit, native tests, and held-out partition before
+reporting any observed score. A standalone Pandoc export is not evidence of
+a complete book build or EPUBCheck success.

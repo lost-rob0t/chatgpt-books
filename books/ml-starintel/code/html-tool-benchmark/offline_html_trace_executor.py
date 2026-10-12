@@ -310,7 +310,17 @@ def evaluate(records: list[dict[str, Any]]) -> dict[str, Any]:
             for left, right in matching_ops
         )
         argument_accuracy = correct_arguments / len(matching_ops) if matching_ops else 0.0
-        extraction = int(not failure and actual["extractions"] == gold_extract)
+        # Partial field diagnostics: equality is a pair of (field, value),
+        # never merely a matching field name. Invalid traces are fail-closed:
+        # their observed extraction map has already been discarded above.
+        predicted = actual["extractions"]
+        correct_pairs = sum(key in gold_extract and gold_extract[key] == value
+                            for key, value in predicted.items())
+        field_precision = correct_pairs / len(predicted) if predicted else 0.0
+        field_recall = correct_pairs / len(gold_extract) if gold_extract else 0.0
+        field_f1 = (2 * correct_pairs / (len(predicted) + len(gold_extract))
+                    if predicted or gold_extract else 0.0)
+        extraction = int(not failure and predicted == gold_extract)
         navigation = int(not failure and actual["visited"] == gold_visited)
         sequence = int(not failure and candidate == gold)
         if not failure:
@@ -323,12 +333,16 @@ def evaluate(records: list[dict[str, Any]]) -> dict[str, Any]:
         items.append({"id": id_, "family": family, "exact_call_accuracy": round(exact, 6),
                       "tool_accuracy": round(same_op, 6), "argument_accuracy": round(argument_accuracy, 6),
                       "extraction_success": extraction,
+                      "field_value_precision": round(field_precision, 6),
+                      "field_value_recall": round(field_recall, 6),
+                      "field_value_f1": round(field_f1, 6),
                       "navigation_success": navigation, "sequence_success": sequence,
                       "failure": failure, "observed": actual})
     keys = ("exact_call_accuracy", "tool_accuracy", "argument_accuracy", "extraction_success",
+            "field_value_precision", "field_value_recall", "field_value_f1",
             "navigation_success", "sequence_success")
     metrics = {key: round(sum(x[key] for x in items) / len(items), 6) for key in keys}
-    return {"schema": "bk08.static-html-execution/v1", "samples": len(items),
+    return {"schema": "bk08.static-html-execution/v2", "samples": len(items),
             "metrics": metrics, "cases": items}
 
 
