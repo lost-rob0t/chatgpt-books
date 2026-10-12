@@ -1,0 +1,136 @@
+#+title: BK08 Lab — Static Document Base URLs and Gold-Trace Integrity
+:PROPERTIES:
+:ID:       b61d06da-1c37-59fd-988d-2b3bb097f7ba
+:END:
+
+* A valid offline trace can still follow the wrong URL
+
+HTML can declare a document base URL with =<base href=...>=. Relative links
+are interpreted against that base rather than automatically against the
+address of the document containing the link. A bounded static fixture runner
+that ignores this declaration may read an entirely different fixture page,
+then report extraction and navigation success for a self-consistent but
+misleading gold trace. This is an *oracle correctness defect*, not an issue
+with a trained predictor.
+
+The BK08 offline runner has no browser, HTTP client, or JavaScript runtime.
+It already constrains page references to the in-memory =fixture.invalid=
+origin. This lab adds a bounded, explicit document-base interpretation to
+=offline_html_trace_executor.py=. It does not claim complete HTML or browser
+URL behavior.
+
+* One anchor, two plausible targets
+
+For the start document =/catalog/index.html=, consider:
+
+#+begin_src html
+<head><base href="/catalog/v2/"></head>
+<body><a id="entry" href="record.html">Record</a></body>
+#+end_src
+
+Without reading =base href=, the link appears to target
+=/catalog/record.html=. With the declared base, the confined fixture
+resolver targets =/catalog/v2/record.html=. A valid test inventory can
+contain *both* paths with different values. Merely checking whether the
+gold and candidate traces agree would not uncover the error: both could
+agree on the wrong page. The actual gold execution must use the declared
+base, then compare the observed visited-page list and extracted field map
+to the recorded reference.
+
+#+begin_src python :results output :exports both
+from offline_html_trace_executor import run_trace
+pages = {
+    "/catalog/index.html": (
+        '<head><base href="/catalog/v2/"></head>'
+        '<a id="entry" href="record.html">Record</a>'
+    ),
+    "/catalog/record.html": '<p id="name">wrong directory</p>',
+    "/catalog/v2/record.html": '<p id="name">Ada</p>',
+}
+trace = [
+    {"op": "select", "selector": "#entry"},
+    {"op": "follow", "kind": "detail"},
+    {"op": "select", "selector": "#name"},
+    {"op": "extract", "field": "name"},
+]
+result = run_trace(pages, "/catalog/index.html", trace)
+print(result["visited"])
+print(result["extractions"])
+#+end_src
+
+Expected deterministic synthetic output (covered by native tests):
+
+#+begin_example
+['/catalog/index.html', '/catalog/v2/record.html']
+{'name': 'Ada'}
+#+end_example
+
+* A constrained interpretation, not a browser clone
+
+The contract is intentionally small:
+
+- If no active =base href= exists, relative navigation uses the current
+  document path exactly as before.
+- One active base may be relative, fixture-rooted, or an absolute URL on
+  the same fixed =https://fixture.invalid= origin. An empty base is treated
+  as the current document URL. Whether the base ends in =/= matters: a
+  directory base and a file base resolve relative links differently.
+- Base elements inside inert =template=, =script=, or =style= subtrees do
+  not affect the static document. A =base= with only =target= does not
+  change URL resolution in this offline runner.
+- Multiple active =base href= elements fail with typed
+  =unsafe_navigation= instead of silently choosing a winner. External
+  origins, query/fragment-bearing or percent-encoded/traversal references
+  remain outside this deliberately strict fixture navigation policy.
+- The runner validates bases on *every supplied static page* before
+  executing gold or candidate actions. Invalid metadata on an unvisited
+  fixture page cannot be concealed by a successful visited-page trace.
+
+These limits are stricter than browser HTML rules. They are an explicit
+reproducibility contract for a closed fixture inventory, not claims about
+DOM insertion, arbitrary CSS, redirects, dynamic =<base>= edits, scripts,
+network requests, or cross-browser behavior.
+
+* Native regression and reproducible evaluation
+
+Run in =books/ml-starintel/code/html-tool-benchmark=:
+
+#+begin_src sh :results output :exports both
+python -m unittest -v test_static_base_href_resolution
+python -m unittest discover -p 'test_*.py'
+python offline_html_trace_executor.py --demo
+python html_template_split_audit.py --demo
+python html_heldout_baselines.py --demo
+#+end_src
+
+The new native suite tests same-origin absolute and relative bases, file
+versus directory bases, empty and absent declarations, inert templates,
+multiple active declarations, external origins, query/percent/traversal
+rejection, an invalid base on an unvisited page, gold-mismatch prevention,
+repeatable output, and a disabled-network test boundary. The existing
+baseline and leakage checks must continue to pass because ordinary pages
+with no active base preserve their prior interpretation.
+
+* Exercises
+
+1. ★ Identify the two distinct targets of =record.html= in the example.
+   Explain why an exact-action match cannot establish that a target path is
+   semantically correct.
+2. ★★ Replace the base with =v2/=, then with
+   =/catalog/v2/landing.html=. Predict the visited path before running
+   the tests. Explain the trailing-slash rule.
+3. ★★ Change the base to =https://elsewhere.invalid/catalog/v2/=. Record
+   the *typed* failure, and explain why no external HTTP request is made.
+4. ★★★ Design a separate evaluation for full browser =<base>= behavior,
+   including multiple declarations, DOM mutations, templates, and
+   server-relative paths. State which additional oracle would be needed;
+   do not silently promote this static fixture runner into a browser.
+
+* Evidence and boundary
+
+The source is a Python standard-library-only, in-memory static fixture
+executor with deterministic native regression tests. All concrete outputs
+above are fixture-derived; no real website was scraped. Record full book
+build, book check, and official EPUBCheck as NOT RUN until the actual
+repository build/toolchain is available. This lab does not change Worker 7,
+model weights, StarIntel schemas, or hosted CI configuration.

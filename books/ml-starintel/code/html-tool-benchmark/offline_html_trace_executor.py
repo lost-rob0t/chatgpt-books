@@ -220,9 +220,36 @@ def _preflight_parsed_pages(prepared: dict[str, str]) -> dict[str, Element]:
     return parsed
 
 
+
+def _document_base(root: Element, page_path: str) -> str:
+    """Resolve at most one active HTML base href within our static origin.
+
+    This is an intentionally bounded fixed-page contract, not a browser DOM:
+    inert template/script/style content cannot supply a base URL. Reject
+    multiple active base declarations instead of silently selecting one.
+    """
+    base_href: str | None = None
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        if node.tag in {"template", "script", "style"}:
+            continue
+        if node.tag == "base" and "href" in node.attrs:
+            if base_href is not None:
+                raise TraceFailure("unsafe_navigation", "multiple active base href declarations")
+            base_href = node.attrs["href"]
+        stack.extend(reversed([x for x in node.children if isinstance(x, Element)]))
+    if base_href is None or base_href == "":
+        return page_path
+    return resolve_page(base_href, page_path)
+
+
 def run_trace(pages: dict[str, str], start: str, actions: list[dict[str, Any]]) -> dict[str, Any]:
     prepared = _validate_pages(pages)
     parsed = _preflight_parsed_pages(prepared)
+    # Even never-visited supplied pages must have an origin-confined, unambiguous
+    # URL base: otherwise a gold run could validate against misleading targets.
+    document_bases = {path: _document_base(root, path) for path, root in parsed.items()}
     if not isinstance(actions, list) or len(actions) > MAX_ACTIONS:
         raise TraceFailure("invalid_action", "trace action budget exceeded")
     current = resolve_page(start)
@@ -271,7 +298,7 @@ def run_trace(pages: dict[str, str], start: str, actions: list[dict[str, Any]]) 
                 raise TraceFailure("invalid_action", "follow requires selected anchor and typed kind")
             if "href" not in selected.attrs:
                 raise TraceFailure("missing_target", "selected anchor has no href")
-            current = resolve_page(selected.attrs["href"], current)
+            current = resolve_page(selected.attrs["href"], document_bases[current])
             root = load(current)
             selected = None
         else:
