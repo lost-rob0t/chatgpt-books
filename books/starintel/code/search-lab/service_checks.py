@@ -86,8 +86,9 @@ def collect(base, surface, query, token=None):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--seed', action='store_true', help='create five historical synthetic records in a disposable stack')
-    parser.add_argument('--expect-backend-failure', action='store_true')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--seed', action='store_true', help='create five historical synthetic records in a disposable stack')
+    mode.add_argument('--expect-backend-failure', action='store_true')
     args = parser.parse_args()
     base = os.environ['STAR_SEARCH_LAB_URL'].rstrip('/')
     url = urlsplit(base)

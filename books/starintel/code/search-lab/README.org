@@ -76,6 +76,10 @@ username/password or query, and =STAR_SEARCH_LAB_DISPOSABLE=1=. Then:
 python3 books/starintel/code/search-lab/service_checks.py --seed
 #+end_src
 
+The =--seed= and =--expect-backend-failure= flags are mutually exclusive.
+A combined invocation is an error; it cannot silently skip fixture seeding
+while reporting a successful backend-failure experiment.
+
 The runner writes five synthetic records across =book-public=, =book-private=,
 and =book-other-public=, uses authenticated by-ID read-back with a 30-second
  deadline per record, then separately polls exact search-visible sets with a
