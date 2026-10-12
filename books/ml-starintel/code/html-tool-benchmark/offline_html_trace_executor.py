@@ -175,6 +175,10 @@ def resolve_page(raw: Any, base: str = "/") -> str:
     # path that browser-like consumers may normalize differently.
     if "\\" in raw:
         raise TraceFailure("unsafe_navigation", "backslash in static page reference")
+    # A present delimiter with an empty value is still an unsupported URL
+    # component. urlsplit().query/fragment alone cannot distinguish it.
+    if "?" in raw or "#" in raw:
+        raise TraceFailure("unsafe_navigation", "query or fragment delimiter in static page reference")
     try:
         raw.encode("utf-8")  # reject unpaired surrogates before URL normalization
         split_raw = urlsplit(raw)

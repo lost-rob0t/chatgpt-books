@@ -1,0 +1,59 @@
+#+title: BK08 Lab — Empty URL Delimiters as Gold-Trace Integrity Failures
+:PROPERTIES:
+:ID:       6f4e91fa-3e8f-5dc6-a90b-8d6648ad1be7
+:END:
+
+* Scope and invariant
+This lab is about a bounded, fully offline fixture executor, not a browser or
+an HTTP scraper. Its static URL grammar disallows query and fragment components.
+The spelling of a URL matters: the absence of a component is not the same
+input as a component introduced by =?= or =#= whose value happens to be empty.
+
+The invalid examples below previously normalized into the same page path as
+their valid spelling. That is dangerous for a benchmark oracle: a synthetic
+gold trace could visit a page and score as correct even though the author had
+supplied a URL outside the declared fixture grammar. No network is involved.
+
+| Input | Previously normalized | Required result |
+|-------+-----------------------+-----------------|
+| =item.html= | =/catalog/item.html= | accepted |
+| =item.html?= | =/catalog/item.html= | =unsafe_navigation= |
+| =item.html#= | =/catalog/item.html= | =unsafe_navigation= |
+| =?= | =/catalog/index.html= | =unsafe_navigation= |
+| =#= | =/catalog/index.html= | =unsafe_navigation= |
+
+* Run the native evidence
+From =books/ml-starintel/code/html-tool-benchmark/=, execute:
+
+#+begin_src sh :eval never
+python -m unittest -v test_empty_url_delimiter_integrity
+python -m unittest discover -p 'test_*.py' -q
+python offline_html_trace_executor.py --demo
+python html_template_split_audit.py --demo
+python html_heldout_baselines.py --demo
+#+end_src
+
+The focused tests exercise direct page resolution, gold navigation, held-out
+split pre-scoring, and typed candidate failure. They separately verify that
+unambiguous relative/absolute same-origin paths still work. The split audit
+must reject an invalid gold navigation before presenting any success metrics.
+
+* Why the type matters
+=urllib.parse.urlsplit= exposes empty =query= and =fragment= values for both
+missing and explicit empty delimiters. Looking only at those values loses the
+original spelling. Check the raw reference for =?= and =#= before URL joining,
+while retaining the existing percent, traversal, authority, and backslash
+checks. Never guess that an empty query or fragment was intended to be omitted.
+
+* Exercises
+1. Predict whether =?= and =#= would reload a page in different browser
+   navigation contexts. Explain why this *offline* executor does not model that.
+2. Add a same-origin fixture with a nonempty fragment and verify the existing
+   =unsafe_navigation= result remains unchanged.
+3. Explain why a benchmark cannot treat a rejected gold trace as one failed
+   candidate prediction: its authoritative labels were invalid first.
+
+* Claim boundary
+This is a deterministic static fixture grammar and an offline regression,
+not a browser-conformance claim, web navigation benchmark, or new model result.
+Publish neither invented CI outcomes nor measurements beyond the tests run.
