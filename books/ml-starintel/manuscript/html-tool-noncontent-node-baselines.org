@@ -1,0 +1,101 @@
+#+title: HTML Tool Benchmark Lab — Non-content DOM Candidates
+#+property: header-args:python :results output :exports both
+:PROPERTIES:
+:ID:       14b430ce-9e80-5109-9b5f-e96894f6b6d3
+:END:
+
+* Problem: a technically selectable node is not necessarily a record
+
+This Project 1 benchmark is a *static, offline* HTML tool-calling exercise. It
+can parse an element without deciding that a scraping baseline should rank it
+as a candidate record. Those are different contracts. The gold-trace oracle
+validates canonical selectors and extracts whatever the supplied synthetic HTML
+contains; the unlabeled baseline must make its own choices without inspecting
+held-out gold traces or extracted answers.
+
+An earlier baseline walked through =<head>= and =<template>= descendants, and
+accepted their text-bearing leaf nodes as record candidates. A deterministic
+static heuristic that prioritized the first identifiable leaf therefore chose
+=Metadata= from the document title instead of =Ada= from the main content.
+The issue is not network access, ML training, or evaluation scoring. It is an
+unintentional candidate pool with non-content ancestors.
+
+* Small controlled counterexample
+
+#+begin_src html
+<head><title id="wrong">Metadata</title></head>
+<main><span id="actual">Ada</span></main>
+#+end_src
+
+Before the correction, the heuristic produced =select #wrong; extract name=.
+After the correction, it produces =select #actual; extract name=, returning
+={"name":"Ada"}= from the bounded offline oracle. This is a constructed
+example, not evidence of real-website accuracy.
+
+* Explicit candidate eligibility
+
+In =html_heldout_baselines.py=, the DFS now *prunes whole subtrees* when the
+ancestor is =head=, =script=, =style=, or =template=. It also prunes an element
+carrying the HTML boolean =hidden= attribute, regardless of the attribute's
+value, and a subtree explicitly marked =aria-hidden="true"= (case-insensitive
+with surrounding whitespace ignored). A sibling outside the pruned subtree
+remains a candidate.
+
+An element with =aria-hidden="false"= is not excluded on that basis. These are
+*limited static eligibility rules*, not a browser's computed-style, CSS,
+JavaScript, shadow-DOM, or accessibility-tree implementation. Do not promote
+the resulting scores to browser-equivalent visibility claims. Importantly,
+this rule only constrains the static heuristic and train-only candidate pool;
+it does *not* silently rewrite canonical tool-action semantics in the oracle.
+
+* Run the lab from a complete checked-out repository
+
+From the repository root:
+
+#+begin_src sh
+cd books/ml-starintel/code/html-tool-benchmark
+python -m unittest -q test_static_hidden_candidates
+python -m unittest discover -q -p 'test_*.py'
+python html_heldout_baselines.py --demo
+#+end_src
+
+The small test module checks hidden-ancestor pruning, HTML boolean attribute
+behavior, correct static selection, immunity of training weights to injected
+hidden decoys, prediction stability, and repeatable CLI output. The native
+suite checks the existing oracle, held-out baselines and unrelated regression
+contracts. The one-command demo still uses five controlled source templates
+expanded into 60 variants; it is *not* a 60-site independent generalization
+measurement.
+
+* Analyze the learning boundary
+
+The train-only ranker builds its node feature statistics from the training
+partition, while the static heuristic uses no fitted weights. Hidden decoys
+must not appear as false-negative training candidates, because those negatives
+would change the learned log-odds weights even when every gold reference is
+unchanged. The adversarial native test inserts the same non-content subtree
+into every training start page and requires the exact learned weight table to
+stay unchanged. It also requires unchanged predictions after adding an unseen
+hidden decoy to a held-out fixture.
+
+The observable CLI report schema is now =bk08.heldout-node-baselines/v2= to
+signal the narrower predictor eligibility contract. The underlying split
+auditor and oracle report schemas are not changed by this lab.
+
+* Failure investigation and limitations
+
+If a gold trace explicitly selects a leaf inside a non-content subtree, the
+bounded oracle may execute it, but fitting the train-only baseline reports
+=invalid_record= because its visible-candidate contract cannot learn that
+hidden target. For legitimate static record extraction, supply visible labeled
+examples instead of silently mixing hidden targets into the training pool.
+
+More complex cases involving computed =display:none=, CSS inheritance, scripts,
+iframes, and browser rendering need a separately specified and tested runtime.
+They are not implemented here. Evidence from this lab is TESTED only for the
+synthetic static fixture cases and the available native regression suite.
+
+See also [[file:html-tool-heldout-node-baselines.org][the held-out ranker lab]]
+and [[file:html-tool-template-leakage.org][the template-leakage lab]]. Neither
+leakage-safe grouping nor better candidate visibility by itself demonstrates
+real-world scraping performance.

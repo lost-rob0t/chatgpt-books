@@ -62,14 +62,26 @@ def _visible_candidates(html: str) -> list[Element]:
     return _candidate_nodes(parser.root)
 
 
+# Eligibility is deliberately narrower than HTML parsing: these known
+# non-content subtrees never produce a textual target for the baselines.
+# This is NOT a general CSS/layout visibility engine.
+NONCONTENT_SUBTREES = frozenset({"head", "script", "style", "template"})
+
+
 def _candidate_nodes(root: Element) -> list[Element]:
+    """Return only eligible textual leaves, pruning non-content ancestors."""
     result: list[Element] = []
     stack = [root]
     while stack:
         node = stack.pop()
-        if node is not root and node.tag not in {"script", "style"}:
-            if not any(isinstance(child, Element) for child in node.children) and node.text():
-                result.append(node)
+        if (node is not root and (
+            node.tag in NONCONTENT_SUBTREES
+            or "hidden" in node.attrs  # HTML boolean attribute: even hidden="false"
+            or node.attrs.get("aria-hidden", "").strip().lower() == "true"
+        )):
+            continue  # Never descend into a hidden/non-content container.
+        if node is not root and not any(isinstance(child, Element) for child in node.children) and node.text():
+            result.append(node)
         stack.extend(reversed([child for child in node.children if isinstance(child, Element)]))
     return result
 
@@ -234,7 +246,7 @@ def run_bench(partitions: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
                                    "failure_counts": dict(sorted(failures.items()))}
         scored[method] = split_reports
     return {
-        "schema": "bk08.heldout-node-baselines/v1",
+        "schema": "bk08.heldout-node-baselines/v2",
         "audit": {key: evidence[key] for key in ("samples", "templates", "family_count", "template_reuse_count")},
         "ranker_fit": {"train_examples": ranker.trained_examples, "train_families": ranker.trained_families,
                        "feature_count": len(ranker.weights)},
