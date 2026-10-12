@@ -170,6 +170,11 @@ def select_one(root: Element, selector: Any) -> Element:
 def resolve_page(raw: Any, base: str = "/") -> str:
     if not isinstance(raw, str) or not raw or len(raw) > 512 or any(ord(c) < 33 for c in raw):
         raise TraceFailure("unsafe_navigation", "invalid page reference")
+    # A literal backslash is not a canonical separator for our fixed-origin
+    # static URL grammar. Reject it before urljoin can preserve an ambiguous
+    # path that browser-like consumers may normalize differently.
+    if "\\" in raw:
+        raise TraceFailure("unsafe_navigation", "backslash in static page reference")
     try:
         raw.encode("utf-8")  # reject unpaired surrogates before URL normalization
         split_raw = urlsplit(raw)

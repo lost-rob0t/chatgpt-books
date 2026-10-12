@@ -1,0 +1,81 @@
+#+title: Static URL path integrity: backslash ambiguity in an offline HTML tool corpus
+:PROPERTIES:
+:ID:       d71e4c7c-704c-5a55-afb5-49e48d349631
+:END:
+
+* Scope: what an offline navigation oracle can assert
+BK08's tool trace executor resolves links among supplied in-memory pages under
+one fixed fixture origin. It is *not* a browser, a network client, or a claim
+of full WHATWG URL implementation. The benchmark must nevertheless avoid
+ambiguous path references: if two consumers interpret the same reference
+differently, a self-consistent gold trace can validate the wrong page.
+
+Before this regression, Python's URL joining machinery preserved a literal
+backslash inside the path. With =href="v2\\record.html"=, the oracle could
+resolve a page whose key itself contained a backslash. This corpus has no
+specified rule treating backslash as a path separator. Rather than claim a
+portable interpretation, the bounded URL grammar rejects it.
+
+* The observed RED case
+
+#+begin_src python :results output :exports both
+from offline_html_trace_executor import TraceFailure, resolve_page
+for value in ('v2\\record.html', '/catalog\\record.html', '/catalog/v2/record.html'):
+    try:
+        print(value, '=>', resolve_page(value, '/catalog/index.html'))
+    except TraceFailure as error:
+        print(value, '=>', error.code)
+#+end_src
+
+#+begin_example
+v2\record.html => unsafe_navigation
+/catalog\record.html => unsafe_navigation
+/catalog/v2/record.html => /catalog/v2/record.html
+#+end_example
+
+These example outputs describe the *corrected* evaluator. The frozen original
+source did not reject the first two references; the native tests fail RED
+against that exact published source.
+
+* One check at the common URL boundary
+=resolve_page= is called by page-inventory path validation, trace start-path
+resolution, anchor =follow=, and active document =<base href>= resolution.
+Rejecting a literal =\= there gives every such route the same typed
+=unsafe_navigation= outcome. No URI percent-decoding, implicit path repair,
+HTML reparsing strategy, model behavior, or ranker weights changed.
+
+The boundary applies only to *URL references*. The string
+=C:\Users\Ada= inside an HTML text node remains valid fixture content and
+can still be extracted. Ordinary forward-slash relative references, fixed
+origin references, and navigation through supplied pages remain valid.
+
+* Reproduce the native check
+Run from =books/ml-starintel/code/html-tool-benchmark=:
+
+#+begin_src sh :eval never-export
+python -m unittest -q test_backslash_url_ambiguity
+python -m unittest discover -q -p 'test_*.py'
+python offline_html_trace_executor.py --demo
+python html_template_split_audit.py --demo
+python html_heldout_baselines.py --demo
+#+end_src
+
+The 15 focused regression methods cover absolute and relative references,
+UNC-like forms, start pages, inventory keys, follow actions, document base
+URLs on visited and unvisited pages, gold evaluation, pre-score split audits,
+plain HTML content, forward-slash controls, and deterministic diagnostics.
+The established benchmark remains static and does not issue HTTP requests.
+
+* Exercises and limits
+1. ★ Explain why a valid HTML text backslash is different from a URL path
+   backslash. Show which one the static grammar accepts.
+2. ★★ Construct two in-memory pages, one with a forward-slash reference and
+   one with a backslash reference. Verify only the former can produce a
+   successful =follow= gold trace.
+3. ★★★ Design a *separate*, explicitly versioned browser-conformance oracle.
+   Identify where external browser URL parsing evidence would be needed;
+   do not silently expand this bounded static grammar.
+
+A successful native regression run is not evidence that the entire book was
+built, official EPUBCheck passed, hosted CI ran, or a PR was reviewed. These
+verification gates remain separate and must be reported truthfully.
