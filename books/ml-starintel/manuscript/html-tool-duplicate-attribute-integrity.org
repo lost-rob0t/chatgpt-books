@@ -1,0 +1,100 @@
+#+title: BK08 Lab — Duplicate HTML Attributes and Gold-Trace Ambiguity
+:PROPERTIES:
+:ID:       7af4d6e3-21c8-4de0-b32b-7822949663ee
+:END:
+
+* Problem: a self-consistent gold trace can use ambiguous HTML
+
+BK08 evaluates traces against deliberately bounded *offline static HTML*.
+The same parser executes gold and candidate traces. Agreement between them
+is therefore not proof that the HTML reference itself is unambiguous.
+
+Consider one anchor with two =href= attributes:
+
+#+begin_src html
+<a id="record" href="/approved.html" href="/alternate.html">Open</a>
+#+end_src
+
+The old parser silently preserved the first =href=. A gold trace could
+therefore visit =/approved.html= and pass, even though the input contains
+conflicting navigation instructions. Other tooling might choose a different
+error-recovery interpretation. BK08 should not present such a record as a
+well-defined gold fixture.
+
+* Bounded attribute contract
+
+The offline parser now rejects *any repeated attribute name on the same
+HTML element*, including repetitions with equal values. Attribute names
+arrive normalized to lowercase from Python's =HTMLParser=, so =href= and
+=HREF= are duplicates. The error uses the existing typed =parse_bounds=
+category. This is intentionally stricter than permissive browser parsing;
+it does not assert the behavior of an arbitrary browser DOM.
+
+Independent elements may still use the same =id=: selecting that identifier
+remains a distinct =selector_ambiguous= error, not a duplicated attribute.
+Distinct attributes on one element remain valid. The bounded parser parses
+*all supplied pages before executing any trace*, so an unused page carrying
+an ambiguous duplicate cannot evade validation.
+
+* Executable failure and valid control
+
+Run from =books/ml-starintel/code/html-tool-benchmark=:
+
+#+begin_src python :results output :exports both
+from offline_html_trace_executor import TraceFailure, run_trace
+
+bad = {'/index.html': '<a id="record" href="/one" href="/two">Go</a>'}
+try:
+    run_trace(bad, '/index.html', [])
+except TraceFailure as exc:
+    print(exc.code)
+
+good = {'/index.html': '<p id="record" class="person">Ada</p>'}
+trace = [{'op': 'select', 'selector': '#record'},
+         {'op': 'extract', 'field': 'name'}]
+print(run_trace(good, '/index.html', trace)['extractions'])
+#+end_src
+
+#+begin_example
+parse_bounds
+{'name': 'Ada'}
+#+end_example
+
+The reported failure occurs before gold or candidate scoring. It is not a
+new success metric, selector feature, trained ranker, model, browser, or
+networking implementation.
+
+* Test the invariant rather than its incidental implementation
+
+#+begin_src sh :eval never-export
+python -m unittest -v test_duplicate_html_attribute_integrity
+python -m unittest discover -q -p 'test_*.py'
+python offline_html_trace_executor.py --demo
+python html_template_split_audit.py --demo
+python html_heldout_baselines.py --demo
+#+end_src
+
+The native suite checks contradictory and identical =href= repetitions,
+case-insensitive and unquoted attributes, duplicate =id=/=class=/custom
+attributes, void/self-closing elements, unvisited-page preflight, ordinary
+unique attributes, distinct-node ID collisions, deterministic failure text,
+scored gold rejection, and template-audit propagation. No online collection
+is involved.
+
+* Exercises
+
+1. ★ Why can gold and candidate both appear correct if a fixture parser
+   silently chooses the first of two conflicting =href= attributes?
+2. ★★ Change the second =href= to equal the first. Explain why the
+   canonical offline-fixture policy still rejects the duplicate.
+3. ★★ Add =HREF= rather than =href= and verify the normalized-name check.
+4. ★★★ Compare strict fixture acceptance with permissive HTML recovery in a
+   *separately specified* browser oracle. Identify what evidence is needed
+   before making portability or cross-browser claims.
+
+* Scope and verification record
+
+These are deterministic synthetic controls. Running the native Python suite
+and standalone Org conversion does not imply that the full book build,
+=make check=, official EPUBCheck, or hosted CI has executed. Those gates
+must be reported separately. BK07 model/decoder/training code is unchanged.

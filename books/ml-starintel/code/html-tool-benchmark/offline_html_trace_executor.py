@@ -83,8 +83,12 @@ class BoundedParser(HTMLParser):
             raise TraceFailure("parse_bounds", "HTML nesting is too deep")
         clean: dict[str, str] = {}
         for key, value in attrs:
-            if key not in clean:
-                clean[key] = value or ""
+            # Duplicate names are ambiguous fixture evidence, even when their
+            # values agree. HTMLParser already folds attribute names to lower
+            # case. Do not silently choose a winner for gold or candidate runs.
+            if key in clean:
+                raise TraceFailure("parse_bounds", f"duplicate HTML attribute: {key}")
+            clean[key] = value or ""
         node = Element(tag, clean)
         self.stack[-1].children.append(node)
         if tag not in VOID_TAGS:
