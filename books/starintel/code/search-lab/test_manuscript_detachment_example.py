@@ -5,8 +5,8 @@ import unittest
 
 MANUSCRIPT = Path(__file__).resolve().parents[2] / 'manuscript/search-15.org'
 BLOCK = re.compile(
-    r'^\\#\\+name: search15-evidence-detachment-example\\s*\\n'
-    r'^\\#\\+begin_src python\\s*\\n(.*?)^\\#\\+end_src\\s*$',
+    r'^\#\+name: search15-evidence-detachment-example\s*\n'
+    r'^\#\+begin_src python\s*\n(.*?)^\#\+end_src\s*$',
     re.MULTILINE | re.DOTALL,
 )
 
