@@ -1,0 +1,18 @@
+digraph Projection {
+  rankdir=LR;
+  graph [fontname="DejaVu Sans", fontsize=11, label="BK10: declared ordinal projection, not an implicit time conversion", labelloc=t];
+  node [fontname="DejaVu Sans", shape=box, style=rounded, fontsize=10];
+  inventory [label="Invented BK01 events\nexternal fixed receipt"];
+  seal [label="Source blob + sealed\n60-second capture check"];
+  native [label="BK01 native windows\n[0, 2, 3]"];
+  ordinal [label="BK10 unit-tick observations\nt = 0, 1, 2"];
+  lineage [label="Source clock [start,end)\nand source IDs"];
+  filter [label="BK01 next-high probability\nfixed binary filter"];
+  scenarios [label="BK10 arithmetic scenarios\ncounts [3, 4, 5]"];
+  inventory -> seal -> native;
+  native -> ordinal [label="declared projection"];
+  native -> lineage [label="preserve evidence"];
+  native -> filter;
+  ordinal -> scenarios;
+  lineage -> scenarios [style=dashed, label="audit only"];
+}

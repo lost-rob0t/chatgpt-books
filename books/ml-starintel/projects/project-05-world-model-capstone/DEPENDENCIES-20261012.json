@@ -1,0 +1,40 @@
+{
+  "repository": "lost-rob0t/chatgpt-books",
+  "issue": 152,
+  "observed_utc_date": "2026-10-12",
+  "main": "c650565f7604fbe57033e0ed3cb5bde060a7adfd",
+  "bk10_branch": "worker/152-world-model-capstone",
+  "bk10_head_before_this_run": "f6f73137e823e3271ac96dcaa7e5fcb048949685",
+  "writer": "lost-rob0t",
+  "component_prs_143_through_151": "None in current open PR listing; all nine source issues are open; absence of PR checks is NOT PASS.",
+  "sources": {
+    "BK01": {"branch": "worker/143-world-model-foundations", "commit": "679bd8f231dc76157fb3aaef06b54842d0f17c32", "code_blob": "b12863b2792dc3961ef05343fe455667605251c7", "status": "candidate source; native exercised in this run; NOT reviewed; exact-head status checks empty"},
+    "BK02": {"branch": "worker/144-tiny-world-model", "commit": "a416f16817a41c1f187547afa699d02fe2385ecb", "status": "no current feature implementation verified"},
+    "BK03": {"branch": "worker/145-llm-from-scratch", "commit": "c650565f7604fbe57033e0ed3cb5bde060a7adfd", "status": "no current feature implementation verified"},
+    "BK04": {"branch": "worker/146-tiny-llm-inference", "commit": "cf581464cea6167d9bd1983b19aedca961c74156", "status": "candidate source; NOT reviewed; exact-head status checks empty"},
+    "BK05": {"branch": "worker/147-diffusion-from-scratch", "commit": "c650565f7604fbe57033e0ed3cb5bde060a7adfd", "status": "no current feature implementation verified"},
+    "BK06": {"branch": "worker/148-diffusion-world-models", "commit": "151ed124852be96aea45d3c26d37d1ec27452885", "status": "candidate source; NOT reviewed; exact-head status checks empty"},
+    "BK07": {"branch": "worker/149-html-tool-model", "commit": "a947f50f2b9229c61bf58d147ff02f4dbaae9c0c", "status": "candidate source; NOT reviewed; exact-head status checks empty"},
+    "BK08": {"branch": "worker/150-html-executor-metamorphic-20261011", "commit": "a2e37c2e1e49ec3238f541eaa1a36f3a1918bea7", "status": "new heldout-node-baseline candidate, source unreviewed; exact-head status checks empty"},
+    "BK09": {"branch": "worker/151-llm-log-classifiers", "commit": "a416f16817a41c1f187547afa699d02fe2385ecb", "status": "no current feature implementation verified"}
+  },
+  "this_run": {
+    "seam": "BK01 sealed 60-second windows -> BK10 explicitly ordinal unit tick observations",
+    "bk01_capture_gate_blob": "1631d023e6da9f500795205753495ca3582fab36",
+    "bk10_capstone_source_blob_from_github": "8bfa62c7772326daa5d1cd7550a8707c50ac2581",
+    "bk10_capstone_native_executed": false,
+    "bk01_native_executed": true,
+    "test_double_explicit": true,
+    "tests_passed": 21,
+    "tests_failed": 0,
+    "root_make_book": "NOT RUN — full repository checkout not available",
+    "root_make_check": "NOT RUN — full repository checkout not available",
+    "official_epubcheck": "NOT RUN — tool unavailable",
+    "isolated_org_html": "PASS",
+    "isolated_epub": "PASS",
+    "graphviz_svg": "PASS",
+    "remote_mutation": "NONE as of this checkpoint"
+  },
+  "integration_ready": false,
+  "final_capstone_pr_allowed": false
+}
