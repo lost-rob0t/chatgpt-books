@@ -101,6 +101,33 @@ unlimited requests. Transport, proxy, parser and backend constraints remain
 separate. The lab tests the inspected handler boundary, not an imaginary
 unbounded deployment.
 
+** The public query cap is measured in Lisp characters, not HTTP bytes
+
+At the pinned public handler, the explicit 512 limit checks =(length q)=
+/after/ parsing the query string. This measures Lisp string characters. It
+is not an HTTP URL byte limit, a Lucene parser bound, or a backend resource
+budget. For example, the following executable, synthetic Python demonstration
+shows that encoding the same string for an HTTP query requires more bytes:
+
+#+name: search15-public-query-length-units
+#+begin_src python
+from urllib.parse import urlencode
+
+query = '\u03bb' * 512
+assert len(query) == 512
+assert len(query.encode('utf-8')) == 1024
+encoded = urlencode({'q': query})
+assert len(encoded.encode('ascii')) > 1024
+#+end_src
+
+The pinned Lisp handler admits 512 such characters at its own validation
+boundary and rejects 513 with =search_query_too_long=; the hermetic Lisp suite
+checks both cases on the extracted handler. A live HTTP deployment may impose
+independent transport or proxy limits before the Lisp handler sees that string.
+This example therefore does *not* predict the result of a complete HTTP
+request, nor does it claim all 512-character Lucene expressions are valid.
+
+
 ** Public visibility is a deployment decision
 
 The public handler builds scopes from =*public-search-datasets*=, initialized
