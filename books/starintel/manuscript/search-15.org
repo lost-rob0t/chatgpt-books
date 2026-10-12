@@ -363,6 +363,38 @@ query/surface/time/version context of a retrieval. Canonical provenance lives
 with the record; query execution context describes how you obtained that
 record. They complement each other.
 
+** Retaining an observation without rewriting its evidence
+
+A decoded search response is mutable Python data. Even if a result wrapper uses
+=@dataclass(frozen=True)=, nested dictionaries are not thereby frozen. The
+teaching client deep-copies the embedded =doc= and stored index =fields= *after*
+checking their types and scope metadata. Later edits to the response cannot
+silently rewrite those retained observations:
+
+#+name: search15-evidence-detachment-example
+#+begin_src python
+from lab import interpret_page
+
+page = {'rows': [{
+    'id': 'person:synthetic',
+    'doc': {'_id': 'person:synthetic',
+            'provenance': {'sources': ['initial']}},
+    'fields': {'name': 'original'}
+}]}
+hit = interpret_page(page)[0][0]
+page['rows'][0]['doc']['provenance']['sources'].append('later')
+page['rows'][0]['fields']['name'] = 'later'
+assert hit.document['provenance']['sources'] == ['initial']
+assert hit.fields['name'] == 'original'
+#+end_src
+
+This example is TESTED by =test_manuscript_detachment_example.py= against the
+same =interpret_page= used by the hermetic Chapter 15 lab. The copy separates
+later changes to a decoded response from retained result evidence; it does not
+make =hit.document= recursively immutable, validate the canonical schema,
+prove that a CouchDB write persisted, or ensure an index snapshot. Record the
+query, route, pin and retrieval time separately when interpreting that hit.
+
 ** Pagination needs a bounded client
 
 Treat the bookmark as an opaque continuation value. Preserve the same query
