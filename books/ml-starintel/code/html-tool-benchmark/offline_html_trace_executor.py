@@ -31,6 +31,8 @@ MAX_TEXT = 2_048
 MAX_SAMPLES = 128
 MAX_DATASET_BYTES = 2_097_152
 MAX_JSON_DEPTH = 64
+# Fixed numeric-token bound independent of interpreter int digit settings.
+MAX_JSON_INTEGER_DIGITS = 256
 VOID_TAGS = frozenset("area base br col embed hr img input link meta param source track wbr".split())
 NAME_RE = re.compile(r"[a-z][a-z0-9_]{0,63}\Z")
 ID_RE = re.compile(r"[A-Za-z][A-Za-z0-9_-]{0,63}")
@@ -482,6 +484,13 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
             fields[key] = value
         return fields
 
+    def bounded_integer(token: str) -> int:
+        # Python's decimal-int conversion limit is runtime configurable, so
+        # validate the textual token before int() for portable typed failures.
+        if len(token.lstrip("-")) > MAX_JSON_INTEGER_DIGITS:
+            raise TraceFailure("invalid_record", "JSON integer literal exceeds digit budget")
+        return int(token)
+
     def reject_nonfinite(token: str) -> None:
         raise TraceFailure("invalid_record", "non-standard JSON numeric constant")
 
@@ -494,7 +503,7 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     try:
         result = [
             json.loads(bounded_nesting(line), object_pairs_hook=unique_object, parse_constant=reject_nonfinite,
-                       parse_float=finite_float)
+                       parse_float=finite_float, parse_int=bounded_integer)
             for line in raw.decode("utf-8").splitlines() if line.strip()
         ]
     except (UnicodeError, json.JSONDecodeError, RecursionError, OverflowError) as exc:

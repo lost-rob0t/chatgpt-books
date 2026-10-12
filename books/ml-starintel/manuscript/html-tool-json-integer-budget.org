@@ -1,0 +1,110 @@
+#+title: BK08 Lab — Deterministic JSONL Integer Token Budgets
+:PROPERTIES:
+:ID:       796da470-f46e-5daa-844f-b53cb32bcf7e
+:END:
+
+* Scope: data ingestion, not model inference
+This lab belongs to the offline HTML trace *data and evaluation* path
+(issue #150). It does not change the model, decoder, fitted node-ranker
+weights, accepted HTML selector grammar, or gold-trace scoring metrics.
+All input is local JSONL. Network calls are neither necessary nor permitted.
+
+A reproducible benchmark needs deterministic failure types. Before this
+increment, a JSON integer with thousands of decimal digits reached the
+standard Python integer converter. On environments with a configured decimal
+integer digit limit, the reader raised a bare =ValueError= instead of its
+published typed =TraceFailure("invalid_record")=. On an interpreter where that
+limit was disabled, the same token could be accepted instead. The result was
+not a stable data-ingestion contract across interpreters.
+
+* Bounded token before numeric conversion
+The reader now has an explicit =MAX_JSON_INTEGER_DIGITS = 256= contract.
+=read_jsonl= registers a =parse_int= callback with =json.loads=. The callback
+counts decimal digits on the *raw numeric token* (excluding a leading minus)
+and raises =invalid_record= before calling =int= if the limit is exceeded.
+
+This is intentionally a *JSON token* rule, not a limit on the length of a
+quoted string. A string containing 6,000 digits is still a string and must
+be validated by the later record schema, rather than misclassified as an
+integer. Finite floats retain their separate =parse_float= path and
+non-finite constants remain rejected.
+
+| Input fragment | Reader outcome | Reason |
+|----------------+----------------+--------|
+| ={"n": 7}= | Accept | Seven is a one-digit integer token. |
+| ={"n": -0}= | Accept | The numeric token has one decimal digit. |
+| ={"n": 999...}= (256 digits) | Accept | At the explicit boundary. |
+| ={"n": 999...}= (257 digits) | =invalid_record= | Above token budget. |
+| ={"n": 999...}= (6,000 digits) | =invalid_record= | Never delegates huge token to =int=. |
+| ={"n": "999..."}= (6,000-character string) | Accept at JSONL decoding | Quoted data is not an integer token. |
+| ={"n": 1e999999}= | =invalid_record= | Non-finite float rejected by the existing float converter. |
+
+"Accept" here means that JSONL token decoding succeeds. It does *not*
+assert that the object is a canonical BK08 record; the evaluator applies
+separate identity, field, fixture, and trace checks later.
+
+* Reproduce the original failure and the correction
+From =books/ml-starintel/code/html-tool-benchmark= run:
+
+#+begin_src sh
+python3 -m unittest -v test_json_integer_budget
+python3 -m unittest discover -s . -p 'test_*.py' -q
+#+end_src
+
+For the executable CLI boundary, create a temporary input containing a
+6,000-digit integer. No fixture fetch, browser, or online LLM is involved:
+
+#+begin_src sh
+python3 - <<'PY'
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from subprocess import run
+import sys
+
+with TemporaryDirectory() as directory:
+    path = Path(directory) / "overlong.jsonl"
+    path.write_text('{"n":' + '9' * 6000 + '}\n', encoding='utf-8')
+    result = run([sys.executable, 'offline_html_trace_executor.py',
+                  '--evaluate', str(path)], capture_output=True, text=True)
+    assert result.returncode == 2
+    assert 'invalid_record' in result.stderr
+    assert 'Traceback' not in result.stderr
+    print('typed invalid_record, exit 2')
+PY
+#+end_src
+
+The accompanying native test module exercises the positive and negative
+boundary values, 6,000-digit integers, two-line fail-closed reading, quoted
+digits, unchanged ordinary integer and finite-float behavior, existing
+non-finite rejection, and the real command-line response. Its RED control
+against the previous published executor was 3 failures and 3 errors in
+12 tests; the corrected focused suite passed 12/12. The independently
+reconstructed, Git-blob-exact published dependency snapshot contained 210
+pre-existing tests before this change. After the fix, 222/222 local native
+tests passed. These are local results, *not* hosted CI claims.
+
+* Why this is an evaluation invariant
+1. The reader should not depend on an interpreter's configurable decimal
+   conversion limit.
+2. A typed input error must remain typed when emitted by the CLI, rather
+   than becoming an unhandled stack trace.
+3. Quoted literals, finite floats, and legitimate integer tokens should not
+   be reinterpreted by the new integer converter.
+4. The fixed token limit is an ingestion budget, not a StarIntel schema
+   change or an assertion that Python cannot represent larger integers.
+
+* Exercises
+- ★ Explain why checking =len(str(int(token)))= after conversion is too late.
+- ★★ Change the test fixture to place an oversized integer in the *second*
+  JSONL line. Verify the entire read fails without returning a partial list.
+- ★★★ Design a test that varies =sys.get_int_max_str_digits()= without
+  mutating process-global settings. Explain why the bounded callback makes
+  such an experiment unnecessary for correctness of oversized tokens.
+
+* Verification boundaries
+The native tests, Python compilation, offline demo CLI comparisons, and
+standalone Org HTML/EPUB export must be reported separately. The complete
+repository's =make book BOOK=ml-starintel=, =make check BOOK=ml-starintel=,
+and official EPUBCheck may be claimed only if they actually run with the
+full repository and official toolchain. Standalone EPUB structural parsing
+is not a substitute for EPUBCheck.
