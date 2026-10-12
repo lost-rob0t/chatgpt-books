@@ -156,3 +156,20 @@ which observation is current, nor does matching metadata prove a snapshot.
 Missing stored fields remain missing, and a fields-only hit is not promoted
 to a full document. The hermetic =test_index_document_consistency.py= covers
 both disagreements, ordinary hits and existing tenant/revision checks.
+
+
+* Strict JSON before historical index execution
+
+=projection()= serializes synthetic Python fixtures before the pinned
+JavaScript index consumes them. Python's default =json.dumps()= accepts
+non-finite floats and emits =NaN=/=Infinity= spellings, but those tokens
+are *not* valid JSON and cause Node's =JSON.parse()= to fail. The book's
+transport boundary now uses =allow_nan=False= so invalid numeric inputs
+raise a direct Python =ValueError= before invoking Node.
+
+=python3 -m unittest test_projection_json_finite -v= covers NaN, both
+infinities, nested values, finite numbers and booleans against the actual
+pinned index capture. This is course-local input handling, not a change
+to CouchDB, Clouseau or StarIntel Server's JSON policy. It proves neither
+live search behavior nor canonical StarLang admissibility for non-finite
+numbers.
