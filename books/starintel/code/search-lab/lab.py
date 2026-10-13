@@ -30,7 +30,20 @@ def projection(root: Path, document: dict) -> list[dict]:
     result = subprocess.run(['node', str(HERE / 'index_projection.js'),
                              str(root / 'source/views/search.json')],
                             input=json.dumps(document, allow_nan=False), text=True, capture_output=True, check=True, timeout=30)
-    return json.loads(result.stdout)
+    emissions = json.loads(result.stdout)
+    if not isinstance(emissions, list):
+        raise ValueError('expected a list of captured index emissions')
+    for emission in emissions:
+        if (not isinstance(emission, dict)
+                or not isinstance(emission.get('field'), str)
+                or not emission['field']
+                or not isinstance(emission.get('options'), dict)
+                or emission['options'].get('store') is not True
+                or 'value' not in emission
+                or emission['value'] is None
+                or isinstance(emission['value'], (list, dict))):
+            raise ValueError('malformed captured index emission')
+    return emissions
 
 
 def request_path(surface: str, query: str, **params) -> str:

@@ -51,6 +51,18 @@ The Node VM executes trusted code from the verified pin, not untrusted input
 programs. The form extractor handles the selected pinned forms; it is not a
 general Common Lisp parser or runtime loader.
 
+* Verify the pinned JavaScript capture envelope
+The offline =projection= helper consumes JSON emitted by the course's Node
+index-call capture. A successful child process and syntactically valid JSON
+alone are insufficient evidence. Each captured event must be a stored scalar
+value with a nonempty field name; an object, missing =store=true= metadata,
+null, or nested value fails closed. This is the observed emission protocol of
+the pinned historical =source/views/search.json=, not a claim about Lucene
+tokenization, installed index completeness, or canonical record validity.
+The isolated =test_projection_emissions_protocol.py= suite exercises malformed
+child-output seams, while existing pinned JavaScript tests execute the actual
+source function. Neither layer substitutes for the opt-in HTTP/CouchDB test.
+
 * Offline check of an exported installed FTS design
 A clean historical Git checkout only verifies the *source* index function.
 It does not prove that the running CouchDB database has installed that version
