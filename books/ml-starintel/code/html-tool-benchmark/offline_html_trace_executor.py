@@ -154,7 +154,7 @@ def select_one(root: Element, selector: Any) -> Element:
     while stack:
         node = stack.pop()
         if node is not root and (tag is None or node.tag == tag):
-            node_classes = node.attrs.get("class", "").split()
+            node_classes = re.split(r"[ \t\n\f\r]+", node.attrs.get("class", ""))
             if (id_part is None or node.attrs.get("id") == id_part) and all(
                 class_name in node_classes for class_name in classes
             ):

@@ -1,0 +1,83 @@
+#+title: BK08 Lab -- HTML Class Tokens Are Not Arbitrary Unicode Whitespace
+:PROPERTIES:
+:ID:       d2c7a63f-2056-4fd6-b0b5-f64a634e07aa
+:END:
+
+* Contract and observable failure
+The offline HTML trace oracle implements a bounded selector vocabulary. Its
+class selector must match HTML =class= tokens, not substrings separated by
+any character that Python happens to classify as whitespace. This distinction
+matters when a generated static fixture contains nonbreaking spaces (NBSP),
+Unicode typographic spaces, or a vertical tab in an attribute value.
+
+HTML's class token separator is the ASCII space-character set: U+0020 SPACE,
+U+0009 TAB, U+000A LF, U+000C FORM FEED, and U+000D CR. Python's
+=str.split()= recognizes additional characters, including U+00A0 NO-BREAK
+SPACE and U+2003 EM SPACE. Treating those as separators creates nonexistent
+CSS class tokens and can make a valid selection appear ambiguous.
+
+* Controlled fixture and gold reasoning
+The first paragraph below has exactly one class token containing NBSP. It
+does /not/ have a separate =beta= class. The second paragraph has =beta= as
+its entire class attribute. Consequently, a bounded =.beta= selection must
+select the second paragraph, not reject both as ambiguous.
+
+#+begin_src html
+<p id="decoy" class="alpha&#160;beta">Other</p>
+<p id="real" class="beta">Target</p>
+#+end_src
+
+The same constraint applies to =span.alpha.beta=: only two ASCII-space-
+separated tokens may satisfy the two class components. A literal =alpha beta=
+(with U+00A0 between words) is a single token and cannot match that compound
+selector. Entity references in HTML attributes are decoded before token
+recognition; =&#160;= remains U+00A0 after decoding.
+
+* A bounded corrective rule
+Normalize class token boundaries only at selection time using the explicit
+ASCII HTML-space set. Do not normalize away Unicode characters within a
+class name. Do not broaden selector grammar, change ID matching, or make any
+network, browser, JavaScript, or model call. An unmatched selector retains
+its existing typed =selector_zero= failure; two genuinely matching nodes
+retain =selector_ambiguous=.
+
+#+begin_src python
+import re
+
+# This expression intentionally excludes NBSP and all other Unicode spaces.
+html_class_tokens = re.split(r"[ \t\n\f\r]+", class_attribute)
+#+end_src
+
+The regression deliberately exercises both counterexamples and invariants:
+non-ASCII whitespace and vertical tab must /not/ separate class tokens;
+ordinary ASCII spaces, mixed ASCII separators and compound selectors must
+still work; a real target must not become ambiguous merely because a decoy
+contains a visually similar nonbreaking space.
+
+* Reproduce and extend
+From the actual repository's
+=books/ml-starintel/code/html-tool-benchmark/= directory, run:
+
+#+begin_src sh
+python -m unittest -v test_html_css_whitespace_tokens
+python -m unittest discover -v -s . -p 'test_*.py'
+python offline_html_trace_executor.py --demo
+#+end_src
+
+The first command isolates the class-token contract. The second and third
+are required integration and offline demo gates; running only the first does
+/not/ establish the full benchmark as green. A complete release or book claim
+also requires the repository's normal book/check and official EPUBCheck.
+
+As an exercise, construct two synthetic pages with identical visible words
+but different class separators. Record the expected typed selector result,
+then score a candidate trace against a gold selection of =#real=. Explain why
+mistaken ambiguity is a correctness defect even when the textual extraction
+on the correct element is unchanged. Keep the pages and traces in memory;
+never use a live site or a model for this exercise.
+
+* Boundary of evidence
+This lab addresses HTML class tokenization in a deliberately bounded static
+selector oracle. It does not claim general CSS selector support, browser
+rendering equivalence, statistics about live sites, model generalization, or
+a released benchmark. Verify exact-head native and book results separately.
