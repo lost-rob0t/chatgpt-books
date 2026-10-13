@@ -235,6 +235,18 @@ def _preflight_parsed_pages(prepared: dict[str, str]) -> dict[str, Element]:
             parser.close()
         except (RecursionError, OverflowError) as exc:
             raise TraceFailure("parse_bounds", f"cannot parse bounded fixture page: {path}") from exc
+        # Automatic refresh is outside the explicit select/extract/follow trace
+        # vocabulary. Reject active declarations, even on unvisited pages;
+        # template/script/style descendants are inert in this bounded model.
+        pending = [parser.root]
+        while pending:
+            node = pending.pop()
+            if node.tag in {"template", "script", "style"}:
+                continue
+            if (node.tag == "meta" and
+                    node.attrs.get("http-equiv", "").strip().casefold() == "refresh"):
+                raise TraceFailure("unsafe_navigation", f"implicit HTML refresh in fixture page: {path}")
+            pending.extend(child for child in node.children if isinstance(child, Element))
         parsed[path] = parser.root
     return parsed
 

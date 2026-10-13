@@ -1,0 +1,106 @@
+#+title: Offline HTML Benchmarks — Reject Implicit Meta Refresh
+#+author: BK08 static fixture laboratory
+#+language: en
+:PROPERTIES:
+:ID:       ccb70b82-ae20-4c12-bc2c-19cff7d49f50
+:END:
+
+* Why this matters
+A gold tool trace is a sequence of explicit actions: =select=, =extract=,
+and typed =follow=. A page can also contain metadata requesting an *automatic*
+refresh or redirect. That transition is not represented by any action in our
+bounded offline executor. Pretending the page is inert creates a misleading
+gold label: a tool trace may appear correct only because the simulator omitted
+an implicit navigation.
+
+The laboratory chooses a deliberately narrow contract. It does not implement
+meta-refresh timing, browser execution, network requests, JavaScript or a new
+tool. Instead it rejects an active =<meta http-equiv="refresh">= declaration
+with the existing =unsafe_navigation= failure. A same-origin refresh is still
+implicit, so it is rejected too. This is a *course-local oracle policy*, not a
+claim that our bounded parser behaves like a browser in other respects.
+
+* Source boundary
+The maintained source is
+=file:../code/html-tool-benchmark/offline_html_trace_executor.py=. The shared
+=_preflight_parsed_pages= function parses every supplied fixture page *before*
+the first trace action runs, including pages no gold trace visits. The new
+preflight walk inspects parsed elements without re-parsing or making network
+calls. Attribute names are already lowercased by the standard-library HTML
+parser. An =http-equiv= value is compared after trimming surrounding whitespace
+and applying case-insensitive normalization. If it equals =refresh=, preflight
+rejects the fixture. Lack of =content= does not make an active declaration
+eligible: the synthetic contract errs on rejecting ambiguous automatic control.
+
+The walk skips descendants of =template=, =script=, and =style=: they do not
+contribute active metadata to this oracle. Ordinary =meta= elements such as
+=content-type=, =name= or the benchmark's =data-bk08= decoration remain valid.
+Duplicate =http-equiv= attributes continue to take the existing =parse_bounds=
+route rather than silently picking one value.
+
+* Minimal RED example
+#+begin_src python :eval never
+from offline_html_trace_executor import _preflight_parsed_pages
+
+pages = {
+    "/start.html": "<p id='label'>Ada</p>",
+    "/unvisited.html": '<meta http-equiv="REFRESH" content="0;url=/next.html">',
+}
+_preflight_parsed_pages(pages)  # TraceFailure(code="unsafe_navigation")
+#+end_src
+
+Before the correction, the parser accepted that inventory even though it was
+not representable by an explicit navigation trace. After the correction, a
+single unsupported refresh makes the entire fixture unsuitable for scoring.
+The result does not depend on which page the trace initially opens.
+
+* Positive controls
+#+begin_src python :eval never
+_preflight_parsed_pages({
+    "/ok.html": '<meta data-bk08="head_variant_0"><p>Ada</p>',
+    "/inert.html": '<template><meta http-equiv="refresh" content="0"></template>',
+})  # succeeds: ordinary metadata and inert template subtree
+#+end_src
+
+The behavior is intentionally not a catch-all ban on =<meta>=, nor a policy
+about a string containing the word =refresh=. Only the active parsed element
+with a qualifying =http-equiv= attribute triggers the typed failure.
+
+* Executable regression exercise
+From =books/ml-starintel/code/html-tool-benchmark= run:
+
+#+begin_src sh :eval never
+python -m unittest -v test_implicit_meta_refresh_preflight
+python -m unittest discover -s . -p 'test_*.py' -v
+python offline_html_trace_executor.py --demo
+python html_trace_perturbations.py --verify
+#+end_src
+
+These are separate gates. Passing the focused tests proves the new preflight
+contract, not the whole repository or publishing pipeline. The complete native
+suite must be run against *the exact changed checkout* before claiming a full
+regression green. =make book BOOK=ml-starintel=, =make check BOOK=ml-starintel=
+and official EPUBCheck must be labelled NOT RUN unless the full repository and
+official toolchain are actually present.
+
+* Investigate
+1. ★ Explain why rejecting a same-origin =content="0;url=/next.html"=
+   still improves a tool-trace oracle whose only navigation action is =follow=.
+2. ★★ Add a regression with a refresh declaration on an *unvisited* page.
+   Which component must reject it before the first action executes?
+3. ★★ Compare =http-equiv="refresh"= to =name="refresh"= and a refresh
+   declaration inside =template=. Which examples are active here, and why?
+4. ★★★ Propose an explicit future trace vocabulary for timed navigation.
+   List the clock, page-transition, and nondeterminism questions that would
+   require fresh gold labels. Do not silently introduce browser/network use.
+
+* Evidence and limits
+- TESTED (focused local excerpt): nineteen regression methods: ten RED failures
+  on the prior byte-matched preflight implementation; nineteen GREEN passes
+  on the changed excerpt. The test source is packaged alongside the change.
+- DOCUMENTED: the static oracle's intentional =select=/=extract=/=follow=
+  boundary. A browser-independent fixture policy is being taught, not measured
+  web-navigation fidelity.
+- NOT RUN in this focused laboratory: the 312-test exact-HEAD native suite on
+  the candidate, the complete production book/check, official EPUBCheck, and
+  hosted candidate CI. Do not turn the focused result into a stronger claim.
