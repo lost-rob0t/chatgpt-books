@@ -175,9 +175,12 @@ private search console. The route uses its own public context. Use the
 anonymous caller is not entitled to ingest documents or dispatch targets just
 because the read plane is configured public.
 
-#+caption: Public and authenticated search establish different scopes before calling the same CouchDB full-text index.
-#+attr_html: :alt Public search uses server-owned datasets and wildcard tenancy; authenticated search uses caller scopes; both compile backend constraints before returning scrubbed hits.
-[[file:assets/search-boundaries.svg]]
+#+begin_export html
+<figure>
+<img src="assets/search-boundaries.svg" alt="Public search uses server-owned datasets and wildcard tenancy; authenticated search uses caller scopes; both compile backend constraints before returning scrubbed hits." />
+<figcaption>Public and authenticated search establish different scopes before calling the same CouchDB full-text index.</figcaption>
+</figure>
+#+end_export
 
 ** Authorization belongs before the backend query
 
@@ -479,9 +482,12 @@ as a durable frozen dataset.
 
 ** The visibility ladder is a debugging method
 
-#+caption: HTTP acceptance, durable read-back, index projection and authorized hits are separate observations.
-#+attr_html: :alt An accepted record must reach durable storage, selected index fields and analyzer state before an authorized query can return it; omitted fields or scope exclusions can produce no hit.
-[[file:assets/search-visibility.svg]]
+#+begin_export html
+<figure>
+<img src="assets/search-visibility.svg" alt="An accepted record must reach durable storage, selected index fields and analyzer state before an authorized query can return it; omitted fields or scope exclusions can produce no hit." />
+<figcaption>HTTP acceptance, durable read-back, index projection and authorized hits are separate observations.</figcaption>
+</figure>
+#+end_export
 
 Work through this ladder with a single synthetic identity:
 
