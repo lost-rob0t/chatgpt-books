@@ -11,6 +11,8 @@ EXPECTED = [
      'Evidence established at each pinned search boundary.'),
     ('Behavior at the inspected pin | Public search | Authenticated document search',
      'Public and authenticated search contract differences.'),
+    ('Input stage | =dataset= | =tenant_id= emitted by original index',
+     'Synthetic tenant field emissions at the pinned historical index boundary.'),
     ('Indexed field | Explicit analyzer',
      'Explicit analyzer choices in the historical search index.'),
     ('Canonical field or structure | Observation at this historical index pin | Engineering consequence',
@@ -41,7 +43,7 @@ class Captions(HTMLParser):
 
 
 class SearchTableCaptionTests(unittest.TestCase):
-    def test_each_of_five_tables_has_adjacent_org_caption(self):
+    def test_each_of_six_tables_has_adjacent_org_caption(self):
         body = MANUSCRIPT.read_text(encoding='utf-8')
         for header, caption in EXPECTED:
             with self.subTest(table=header):
