@@ -86,6 +86,17 @@ jobs:
           "$RESEARCH_PYTHON" project1.py --offline
           "$RESEARCH_PYTHON" chapter06_regression.py --output-dir artifacts/chapter06
 
+      - name: Run offline BK08 HTML tool benchmark regression suite
+        shell: bash
+        working-directory: books/ml-starintel/code/html-tool-benchmark
+        run: |
+          set -euo pipefail
+          "$RESEARCH_PYTHON" -m unittest discover -v -s . -p 'test_*.py'
+          "$RESEARCH_PYTHON" offline_html_trace_executor.py --demo
+          "$RESEARCH_PYTHON" html_trace_perturbations.py --verify
+          "$RESEARCH_PYTHON" html_template_split_audit.py --demo
+          "$RESEARCH_PYTHON" html_heldout_baselines.py --demo
+
       - name: Run predeclared larger public-corpus candidate benchmark
         shell: bash
         run: |

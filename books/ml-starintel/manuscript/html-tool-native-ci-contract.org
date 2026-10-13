@@ -1,0 +1,89 @@
+#+title: BK08 Lab: Make the Offline HTML Benchmark Visible to CI
+:PROPERTIES:
+:ID:       f79c13dd-21e9-5a3f-9846-071c105cf4e9
+:END:
+
+* Failure mode: tests exist but no workflow runs them
+A reproducible offline benchmark is not automatically a verified benchmark.
+The 343 native test methods reported for the October 13, 2026 BK08 branch
+are distinct from GitHub Actions checks. The initial
+=.github/workflows/ml-starintel-research.yml= ran Project 1 research tests and
+book publishing checks, but contained no invocation of the BK08
+=html-tool-benchmark/test_*.py= modules. A green book job would not prove
+that the HTML trace evaluator, leakage gate, and baselines ran.
+
+The private workflow is triggered by matching pull requests and manual
+dispatch, not arbitrary pushes to a worker branch. A commit with zero
+check-runs is therefore *not* evidence of a passing native test suite.
+There is no BK08 pull request on this branch; this lab does not imply that
+hosted CI has executed or that the full 343 tests have passed.
+
+* Explicit execution contract
+Run in the benchmark source directory with a Python interpreter provided
+by the existing locked research environment. No live websites, browser,
+network fetches, model downloads, or inference services are required by
+these BK08 commands.
+
+#+begin_src sh :eval never
+cd books/ml-starintel/code/html-tool-benchmark
+python -m unittest discover -v -s . -p 'test_*.py'
+python offline_html_trace_executor.py --demo
+python html_trace_perturbations.py --verify
+python html_template_split_audit.py --demo
+python html_heldout_baselines.py --demo
+#+end_src
+
+The workflow uses =$RESEARCH_PYTHON= in place of =python=, sets a
+repository-relative working directory, and executes these commands after
+environment setup and before EPUB publishing. =set -euo pipefail= prevents
+the job from quietly treating failed native tests as a successful build.
+Running the evaluator demos after native unittest discovery also checks
+that the command-line teaching entry points have not drifted away from the
+library tests. Reports are observations, not proof of web generalization.
+
+* Regression gate for the workflow itself
+The native =test_bk08_workflow_contract.py= uses the Python standard library
+to inspect the actual workflow file. Its six methods cover the preserved
+ML-StarIntel pull-request trigger, unittest discovery, the benchmark working
+directory, all four offline CLI commands, fail-fast shell behavior, and
+execution before book publication. This test must not be substituted for the
+other benchmark tests: it checks the *wiring*, not trace correctness.
+
+The initial workflow produced a real focused RED: one of six tests passed,
+with four assertion failures and one missing-step exception. Adding the
+single offline BK08 step produced focused GREEN: 6/6 tests passed. A local
+YAML parse of the changed workflow also succeeded. The 343 benchmark-native
+methods were not executed in the environment used to author this increment,
+and neither the complete book build nor official EPUBCheck ran here.
+
+* Exercises
+** ★ Find the missing coverage
+Inspect the original ML-StarIntel workflow and identify the distinction
+between Project 1 research tests and BK08 HTML trace benchmark tests. Explain
+why a book build cannot stand in for a test run of another module.
+
+** ★★ Break a local contract on purpose
+Copy the workflow to a disposable working directory, remove only the
+=unittest discover= command, and rerun the workflow-contract regression.
+Record the exact failing assertion. Restore the command; never commit this
+negative-control edit or weaken the assertion to make it green.
+
+** ★★★ Prove the actual suite executes
+On a complete checkout, run the command block above, collect the reported
+test counts and subprocess exit statuses, then compare them with the exact
+commit's GitHub Actions job logs after a legitimate workflow trigger. If a
+command was not run, write =NOT RUN= rather than claiming success. Also run:
+
+#+begin_src sh :eval never
+make book BOOK=ml-starintel
+make check BOOK=ml-starintel
+#+end_src
+
+The official EPUBCheck result must be separately reported from an EPUB
+XML parse or standalone Pandoc export. Keep GitHub App ref/CI verification,
+local RED/GREEN evidence, and hosted job evidence distinct.
+
+* Scope and boundaries
+This wiring adds no model, training data, decoder, web access, or change to
+BK07 issue #149. It does not grant permission to open a previously rejected
+PR, force a branch update, merge, publish externally, or skip a safety denial.
