@@ -240,3 +240,16 @@ The six network-free =test_mixed_error_envelope.py= regressions include both
 mixed shapes, a null error member, ordinary empty and populated pages, and an
 error-only response. These checks are for the book client; they do not prove
 that a real server emits mixed envelopes or that live HTTP status mapping works.
+
+* Historical HTTP seed versus actual search-field emissions
+=python3 -m unittest test_historical_seed_projection -v= joins the five opt-in
+historical =fixture()= variants to the *actual pinned JavaScript index capture*
+in the hermetic runner. It verifies each document emits the exact =fname=
+search term, its assigned dataset, and =person= dtype; it also demonstrates
+nested-field precedence, null shadowing, and absence of =schema_version= in
+the captured fields. A changed fixture/adapter can otherwise leave all by-ID
+read-backs successful while the fielded search's positive controls never match.
+The tests do not execute Lucene tokenization, server tenant adaptation,
+authenticated middleware, live CouchDB/Clouseau or durable visibility. They
+establish raw index-field emission for the synthetic historical fixture only;
+server-side tenant metadata is intentionally not guessed from an offline seed.
