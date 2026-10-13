@@ -317,19 +317,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dev")
     parser.add_argument("--test")
     args = parser.parse_args(argv)
-    if args.demo:
-        if args.dev or args.test:
-            parser.error("--demo cannot combine with split files")
-        partitions = projected_partitions()
-    else:
-        if not args.dev or not args.test:
-            parser.error("--train requires --dev and --test")
-        partitions = {"train": read_jsonl(Path(args.train)), "dev": read_jsonl(Path(args.dev)),
-                      "test": read_jsonl(Path(args.test))}
     try:
+        if args.demo:
+            if args.dev or args.test:
+                parser.error("--demo cannot combine with split files")
+            partitions = projected_partitions()
+        else:
+            if not args.dev or not args.test:
+                parser.error("--train requires --dev and --test")
+            partitions = {"train": read_jsonl(Path(args.train)), "dev": read_jsonl(Path(args.dev)),
+                          "test": read_jsonl(Path(args.test))}
         report = run_bench(partitions)
-    except TraceFailure as exc:
-        print(json.dumps({"passed": False, "failure": exc.code, "detail": str(exc)}, sort_keys=True))
+    except (TraceFailure, OSError) as exc:
+        failure = (exc if isinstance(exc, TraceFailure)
+                   else TraceFailure("invalid_record", "dataset file cannot be read"))
+        print(json.dumps({"passed": False, "failure": failure.code, "detail": str(failure)}, sort_keys=True))
         return 1
     print(json.dumps({"passed": True, "report": report}, sort_keys=True, separators=(",", ":")))
     return 0

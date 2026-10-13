@@ -1,0 +1,85 @@
+#+title: BK08 — Typed Corpus File Failures for One-Command HTML Evaluation
+:PROPERTIES:
+:ID:       0edb120f-1fbe-4c4a-b568-a21d74c9936f
+:END:
+
+* The input boundary is part of evaluation correctness
+BK08 evaluates deterministic, fully offline HTML tool traces. In the train/dev/test
+CLI, the input files are local JSONL datasets, not network resources. Evaluation
+must not start until all three partitions are available and their records have
+passed the ordinary corpus reader. An exception during acquisition is a failed
+benchmark input, not a metric, and must never become an unhandled traceback.
+
+The existing =html_heldout_baselines.py= CLI emits JSON reports with =passed=,
+=failure= and =detail= for benchmark failures. Before this lab's correction it
+loaded =--train=, =--dev= and =--test= outside the same =try= block that
+classified split-leakage and gold-mismatch errors. The underlying reader could
+correctly raise =TraceFailure("invalid_record", ...)= while the CLI leaked that
+exception instead of emitting structured failure JSON.
+
+* Expected offline outcomes
+| Input | Status | JSON failure |
+|-------+--------+--------------|
+| Missing train, dev or test file | 1 | =invalid_record= |
+| A directory used as a dataset file | 1 | =invalid_record= |
+| Invalid UTF-8 or malformed JSONL | 1 | =invalid_record= |
+| Duplicate JSON object keys | 1 | =invalid_record= |
+| File-open or permission =OSError= | 1 | =invalid_record= |
+| Valid records with cross-split template leakage | 1 | =split_leakage= |
+| Valid fully scored train/dev/test | 0 | =passed=true= with unchanged report |
+| Incomplete CLI arguments | 2 | Existing argparse usage error |
+
+The taxonomy distinguishes invalid /inputs/ from evaluated /prediction
+failures/. A missing file is not a zero-accuracy result, and must not be quietly
+ignored. Preserve all existing typed =TraceFailure= codes. Convert raw
+filesystem =OSError= into a generic =invalid_record= report that does not echo
+a private pathname or an operating-system diagnostic.
+
+* Native reproducibility exercise
+From the repository root, run:
+
+#+begin_src sh
+cd books/ml-starintel/code/html-tool-benchmark
+python -m unittest -v test_cli_corpus_read_failures
+#+end_src
+
+The 12 regression methods exercise absent paths in all three positions,
+malformed JSON, invalid UTF-8, duplicate keys, a directory in place of a file,
+and a deterministic mocked =PermissionError=. They also retain the existing
+argparse status, verify an unchanged successful JSON report, preserve typed
+=split_leakage= and compare repeated error output byte for byte. Mocked
+permission failure is deliberate: CI may run as a user that can read a
+normally-protected test file.
+
+* Design: guard acquisition and evaluation together
+Place the three =read_jsonl= operations inside the existing benchmark
+failure-handling boundary along with =run_bench=. Keep successful report schema,
+fixture generation, page parser, trace metrics, and training-only access rules
+unchanged. Distinguish explicit =TraceFailure= from unexpected =OSError=:
+the first retains its code and detail; the second is deliberately mapped to
+one stable, typed =invalid_record= failure.
+
+This is a reproducibility contract for local files, not an operating-system
+sandbox or a general-purpose storage interface. No browser, HTTP request,
+model checkpoint, held-out gold target, or StarIntel runtime operation is
+introduced by this change.
+
+* Debugging exercises
+1. Supply a missing =--dev= dataset and verify the result is one typed JSON
+   failure, not a traceback or a partially scored train partition.
+2. Supply duplicate JSON keys in =--test=. Confirm the existing reader's
+   duplicate-key rule is preserved and reaches the CLI as =invalid_record=.
+3. Inject an =OSError= whose message contains a fake private path. Confirm
+   neither stdout nor the JSON detail repeats that path.
+4. Supply fully readable data with a cross-split template clone and verify
+   its typed =split_leakage= is still distinct from file-acquisition failure.
+5. Run the *complete* BK08 native suite and the repository book/check
+   commands in a real checkout. Record each execution separately. A focused
+   12-test pass does not establish full-suite, EPUBCheck, or hosted-CI success.
+
+* Scope and evidence
+This lab tests deterministic CLI failure reporting for local benchmark
+partitions. It does not measure scraper realism, infer model quality, change
+template-held-out partitions, train a model, or claim external web fidelity.
+Record the exact commit and complete native execution log before promoting
+a change to repository-wide TESTED status.
