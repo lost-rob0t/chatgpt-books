@@ -326,6 +326,15 @@ segments text. This distinction means a name field and a content field need
 not behave like interchangeable substring searches. The lab captures emitted
 values but does not run either analyzer. [cite:@couchdb-search-index-book]
 
+The executable =test_search_analyzer_contract.py= pins those
+per-field declarations and executes the original JavaScript index on a
+synthetic document with the *same text* in =name= and =content=. Both
+=store=true= callbacks carry that text unchanged even though the declared
+analyzers differ. In particular, =dataset= and =tenant_id= are keyword fields
+where the pinned scoped query compiler expects exact dimensions. This proves
+the source configuration and raw callback values, *not* deployed Clouseau
+tokenization, Lucene parsing, query containment or authorization.
+
 Read the projection function as code, not as a list of imagined searchable
 schema properties. It explicitly adds =tenant_id=, =dataset=, =dtype=, =title=
 and =summary=. It processes selected source metadata, selected domain fields,

@@ -322,3 +322,20 @@ fixture and checks a pre-existing internal tenant is not overwritten.
 
 This is a crucial pipeline boundary: raw fixture projection != server-stamped
 index projection != indexed search visibility != durable canonical verification.
+
+* Analyzer configuration is separate from index callback values
+
+The pinned =source/views/search.json= declares a =perfield= analyzer: =dataset=
+and =tenant_id= use =keyword=, as does =name=; =content= and the default use
+=standard=. =dtype= and =title= therefore fall back to =standard= in this
+historical design. These declarations matter when reading the server's scoped
+search query, but a captured =index(name, value, store=true)= callback has
+*not yet tokenized* =value= with Clouseau/Lucene.
+
+Run =python3 -m unittest test_search_analyzer_contract -v= in the pinned
+search-lab environment. The five tests read the original design document,
+check the concrete per-field contract, and execute the unchanged JavaScript
+index on a synthetic document where =name= and =content= contain identical
+text. Both raw emissions remain identical despite different declared
+analyzers. This is TESTED configuration and callback behavior, *not* a live
+keyword/standard tokenizer, query containment, authorization, or ranking test.
