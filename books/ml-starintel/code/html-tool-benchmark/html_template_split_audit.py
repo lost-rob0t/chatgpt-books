@@ -81,8 +81,11 @@ def audit_and_evaluate(partitions: dict[str, list[dict[str, Any]]]) -> dict[str,
             if authoritative["extractions"] != gold_extractions or authoritative["visited"] != gold_visited:
                 raise TraceFailure("gold_mismatch", f"example {id_}: gold disagrees with HTML")
             evidence: list[tuple[str, str]] = [("family", family)]
-            for html in pages.values():
-                digest = template_digest(html)
+            # Attribute a cross-split clone deterministically even when JSON
+            # page keys arrive in a different insertion order. Page identity
+            # is a canonical validated path, not dictionary arrival order.
+            for path in sorted(pages):
+                digest = template_digest(pages[path])
                 evidence.append(("template", digest))
                 template_examples[digest].add(id_)
             for kind, value in evidence:

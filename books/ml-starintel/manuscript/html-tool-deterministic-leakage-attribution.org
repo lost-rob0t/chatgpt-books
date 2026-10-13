@@ -1,0 +1,86 @@
+#+title: BK08 Lab — Deterministic Attribution of Held-Out Template Collisions
+:PROPERTIES:
+:ID:       c5e593a3-4079-58ef-bd06-84727f89da92
+:END:
+
+* The question
+A leakage auditor must reject a template that appears in both training and
+held-out evaluation. That requirement is stronger than producing a nonzero
+failure status: equivalent JSON objects should identify the *same first
+crossing example*. Python dictionaries preserve insertion order, but JSON
+object members are not a meaningful experiment ordering contract.
+
+The original static audit sorted records by =id= and iterated fixed split
+names, yet inspected =pages.values()= in arrival order. When a held-out record
+contained two separate structures matching two separate training records,
+reversing its page-key insertion order changed which training example the
+error message blamed. The measured task and its leakage status had not changed.
+
+* Minimal offline specimen
+Construct three nonempty splits: two training examples each with one distinct
+DOM template; a development example carrying both structures on two canonical
+page paths; and an unrelated test example. Make every gold select/extract trace
+agree with the fixture so the audit reaches template-leakage evaluation.
+
+#+begin_src python :results none :eval never-export
+# All pages and gold traces are in memory; no network, browser, or ML model.
+train_a = {"/a.html": '<span id="target">Alpha</span>'}
+train_b = {"/b.html": '<div id="target">Beta</div>'}
+dev_ab = {"/a.html": '<span id="target">Anne</span>',
+          "/b.html": '<div id="target">Bob</div>'}
+dev_ba = dict(reversed(list(dev_ab.items())))
+# Both development inventories describe the same pages.
+assert dev_ab == dev_ba
+#+end_src
+
+Expected before the correction: with two distinct training identities, the
+first =split_leakage= detail named a different donor when =dev_ab= was replaced
+by =dev_ba=. This is an attribution instability, not proof of a new leakage
+category or an improvement in predictive accuracy.
+
+* The bounded correction
+After the authoritative gold trace has validated page paths, visit the page
+inventory in lexicographically sorted canonical-path order before collecting
+structural template fingerprints:
+
+#+begin_src python :eval never-export
+for path in sorted(pages):
+    digest = template_digest(pages[path])
+    evidence.append(("template", digest))
+    template_examples[digest].add(id_)
+#+end_src
+
+Split order remains =train=, =dev=, =test=; record IDs remain sorted as before.
+The fingerprint algorithm, train-only label boundary, existing typed errors,
+scoring, thresholds and output schema do not change. A collision still fails
+closed *before* any split metrics are computed. Sorting the small bounded page
+inventory uses ordinary language primitives and does not modify fixture data.
+
+* Regression exercise
+The companion native tests at
+=file:../code/html-tool-benchmark/test_leakage_error_order.py= create real
+cross-split template clones and compare full typed error strings across page
+permutations. They additionally verify that clean reports retain their counts,
+text changes do not hide a structural clone, a duplicate record ID still
+fails, and scoring is not invoked after leakage.
+
+Run from this book's code directory:
+
+#+begin_src sh :eval never-export
+python -m unittest -v test_leakage_error_order
+python -m compileall -q html_template_split_audit.py test_leakage_error_order.py
+#+end_src
+
+Do not claim a GitHub Actions green check or a full book validation from this
+isolated laboratory. For a complete repository checkout, the separate gates
+are =make book BOOK=ml-starintel=, =make check BOOK=ml-starintel= and the
+pinned official EPUBCheck. Those checks must be reported NOT RUN if their
+complete inputs or tools are unavailable.
+
+* Questions
+1. Why is the leaking *template digest* unchanged by a value-only edit?
+2. Why must the gold-trace preflight run before looking for template matches?
+3. Why must sorting affect attribution order but not the error type or scorer?
+4. What changes if two records within a single split reuse the same template?
+5. Explain why consistent ordering is a reproducibility guarantee, not evidence
+   of independent websites or a new machine-learning result.
