@@ -295,3 +295,30 @@ These are raw JavaScript emissions, *not* Clouseau analyzer results,
 live query visibility, installed design confirmation, reindex proof or
 canonical SDK validation. The standard one-pin CI runner does NOT run this
 two-checkout exercise; missing inputs do not count as a passing test.
+
+* Server-owned tenant stamping before historical FTS indexing
+
+A raw v0.9.0 fixture is *not* the server's internal indexed representation.
+=fixture()= deliberately contains no =tenant= or =tenant_id=. If the exact pinned
+historical JavaScript search index is executed directly on the raw fifth
+=book-other-public= fixture, its =tenant_id= fallback emits =default=.
+That does not mean the server's dataset-to-tenant map was ineffective:
+=resolved-server-tenant= and =stamp-server-tenant!= at the pinned server
+source derive and inject the configured tenant on the internal document before
+the relevant bulk publish paths. The unchanged index then selects
+=tenant_id=other= from the internally stamped document. It is incorrect to
+submit =tenant_id= from a client just to make an offline projection look right.
+
+=python3 -m unittest test_tenant_stamp_index -v= checks the exact original
+server Lisp form fingerprints and bulk publish call sites, plus the pinned
+JavaScript FTS index on the real synthetic client fixtures. The test uses a
+clearly identified Python *model* of the internal stamp for the Node index
+comparison: original SBCL Lisp stamping, credential admission, MQ, CouchDB,
+Clouseau, durable persistence and actual authenticated search were *not*
+executed by this new test. Unstamped =other= raw fixture produces default;
+modeled server-stamped fixture produces other; the remaining four fixture
+datasets stamp to default. The test also guards against altering the client
+fixture and checks a pre-existing internal tenant is not overwritten.
+
+This is a crucial pipeline boundary: raw fixture projection != server-stamped
+index projection != indexed search visibility != durable canonical verification.

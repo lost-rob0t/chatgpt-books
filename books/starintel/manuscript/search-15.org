@@ -206,6 +206,39 @@ because the read plane is configured public.
 </figure>
 #+end_export
 
+** An internal tenant stamp changes what the index sees
+
+Do not execute the historical search design directly on a client fixture and
+assume the resulting tenant field proves end-to-end scope behavior. The
+=book-other-public= fixture contains a dataset but intentionally has no
+=tenant_id= or =tenant=: that is the historical client-visible contract.
+When executed directly on that raw fixture, the exact pinned JavaScript
+indexer emits =tenant_id=default=.
+
+The server's pinned =resolved-server-tenant= and =stamp-server-tenant!=
+functions instead map that dataset to =other= under the disposable lab's
+=STAR_TENANT_DATASET_MAP= setting and stamp the *internal* document before
+the selected bulk publish paths. The same unchanged FTS indexer then emits
+=tenant_id=other= from a modeled stamped copy. This is a source-grounded
+index-projection comparison, not proof of successful deployed indexing,
+authentication, persistence or runtime tenancy isolation.
+
+#+caption: Synthetic tenant field emissions at the pinned historical index boundary.
+| Input stage | =dataset= | =tenant_id= emitted by original index |
+|-------------+-----------+----------------------------------------|
+| Raw client fixture | =book-other-public= | =default= |
+| Modeled server-stamped internal copy | =book-other-public= | =other= |
+| Modeled default-tenant internal copy | =book-public= | =default= |
+
+The new =test_tenant_stamp_index.py= regression fingerprints the original
+Lisp resolver/stamp forms, checks their use on pinned bulk publish paths,
+and executes the *actual* pinned JavaScript index on both synthetic stages.
+The stamping step itself is a disclosed Python model, *not* an SBCL run of
+the native function. Never add the internal tenant key to a canonical
+0.10.1 or historical client submission to disguise missing admission or
+server-side tenancy evidence. Client observation after HTTP response egress
+also cannot substitute for an internal index probe.
+
 ** Authorization belongs before the backend query
 
 The maintained =authorized-search-query= builds a parenthesized user query and
