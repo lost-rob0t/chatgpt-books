@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 from copy import deepcopy
 import json
+from verify_installed_design import git_blob_sha, HISTORICAL_GIT_BLOB
 from pathlib import Path
 import subprocess
 from urllib.parse import urlencode
@@ -27,6 +28,14 @@ def projection(root: Path, document: dict) -> list[dict]:
         raise ValueError('projection needs a JSON document object')
     # Every direct projection call must attest the source, not just run-tests.
     require_pin(root, SERVER_PIN)
+    # A clean Git status can hide edits to tracked skip-worktree entries.
+    source = root / 'source/views/search.json'
+    try:
+        source_bytes = source.read_bytes()
+    except OSError as error:
+        raise ValueError('pinned index design source is unavailable') from error
+    if git_blob_sha(source_bytes) != HISTORICAL_GIT_BLOB:
+        raise ValueError('pinned index design Git blob mismatch')
     result = subprocess.run(['node', str(HERE / 'index_projection.js'),
                              str(root / 'source/views/search.json')],
                             input=json.dumps(document, allow_nan=False), text=True, capture_output=True, check=True, timeout=30)

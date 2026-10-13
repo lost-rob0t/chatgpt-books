@@ -87,6 +87,16 @@ it cannot prove which Clouseau index is active, whether a rebuild completed,
 or whether authorized search returns the intended corpus. Actual deployment
 read-back and search still require the opt-in service experiment.
 
+A matching Git HEAD and apparently clean =git status --porcelain= output
+are not enough to attest to the *actual bytes* a teaching indexer executes.
+A tracked file marked =skip-worktree= can change without appearing in the
+status view. The course projector therefore hashes the actual historical
+=source/views/search.json= and requires Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= before launching Node.
+A network-free native-Git test demonstrates the blind spot, while real
+pinned-Node tests reject changed index function/analyzer bytes. This checks
+historical *source* identity, not installed CouchDB/Clouseau state.
+
 The teaching index capture has *two distinct execution deadlines*: the Node
 VM bounds the pinned JavaScript index function's invocation to one second,
 and Python's =subprocess.run(timeout=30)= bounds waiting for the child process.

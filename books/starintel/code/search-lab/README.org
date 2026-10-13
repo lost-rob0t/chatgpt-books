@@ -45,6 +45,17 @@ substituting another index function. This is source attestation for a teaching
 utility, not CouchDB/Clouseau validation, deployed search authorization, or
 canonical 0.10.1 runtime adoption.
 
+A clean-looking =git status --porcelain --untracked-files=no= cannot, by
+itself, attest to actual source bytes. Git's =skip-worktree= index bit can hide
+a changed tracked file from that status view. Therefore =projection()= also
+checks the bytes of =source/views/search.json= against the historical Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=, reusing the offline design
+comparator's hash function. =test_projection_source_blob.py= executes the real
+pinned JavaScript index, rejects modified function/analyzer bytes, and uses a
+disposable synthetic Git repository to demonstrate the status blind spot.
+Source-byte identity is *not* verification of an installed CouchDB design,
+active Clouseau index, canonical 0.10.1 validity, or HTTP authorization.
+
 The runner checks HEAD and tracked-file cleanliness. It installs nothing and
 edits neither checkout. No credentials or external service writes are used.
 The Node VM executes trusted code from the verified pin, not untrusted input
