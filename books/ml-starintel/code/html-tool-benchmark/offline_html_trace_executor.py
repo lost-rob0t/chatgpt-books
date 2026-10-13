@@ -175,6 +175,10 @@ def resolve_page(raw: Any, base: str = "/") -> str:
     # path that browser-like consumers may normalize differently.
     if "\\" in raw:
         raise TraceFailure("unsafe_navigation", "backslash in static page reference")
+    # DEL and C1 controls are not canonical static URL path characters.
+    # Reject them before URL parsing, including in absolute and relative URLs.
+    if any(0x7f <= ord(char) <= 0x9f for char in raw):
+        raise TraceFailure("unsafe_navigation", "control character in static page reference")
     # A present delimiter with an empty value is still an unsupported URL
     # component. urlsplit().query/fragment alone cannot distinguish it.
     if "?" in raw or "#" in raw:

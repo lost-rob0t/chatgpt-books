@@ -1,0 +1,38 @@
+#+title: BK08 Lab -- DEL and C1 Controls in Static Fixture URLs
+#+subtitle: Treating invisible URL control characters as unsafe navigation
+:PROPERTIES:
+:ID:       25d73599-e627-547f-922f-f0f91a774bb5
+:END:
+
+* Problem: two incompatible page identities
+A deterministic offline scraper corpus needs an unambiguous key for each static HTML page. The fixed-origin BK08 executor does not fetch URLs or emulate a browser. Its URL parser already rejects percent-encoded paths, backslashes, dot traversal, whitespace, query and fragment delimiters. An additional corner case remained: ASCII DEL (=U+007F=) and the C1 control range (=U+0080=--=U+009F=) were allowed in literal path strings. These include a line-breaking =U+0085= (NEXT LINE), so a trace could produce a visually indistinguishable page name with different literal bytes.
+
+The contract now rejects these characters *before* =urljoin= or any page lookup, returning typed =unsafe_navigation=. It does not collapse, strip, encode, or silently correct the path. Ordinary non-ASCII page names such as =/café.html= remain valid; this is not an ASCII-only URL policy.
+
+* Reproduce the failure and correction
+Run in =books/ml-starintel/code/html-tool-benchmark=:
+
+#+begin_src sh
+python -m unittest -v test_url_c1_control_integrity
+python -m unittest discover -p 'test_*.py'
+python offline_html_trace_executor.py --demo
+#+end_src
+
+A direct =resolve_page("/item\\x7f.html")= must raise =TraceFailure(code="unsafe_navigation")=. A page inventory keyed by =/unvisited\\x85.html= must fail before any trace executes, even if the candidate and gold traces stay on a different page. An anchor with =href="next\\x9f.html"= must return the same typed error on =follow= rather than treating the control-bearing target as canonical.
+
+#+begin_example
+literal href with DEL/C1 ----> reject unsafe_navigation
+ordinary relative / absolute path --> normalize within fixture origin
+unvisited inventory key -------> validate and reject before scoring
+candidate failed follow -------> failure_reasons=[unsafe_navigation]
+                                observed extraction and visits discarded
+#+end_example
+
+* Exercise: audit both gold and candidate paths
+1. Make one control-bearing URL the *gold* navigation target. Confirm evaluation rejects it instead of computing a score against bad gold.
+2. Put a control-bearing path in a supplied but *unvisited* page key. Confirm inventory preflight rejects the dataset.
+3. Place =/café.html= in the inventory and follow a relative link to it. Confirm a valid UTF-8 filename still works.
+4. Reorder valid fixture rows and compare the deterministic compact JSON report.
+
+* Evidence and scope
+This lab uses synthetic strings and local in-memory HTML. It measures correctness of a deliberately bounded URL grammar, not browser URL equivalence, website accuracy, or trained-model quality. BK07's model/decoder/training files are not changed. The single-module test, native discovery, and CLI commands above are runnable offline. The repository's complete book build/check and official EPUBCheck must be run only in a full checkout with that tooling; a standalone Org render does not substitute.
