@@ -23,6 +23,8 @@ def require_pin(root: Path, pin: str) -> None:
 
 
 def projection(root: Path, document: dict) -> list[dict]:
+    if not isinstance(document, dict):
+        raise ValueError('projection needs a JSON document object')
     # Every direct projection call must attest the source, not just run-tests.
     require_pin(root, SERVER_PIN)
     result = subprocess.run(['node', str(HERE / 'index_projection.js'),

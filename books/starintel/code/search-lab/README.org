@@ -171,6 +171,20 @@ to a full document. The hermetic =test_index_document_consistency.py= covers
 both disagreements, ordinary hits and existing tenant/revision checks.
 
 
+* Require an object root for a captured projection
+
+A JSON array, string, number, boolean or =null= is not a StarIntel document.
+The historical JavaScript index can still emit a default =tenant_id= for some
+non-object roots because JavaScript permits property lookup on non-null
+primitives. That is an index-function emission, *not* a validated document.
+=lab.projection()= now rejects a non-dictionary root before calling Node.
+
+=python3 -m unittest test_projection_document_root -v= runs the actual pinned
+index over a synthetic mapping and rejects scalar/array roots before Node. It
+also preserves the existing rejection of non-finite JSON numbers. This
+course-local shape guard does *not* validate a dictionary as canonical StarLang
+0.10.1; the pinned generated SDK remains responsible for that admission.
+
 * Strict JSON before historical index execution
 
 =projection()= serializes synthetic Python fixtures before the pinned

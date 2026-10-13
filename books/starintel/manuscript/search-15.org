@@ -285,6 +285,13 @@ adder ignores null. There is no indexed =name= in this case, even if the
 top-level name contains text. The lab executes the exact checked-in function
 and tests both cases. It does not "fix" them in a local imitation.
 
+A raw JSON array, string or number is not a document. The historical
+JavaScript may nevertheless emit =tenant_id=default= for such a value.
+Accordingly, the teaching =projection()= helper rejects a non-object root
+before executing Node. This checks only the *shape* of the capture input:
+canonical validity still depends on the generated StarLang SDK, and the old
+index function is not a validator.
+
 The function supplies =tenant_id= from server metadata, falls back to the older
 =tenant= field, and finally uses =default=. This internal index dimension is
 part of the current server's authorization implementation. It is not permission
