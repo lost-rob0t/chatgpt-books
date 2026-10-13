@@ -23,6 +23,8 @@ def require_pin(root: Path, pin: str) -> None:
 
 
 def projection(root: Path, document: dict) -> list[dict]:
+    # Every direct projection call must attest the source, not just run-tests.
+    require_pin(root, SERVER_PIN)
     result = subprocess.run(['node', str(HERE / 'index_projection.js'),
                              str(root / 'source/views/search.json')],
                             input=json.dumps(document, allow_nan=False), text=True, capture_output=True, check=True)

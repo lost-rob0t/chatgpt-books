@@ -37,6 +37,14 @@ git -C .cache/search-sdk checkout 6aa8051dc7ea560943a60a25e1d600467f2778bc
 bash books/starintel/code/search-lab/run-tests .cache/search-server .cache/search-sdk
 #+end_src
 
+The shell runner verifies both upstream pins before its suite; a direct Python
+call to =lab.projection(root, document)= now also verifies the historical server
+HEAD and tracked-file cleanliness *before* executing its checked-in index code.
+A synthetic or unrelated directory is rejected rather than silently
+substituting another index function. This is source attestation for a teaching
+utility, not CouchDB/Clouseau validation, deployed search authorization, or
+canonical 0.10.1 runtime adoption.
+
 The runner checks HEAD and tracked-file cleanliness. It installs nothing and
 edits neither checkout. No credentials or external service writes are used.
 The Node VM executes trusted code from the verified pin, not untrusted input
