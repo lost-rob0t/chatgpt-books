@@ -42,6 +42,21 @@ cannot promote that runtime into a completed =0.10.1= ingest migration merely
 because some index fields overlap. [cite:@starintel-doc-canonical-20261007;
 @starlang-starintel-0101;@starintel-server-20261005]
 
+This older lock is *specific to this chapter's historical runtime pin*,
+not to the maintained server as of October 2026. Server
+[[https://github.com/lost-rob0t/starintel-server/pull/313][PR #313]]
+merged on 2026-10-10 at =ca6fdcbdc1f3b8aa344c533a40d298f741a54f25=.
+The resulting codebase adopts the generated =0.10.1= schema lock, with
+StarLang authority =96d26c338078676ec1dc6928755901636c9f7ef0=.
+Its search design blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=
+adds =fullName=, =displayName=, =legalName= and =orgType= while retaining
+the historical spellings. Our historical lab's index remains Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=. Use
+=compare_index_generations.js= to measure both exact source projections
+without conflating epochs. A merged index file does not prove an installed
+CouchDB design, reindex, live Clouseau behavior, or that every producer and
+actor-dispatch path has adopted 0.10.1.
+
 #+caption: Evidence established at each pinned search boundary.
 | Boundary | Authority or implementation | What the lab establishes |
 |-----------+-----------------------------+--------------------------|
@@ -321,11 +336,12 @@ validate it again: the SDK accepts the field. The inspected index selects
 canonical combined-name field while still emitting =fname=. This is a concrete
 migration coverage gap, not a reason to rename the canonical key.
 
-A future migration should update the relevant runtime/index consumer against
-generated canonical authority and test the adopted field mapping. It should
-not normalize canonical records into historical keys silently or teach the old
-index as the new specification. Nor should a book declare the migration done
-because a single overlapping =name= example works.
+The later 0.10.1 server merge added the omitted camelCase index fields, but
+not to this immutable historical lab pin. Source-level adoption is not proof
+that the merged index is installed in a running database, that existing
+records are reindexed, or that all producers emit the canonical version.
+Do not rename canonical records into historical spellings to conceal a
+projection gap, and do not treat old and new source pins as one release.
 
 Build an index-coverage ledger:
 
@@ -618,15 +634,16 @@ a default-tenant restriction.
 
 *** Exercise 3 -- Extend canonical index coverage (★★)
 
-Add a canonical =fullName= to the synthetic person and validate it. Confirm the
-current index omits that spelling. Propose an upstream migration test without
-changing the canonical document's key.
+Add canonical =fullName= to the synthetic person and validate it. Confirm that
+the *pinned historical* index omits it. Run the independent
+=compare_index_generations.js= against the historical and merged 2026-10-10
+server index files. What can each result establish?
 
-Answer: the existing projection test demonstrates the omission. A migration
-should add an intentional canonical field mapping and query it through the
-adopted runtime/index. Include a conflicting historical =data.full_name= case
-so precedence is a documented choice rather than an accidental fallback.
-The book does not perform that product-repository migration.
+Answer: the old projection omits =fullName= while the merge emits it
+alongside =full_name=. Both observations are from the exact original index
+functions and synthetic inputs. Neither proves the installed database has
+that design/reindex, that deployed HTTP authorization permits the query,
+or that every producer emits valid 0.10.1 records. Test those separately.
 
 *** Exercise 4 -- Make a safe paging client (★★)
 

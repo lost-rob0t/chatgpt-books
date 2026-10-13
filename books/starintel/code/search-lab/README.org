@@ -253,3 +253,31 @@ The tests do not execute Lucene tokenization, server tenant adaptation,
 authenticated middleware, live CouchDB/Clouseau or durable visibility. They
 establish raw index-field emission for the synthetic historical fixture only;
 server-side tenant metadata is intentionally not guessed from an offline seed.
+
+ 
+* Optional two-generation search index comparison
+The historical lab source pin =ce14c77ccd2f51f543410fdeef3d78fb9978b769=
+still omits =fullName=. Server PR #313 merged on 2026-10-10 as
+=ca6fdcbdc1f3b8aa344c533a40d298f741a54f25= and the merged source
+selects =fullName=, =displayName=, =legalName= and =orgType=, alongside the
+old snake_case keys. The merge's generated =0.10.1= schema lock points to
+StarLang =96d26c338078676ec1dc6928755901636c9f7ef0=.
+
+Obtain TWO clean, separate upstream checkouts at those exact commits.
+Run the following optional offline experiment against their original files:
+
+#+begin_src sh
+node books/starintel/code/search-lab/compare_index_generations.js \
+  PATH_TO_HISTORICAL/source/views/search.json \
+  PATH_TO_MERGED/source/views/search.json
+#+end_src
+
+The script requires exact historical blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and merged blob
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=; it refuses substitutes.
+Locally, actual Node index functions returned 7 versus 11 field emissions
+for one synthetic specimen, with 4 added camelCase fields and old aliases
+retained. These are raw JavaScript emissions, *not* Clouseau analyzer results,
+live query visibility, installed design confirmation, reindex proof or
+canonical SDK validation. The standard one-pin CI runner does NOT run this
+two-checkout exercise; missing inputs do not count as a passing test.
