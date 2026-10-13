@@ -29,7 +29,7 @@ def projection(root: Path, document: dict) -> list[dict]:
     require_pin(root, SERVER_PIN)
     result = subprocess.run(['node', str(HERE / 'index_projection.js'),
                              str(root / 'source/views/search.json')],
-                            input=json.dumps(document, allow_nan=False), text=True, capture_output=True, check=True)
+                            input=json.dumps(document, allow_nan=False), text=True, capture_output=True, check=True, timeout=30)
     return json.loads(result.stdout)
 
 

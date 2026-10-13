@@ -76,6 +76,14 @@ not number of search hits, tokenized terms or verified document facts.
 | Credential verification and middleware | Running server | Only the opt-in service lab can exercise this |
 | Persistence, analyzers, ranking, bookmarks | Running CouchDB and Clouseau | Not proved by projection or handler doubles |
 
+The teaching index capture has *two distinct execution deadlines*: the Node
+VM bounds the pinned JavaScript index function's invocation to one second,
+and Python's =subprocess.run(timeout=30)= bounds waiting for the child process.
+A child timeout fails the experiment instead of returning an empty projection.
+Neither bound establishes live CouchDB/Clouseau availability or a public HTTP
+search latency guarantee.
+
+
 The Python regression suite and sixteen Lisp scenario checks are TESTED in
 exact-head hosted CI at commit =8a40c5a2c45c28ce54942b59e7d72bcb6f0625ef=
 (run =38300524893=), including the Unicode character-versus-byte query check.

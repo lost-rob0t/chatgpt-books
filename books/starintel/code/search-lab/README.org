@@ -126,6 +126,18 @@ No target recovery or actor failure is simulated.
 - =test_*.py=: hermetic SDK/projection/client/selection checks.
 - =service_checks.py=: opt-in actual HTTP experiment; never silently skipped.
 
+* Bound the parent Node process, not only VM execution
+The pinned JavaScript wrapper already limits its indexer invocation to one
+second inside a Node VM. That does not limit Python's wait for Node startup,
+file/JSON loading or child-process termination. =lab.projection()= therefore
+passes =timeout=30= to =subprocess.run()= in addition to the VM deadline.
+A timed-out child raises =subprocess.TimeoutExpired= and is a FAILED lab
+observation, never an empty search result or a successful index capture.
+
+=python3 -m unittest test_projection_parent_timeout -v= checks the parent
+deadline and error propagation with an injected child process. These are
+course-local resource limits, not StarIntel Server or Clouseau timeouts.
+
 * Bounded local index capture
 The Node capture wrapper limits each synthetic document to 2,048 emitted index
 field/value pairs. The ceiling belongs to this teaching harness, *not* to
