@@ -57,6 +57,15 @@ without conflating epochs. A merged index file does not prove an installed
 CouchDB design, reindex, live Clouseau behavior, or that every producer and
 actor-dispatch path has adopted 0.10.1.
 
+The optional two-generation comparator preserves each =index()= emission
+rather than coercing repeated field names into a one-value dictionary.
+A source-pinned synthetic fixture with three =content= elements and two
+multi-attribute sources emits *14 events* at the historical pin and *18*
+at the merged pin. Four additional camelCase names account for the
+difference; both index generations retain all seven repeated scalar events
+under =content= and =sources=. An event count measures callback invocations,
+not number of search hits, tokenized terms or verified document facts.
+
 #+caption: Evidence established at each pinned search boundary.
 | Boundary | Authority or implementation | What the lab establishes |
 |-----------+-----------------------------+--------------------------|

@@ -275,9 +275,23 @@ node books/starintel/code/search-lab/compare_index_generations.js \
 The script requires exact historical blob
 =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and merged blob
 =dd6336f3047982db2f0e3615fed1413ed1e58e13=; it refuses substitutes.
-Locally, actual Node index functions returned 7 versus 11 field emissions
-for one synthetic specimen, with 4 added camelCase fields and old aliases
-retained. These are raw JavaScript emissions, *not* Clouseau analyzer results,
+The comparator now retains every original =index()= callback event rather
+than converting events to a one-value-per-field object. Arrays and structured
+=sources= can emit repeated field names; =Object.fromEntries= would silently
+discard earlier evidence. A synthetic three-value =content= array and two
+sources (four scalar values) produce *14 historical versus 18 merged emissions*,
+including the four added camelCase fields and all historical aliases. The
+script checks that each captured emission requested =store=true=.
+
+#+begin_src sh
+node books/starintel/code/search-lab/test_index_generation_multiplicity.js \
+  PATH_TO_HISTORICAL/source/views/search.json \
+  PATH_TO_MERGED/source/views/search.json
+#+end_src
+
+The five Node regressions separately verify actual event totals, ordered
+multi-value =content= and =sources= emissions, source SHA pins, and success.
+These are raw JavaScript emissions, *not* Clouseau analyzer results,
 live query visibility, installed design confirmation, reindex proof or
 canonical SDK validation. The standard one-pin CI runner does NOT run this
 two-checkout exercise; missing inputs do not count as a passing test.

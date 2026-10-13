@@ -16,32 +16,46 @@ const indexSources=files.map((file,i)=>{
 });
 function emit(source,doc){
   const values=[];
-  const scope=vm.createContext({index:(field,value)=>values.push([field,value])});
+  const scope=vm.createContext({index:(field,value,options)=>values.push({field,value,stored:options?.store===true})});
   const indexer=new vm.Script('('+source+')').runInContext(scope,{timeout:1000});
   scope.indexer=indexer;
   scope.document=structuredClone(doc);
   new vm.Script('indexer(document)').runInContext(scope,{timeout:1000});
-  return Object.fromEntries(values);
+  return values;  // Preserve every index() call, including repeated fields.
 }
 const specimen={dtype:'person',dataset:'book-synthetic',
   fullName:'Example Person',displayName:'Example Display',
   legalName:'Example Legal',orgType:'example-class',
   full_name:'old-name',display_name:'old-display',
-  legal_name:'old-legal',org_type:'old-kind'};
+  legal_name:'old-legal',org_type:'old-kind',
+  content:['alpha','beta','gamma'],
+  sources:[{name:'Source A',url:'https://a.invalid'},
+           {name:'Source B',url:'https://b.invalid'}]};
 const historical=emit(indexSources[0],specimen),merged=emit(indexSources[1],specimen);
+const valuesFor=(emissions,field)=>emissions.filter(e=>e.field===field).map(e=>e.value);
 const added=['fullName','displayName','legalName','orgType'];
 for(const field of added){
-  assert.equal(Object.hasOwn(historical,field),false,'Historical pin unexpectedly has '+field);
-  assert.equal(merged[field],specimen[field],'Merged pin omitted '+field);
+  assert.equal(valuesFor(historical,field).length,0,'Historical pin unexpectedly has '+field);
+  assert.deepEqual(valuesFor(merged,field),[specimen[field]],'Merged pin omitted '+field);
 }
 for(const field of ['full_name','display_name','legal_name','org_type']){
-  assert.equal(historical[field],specimen[field]);
-  assert.equal(merged[field],specimen[field]);
+  assert.deepEqual(valuesFor(historical,field),[specimen[field]]);
+  assert.deepEqual(valuesFor(merged,field),[specimen[field]]);
 }
 for(const field of ['dataset','dtype','tenant_id']){
-  assert.equal(historical[field],merged[field],'Shared metadata drift: '+field);
+  assert.deepEqual(valuesFor(historical,field),valuesFor(merged,field),'Shared metadata drift: '+field);
 }
-assert.equal(Object.keys(merged).length-Object.keys(historical).length,4);
-console.log(JSON.stringify({status:'PASS', historical_emissions:Object.keys(historical).length,
-  merged_emissions:Object.keys(merged).length,added_fields:added,
+const multivalue={
+  content:['alpha','beta','gamma'],
+  sources:['Source A','https://a.invalid','Source B','https://b.invalid']
+};
+for(const [field,want] of Object.entries(multivalue)){
+  assert.deepEqual(valuesFor(historical,field),want);
+  assert.deepEqual(valuesFor(merged,field),want);
+}
+assert.ok([...historical,...merged].every(e=>e.stored===true));
+assert.equal(merged.length-historical.length,4);
+console.log(JSON.stringify({status:'PASS', historical_emissions:historical.length,
+  merged_emissions:merged.length,added_fields:added,
+  shared_multivalue_emissions:multivalue,
   evidence:'original pinned JavaScript projection only; NOT installed Clouseau index'},null,2));
