@@ -50,7 +50,7 @@ class Hit:
 
 
 def interpret_page(page: dict) -> tuple[list[Hit], str | None]:
-    if not isinstance(page, dict) or not isinstance(page.get('rows'), list):
+    if not isinstance(page, dict) or 'error' in page or not isinstance(page.get('rows'), list):
         raise ValueError('expected a CouchDB search page, not a document/list/error envelope')
     hits = []
     identities = set()

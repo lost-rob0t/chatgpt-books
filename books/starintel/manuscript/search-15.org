@@ -384,9 +384,16 @@ as well as whether tenancy metadata leaked.
 
 The book's =interpret_page= helper refuses an error envelope, an invalid row
 shape, duplicate identities within a page, a row/document identity disagreement,
-and direct server-tenant leaks. Those are client-side educational checks, not
-new server guarantees. A fields-only row remains a fields-only hit; the helper
-does not manufacture a complete document from index fields.
+and direct server-tenant leaks. In particular, an explicit top-level =error=
+key wins over a plausible =rows= array. A mixed JSON object such as
+={"rows": [], "error": "backend_failed"}= must not be mistaken for a successful
+empty search page. This is a fail-closed client invariant against malformed or
+contradictory envelopes, not a claim that the maintained server emits such an
+object. Network-free regressions exercise both empty and populated mixed
+responses alongside ordinary successful pages. They do not replace actual
+HTTP status mapping or deployed search-service tests. A fields-only row remains
+a fields-only hit; the helper does not manufacture a complete document from
+index fields.
 
 For production, validate the embedded payload with the appropriate version
 reader, retain original response evidence where appropriate, and record the
