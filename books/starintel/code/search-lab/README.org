@@ -51,6 +51,30 @@ The Node VM executes trusted code from the verified pin, not untrusted input
 programs. The form extractor handles the selected pinned forms; it is not a
 general Common Lisp parser or runtime loader.
 
+* Offline check of an exported installed FTS design
+A clean historical Git checkout only verifies the *source* index function.
+It does not prove that the running CouchDB database has installed that version
+of =_design/search=. An operator can export the installed design document as
+JSON from a dedicated local service, with credentials handled outside this
+book, then compare it offline against the pinned original:
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/verify_installed_design.py \
+  .cache/search-server/source/views/search.json \
+  PATH_TO_EXPORTED_DESIGN_JSON
+#+end_src
+
+The verifier checks the historical source Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=, the installed
+=_design/search= identity, and exact =indexes.fts= index-function/analyzer
+definitions. It ignores CouchDB's design-document =_rev= and unrelated
+views, because those are not the full-text projection contract. Any FTS
+difference fails instead of silently treating the deployed index as pinned.
+The nine network-free =test_installed_index_attestation.py= regressions use
+a *synthetic exported copy*, including changed function/analyzer and absent
+FTS controls. They do not fetch the actual running design, establish active
+Clouseau indexing, verify a rebuild, or prove query/tenant authorization.
+
 * Optional real service experiment
 Provision a fresh local StarIntel stack at the server pin using its maintained
 stack tooling. This lab deliberately does not copy Docker/Nix deployment logic.
