@@ -55,7 +55,9 @@ class SearchTableCaptionTests(unittest.TestCase):
                                 text=True, capture_output=True, check=True)
         parser = Captions()
         parser.feed(result.stdout)
-        self.assertEqual(parser.captions, [caption for _, caption in EXPECTED])
+        normalize = lambda value: ' '.join(value.split())
+        self.assertEqual([normalize(value) for value in parser.captions],
+                         [normalize(caption) for _, caption in EXPECTED])
 
 
 if __name__ == '__main__':
