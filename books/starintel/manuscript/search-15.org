@@ -42,6 +42,7 @@ cannot promote that runtime into a completed =0.10.1= ingest migration merely
 because some index fields overlap. [cite:@starintel-doc-canonical-20261007;
 @starlang-starintel-0101;@starintel-server-20261005]
 
+#+caption: Evidence established at each pinned search boundary.
 | Boundary | Authority or implementation | What the lab establishes |
 |-----------+-----------------------------+--------------------------|
 | Canonical document shape | Generated StarLang release consumed by the SDK | Synthetic fixtures pass the real SDK |
@@ -76,6 +77,7 @@ allows anonymous access. Its handler creates a server-owned public authorization
 context; it does not reuse the caller's supplied identity or scopes.
 [cite:@starintel-search-runtime-20261009]
 
+#+caption: Public and authenticated search contract differences.
 | Behavior at the inspected pin | Public search | Authenticated document search |
 |-------------------------------+---------------+-------------------------------|
 | Required =q= | Nonempty string | Nonempty string |
@@ -250,6 +252,7 @@ ranking or bookmark generation. [cite:@couchdb-search-api-book;
 
 The checked-in index declares a per-field analyzer configuration:
 
+#+caption: Explicit analyzer choices in the historical search index.
 | Indexed field | Explicit analyzer |
 |---------------+-------------------|
 | =content= | =standard= |
@@ -323,6 +326,7 @@ because a single overlapping =name= example works.
 
 Build an index-coverage ledger:
 
+#+caption: Canonical schema fields versus historical index coverage.
 | Canonical field or structure | Observation at this historical index pin | Engineering consequence |
 |------------------------------+-------------------------------------------+-------------------------|
 | =name= on synthetic org | Emitted | Can study projection without asserting ingest adoption |
@@ -570,6 +574,7 @@ Project 3 PR #136 owns that work.
 
 ** Common mistakes and their repairs
 
+#+caption: Search-evidence mistakes and recommended diagnostic steps.
 | Mistake | Why it fails | Better next step |
 |---------+--------------+-----------------|
 | Search immediately after HTTP acceptance and blame storage | Acceptance, read-back and search visibility differ | Observe each boundary with deadlines |
