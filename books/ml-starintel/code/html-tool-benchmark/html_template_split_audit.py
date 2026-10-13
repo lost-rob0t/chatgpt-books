@@ -15,6 +15,7 @@ from typing import Any
 from offline_html_trace_executor import (
     BoundedParser,
     Element,
+    MAX_PAGE_BYTES,
     MAX_SAMPLES,
     TraceFailure,
     _valid_record,
@@ -31,6 +32,16 @@ def template_digest(html: str) -> str:
     """Hash a bounded DOM shape, not literal content or fixture URLs."""
     if not isinstance(html, str):
         raise TraceFailure("invalid_record", "template HTML must be text")
+    # A standalone digest must honor the same byte cap as a fixture page.
+    # The code-point fast path bounds temporary UTF-8 encoding allocation.
+    if len(html) > MAX_PAGE_BYTES:
+        raise TraceFailure("parse_bounds", "template HTML exceeds the page byte budget")
+    try:
+        byte_count = len(html.encode("utf-8"))
+    except UnicodeEncodeError as exc:
+        raise TraceFailure("parse_bounds", "template HTML is not valid UTF-8") from exc
+    if byte_count > MAX_PAGE_BYTES:
+        raise TraceFailure("parse_bounds", "template HTML exceeds the page byte budget")
     parser = BoundedParser()
     try:
         parser.feed(html)

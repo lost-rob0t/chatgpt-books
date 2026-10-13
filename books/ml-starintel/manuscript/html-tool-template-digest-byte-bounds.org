@@ -1,0 +1,84 @@
+#+title: Offline HTML Template Fingerprints Must Obey Byte Budgets
+:PROPERTIES:
+:ID:       36cf61ff-97b8-50ba-bc63-9dec4a36f9a0
+:END:
+
+* Why the fingerprint has its own input boundary
+A BK08 sample holds its entire HTML universe in a dictionary of in-memory
+pages. The reference executor checks each page against =MAX_PAGE_BYTES=,
+then validates the entire inventory before executing any select, extract,
+or follow operation. The template-leakage auditor uses the same canonical
+HTML evidence, but its =template_digest(html)= helper is also callable
+independently. A helper that bypasses the page-size and UTF-8 contracts
+could hash a large, invalid standalone template even while the executor
+correctly refuses to run the corresponding page. That is a validation gap,
+not evidence of successful scraping.
+
+The digest now fails closed with the existing =parse_bounds= failure before
+constructing =BoundedParser=. =MAX_PAGE_BYTES= limits *encoded UTF-8 bytes*, not
+Python string code points. A precheck on =len(html)= rejects very long text
+without first allocating an equally long encoded copy. It is safe because
+one Unicode scalar consumes at least one UTF-8 byte. A second check uses
+=len(html.encode("utf-8"))= for the exact byte budget; unpaired surrogates
+become typed =parse_bounds= failures rather than leaking a Python
+=UnicodeEncodeError= to the caller. A non-string remains =invalid_record=.
+
+* Reproduce the two boundaries
+Run from =books/ml-starintel/code/html-tool-benchmark= after loading the
+canonical checked-out source. The following Python is deterministic and
+requires no network, browser, model weights, or StarIntel runtime:
+
+#+begin_src python :results output :exports both
+from html_template_split_audit import template_digest
+from offline_html_trace_executor import MAX_PAGE_BYTES, TraceFailure
+
+cases = (
+    ("ASCII exactly", "x" * MAX_PAGE_BYTES),
+    ("ASCII one too long", "x" * (MAX_PAGE_BYTES + 1)),
+    ("two-byte exactly", "é" * (MAX_PAGE_BYTES // 2)),
+    ("two-byte one too long", "é" * (MAX_PAGE_BYTES // 2 + 1)),
+    ("invalid Unicode", "broken \ud800"),
+)
+for name, html in cases:
+    try:
+        fingerprint = template_digest(html)
+        print(name, "accepted", len(fingerprint))
+    except TraceFailure as exc:
+        print(name, "rejected", exc.code)
+#+end_src
+
+The two exact-budget inputs must return 64-character SHA-256 hex strings.
+The three invalid inputs must fail with =parse_bounds=. They must not be
+silently truncated, hashed, or treated as distinct training templates.
+
+* Invariants and regression harness
+The new native =test_template_digest_byte_bounds.py= checks twelve cases:
+exact boundary, one-byte overflow, two- and four-byte UTF-8, malformed
+Unicode, ordinary markup, non-string input, stable hashes, structural
+changes, and comments that split data callbacks. An instrumented parser
+asserts that an oversized standalone input is rejected *before* parsing.
+The prior valid-input digest format and text-insensitive shape signatures
+are unchanged. The implementation does not alter the train-only ranker,
+the stored corpus, gold traces, split ownership, CSS selector grammar, or
+the BK07 model/decoder code.
+
+* Trace-level interpretation
+A failure to hash an oversized standalone template says only that the
+caller supplied invalid fixture material. It is not a model failure or
+an extraction error. The split auditor already validates its original
+fixture pages before hashing them, so normal evaluated records keep their
+previous fingerprints. To assess a change to the canonical executable,
+run =python -m unittest discover -v -s . -p 'test_*.py'= in the benchmark
+folder, followed by the published offline demo commands. A successful
+standalone Org conversion is not a substitute for the full book build,
+=make check BOOK=ml-starintel=, or official EPUBCheck.
+
+* Exercises
+1. Explain why =len(html)= alone cannot enforce an encoded byte limit,
+   using a two-byte and a four-byte Unicode example.
+2. Test the exact 65,536-byte boundary with a document containing a start
+   tag, ordinary text, and a closing tag. Keep the full document inside
+   the budget rather than shrinking its text after validation.
+3. Show why a fail-closed =parse_bounds= on a standalone helper does not
+   justify claiming that a held-out family has leaked. A leakage finding
+   requires a validated template digest and ownership evidence.
