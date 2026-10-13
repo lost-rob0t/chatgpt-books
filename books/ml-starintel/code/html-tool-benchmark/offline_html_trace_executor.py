@@ -492,7 +492,9 @@ def demo_records() -> list[dict[str, Any]]:
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_DATASET_BYTES:
         raise TraceFailure("invalid_record", "dataset file invalid or oversized")
-    raw = path.read_bytes()
+    # A file can grow between stat() and read(). Bound the allocation itself.
+    with path.open("rb") as stream:
+        raw = stream.read(MAX_DATASET_BYTES + 1)
     if len(raw) > MAX_DATASET_BYTES:
         raise TraceFailure("invalid_record", "dataset file oversized")
     def bounded_nesting(line: str) -> str:

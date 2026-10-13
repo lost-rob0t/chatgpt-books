@@ -1,0 +1,100 @@
+#+title: BK08 Lab -- Bound the Corpus Read, Not Only Its Stat
+:PROPERTIES:
+:ID:       64a71f23-d4fb-46ec-a2b8-e47aa81593c6
+:END:
+
+* The input-acquisition problem
+
+The one-command BK08 benchmark reads local, fully offline JSONL corpora.
+It enforces a fixed =MAX_DATASET_BYTES= limit of 2,097,152 bytes and checks
+file metadata before loading records. A pre-read =stat()= check, however,
+is only a snapshot. The file can grow after that check. Using
+=Path.read_bytes()= then allocates the entire changed file /before/ the
+later =len(raw)= validation can reject it.
+
+This is not a parser grammar problem, a model task, or an invitation to read
+remote URLs. It is a bounded-memory input-acquisition defect. The narrow
+correction retains existing preflight checks and JSON validation and reads
+no more than the budget plus one byte:
+
+#+begin_src python
+with path.open("rb") as stream:
+    raw = stream.read(MAX_DATASET_BYTES + 1)
+if len(raw) > MAX_DATASET_BYTES:
+    raise TraceFailure("invalid_record", "dataset file oversized")
+#+end_src
+
+The extra byte is essential: requesting exactly =MAX_DATASET_BYTES= cannot
+distinguish a file at the limit from one with a longer suffix. Both normal
+small files and an exact-limit JSONL file remain valid. A file that exceeds
+the budget, including one that grows after =stat()=, produces the same
+existing typed =invalid_record= failure as before. The difference is that
+input allocation is bounded at the read itself.
+
+* Reproducible stat-to-read growth control
+
+An ordinary unit test cannot reliably schedule a concurrent writer between
+=stat()= and =read()=. Instead, patch =Path.open= for a small regular file
+so its synthetic binary stream exposes more bytes than the file's
+previously observed size. Record the argument passed to =read(n)=.
+
+The old reader requests =read()= without a byte count; the corrected reader
+requests exactly =MAX_DATASET_BYTES + 1=. Both may eventually reject
+oversized content, but only the latter has an explicit read-time allocation
+cap. This is a test of the call boundary, not a timing-dependent performance
+measurement, and it uses no network, browser, model, or secret data.
+
+* Native regression exercise
+
+Run inside =books/ml-starintel/code/html-tool-benchmark/=:
+
+#+begin_src sh
+python -m unittest -v test_jsonl_bounded_stream_read
+python offline_html_trace_executor.py --demo
+python html_heldout_baselines.py --demo
+#+end_src
+
+The 16 native checks cover bounded read arguments, two-line and Unicode
+JSONL, stat-to-read simulated growth, avoidance of unbounded
+=Path.read_bytes()=, the exact byte cap and cap-plus-one failure, early
+symlink/directory/missing-file rejection, malformed JSON and duplicate keys,
+CRLF framing, trailing empty lines, and ordinary multi-record loading.
+
+These are byte-count invariants, not arbitrary row-count limits; the
+existing downstream sample budget remains separate. The change does not
+alter JSON decoding, integer/float constraints, duplicate-object-key
+rejection, family/template split rules, gold traces, metrics or ranking.
+
+* Scope and limitations
+
+The sample uses the existing =Path.is_symlink()= check. A separate
+adversarial filesystem process could still change a path between validation
+and opening; this correction does /not/ promise race-free symlink resolution
+or a frozen file snapshot. Such a guarantee would require a distinct
+file-descriptor identity and no-follow policy and a separate review. The
+claim made here is strictly that the reader never *requests* more than
+2,097,153 bytes at one time.
+
+* Debugging and falsification exercises
+
+1. Remove the read count, restore =path.read_bytes()=, and run the new
+   contract tests. Record which calls become unbounded even if the parser
+   still returns a typed size error afterward.
+2. Use a valid single JSON object padded with ASCII spaces to precisely
+   2,097,152 bytes. Confirm acceptance, then append one byte and confirm
+   deterministic typed rejection.
+3. Explain why the post-read length check is still needed even with
+   =read(limit + 1)=, and why it should not be replaced by the stat check.
+4. Distinguish this bound from downstream =MAX_SAMPLES= and from the
+   separate per-HTML-page byte budgets. Do not conflate these limits.
+5. Execute the complete exact-head native regression suite and official
+   book-check path before calling a repository release green. A focused
+   source-method test or a standalone Org export is not that evidence.
+
+* Verification status
+
+The local native RED/GREEN experiment can verify the bounded reader and its
+preexisting JSON validations, but full repo checks, official EPUBCheck and
+hosted CI must be reported as NOT RUN unless independently executed. Org is
+the canonical manuscript source; standalone HTML/EPUB preview builds are
+supporting instructional checks rather than production verification.
