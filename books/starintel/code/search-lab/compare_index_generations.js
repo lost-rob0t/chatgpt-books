@@ -12,7 +12,7 @@ const indexSources=files.map((file,i)=>{
   assert.equal(sha,expected[i],'Source index Git blob mismatch');
   const design=JSON.parse(bytes.toString('utf8'));
   assert.equal(design._id,'_design/search');
-  return design.indexes.fts.index;
+  return design.indexes.fts;
 });
 function emit(source,doc){
   const values=[];
@@ -31,7 +31,7 @@ const specimen={dtype:'person',dataset:'book-synthetic',
   content:['alpha','beta','gamma'],
   sources:[{name:'Source A',url:'https://a.invalid'},
            {name:'Source B',url:'https://b.invalid'}]};
-const historical=emit(indexSources[0],specimen),merged=emit(indexSources[1],specimen);
+const historical=emit(indexSources[0].index,specimen),merged=emit(indexSources[1].index,specimen);
 const valuesFor=(emissions,field)=>emissions.filter(e=>e.field===field).map(e=>e.value);
 const added=['fullName','displayName','legalName','orgType'];
 for(const field of added){
@@ -55,7 +55,25 @@ for(const [field,want] of Object.entries(multivalue)){
 }
 assert.ok([...historical,...merged].every(e=>e.stored===true));
 assert.equal(merged.length-historical.length,4);
+// Source declaration, NOT observed Clouseau/Lucene tokenizer output.
+const analyzerFor=(fts,field)=>{
+  assert.equal(fts.analyzer.name,'perfield');
+  return Object.hasOwn(fts.analyzer.fields,field)
+    ? fts.analyzer.fields[field] : fts.analyzer.default;
+};
+const trackedAnalyzerFields=['name','fullName','displayName','legalName','full_name','dataset','tenant_id','dtype'];
+const declaredAnalyzers=Object.fromEntries(trackedAnalyzerFields.map(field=>[
+  field, indexSources.map(fts=>analyzerFor(fts,field))
+]));
+assert.deepEqual(declaredAnalyzers.name,['keyword','keyword']);
+for(const field of ['fullName','displayName','legalName','full_name','dtype']){
+  assert.deepEqual(declaredAnalyzers[field],['standard','standard']);
+}
+for(const field of ['dataset','tenant_id']){
+  assert.deepEqual(declaredAnalyzers[field],['keyword','keyword']);
+}
 console.log(JSON.stringify({status:'PASS', historical_emissions:historical.length,
   merged_emissions:merged.length,added_fields:added,
+  declared_analyzers_by_generation:declaredAnalyzers,
   shared_multivalue_emissions:multivalue,
   evidence:'original pinned JavaScript projection only; NOT installed Clouseau index'},null,2));

@@ -398,3 +398,28 @@ index on a synthetic document where =name= and =content= contain identical
 text. Both raw emissions remain identical despite different declared
 analyzers. This is TESTED configuration and callback behavior, *not* a live
 keyword/standard tokenizer, query containment, authorization, or ranking test.
+
+* Two-generation analyzer migration is not field inheritance
+The optional two-checkout =compare_index_generations.js= now reports
+=declared_analyzers_by_generation= as a *source-configuration* observation
+beside its actual JavaScript index emissions. The merged 0.10.1 search design
+emits =fullName=, =displayName=, and =legalName=, but does not add analyzer
+overrides for those new names. They therefore use the declared =standard=
+default, unlike =name= (explicit =keyword=). The old =full_name= alias also
+uses the standard default. Server-owned =dataset= and =tenant_id= remain
+explicit =keyword= fields. Identical raw callback values can have different
+configured downstream analyzers; this tool does not run Lucene/Clouseau.
+
+With BOTH original pinned design files provided, run:
+
+#+begin_src sh
+node books/starintel/code/search-lab/test_index_generation_multiplicity.js \
+  HISTORICAL_PIN/source/views/search.json \
+  MERGED_PIN/source/views/search.json
+#+end_src
+
+The seven optional Node tests now include two analyzer-contract assertions
+in addition to the five existing source/emission checks. The historical
+=0.9.0= wire lab remains pinned to the older source; optional comparison
+does not prove a deployed design, reindex, tokenization, authorization, or
+canonical SDK acceptance.

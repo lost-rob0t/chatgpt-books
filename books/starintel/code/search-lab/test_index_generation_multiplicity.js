@@ -48,3 +48,19 @@ test('both source index blobs remain SHA-pinned', () => {
     fs.rmSync(tmp,{recursive:true,force:true});
   }
 });
+
+// Analyzer configuration is separate from raw index callback emission.
+test('newly emitted camelCase name fields use declared standard, not name keyword', () => {
+  const body=JSON.parse(run.stdout);
+  const analyzers=body.declared_analyzers_by_generation;
+  assert.deepEqual(analyzers.name,['keyword','keyword']);
+  for(const field of ['fullName','displayName','legalName']){
+    assert.deepEqual(analyzers[field],['standard','standard']);
+  }
+});
+test('tenant/dataset keyword constraints are unchanged across index generations', () => {
+  const analyzers=JSON.parse(run.stdout).declared_analyzers_by_generation;
+  assert.deepEqual(analyzers.dataset,['keyword','keyword']);
+  assert.deepEqual(analyzers.tenant_id,['keyword','keyword']);
+  assert.deepEqual(analyzers.dtype,['standard','standard']);
+});
