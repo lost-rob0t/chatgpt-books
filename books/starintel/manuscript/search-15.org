@@ -472,6 +472,30 @@ without blurring their authority. A valid stored record can remain invisible to
 a query for an omitted field. An index hit can also be an old record whose
 embedded document still needs a version-aware reader.
 
+** Schema version is required canonically but omitted from this FTS projection
+
+At the current StarLang =0.10.1= generated authority, =schemaVersion= is a
+required field of =Org=, =Person=, =Relation= and =GeoPoint=. The pinned
+*historical* search-index callback selects =dataset=, =dtype=, =name= and other
+listed fields, but makes no =index()= emission for =schemaVersion=. Schema
+acceptance and index coverage are separate checks.
+
+Run =test_schema_version_index.js= through the Chapter 15 test runner. Six
+native Node assertions execute the original Git-blob-attested FTS callback.
+Two otherwise identical synthetic organizations with =schemaVersion= values
+=0.9.0= and =0.10.1= produce identical *ordered index emissions*. Changing
+the dataset or name changes those emissions. A deliberately altered, non-upstream
+index function that emits =schemaVersion= makes the same version-only comparison
+different, demonstrating that the control can detect the omitted field.
+
+These examples are index-function inputs, *not* claims that either synthetic
+record passed canonical SDK validation, that the historical server admitted a
+=0.10.1= document, or that a version-filtered Lucene query was run. In a
+mixed-version corpus, infer neither a record's schema authority nor index
+completeness from a full-text hit. Retrieve the canonical record through an
+authorized durable read, inspect its =schemaVersion= and validate under the
+appropriate generated contract before making a version-specific claim.
+
 ** A canonical GeoPoint is not automatically a spatial search result
 
 A StarLang 0.10.1 =GeoPoint= defines =geometryType=, =longitude= and
