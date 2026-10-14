@@ -382,6 +382,25 @@ fixture and checks a pre-existing internal tenant is not overwritten.
 This is a crucial pipeline boundary: raw fixture projection != server-stamped
 index projection != indexed search visibility != durable canonical verification.
 
+* Canonical GeoPoint versus historical full-text coverage
+
+With =STAR_SEARCH_LAB_SERVER= naming the clean, exact historical server checkout,
+=run-tests= includes =node --test test_geo_index_coverage.js=. It asserts the
+real =source/views/search.json= Git blob before executing its original
+= indexes.fts.index = callback in a Node VM. The seven native tests compare
+synthetic 0.10.1 GeoPoint-shaped inputs with altered coordinates, text, and
+dataset. Geographic fields =latitude=, =longitude=, =geohash=,
+=geometryType=, and =placeName= are absent from the historical FTS emission
+stream, while dataset/type/tenant metadata is emitted.
+
+A GeoPoint-shaped example follows the named fields and decimal-string
+coordinate types from the authoritative generated 0.10.1 schema. This
+test does *not* run the SDK validator, inspect an installed design, execute
+Clouseau or prove the absence of a separate geo API. Matching FTS emissions
+do not make two canonical spatial records equal, or establish geography.
+The separately controlled dataset/content fields show that the test is
+executing a nonempty, selective index callback.
+
 * Analyzer configuration is separate from index callback values
 
 The pinned =source/views/search.json= declares a =perfield= analyzer: =dataset=

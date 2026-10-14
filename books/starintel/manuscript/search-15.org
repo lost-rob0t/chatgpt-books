@@ -472,6 +472,33 @@ without blurring their authority. A valid stored record can remain invisible to
 a query for an omitted field. An index hit can also be an old record whose
 embedded document still needs a version-aware reader.
 
+** A canonical GeoPoint is not automatically a spatial search result
+
+A StarLang 0.10.1 =GeoPoint= defines =geometryType=, =longitude= and
+=latitude=, with decimal-string coordinate values. =geohash= and
+=placeName= are also defined source properties. But the *historical*
+=source/views/search.json= full-text projection has no =index()= emission for
+those properties. It still emits =dataset=, =dtype= and an internal tenant
+index term for a synthetic =dtype=geo= document.
+
+Run =test_geo_index_coverage.js= under the pinned Chapter 15 lab. Seven native
+Node tests execute the *actual Git-blob-attested historical index function*:
+two synthetic points with different coordinates and place descriptions yield
+the same ordered FTS emissions; changing the dataset changes those emissions.
+Adding =content= yields text emissions but not geometric coordinates.
+An input missing the required coordinates produces the same FTS emissions:
+index projection is not canonical admission. The test uses a shape informed by
+the generated =0.10.1= GeoPoint definition; it does *not* execute SDK
+validation of that particular sample.
+
+This comparison does not prove equal durable documents, proximity, containment,
+co-location or identity. Nor does it establish that deployed StarIntel has no
+other spatial services. It establishes only the historical FTS projection's
+field-selection boundary. A future geospatial retrieval path needs its own
+index definition, authorized query, exact source/runtime pin, and real
+integration tests. Never infer a directional graph link or spatial predicate
+from a plain text-search match.
+
 ** Interpret a page as retrieval evidence
 
 A typical explanatory page looks like this; it is a synthetic response fixture,
