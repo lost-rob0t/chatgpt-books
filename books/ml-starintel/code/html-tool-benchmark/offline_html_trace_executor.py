@@ -246,6 +246,10 @@ def _preflight_parsed_pages(prepared: dict[str, str]) -> dict[str, Element]:
             if (node.tag == "meta" and
                     node.attrs.get("http-equiv", "").strip().casefold() == "refresh"):
                 raise TraceFailure("unsafe_navigation", f"implicit HTML refresh in fixture page: {path}")
+            # Embedded browsing contexts load or define another document without
+            # an explicit select/follow action; the static oracle has no such step.
+            if node.tag in {"iframe", "frame"} and ("src" in node.attrs or "srcdoc" in node.attrs):
+                raise TraceFailure("unsafe_navigation", f"implicit embedded HTML navigation in fixture page: {path}")
             pending.extend(child for child in node.children if isinstance(child, Element))
         parsed[path] = parser.root
     return parsed

@@ -1,0 +1,105 @@
+#+title: BK08 Lab — Explicit Traces Versus Embedded Browsing Contexts
+:PROPERTIES:
+:ID:       7998ea93-1d8e-40a2-b14b-f6a912a85f19
+:END:
+
+* Why a static fixture needs an execution boundary
+
+BK08's execution oracle is deliberately smaller than a browser. It receives a
+finite map from canonical path to HTML text. It has no HTTP client, JavaScript
+engine, hidden navigation or external renderer. Its supported actions are
+=select=, =extract=, and the explicitly typed =follow=. A successful gold trace
+therefore makes a claim about *only* those steps, not about whatever a browser
+might load merely because a page contains markup.
+
+An =<iframe src="/detail">= introduces a second browsing context. Even when
+=/detail= is also in the fixture map, the oracle has no action meaning "load a
+child document automatically." An =<iframe srcdoc="...">= likewise defines a
+nested document whose selection and extraction are not part of the bounded
+page tree. The legacy =<frame src="...">= has the same implicit step. Accepting
+such markup as an ordinary static page gives gold examples misleading
+completeness: the trace cannot express an operation the markup requests.
+
+This lab treats a frame *with a present =src= or =srcdoc= attribute* as an
+unsupported implicit navigation and fails closed with the existing typed
+=unsafe_navigation= result. Presence matters: =src=""= is still an explicit
+navigation attribute. The policy applies to the entire supplied fixture
+inventory, not only to pages visited by the gold trace.
+
+* A bounded, offline counterexample
+
+The following invented HTML snippets are intentionally tiny. They do not name
+real accounts, perform requests or make claims about live websites.
+
+#+begin_src html
+<!-- A page whose gold trace can explicitly select this paragraph. -->
+<p id="summary">Summary</p>
+<iframe src="/detail"></iframe>
+#+end_src
+
+Before the guard, the bounded parser retained the frame element, and the
+preflight did not reject its implicit document load. A trace selecting
+=#summary= could appear complete even though the markup also requested a
+second browsing context. After the guard, parsing is still bounded but the
+preflight fails with =unsafe_navigation= *before any gold or candidate action*.
+
+The same failure applies to =<frame src="/detail">= and to an iframe with
+=srcdoc=. If the second fixture page is unvisited, it is still scanned. No
+real browser or network is needed to demonstrate the problem.
+
+* Controls and limits
+
+Not every URL-valued HTML attribute is a browsing-context navigation. An
+ordinary =<a href="/detail">= remains eligible for a later explicit
+=select= / =follow= sequence. An =<img src="/photo.png">= is not reclassified
+as an automatic document follow in this narrow contract. An empty iframe
+without =src= or =srcdoc= does not assert a navigation URL, so this particular
+guard leaves it unchanged. The lab does *not* claim a complete browser
+security model or a specification of every HTML element.
+
+Existing inert-subtree handling is preserved: a frame written inside an HTML
+=<template>= is not active. Parser text inside =<script>= or =<style>= also
+remains inert for the preflight. Duplicate attributes continue to fail under
+=parse_bounds=, and active meta-refresh retains its existing rejection. These
+controls matter: a new failure type must not quietly reinterpret unrelated
+selector, extraction, parser-budget or static-link behavior.
+
+* Reproduce the focused native RED/GREEN contract
+
+The companion =test_implicit_embedded_context_navigation.py= contains fourteen
+unit-test methods. Seven fail against the byte-exact original preflight
+excerpt, because frames are allowed; all fourteen pass with the additional
+explicit browsing-context guard. It includes controls for inert templates,
+ordinary anchors, image attributes, previously rejected refresh metadata,
+and the existing duplicate-attribute failure. The isolated excerpt makes the
+specific decision observable; it does not replace a full authoritative
+repository checkout or the complete native test suite.
+
+From the benchmark directory in a legitimate complete checkout, run:
+
+#+begin_src sh
+python -m unittest discover -v -s . -p 'test_*.py'
+python offline_html_trace_executor.py --demo
+python html_trace_perturbations.py --verify
+python html_template_split_audit.py --demo
+python html_heldout_baselines.py --demo
+#+end_src
+
+A complete integration result requires these commands against the exact
+published GitHub commit, followed by the repository's actual book build and
+check tools. The local focused RED/GREEN result alone is not a claim that all
+other native tests passed or that hosted CI ran.
+
+* Exercise: separate explicit and implicit steps
+
+Construct two pages: a summary page with a typed =select= / =follow= anchor,
+and a detail page with a single =extract=. Confirm that a gold trace can
+represent every visited page. Then add an active iframe to an otherwise
+unvisited third page. Explain why the original two-page gold trace remains
+syntactically unchanged yet the supplied fixture inventory must now be
+rejected. Finally place the same iframe under a =<template>= and explain why
+it does not introduce an active browsing context under the bounded contract.
+
+The lesson is not that browsers are unsafe. It is that a *deterministic
+benchmark* must not silently claim coverage of behavior outside its explicit
+operational vocabulary.
