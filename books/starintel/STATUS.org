@@ -24,19 +24,25 @@ the reader to reconstruct the mental model from repository history.
 
 * Canonical edition boundary
 
-As of the 2026-10-05 audit:
+Refreshed 2026-10-14 against merged server PR #313 and maintained =master=:
 
-- canonical StarIntel document authority is StarLang
-  =org.starintel/core@1= / =0.10.1=;
-- canonical keys are lowerCamelCase;
-- canonical public identity/revision are =id=/=rev=;
-- =starintel-server= default branch at
-  =ce14c77ccd2f51f543410fdeef3d78fb9978b769= still carries the historical
-  0.9.1/0.9.0 document lock;
-- server PR #313 at
-  =117057d6f5bbf2e2b40d5cfd89eb7adcca5e28fd= is the tested but unmerged
-  StarLang-generated 0.10.1 migration;
-- book prose must distinguish canonical authority, runtime adoption,
+- canonical StarIntel document authority remains StarLang
+  =org.starintel/core@1= / =0.10.1= at
+  =96d26c338078676ec1dc6928755901636c9f7ef0=;
+- canonical public identity/revision remain =id=/=rev= and keys are lowerCamelCase;
+- the *historical Chapter 15 server pin*
+  =ce14c77ccd2f51f543410fdeef3d78fb9978b769= has the older
+  =0.9.1=/=0.9.0= document lock; it is not current =master=;
+- server PR #313 merged on 2026-10-10 at
+  =ca6fdcbdc1f3b8aa344c533a40d298f741a54f25=, adopting generated
+  =0.10.1= source contracts;
+- maintained =master= search-design Git blob
+  =dd6336f3047982db2f0e3615fed1413ed1e58e13=
+  differs from the historical pin's
+  =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=;
+  this proves changed source projection, not an installed CouchDB index,
+  completed reindex, or book-verified service-backed canonical ingest;
+- distinguish canonical authority, source adoption, deployment,
   compatibility input, storage projection, and exact historical test pins.
 
 * Completed evidence-backed milestones
@@ -159,8 +165,8 @@ durable corpus + operation completion evidence
 
 ** New current-source material
 
-Documented from current server =main= at
-=ce14c77ccd2f51f543410fdeef3d78fb9978b769=:
+Documented from historical pinned server source at
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769=, not current =master=:
 
 - semantic actor/service registry is distinct from legacy local routing index;
 - operator-visible manifests declare semantic identity, accepted/produced
@@ -172,8 +178,8 @@ Documented from current server =main= at
 - API version, document-schema version and actor semantic version are separate
   axes.
 
-These current-source additions are DOCUMENTED, not silently generalized into
-the older exact-pin Project 3 TESTED claims.
+These historical-source additions are DOCUMENTED, not silently generalized into
+the older exact-pin Project 3 TESTED claims or current =master= implementation.
 
 * Pass 10 -- Canonical records practicum
 
@@ -327,10 +333,11 @@ not started.
 
 No prose blocker is known.
 
-The strongest current educational blocker is executable adoption evidence: the
-book cannot honestly claim a canonical 0.10.1 end-to-end server path until it
-pins a runtime that actually supports that contract and runs the complete
-service-backed test.
+The strongest current educational blocker is *executed* adoption evidence.
+Although server PR #313 merged its =0.10.1= source contract on 2026-10-10,
+the book has not executed the full canonical 0.10.1 create/ingest/durable
+read-back/search path against a pinned merged runtime and observed installed
+index. A source merge is not that end-to-end test.
 
 Publication and merge state are governed by the current task instructions and
 exact-head checks; this file does not itself grant merge authority.

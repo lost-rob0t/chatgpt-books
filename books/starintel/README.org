@@ -22,7 +22,18 @@ The manuscript therefore begins with =manuscript/reader-orientation-07.org= and 
 - [[id:fa271d01-af9e-5892-b544-4ef1f20cf63d][Debug a Broken Pipeline]] -- Inject controlled failures across services, RabbitMQ, databases, APIs, and logs and trace them systematically.
 - [[id:5755d789-1897-5437-b9d1-0ccc3cf93a73][Add a Complete StarIntel Capability]] -- Capstone based on fresh repository research, integrating data, runtime, tests, observability, and documentation.
 * Current edition boundary
-As of 2026-10-05, canonical new StarIntel documents are defined by StarLang =org.starintel/core@1= version =0.10.1=.  The default =starintel-server= branch still carries its older =0.9.1=/=0.9.0= runtime lock, while the tested =0.10.1= server migration is draft PR #313.  The EPUB must always distinguish canonical authority, runtime adoption, historical compatibility, and exact pinned experiments.
+As of the 2026-10-14 source audit, canonical new StarIntel documents are
+defined by StarLang =org.starintel/core@1= version =0.10.1= (authority
+=96d26c338078676ec1dc6928755901636c9f7ef0=). Server PR #313 merged
+on 2026-10-10 at =ca6fdcbdc1f3b8aa344c533a40d298f741a54f25=; the
+maintained =starintel-server= default branch is =master=. Chapter 15
+deliberately tests historical server
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769=, which carried the
+=0.9.1=/=0.9.0= contract. The merged search-design Git blob
+=dd6336f3047982db2f0e3615fed1413ed1e58e13= is source evidence,
+not proof of a deployed CouchDB design, reindex, or independently TESTED
+canonical end-to-end service trace. Keep schema authority, source adoption,
+installed index, runtime deployment, and historical experiments separate.
 
 * Research
 Record primary-source work under =research/= and bibliography metadata in =references.bib=. Never let version-sensitive prose outrun current documentation.

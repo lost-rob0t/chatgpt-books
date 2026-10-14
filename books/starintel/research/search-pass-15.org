@@ -122,3 +122,24 @@ legible. No generated EPUB is committed to Git.
 The existing service-backed actor/ingest jobs remain in CI. The new workflow
 step runs only the new hermetic lab, not an invented service pass. Exact PR
 head CI outcomes remain authoritative for hosted checks. No merge is requested.
+
+
+* October 14 2026 server edition refresh -- DOCUMENTED, not deployment-tested
+The earlier October 9 chapter research remains evidence at its historical
+pin. A fresh GitHub App read on 2026-10-14 independently verified that
+=lost-rob0t/starintel-server= PR #313 is MERGED, with merge commit
+=ca6fdcbdc1f3b8aa344c533a40d298f741a54f25= (2026-10-10). The
+maintained default branch is =master=. Its source =source/views/search.json=
+has Git blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=, versus
+historical Chapter 15 pin
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769= and its index blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=. Canonical StarLang
+authority remains =96d26c338078676ec1dc6928755901636c9f7ef0=.
+
+The exported Chapter 15 manuscript already distinguishes those two source
+generations and executes them separately via its source-pinned comparator.
+This refresh corrects the otherwise stale book-level README/STATUS statements
+that still called PR #313 a draft and labeled the historical revision
+"current". It does not change the historical lab/server pin, assert an
+installed database design/reindex, or promote any unrun end-to-end service
+experiment to TESTED.
