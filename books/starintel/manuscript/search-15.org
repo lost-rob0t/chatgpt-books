@@ -235,6 +235,39 @@ because the read plane is configured public.
 </figure>
 #+end_export
 
+** Public aggregate statistics are not a public-search denominator
+
+There is a second, easily confused boundary: the versioned public stats
+handler reads =data/total= and =data/count_by_dtype= CouchDB reduced views
+from the configured default database. Those original map functions count
+ordinary documents without testing their =dataset=. The handler does not
+apply =STAR_PUBLIC_SEARCH_DATASETS= to these aggregate view requests,
+although the separate public /search/ handler constructs a server-owned
+dataset-scoped query. The relevant map strings and public stats handler are
+unchanged between the historical pin and merged 0.10.1 server.
+This is source inspection, not a live authorization finding.
+
+For example, a *synthetic* database with three public-dataset documents and
+one private-dataset relation produces a total-map count of four, whereas the
+modeled public-dataset membership is three. =count_by_dtype= also emits one
+private relation. The actual pinned map functions, not reimplemented count
+logic, are exercised by =test_public_stats_scope_difference.js=; its
+six standalone native Node assertions passed on 2026-10-14. The complete
+source-blob attestation additionally runs when the pinned server checkout
+is supplied by =run-tests=. Source: historical/merged server
+=source/views/data.json= Git blob
+=90389f5ef0f0812d851db9397fee1507969ac4bd=; historical
+=source/frontends/http-contract-routes.lisp= blob
+=572e78602c2b273f7ed8b45ffaa8d939ce7ce88c=
+(the merged handler preserves the same public stats form).
+
+Public mode and middleware determine whether an anonymous user can request
+stats at all. A source-level aggregate discrepancy does not establish a live
+information disclosure, a tested CouchDB reducer, or a broken search
+authorization guard. It shows why a global stats count must not be used as
+the denominator for publicly searchable corpus completeness. In a mixed
+public/private deployment, review the public stats contract separately.
+
 ** An internal tenant stamp changes what the index sees
 
 Do not execute the historical search design directly on a client fixture and
