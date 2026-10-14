@@ -17,6 +17,7 @@ PY
 STAR_SEARCH_STATS_DESIGN="$STAR_SEARCH_LAB_SERVER/source/views/data.json" node --test "$HERE/test_public_stats_scope_difference.js"
 node --test "$HERE/test_geo_index_coverage.js"
 node --test "$HERE/test_schema_version_index.js"
+node --test "$HERE/test_visibility_index_boundary.js"
 python3 -m unittest discover -s "$HERE" -p 'test_*.py' -v
 EXTRACTED="$(mktemp)"
 trap 'rm -f "$EXTRACTED"' EXIT

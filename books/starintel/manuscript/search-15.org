@@ -235,6 +235,35 @@ because the read plane is configured public.
 </figure>
 #+end_export
 
+** A canonical visibility label is not a public search permission check
+
+The canonical StarLang =0.10.1= =Org= has optional =visibility= and
+=accessControl= properties. Do not infer from those document labels that
+the inspected public search automatically enforces a second, per-record
+visibility rule. In both the historical and merged server source, the
+public handler builds trusted =search:read=, =tenant:*=, and configured
+=dataset:= scopes, then sends the resulting query to =search/fts=.
+The index callback emits dataset and server tenant fields but does not
+emit =visibility= or =accessControl=.
+
+=test_visibility_index_boundary.js= executes the *unaltered historical*
+index callback on a fictional record. Changing =visibility= from =public=
+to =private=, or changing the access-control metadata, leaves the complete
+ordered emission stream identical when all indexed properties stay the
+same. Changing the dataset, internal server-stamped tenant, or indexed
+content produces different emissions. The exact source Git blob is
+attested, and an intentionally modified callback is a negative control.
+These are raw JavaScript callback facts, not a Lucene search result.
+
+This is a source-level warning about *policy composition*, not evidence
+of a deployed record disclosure. Canonical schema acceptance, server
+configuration, middleware, installed design, and active Clouseau behavior
+still need their own tests. Do not mix private records into an
+operator-configured public search dataset on the assumption that a
+=visibility= flag alone will prevent retrieval. For finer-grained
+policies, establish and test the actual server enforcement boundary
+before claiming the dataset is safe for public search.
+
 ** Public aggregate statistics are not a public-search denominator
 
 There is a second, easily confused boundary: the versioned public stats
