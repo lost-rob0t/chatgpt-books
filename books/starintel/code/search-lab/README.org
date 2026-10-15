@@ -520,3 +520,20 @@ unsupported parameters, their falsey spellings, correct bookmark encoding,
 authenticated sort/scope preservation, public sort rejection and invalid
 surface rejection. These assertions verify client behavior and inspected
 handler source, *not* a live CouchDB/Clouseau snapshot or its mutation behavior.
+
+* Public dataset scope binding lifetime
+
+The pinned historical server initializes =*public-search-datasets*= using
+=STAR_PUBLIC_SEARCH_DATASETS= in a Lisp =defparameter= form. The public
+search scope helper reads that bound value, not =getenv= on every call.
+The merged 0.10.1 server retains this definition at Git blob
+=a77ea2cda8337f5c52da73537f87e772cadc6b63=. A supervisor's environment
+edit alone does not update a process's already bound policy. Review and
+reapply the runtime's supported restart/reload/rebinding procedure, then
+verify the effective public scope. Do not mistake a configuration edit for
+an observed authorization change.
+
+=python3 -m unittest test_public_scope_binding_lifetime -v= checks the exact
+historical public-route Git blob and source call chain, detects a deliberately
+changed per-request environment lookup, and checks the exported Chapter 15
+lesson. This is not a native reload or live authorization test.

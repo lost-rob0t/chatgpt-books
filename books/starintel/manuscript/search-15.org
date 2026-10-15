@@ -213,6 +213,15 @@ An operator combining public and private collections must configure the public
 list explicitly. A route that rejects a caller's =dataset= parameter can still
 expose an overly broad server-configured dataset set.
 
+The historical and merged server route source uses =defparameter= to bind
+=*public-search-datasets*= from =STAR_PUBLIC_SEARCH_DATASETS= when that Lisp
+form is evaluated. Subsequent =public-search-scopes= calls read the bound
+list; they do not re-read the environment for each HTTP request. Changing a supervisor environment variable after the process started does not update that bound value.
+Use a reviewed restart, reload, or explicit in-process rebinding procedure and
+verify the effective public dataset scope before treating a configuration
+change as live. This is source-backed binding-lifetime reasoning; no native
+server reload or deployed authorization transition was executed by the book.
+
 For a disposable teaching deployment choose:
 
 #+begin_example
