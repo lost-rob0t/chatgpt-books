@@ -61,6 +61,9 @@ def request_path(surface: str, query: str, **params) -> str:
     # Public search ignores sort; refuse a parameter that only appears honored.
     if surface == 'public' and 'sort' in params:
         raise ValueError('public search does not forward sort')
+    # Neither pinned search handler forwards offset-style page parameters.
+    if 'skip' in params or 'offset' in params:
+        raise ValueError('search does not forward skip/offset; use an opaque bookmark')
     # Encoding is transport handling; validation belongs to the real server.
     route = PUBLIC_PATH if surface == 'public' else PRIVATE_PATH
     return route + '?' + urlencode({'q': query, **params})

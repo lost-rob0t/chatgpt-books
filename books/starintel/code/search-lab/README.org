@@ -500,3 +500,23 @@ surface keeps its transport encoding behavior. =test_public_sort_boundary.py=
 covers both surfaces, opaque bookmark encoding and unknown-surface rejection.
 Those six Python tests exercise the client only: they cannot prove deployed
 Clouseau sort semantics, ranking stability or a frozen multi-page snapshot.
+
+* Offset-style paging is not part of either historical search route
+
+At historical Server pin =ce14c77ccd2f51f543410fdeef3d78fb9978b769=,
+the public route's =handle-public-search-route= and the authenticated route's
+=handle-authorized-search-route= both forward opaque =bookmark=, but neither
+reads or forwards caller =skip= or =offset=. The source files are pinned by
+Git blobs =572e78602c2b273f7ed8b45ffaa8d939ce7ce88c= and
+=eac4f1d38973cbbe3d19e9ed5e7b1b3c520919a5=, respectively.
+
+The book-local =request_path()= now rejects either explicit parameter on
+*both* surfaces, including falsey values, before URL encoding. Otherwise the
+resulting URL could appear to request page N while the backend still receives
+page one. Use the server-returned opaque =bookmark=, not an integer offset.
+
+=test_offset_pagination_contract.py= runs seven network-free client tests:
+unsupported parameters, their falsey spellings, correct bookmark encoding,
+authenticated sort/scope preservation, public sort rejection and invalid
+surface rejection. These assertions verify client behavior and inspected
+handler source, *not* a live CouchDB/Clouseau snapshot or its mutation behavior.

@@ -708,7 +708,15 @@ sorting parameters; its bookmark is not a document ID or an integer offset.
 The lab sends =limit=1= to make continuation behavior impossible to overlook.
 Its client URL-encodes =q= and =bookmark=, stops on an empty page, rejects a
 missing or repeated bookmark on a nonempty page, tracks repeated identities
-across pages, and caps the number of requests. The page budget is a client
+across pages, and caps the number of requests.
+
+Neither historical public nor authenticated HTTP handler forwards =skip= or
+=offset= to the full-text backend. A syntactically valid URL with one of those
+parameters cannot establish offset pagination. The book client rejects both
+parameters on both surfaces, even when set to zero, and demonstrates that
+rejection in =test_offset_pagination_contract.py=. Preserve and resend the
+opaque server-issued =bookmark= instead. The test inspects client behavior;
+it does not establish snapshot consistency under concurrent writes. The page budget is a client
 resource policy, not the server's result-limit contract.
 
 #+begin_src python
