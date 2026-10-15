@@ -716,8 +716,10 @@ parameters cannot establish offset pagination. The book client rejects both
 parameters on both surfaces, even when set to zero, and demonstrates that
 rejection in =test_offset_pagination_contract.py=. Preserve and resend the
 opaque server-issued =bookmark= instead. The test inspects client behavior;
-it does not establish snapshot consistency under concurrent writes. The page budget is a client
-resource policy, not the server's result-limit contract.
+it does not establish snapshot consistency under concurrent writes.
+
+The page budget is a client resource policy, not the server's result-limit
+contract.
 
 #+begin_src python
 from lab import interpret_page, next_bookmark, request_path
