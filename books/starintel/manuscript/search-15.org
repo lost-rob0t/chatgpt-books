@@ -845,7 +845,13 @@ experiment, not a general sandbox for untrusted index programs.
 
 The Python suite validates canonical fixtures, observes projection precedence
 and omissions, exercises strict response interpretation and continuation
-failures, and checks fail-closed form selection. The Lisp harness loads actual
+failures, and checks fail-closed form selection. The standard
+one-checkout runner also invokes eight standalone native Node regressions for
+the route-source comparator: Git blob encoding, named-function extraction,
+missing/duplicate definition failures, and a deliberate changed-body control.
+These prove the comparator's basic failure behavior, *not* byte equality of
+two authentic server checkouts; that latter experiment needs both immutable
+source trees and is separately documented in the lab README. The Lisp harness loads actual
 query parsers, public/authenticated handler bodies, scope compiler functions
 and tenant scrubbing. Its CouchDB call, connection boundary, JSON representation,
 identity/action gate and audit sink are explicit dependency doubles.

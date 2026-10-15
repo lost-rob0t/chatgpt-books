@@ -547,6 +547,23 @@ historical public-route Git blob and source call chain, detects a deliberately
 changed per-request environment lookup, and checks the exported Chapter 15
 lesson. This is not a native reload or live authorization test.
 
+* Standalone route-contract regressions now run in the pinned test suite
+
+The native Node tests in =test_route_generation.js= exercise the source
+comparator's Git blob format, extraction of named Lisp functions, duplicate
+function rejection, missing-definition failure, and a deliberate source-body
+change negative control. These *eight standalone unit tests* need only the
+checked-in JavaScript comparator and Node; they do not need a second pinned
+StarIntel Server checkout. The standard one-checkout =run-tests= now invokes
+them explicitly, and =test_runner_route_coverage.py= guards their registration
+after the existing server and canonical SDK pin checks.
+
+This is coverage of the comparator's implementation, *not* proof that the
+actual historical and merged server routes are identical. The two-checkout
+source audit below remains an independent command and is NOT RUN by the
+one-checkout test runner. Hosted checks that fail before runner allocation
+have executed neither of these test suites.
+
 * Optional cross-generation search route source audit
 The 2026-10-10 0.10.1 server merge changed the FTS index source, but an
 independent byte-level source audit found seven named public/authenticated
