@@ -589,3 +589,29 @@ The first command checks exact source Git blobs and named defun bytes, failing
 on a mismatch; the native unit tests exercise parser/error behavior with
 small synthetic Lisp forms. The standard one-checkout runner cannot run the
 cross-generation command; a missing second checkout is NOT RUN, not success.
+
+* Checking bounded search-query audit evidence
+
+=verify_query_audit.py= is a standalone offline checker for the attribute map
+emitted by the historical Server's =emit-search-query-audit= in
+=source/authorization/services-final.lisp= (Git blob
+=cb0344ca916ce54af8413289b12d234b5d61b781= at
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769=). It does not connect to a
+logger or infer whether authorization or the backend request succeeded.
+
+#+begin_src sh
+python3 -m unittest test_query_audit_evidence -v
+#+end_src
+
+A nontruncated =query.text=, =query.bytes= and =query.sha256= must agree
+byte-for-byte; a truncated entry instead retains only a bounded display,
+original byte count and full-query digest. When the original candidate query
+is independently available, the checker can compare its digest and byte count.
+It cannot reconstruct a missing suffix, authenticate an event, or infer an
+allow/deny outcome. The historical implementation emits the log before the
+authorization decision and does nothing if observability logging is disabled.
+The query text limit is 16,384 UTF-8 bytes; it is *not* the public HTTP search
+request limit of 512 characters.
+
+The test uses synthetic structured attributes and intentionally corrupt events.
+It executes native Python, not the pinned Common Lisp observability subsystem.

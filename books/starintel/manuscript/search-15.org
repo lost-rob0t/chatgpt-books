@@ -457,6 +457,35 @@ Keep audit retention, input validation and result pagination separate when
 reading source. A log event can prove that a query reached the compiler without
 proving backend success or complete results.
 
+** A query audit is not an authorization decision or a search result
+
+The historical Server's final authorization service emits a =search.query=
+observability event *before* =search:read= authorization, but only when
+observability logging is enabled. The event describes the submitted user query,
+not the backend-expanded dataset/tenant clause, a successful HTTP response or
+a snapshot of matched records. Missing logs cannot establish that no search
+was attempted, and present logs can describe requests that were later denied.
+The source is =source/authorization/services-final.lisp= at the Chapter 15
+historical pin (Git blob =cb0344ca916ce54af8413289b12d234b5d61b781=).
+
+The emitted attributes distinguish =query.text= (at most 16,384 UTF-8 bytes),
+=query.bytes= (original UTF-8 length), =query.sha256= (digest of the *full*
+submitted string) and the string-valued =query.truncated=. For an untruncated
+event, the text, digest and byte count can be checked for *internal
+consistency*. For a truncated event, the digest identifies an independently
+supplied candidate query, but cannot reconstruct omitted text. The cut may fall
+inside a multibyte character; do not turn a lossy displayed prefix into a
+byte-for-byte query claim. A matching digest does not authenticate the logger
+or prove that the caller was authorized.
+
+The offline =verify_query_audit.py= example checks those distinctions without
+loading credentials or contacting StarIntel. =test_query_audit_evidence.py=
+executes both complete and truncated synthetic events and deliberate tampering.
+These are *offline checker tests*, not native Lisp audit, successful index search,
+backed-up logs, or a replayable audit trail. Retain the query, caller context,
+response and authorized by-ID evidence separately when the investigation needs
+reproducibility.
+
 ** Stored documents become selected index fields
 
 The server calls =cl-couch:fts-search= against the default CouchDB database,
