@@ -56,6 +56,20 @@ the historical spellings. Our historical lab's index remains Git blob
 without conflating epochs. A merged index file does not prove an installed
 CouchDB design, reindex, live Clouseau behavior, or that every producer and
 actor-dispatch path has adopted 0.10.1.
+The source distinction also matters for /authorization/. A separate
+byte-for-byte audit of the two immutable server generations found the entire
+=source/frontends/http-authorization-routes.lisp= file identical (Git blob
+=eac4f1d38973cbbe3d19e9ed5e7b1b3c520919a5=). Six named functions
+covering public scope/context, query compilation, public search handling,
+and the contracted document-search route are also byte-identical between the
+historical and merged public route files. A seventh named function,
+=handle-authorized-search-route=, is identical in the authenticated source.
+Run =compare_search_route_generations.js= with two exact source checkouts to
+check this invariant without executing Lisp. A changed FTS projection does not
+itself establish a changed HTTP authorization policy; conversely unchanged
+source text does not prove runtime mount order, configured scopes, deployed
+middleware, or live tenant isolation. These remain independent observations.
+
 
 The optional two-generation comparator preserves each =index()= emission
 rather than coercing repeated field names into a one-value dictionary.

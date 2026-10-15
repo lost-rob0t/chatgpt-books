@@ -546,3 +546,29 @@ an observed authorization change.
 historical public-route Git blob and source call chain, detects a deliberately
 changed per-request environment lookup, and checks the exported Chapter 15
 lesson. This is not a native reload or live authorization test.
+
+* Optional cross-generation search route source audit
+The 2026-10-10 0.10.1 server merge changed the FTS index source, but an
+independent byte-level source audit found seven named public/authenticated
+search route and scope functions identical between historical
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769= and merged
+=ca6fdcbdc1f3b8aa344c533a40d298f741a54f25=.
+The entire authenticated route file has the same Git blob in both commits.
+This source identity does not establish mounted runtime behavior or credential
+checks; it proves only that those named Lisp definitions did not change.
+
+With *two separate, authentic pinned server checkouts*, run:
+
+#+begin_src sh
+node books/starintel/code/search-lab/compare_search_route_generations.js \
+  HISTORICAL/source/frontends/http-contract-routes.lisp \
+  MERGED/source/frontends/http-contract-routes.lisp \
+  HISTORICAL/source/frontends/http-authorization-routes.lisp \
+  MERGED/source/frontends/http-authorization-routes.lisp
+node --test books/starintel/code/search-lab/test_route_generation.js
+#+end_src
+
+The first command checks exact source Git blobs and named defun bytes, failing
+on a mismatch; the native unit tests exercise parser/error behavior with
+small synthetic Lisp forms. The standard one-checkout runner cannot run the
+cross-generation command; a missing second checkout is NOT RUN, not success.
