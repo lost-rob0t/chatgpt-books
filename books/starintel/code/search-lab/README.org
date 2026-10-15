@@ -634,3 +634,38 @@ python3 -m unittest discover -s books/starintel/code/search-lab -p 'test_search_
 This source-to-export regression does not test pixel positioning, accessibility,
 deployed middleware, an installed search index, or real CouchDB/Clouseau search.
 Retain the separate figure-alt checks and official EPUBCheck build verification.
+
+* Typed canonical text field coverage across source generations
+
+Run the Git-blob-attested historical JavaScript FTS callback as part of the
+one-checkout Chapter 15 runner:
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_canonical_text_coverage.js
+#+end_src
+
+Optionally inspect the unchanged merged =0.10.1= source callback in the same
+native suite (without adopting it as the historical live service):
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+STAR_SEARCH_TEXT_MERGED_DESIGN=PINNED_MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_canonical_text_coverage.js
+#+end_src
+
+The historical design must match Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and the optional merged
+design =dd6336f3047982db2f0e3615fed1413ed1e58e13=. The canonical
+fields are sourced from StarLang's =0.10.1= generated schema blob
+=537163da436f67a973e280d1704e32bdba5b888b= at
+=96d26c338078676ec1dc6928755901636c9f7ef0=.
+
+The eight tests per source generation demonstrate that =Message.message=,
+=EmailMessage.body=, =Transcript.text= and =Policy.text= are not projected,
+while =SocialMediaPost.content= and =Policy.name= are projected. Each
+comparison includes emitted dataset/dtype/tenant controls. Tests execute
+original =index()= callbacks with synthetic canonical-*shaped* objects, not
+the StarLang SDK or a service. A missing text field in this raw projection is
+not a claim of failed storage, unavailable read-by-ID, or unauthorized access;
+reverse conclusions from a positive FTS emission are equally invalid.

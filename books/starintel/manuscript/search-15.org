@@ -624,6 +624,43 @@ completeness from a full-text hit. Retrieve the canonical record through an
 authorized durable read, inspect its =schemaVersion= and validate under the
 appropriate generated contract before making a version-specific claim.
 
+** Text-bearing canonical types do not share one FTS content field
+
+In the generated StarLang =org.starintel/core@1= =0.10.1= schema, a
+=Message= has a required =message= string. =EmailMessage= offers =body=,
+=Transcript= offers =text=, and =Policy= offers =text= alongside =name=.
+=SocialMediaPost= offers =content=. These are *different canonical field
+names*, not interchangeable aliases. A record's ability to carry text does
+not mean the historical search design can query every text-bearing member.
+
+Both the pinned historical =source/views/search.json= and the inspected merged
+0.10.1 design select =content= and =name=, but do *not* select =message=,
+=body= or =text=. The native =test_canonical_text_coverage.js= runs the
+unmodified Git-blob-attested index callbacks on synthetic shapes: changing
+only =Message.message=, =EmailMessage.body=, =Transcript.text= or =Policy.text=
+leaves ordered raw =index()= calls unchanged. By contrast, changing
+=SocialMediaPost.content= or =Policy.name= changes emitted field values.
+
+#+caption: Typed canonical text versus the two inspected raw FTS projections.
+| Generated 0.10.1 definition | Text-bearing property | Raw callback emission |
+|-----------------------------+-----------------------+-----------------------|
+| =Message=                   | =message=             | Omitted               |
+| =EmailMessage=              | =body=                | Omitted               |
+| =Transcript=                | =text=                | Omitted               |
+| =Policy=                    | =text=                | Omitted               |
+| =SocialMediaPost=           | =content=             | Emitted               |
+| =Policy=                    | =name=                | Emitted               |
+
+This is *field selection*, not an evaluation of the document's validity or
+of its contents' evidentiary reliability. The samples are canonical-shaped
+but were not passed through the generated SDK. The callbacks did not run
+inside CouchDB/Clouseau, and no result ranking, authorization, installed
+index or actual service visibility was tested. In particular, a returned
+=Message= row says nothing by itself about whether its =message= text was
+indexed. For a development search feature, start with an explicit,
+versioned, dtype-aware text projection; test canonical validation, server
+admission, installed indexing and authorized retrieval as separate gates.
+
 ** A canonical GeoPoint is not automatically a spatial search result
 
 A StarLang 0.10.1 =GeoPoint= defines =geometryType=, =longitude= and
