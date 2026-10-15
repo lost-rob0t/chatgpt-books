@@ -234,6 +234,22 @@ doubles with the real =collect=, =interpret_page= and =next_bookmark= helpers.
 These tests do *not* prove live CouchDB/Clouseau bookmark guarantees or stable
 membership under concurrent writes; the opt-in HTTP tier remains untested.
 
+* Pinned search response row budget
+The pinned public =GET /api/v1/search= handler caps a requested page at 50
+results. The authenticated =documents.search= route inherits
+=+http-max-query-limit+=100=. The teaching =interpret_page= rejects more
+than 100 returned rows *before* decoding or deep-copying any row; it does not
+silently truncate. A server request limit, a client response limit, and the
+optional HTTP runner's twelve-page traversal budget are different bounds.
+Neither implies that a page is complete, indexed data is exhaustive, or a
+record is canonical. The 100-row response guard is specific to the inspected
+contract; it is not a limit claimed for arbitrary CouchDB search clients.
+
+=python3 -m unittest test_page_row_budget -v= runs six network-free cases:
+empty, one-row, maximum 100-row, and 101/250-row rejection including
+pre-iteration failure precedence. This does not test a live backend or its
+deployed page-size enforcement.
+
 * Hermetic multi-tenant fixture admission contract
 =python3 -m unittest test_tenant_seed_contract -v= checks the five historical
 synthetic fixture roles and the *declared* disposable configuration. It models

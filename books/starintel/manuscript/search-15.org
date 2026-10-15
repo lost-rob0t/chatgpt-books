@@ -629,6 +629,17 @@ HTTP status mapping or deployed search-service tests. A fields-only row remains
 a fields-only hit; the helper does not manufacture a complete document from
 index fields.
 
+There is also a *returned-page bound*, separate from total hits or cursor
+budgets. For the inspected server, public search accepts at most 50 requested
+rows per page; authenticated document search inherits a 100-row maximum. The
+teaching =interpret_page= rejects a returned =rows= array longer than 100
+*before* constructing any =Hit= copies. A synthetic 101-row envelope is
+out of contract even if its records are otherwise well formed; the client
+fails rather than silently truncating it. Six network-free cases in
+=test_page_row_budget.py= check the boundary. This client guard does not prove
+that the backend enforces its declared query limit, or that any number of
+returned hits implies a complete index or durable canonical evidence.
+
 For production, validate the embedded payload with the appropriate version
 reader, retain original response evidence where appropriate, and record the
 query/surface/time/version context of a retrieval. Canonical provenance lives

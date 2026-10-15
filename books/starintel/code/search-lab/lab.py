@@ -78,6 +78,10 @@ class Hit:
 def interpret_page(page: dict) -> tuple[list[Hit], str | None]:
     if not isinstance(page, dict) or 'error' in page or not isinstance(page.get('rows'), list):
         raise ValueError('expected a CouchDB search page, not a document/list/error envelope')
+    # The pinned public route caps responses at 50 rows, authenticated at 100.
+    # Reject a larger result before copying any search-row evidence.
+    if len(page['rows']) > 100:
+        raise ValueError('search response exceeds pinned page row budget (100)')
     hits = []
     identities = set()
     for row in page['rows']:
