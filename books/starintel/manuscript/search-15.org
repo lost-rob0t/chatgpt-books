@@ -880,7 +880,16 @@ the route-source comparator: Git blob encoding, named-function extraction,
 missing/duplicate definition failures, and a deliberate changed-body control.
 These prove the comparator's basic failure behavior, *not* byte equality of
 two authentic server checkouts; that latter experiment needs both immutable
-source trees and is separately documented in the lab README. The Lisp harness loads actual
+source trees and is separately documented in the lab README. The two Chapter 15 diagrams are themselves checked against editable source.
+The native =test_search_diagram_semantics.py= regression compares both rendered
+SVGs with their DOT graph identities, directed edges, node texts and edge
+labels. Its negative controls change the public 50-result label, disconnect
+the caller authorization path and incorrectly turn "no hit" into an assertion
+about stored records. Those changes must fail even when the SVG still parses.
+This proves that each checked-in picture matches the authored schematic, not
+that deployed authorization or storage/search behavior matches the picture.
+
+The Lisp harness loads actual
 query parsers, public/authenticated handler bodies, scope compiler functions
 and tenant scrubbing. Its CouchDB call, connection boundary, JSON representation,
 identity/action gate and audit sink are explicit dependency doubles.

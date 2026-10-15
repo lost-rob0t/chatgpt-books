@@ -615,3 +615,22 @@ request limit of 512 characters.
 
 The test uses synthetic structured attributes and intentionally corrupt events.
 It executes native Python, not the pinned Common Lisp observability subsystem.
+
+* Chapter 15 SVG/DOT semantic consistency
+
+The two source-backed figures have editable Graphviz =.dot= files and checked-in
+=.svg= exports. =test_search_diagram_semantics.py= verifies the graph identity,
+every named node and its text, every directed edge, and any edge label in the
+rendered SVG. A changed authorization edge, public row-cap label, or meaning of
+the no-hit branch must not survive as a stale drawing.
+
+The test is included automatically in the normal =test_*.py= discovery and can
+be run independently, without a server or SDK checkout:
+
+#+begin_src sh
+python3 -m unittest discover -s books/starintel/code/search-lab -p 'test_search_diagram_semantics.py' -v
+#+end_src
+
+This source-to-export regression does not test pixel positioning, accessibility,
+deployed middleware, an installed search index, or real CouchDB/Clouseau search.
+Retain the separate figure-alt checks and official EPUBCheck build verification.
