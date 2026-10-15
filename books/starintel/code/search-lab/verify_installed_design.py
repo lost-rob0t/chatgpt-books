@@ -29,6 +29,8 @@ def compare_exported_design(source: bytes, installed: bytes, generation: str = '
         raise ValueError('source or installed design is not valid JSON') from error
     if not isinstance(actual, dict) or actual.get('_id') != '_design/search':
         raise ValueError('export is not the expected CouchDB search design document')
+    if '_deleted' in actual and actual['_deleted'] is not False:
+        raise ValueError('exported search design is marked deleted or has an invalid _deleted flag')
     try:
         expected_fts = expected['indexes']['fts']
         actual_fts = actual['indexes']['fts']

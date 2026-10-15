@@ -93,6 +93,15 @@ The verifier checks the historical source Git blob
 definitions. It ignores CouchDB's design-document =_rev= and unrelated
 views, because those are not the full-text projection contract. Any FTS
 difference fails instead of silently treating the deployed index as pinned.
+A deletion-marked exported design (=\"_deleted\": true=) is not evidence of
+an installed FTS design, even when its historical index declaration still
+matches. The offline comparator rejects deletion tombstones and malformed
+=_deleted= flags; absent or explicitly false values are permitted. This follows
+Apache CouchDB's documented deletion marker, not an actual deployment test.
+The eight =test_installed_design_deletion.py= checks cover both source generations,
+tombstones, malformed flags, allowed storage revisions and FTS drift. They use
+pinned source bytes and synthetic exported copies; live CouchDB and Clouseau
+remain UNTESTED. See the [[https://github.com/apache/couchdb/blob/d3884102b5a836f022d7d6a730ab29305d6e098a/src/docs/src/api/document/common.rst][CouchDB document-deletion API]].
 The nine network-free =test_installed_index_attestation.py= regressions use
 a *synthetic exported copy*, including changed function/analyzer and absent
 FTS controls. They do not fetch the actual running design, establish active

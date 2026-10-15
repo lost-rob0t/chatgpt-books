@@ -81,7 +81,14 @@ CouchDB =_design/search= may differ. The standalone, offline
 =verify_installed_design.py= tool compares a separately exported installed
 design's =indexes.fts= function and analyzer to the Git-blob-pinned historical
 source; it tolerates CouchDB's own =_rev= without ignoring index changes.
-Its network-free regression checks an artificial installed copy. A =MATCH=
+Its network-free regression checks an artificial installed copy. A separate
+regression rejects exported design snapshots marked =_deleted=true=, even
+when the stale FTS declaration still matches its pinned source. Apache
+CouchDB documents =_deleted=true= as a deletion marker; the offline verifier
+also rejects malformed deletion flags while allowing absent or explicitly
+false ones. [cite:@couchdb-docs-35]
+The control executes against both historical and merged immutable FTS sources,
+not a running service. A =MATCH=
 result proves only that the exported design JSON has the same FTS definition:
 it cannot prove which Clouseau index is active, whether a rebuild completed,
 or whether authorized search returns the intended corpus. Actual deployment
