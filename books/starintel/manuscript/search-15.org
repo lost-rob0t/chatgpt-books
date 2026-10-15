@@ -599,6 +599,20 @@ metadata, not a canonical document revision. Retain the embedded document's
 identity, revision if present, dataset, dtype and provenance when handing a hit
 to downstream analysis. A later by-ID read may observe a different revision.
 
+The *confidence in a record's underlying evidence* is not a search ranking.
+The canonical StarLang 0.10.1 =Person= shape exposes =confidence= as
+=ConfidenceScore= (a decimal-text string) and =verificationStatus= as a
+string, but neither the pinned historical nor the subsequently merged server
+FTS callback emits these keys. The native
+=test_confidence_not_retrieval_score.js= test executes both Git-blob-attested
+index functions: changing only these two synthetic metadata values leaves the
+*ordered raw index() emissions* identical. Changing indexed =content= does not,
+and a deliberately modified (non-upstream) callback that emits =confidence=
+provides a negative control. These synthetic projection inputs are *not*
+claims of canonical SDK validity, installed Clouseau scoring, equal rankings,
+or verified claim quality. Inspect record provenance and validation separately;
+never promote retrieval position to a confidence score.
+
 An embedded search hit can contain two different kinds of revision evidence:
 CouchDB's storage =_rev= and canonical StarLang's document =rev= where that
 schema applies. They are not alternative spellings of the same contract.
