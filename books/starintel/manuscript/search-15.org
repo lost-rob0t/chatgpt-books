@@ -153,6 +153,12 @@ context; it does not reuse the caller's supplied identity or scopes.
 | Caller =dataset= or =tenant= parameter | Rejected with HTTP 400 | Compiled through authorization |
 | =bookmark= | Forwarded | Forwarded |
 | =sort= forwarding | Not forwarded by this handler | Forwarded if supplied |
+
+The course's =request_path()= now refuses an explicit =sort= parameter on
+=public= requests: the pinned public handler ignores that parameter rather
+than sending it to CouchDB. A URL-encoded =sort= string is not evidence of
+backend sorting. The authenticated route forwards the supplied value, but
+actual ranking and paging stability still require a service-level experiment.
 | Backend request | =search/fts=, =include_docs=true= | =search/fts=, =include_docs=true= |
 
 The shared parser is named =bounded-query-integer= and its docstring mentions

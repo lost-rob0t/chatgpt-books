@@ -481,3 +481,22 @@ in addition to the five existing source/emission checks. The historical
 =0.9.0= wire lab remains pinned to the older source; optional comparison
 does not prove a deployed design, reindex, tokenization, authorization, or
 canonical SDK acceptance.
+
+* Public sort parameter is not a paging guarantee
+
+The historical pinned server's =source/frontends/http-contract-routes.lisp=
+(=ce14c77ccd2f51f543410fdeef3d78fb9978b769=, Git blob
+=572e78602c2b273f7ed8b45ffaa8d939ce7ce88c=) constructs the public
+CouchDB request from =q=, =limit=, optional =bookmark= and =include_docs=;
+it does *not* forward =sort=. A URL containing =sort= on that route would
+mislead a reader into assuming that the backend honored the requested order.
+By contrast, the historical authenticated document-search handler in
+=source/frontends/http-authorization-routes.lisp= (Git blob
+=eac4f1d38973cbbe3d19e9ed5e7b1b3c520919a5=) does forward =sort=.
+
+The book-local =request_path('public', ...)= therefore rejects even an empty
+explicit =sort= parameter before encoding the URL, while the authenticated
+surface keeps its transport encoding behavior. =test_public_sort_boundary.py=
+covers both surfaces, opaque bookmark encoding and unknown-surface rejection.
+Those six Python tests exercise the client only: they cannot prove deployed
+Clouseau sort semantics, ranking stability or a frozen multi-page snapshot.

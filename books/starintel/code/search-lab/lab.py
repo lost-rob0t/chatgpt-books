@@ -58,6 +58,9 @@ def projection(root: Path, document: dict) -> list[dict]:
 def request_path(surface: str, query: str, **params) -> str:
     if surface not in ('public', 'authenticated'):
         raise ValueError('unknown search surface')
+    # Public search ignores sort; refuse a parameter that only appears honored.
+    if surface == 'public' and 'sort' in params:
+        raise ValueError('public search does not forward sort')
     # Encoding is transport handling; validation belongs to the real server.
     route = PUBLIC_PATH if surface == 'public' else PRIVATE_PATH
     return route + '?' + urlencode({'q': query, **params})
