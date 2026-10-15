@@ -880,7 +880,9 @@ the route-source comparator: Git blob encoding, named-function extraction,
 missing/duplicate definition failures, and a deliberate changed-body control.
 These prove the comparator's basic failure behavior, *not* byte equality of
 two authentic server checkouts; that latter experiment needs both immutable
-source trees and is separately documented in the lab README. The two Chapter 15 diagrams are themselves checked against editable source.
+source trees and is separately documented in the lab README.
+
+The two Chapter 15 diagrams are themselves checked against editable source.
 The native =test_search_diagram_semantics.py= regression compares both rendered
 SVGs with their DOT graph identities, directed edges, node texts and edge
 labels. Its negative controls change the public 50-result label, disconnect
