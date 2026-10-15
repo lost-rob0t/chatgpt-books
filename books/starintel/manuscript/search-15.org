@@ -314,6 +314,29 @@ authorization guard. It shows why a global stats count must not be used as
 the denominator for publicly searchable corpus completeness. In a mixed
 public/private deployment, review the public stats contract separately.
 
+** Response caching is not search freshness
+
+The historical and merged server source declare distinct cache directives for
+read surfaces. =GET /api/v1/search= calls =set-cache-control "no-store"= after
+constructing its server-authorized query; =GET /api/v1/stats= calls
+=set-cache-control= with =public, max-age=15=. The latter aggregates the
+unscoped =data/total= and =data/count_by_dtype= views. Its 15-second response
+reuse policy is not a measurement of indexing lag, source age, record count
+visible to a particular principal, or the freshness of canonical documents.
+
+The authenticated =documents.search= handler makes no direct =set-cache-control=
+call in the pinned source. This source-level absence does not prove final wire headers:
+middleware and the HTTP runtime may add or replace directives. Likewise, a
+=no-store= search response does not establish that a search index is complete
+or that the returned records match the latest durable revisions. Compare
+server policy, installed design, index generation, query context, authorized
+by-ID readback and canonical validation as separate evidence gates.
+
+The network-free =test_search_cache_contract.py= attests the exact historical
+Lisp route Git blobs and checks these declared directives. The same source
+behavior was inspected at merged server =ca6fdcbdc1f3b8aa344c533a40d298f741a54f25=.
+No live HTTP response cache, browser/proxy behavior or Clouseau freshness was tested.
+
 ** An internal tenant stamp changes what the index sees
 
 Do not execute the historical search design directly on a client fixture and
