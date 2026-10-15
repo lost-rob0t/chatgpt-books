@@ -42,7 +42,7 @@ class SearchSurfaceTableTests(unittest.TestCase):
     def test_comparison_has_three_columns(self):
         data_rows = [row for row in self.rows if not row.startswith('|---')]
         self.assertGreaterEqual(len(data_rows), 10)
-        self.assertTrue(all(row.count('|') == 4 for row in data_rows)
+        self.assertTrue(all(row.count('|') == 4 for row in data_rows))
 
 
 if __name__ == '__main__':
