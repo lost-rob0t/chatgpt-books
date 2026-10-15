@@ -98,6 +98,29 @@ a *synthetic exported copy*, including changed function/analyzer and absent
 FTS controls. They do not fetch the actual running design, establish active
 Clouseau indexing, verify a rebuild, or prove query/tenant authorization.
 
+
+** Explicitly compare the merged 0.10.1 search design
+The offline comparison helper also accepts =--generation merged=. The
+historical default remains strict and unchanged. An operator who exports the
+installed =_design/search= from an independently provisioned merged server
+can compare it against the merged source design at
+=ca6fdcbdc1f3b8aa344c533a40d298f741a54f25=:
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/verify_installed_design.py \
+  CURRENT_MERGED_SERVER/source/views/search.json \
+  EXPORTED_DESIGN_JSON --generation merged
+#+end_src
+
+The helper requires Git blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=
+for the merged source; it does not silently infer a release from a filename.
+Mismatched source bytes, changed FTS index code and changed analyzer rules fail
+closed. =test_installed_design_generations.py= exercises both immutable source
+generations, source tampering, analyzer drift and backward compatibility using
+a constructed export. Passing an exported JSON comparison proves only that
+the two *design definitions* match, never that CouchDB actually installed the
+source, reindexed records, or served queries through Clouseau.
+
 * Optional real service experiment
 Provision a fresh local StarIntel stack at the server pin using its maintained
 stack tooling. This lab deliberately does not copy Docker/Nix deployment logic.

@@ -8,16 +8,20 @@ import json
 from pathlib import Path
 
 HISTORICAL_GIT_BLOB = '0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a'
+MERGED_GIT_BLOB = 'dd6336f3047982db2f0e3615fed1413ed1e58e13'
+SOURCE_PINS = {'historical': HISTORICAL_GIT_BLOB, 'merged': MERGED_GIT_BLOB}
 
 
 def git_blob_sha(raw: bytes) -> str:
     return hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
 
 
-def compare_exported_design(source: bytes, installed: bytes) -> dict:
+def compare_exported_design(source: bytes, installed: bytes, generation: str = 'historical') -> dict:
+    if generation not in SOURCE_PINS:
+        raise ValueError('unknown pinned search design generation')
     source_sha = git_blob_sha(source)
-    if source_sha != HISTORICAL_GIT_BLOB:
-        raise ValueError('source file does not match historical search design Git blob')
+    if source_sha != SOURCE_PINS[generation]:
+        raise ValueError(f'source file does not match {generation} search design Git blob')
     try:
         expected = json.loads(source)
         actual = json.loads(installed)
@@ -36,6 +40,7 @@ def compare_exported_design(source: bytes, installed: bytes) -> dict:
         raise ValueError('installed exported design language differs from pinned source')
     return {
         'status': 'MATCH',
+        'generation': generation,
         'source_git_blob': source_sha,
         'index_name': 'fts',
         'evidence': 'exported design JSON only; not active Clouseau/search or HTTP authorization',
@@ -46,9 +51,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('pinned_source', type=Path)
     parser.add_argument('exported_design', type=Path)
+    parser.add_argument('--generation', choices=tuple(SOURCE_PINS), default='historical',
+                        help='immutable server FTS design generation; defaults to historical')
     args = parser.parse_args()
     print(json.dumps(compare_exported_design(args.pinned_source.read_bytes(),
-                                             args.exported_design.read_bytes()), indent=2))
+                                             args.exported_design.read_bytes(), args.generation), indent=2))
 
 
 if __name__ == '__main__':

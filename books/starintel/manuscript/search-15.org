@@ -87,6 +87,17 @@ it cannot prove which Clouseau index is active, whether a rebuild completed,
 or whether authorized search returns the intended corpus. Actual deployment
 read-back and search still require the opt-in service experiment.
 
+For the subsequently merged 0.10.1 server search design, the same offline
+verifier supports an *explicit* =--generation merged= mode with immutable Git
+blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=; without the flag it
+still requires the historical blob. This allows a separately exported installed
+design to be compared against the correct *source generation* without silently
+accepting a file merely because it claims to be newer. The network-free
+=test_installed_design_generations.py= tests both generation gates, source
+attestation, analyzer drift and historical backward compatibility; it does
+not query a running CouchDB/Clouseau installation. An absent or stale active
+index remains a separate live-service verification question.
+
 A matching Git HEAD and apparently clean =git status --porcelain= output
 are not enough to attest to the *actual bytes* a teaching indexer executes.
 A tracked file marked =skip-worktree= can change without appearing in the
