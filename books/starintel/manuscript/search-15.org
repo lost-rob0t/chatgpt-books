@@ -1207,3 +1207,33 @@ Answer: no. Retrieving a relation document is different from resolving typed
 endpoints, joining records and traversing edges under a visibility policy.
 Those require their own maintained contracts and tests. Chapter 16 remains a
 separate research/implementation boundary; this chapter invents none of them.
+
+
+*** Exercise 8 -- Does this revision change the index projection? (★★★)
+
+Start with the fictional canonical-shaped =fixtures/person.json=. Make two
+local copies with different =fullName= strings while holding =fname= and all
+other fields constant. Run the source-pinned comparison helper separately
+against the historical Server index and the subsequently merged index:
+
+#+begin_src sh
+node books/starintel/code/search-lab/projection_delta.js historical \
+  PINNED_HISTORICAL_SERVER/source/views/search.json BEFORE.json AFTER.json
+node books/starintel/code/search-lab/projection_delta.js merged \
+  PINNED_MERGED_SERVER/source/views/search.json BEFORE.json AFTER.json
+#+end_src
+
+Explain why one result has no changed emissions and the other has a removed
+and added =fullName= emission. What does neither result establish?
+
+Answer: the pinned historical callback does not emit the camelCase =fullName=
+field, while the merged callback does. Both index functions emit the unchanged
+=fname=. The helper verifies the exact original Git blobs before running the
+callbacks, then compares counted field/value emissions rather than assuming a
+unique field name means one value. These synthetic source-execution results do
+not validate the objects against canonical StarLang =0.10.1=, prove the installed
+CouchDB design was updated, prove an active Clouseau index was rebuilt, grant
+search authorization, or demonstrate durable storage. A source projection
+changed is not the same assertion as an authorized search hit changed. This
+is a diagnostic precursor to the independently provisioned HTTP lab, not a
+replacement for it.

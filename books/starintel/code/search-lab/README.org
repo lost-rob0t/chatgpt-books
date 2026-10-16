@@ -803,3 +803,44 @@ The 13 Python tests exercise all decision boundaries, strict input handling,
 the CLI and an intentionally inconsistent observation. This decision aid is
 not an audit/authorization service, search engine, snapshot, or replacement
 for the opt-in HTTP/CouchDB/Clouseau experiment.
+
+* Examine a synthetic edit against each pinned search generation
+
+=projection_delta.js= answers a narrower question than a search request:
+/which raw fields emitted by the original JavaScript callback changed when one
+synthetic document changed?/ Unlike the fixed source-generation comparison
+example, it accepts two local JSON objects. It preserves duplicate emission
+counts and reports a pure emission-order change separately from a field/value
+change. It does not query an installed index or interpret Lucene ranking.
+
+For example, copy the synthetic =fixtures/person.json= into two temporary JSON
+files and supply differing =fullName= values while keeping =fname= unchanged.
+Compare each pair with the *appropriate independently checked* source tree:
+
+#+begin_src sh
+node books/starintel/code/search-lab/projection_delta.js historical \
+  PINNED_HISTORICAL_SERVER/source/views/search.json BEFORE.json AFTER.json
+node books/starintel/code/search-lab/projection_delta.js merged \
+  PINNED_MERGED_SERVER/source/views/search.json BEFORE.json AFTER.json
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_projection_delta.js
+#+end_src
+
+The historical pin requires index Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=; the merged pin requires
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=. A wrong generation/source
+pair fails before execution. With the =Person.fullName= example, historical
+emissions remain unchanged, whereas the merged function replaces one
+=fullName= value. Both still emit the unchanged =fname= value. This demonstrates
+version-sensitive *source projection*, not whether any query can retrieve the
+record, whether a deployed design was installed/reindexed, or what authorization
+permits. An unchanged projection does not establish absent durable changes;
+changing emissions does not establish a searchable, authorized hit.
+
+Use fictional records only. The comparison inputs are synthetic objects; this
+helper does not validate them against StarLang or the pinned canonical SDK.
+Validate canonical documents separately. The runner's ten Node regressions
+include source-blob attestation, input independence, changed/unchanged fields,
+repeated values, order-only changes and CLI failure cases. The fixed example
+=compare_index_generations.js= remains an independent generation comparison;
+this new helper isolates the effect of a *document edit* within a chosen pin.
