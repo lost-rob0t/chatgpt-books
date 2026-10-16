@@ -1159,7 +1159,7 @@ The generated =org.starintel/core@1= =0.10.1= =Person= contract includes
 =retentionPolicy=. Neither pinned FTS callback selects these canonical
 lifecycle fields. The source-exact regression toggles each on a fictional
 =Person=-shaped record and compares captured raw =index()= emissions. Its
-positive controls change the indexed =name= and =dataset= fields, and a
+positive controls change the indexed =fname= and =dataset= fields, and a
 mutated callback demonstrates that a =deleted= transition *would* be detectable
 if deliberately indexed. The test uses byte-attested original Git blobs:
 

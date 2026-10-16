@@ -43,14 +43,14 @@ const values = (events, name) => events.filter(e => e.field === name).map(e => e
 const person = Object.freeze({
   id: 'starintel:person:fictional-course-record', rev: 'canonical-r1',
   dataset: 'book-synthetic', dtype: 'person', schemaVersion: '0.10.1',
-  name: 'Fictional Example', deleted: false, tombstoneReason: '',
+  fname: 'Fictional', lname: 'Example', deleted: false, tombstoneReason: '',
   validFrom: 100, validUntil: 900, retentionPolicy: 'course-example',
 });
 for (const [generation, source] of inputs) {
   const callback = originalCallback(source, generation);
   const baseline = capture(callback, person);
-  test(generation + ': name, dataset, dtype and tenant are positive controls', () => {
-    assert.deepEqual(values(baseline, 'name'), ['Fictional Example']);
+  test(generation + ': fname, dataset, dtype and tenant are positive controls', () => {
+    assert.deepEqual(values(baseline, 'fname'), ['Fictional']);
     assert.deepEqual(values(baseline, 'dataset'), ['book-synthetic']);
     assert.deepEqual(values(baseline, 'dtype'), ['person']);
     assert.deepEqual(values(baseline, 'tenant_id'), ['default']);
@@ -78,8 +78,8 @@ for (const [generation, source] of inputs) {
     assert.deepEqual(capture(callback, {...person, _deleted: true}), baseline);
     assert.deepEqual(values(baseline, '_deleted'), []);
   });
-  test(generation + ': indexed name or server-owned dataset does change emissions', () => {
-    assert.notDeepEqual(capture(callback, {...person, name: 'Another Fictional Example'}), baseline);
+  test(generation + ': indexed fname or dataset does change emissions', () => {
+    assert.notDeepEqual(capture(callback, {...person, fname: 'Another'}), baseline);
     assert.notDeepEqual(capture(callback, {...person, dataset: 'book-other'}), baseline);
   });
   test(generation + ': altered callback would expose canonical deleted transitions', () => {

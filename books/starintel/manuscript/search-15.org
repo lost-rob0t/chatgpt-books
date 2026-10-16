@@ -1753,7 +1753,7 @@ definition includes =deleted= (boolean), =tombstoneReason= (string),
 historical Server full-text design at Git blob
 =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and merged 0.10.1
 design at =dd6336f3047982db2f0e3615fed1413ed1e58e13= do not
-select these lifecycle properties. Both select =name=, =dataset=, =dtype=
+select these lifecycle properties. Both select =fname=, =dataset=, =dtype=
 and server-derived =tenant_id= instead. This is an observation about the
 source-defined *raw index emissions*, not a claim about installed Clouseau
 or a completed canonical 0.10.1 runtime migration.
@@ -1761,7 +1761,7 @@ or a completed canonical 0.10.1 runtime migration.
 The new =test_canonical_tombstone_fts.js= executes both original Git-blob-
 attested callbacks against a synthetic =Person=-shaped specimen. Changing only
 =deleted=, its tombstone reason, validity interval or retention policy
-leaves the emitted field/value pairs unchanged. Changing an indexed =name=
+leaves the emitted field/value pairs unchanged. Changing an indexed =fname=
 or =dataset= changes emissions. A deliberately changed callback that
 emits =deleted= differentiates =false= from =true=: a positive control
 showing that the experiment can observe the distinction when present.
@@ -1797,16 +1797,16 @@ prove deletion or that durable evidence never existed.
 *** Exercise -- Search hits cannot certify a tombstone (★★★)
 
 Construct a fictional =Person=-shaped record with =deleted=false= and an
-indexed =name=. Capture historical and merged raw emissions, then change only
+indexed =fname=. Capture historical and merged raw emissions, then change only
 =deleted=true= and =tombstoneReason=. Explain why identical emissions cannot
-support an active/deleted conclusion. As positive controls, change =name=
+support an active/deleted conclusion. As positive controls, change =fname=
 and =dataset=. Finally, distinguish one piece of *canonical* deletion evidence
 from the CouchDB storage-level =_deleted= mechanism; identify why neither an
 opaque bookmark nor a zero-hit search is sufficient to establish durable
 record absence.
 
 Worked answer: both callbacks ignore the canonical lifecycle fields in
-this experiment, while the indexed name and dataset change the emitted
+this experiment, while the indexed first-name and dataset change the emitted
 values. The current lifecycle state needs a separately authorized canonical
 read with revisions and provenance; CouchDB deletion and physical purge need
 their own storage evidence. The capture harness has not tested service-backed
