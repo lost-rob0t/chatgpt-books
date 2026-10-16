@@ -1549,3 +1549,75 @@ separate authorized read-back and canonical validation steps you would still
 need before treating that record as durable evidence. The answer is that
 rendering safety improves the operator's view but proves nothing about those
 earlier boundaries; the displayed strings remain unverified observations.
+
+
+** A search-page CSV is a derived text artifact, not an evidence export
+
+The pinned historical public =GET /api/v1/search= and authenticated
+=documents.search= handlers request =include_docs=true= from CouchDB's FTS
+search. Returned document fields, row identities, and stored scalar values may
+contain source-controlled strings. An authorized hit is not a warrant to
+execute spreadsheet formulas supplied by that source. A CSV download adds a
+*new interpreter* between the search result and its reader: the spreadsheet
+application. OWASP documents formula injection and warns that quoting and
+apostrophe prefixes alone may fail after re-saving CSV in some spreadsheet
+software. See [[https://community.owasp.org/attacks/CSV_Injection][OWASP, CSV Injection]].
+
+=code/search-lab/search_csv_evidence.py= offers a deliberately constrained,
+*display-only* alternative. It consumes one previously interpreted =Hit=
+page, not a raw backend envelope. It exports only row identity, =dtype=,
+=dataset=, canonical =rev= and independent CouchDB storage =_rev=. It never
+reads embedded =doc= bodies, stored fields, score, query text, caller scopes or
+opaque bookmarks. The result is not an authorized evidence archive or a
+replacement for a canonical by-ID read. [cite:@starintel-search-runtime-20261009]
+
+Every string cell is explicitly tagged =s:= followed by JSON string notation
+with =ensure_ascii=True=. Null is the distinct literal =null=; all CSV cells
+are quoted by Python's standard CSV writer. A raw string beginning
+with an equals sign becomes =s:"=1+2"=, never a formula-leading cell.
+CR/LF, quotes, commas, non-ASCII and bidirectional controls stay inside one
+interpretable cell rather than becoming CSV structure or invisible display
+effects. A consumer wishing to recover a *text value* strips the first two
+characters and JSON-decodes the remainder. Do *not* strip that tag before
+importing into a spreadsheet. This is intentionally less pretty than a normal
+report; preservation of the source's exact display appearance is not the goal.
+
+#+begin_src python
+from lab import interpret_page
+from search_csv_evidence import export_hit_page
+
+# page is a single result from an already authorized server search.
+hits, bookmark = interpret_page(page)
+csv_preview = export_hit_page(hits)  # bookmark is not exported
+#+end_src
+
+Only one materialized page (at most 100 hits) is accepted, matching the
+historical authenticated handler's response budget. Each individual cell has
+a strict length bound and an unsupported scalar causes rejection instead of
+truncation or implicit string conversion. These boundaries make a *preview*
+finite; they do not prove the index is complete or the response is genuine.
+As the historical public handler allows at most 50 rows, a separately fetched
+public page still must have passed that tighter server boundary.
+
+The executable regressions use fictional =Hit=-shaped values and assert text
+round-trips, formula-like prefixes, Unicode, quote/delimiter/CRLF containment,
+row bounds, distinct null representation and exclusion of documents/bookmarks.
+No spreadsheet application was launched, and no claim is made that any format
+prevents formula evaluation under all spreadsheet imports, save/reopen cycles
+or later value transformations. Raw search pages and canonical durable records
+remain different evidence, and the source design is not an installed index.
+
+#+begin_src sh
+cd books/starintel/code/search-lab
+python3 -m unittest -v test_search_csv_evidence
+#+end_src
+
+*** Exercise -- Export a result without promoting it to a fact
+
+Construct a fictional =Hit= whose =identity= begins with =+1+2=, whose
+=dataset= includes a quotation mark and carriage return, and whose
+=canonical_revision= differs from =storage_revision=. Run the CSV preview,
+parse it with Python's =csv.reader=, then JSON-decode each =s:= value. Verify
+that one result remains one row and that neither revision replaces the other.
+Explain why an authorized by-ID read and separate schema/provenance check are
+still needed before treating the row as current canonical evidence.

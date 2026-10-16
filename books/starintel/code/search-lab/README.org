@@ -1040,3 +1040,44 @@ The standalone suite uses fictional Hit-shaped values and does not need a
 network, an SDK checkout, or a running server; the normal Python discovery in
 =run-tests= also registers it. No terminal emulator, live HTTP service or
 external dataset is exercised by these unit tests.
+
+
+* Text-encoded one-page CSV preview (not an evidence archive)
+
+=search_csv_evidence.py= accepts only already-interpreted =Hit= values from
+=lab.interpret_page=. It emits a five-column CSV for row identity, document
+type, dataset, and separate canonical/storage revisions, omitting embedded
+=doc=, stored search fields, scores, and opaque bookmarks. It cannot authorize
+a query, validate schema, attest index installation, or prove by-ID durability.
+
+The CSV uses Python's quoted writer, but every string value is also prefixed
+=s:= and serialized with =json.dumps(..., ensure_ascii=True)=. This prevents
+untrusted formula-leading values from beginning the emitted CSV *cell* even
+when raw text contains commas, quotes, CRLF, bidirectional controls, Unicode
+or spreadsheet-style formula prefixes. Null is an explicit =null= cell.
+Recover a text value with =json.loads(cell[2:])=; the =s:= prefix is part of
+the derived representation, not a canonical identifier. Do not remove it
+before importing into a spreadsheet. This is not a universal spreadsheet
+security certification: OWASP documents importer and save/reopen caveats.
+[[https://community.owasp.org/attacks/CSV_Injection][OWASP CSV Injection]] is the external threat reference.
+
+#+begin_src python
+from lab import interpret_page
+from search_csv_evidence import export_hit_page
+hits, bookmark = interpret_page(page)
+print(export_hit_page(hits))
+#+end_src
+
+Only a single materialized page of at most 100 rows and 4096 code points per
+cell is accepted; malformed or oversized inputs fail closed rather than
+silently truncate. Run the standard library native regressions:
+
+#+begin_src sh
+cd books/starintel/code/search-lab
+python3 -m unittest -v test_search_csv_evidence
+#+end_src
+
+These offline unit tests do not execute HTTP requests, a spreadsheet, CouchDB,
+Clouseau, the canonical SDK, or the complete book/EPUBCheck pipeline. The
+maintained =run-tests= Python discovery automatically includes the new test
+only when its authentic pinned upstream checkouts are available.
