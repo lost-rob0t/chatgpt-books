@@ -116,7 +116,7 @@ canonical rev
     <-> runtime projection <-> CouchDB _rev
 #+end_example
 
-The 0.10.1 server migration draft explicitly treats CouchDB identity/revision as
+The merged 0.10.1 server migration (PR #313, 2026-10-10) treats CouchDB identity/revision as
 storage concerns and projects canonical identity/revision at the HTTP/event
 boundary rather than making raw CouchDB metadata the public schema.
 [cite:@starintel-server-pr313]
@@ -406,8 +406,8 @@ that historical profile. [cite:@starintel-server-20260916]
 In this edition, that is a compatibility/runtime lab.
 
 New canonical 0.10.1 clients should target a runtime that actually advertises
-and implements 0.10.1, rather than changing the fixture locally and hoping an
-old server accepts it.
+and implements 0.10.1; StarIntel Server adopted it through merged PR #313.
+The historical Project 2 fixture remains pinned to an older revision.
 
 *** Current contracted operations are a better integration seam
 
@@ -424,9 +424,9 @@ documents.search
 
 through its machine-readable HTTP contract. [cite:@starintel-server-20261005]
 
-The current default branch still validates its historical document profile.
-Server PR #313 is the tested draft migration of these boundaries to generated
-0.10.1. [cite:@starintel-server-pr313]
+The post-merge server default uses StarLang-generated 0.10.1 at canonical
+ingress/storage boundaries, with explicit historical compatibility retained.
+Server PR #313 merged on 2026-10-10. [cite:@starintel-server-pr313]
 
 So a current client must discover both:
 
@@ -613,12 +613,16 @@ new derived document from same root?
 
 Without identity discipline, retries look like new work.
 
-*** A 0.10.1 canonical ingest lab must wait for a 0.10.1 runtime
+*** P0 canonical 0.10.1 service proof on a post-merge runtime
 
-The book should not fake an end-to-end canonical test by validating 0.10.1
-locally and then sending transformed historical bytes to an old-only server.
+The book must not fake canonical testing by validating 0.10.1 locally and
+sending transformed historical bytes to an old-only server. StarIntel Server
+PR #313 has now merged, and the independent book lab at
+=code/canonical-live/= pins the post-merge runtime, sends canonical fixture
+bytes through the named versioned HTTP operations, and demands separate
+authorized durable read-back.
 
-The correct future lab is:
+The executable evidence path is:
 
 #+begin_example
 canonical 0.10.1 fixture
@@ -639,8 +643,10 @@ CouchDB mutation
 canonical documents.get read-back
 #+end_example
 
-Until the runtime support used by the book is merged/pinned and that test runs,
-the canonical end-to-end claim remains pending.
+Runtime support is merged and pinned by the P0 lab. The book's independent
+canonical service claim remains AUTHORED / UNTESTED until the exact-head real
+stack job produces its sanitized proof artifact; source and CI configuration
+alone do not establish a successful run.
 
 *** Debugging worksheet
 
@@ -727,7 +733,9 @@ That is the first Project 2 milestone that crossed real service boundaries.
 
 *** Milestone C -- canonical 0.10.1 client and runtime
 
-Status: NOT YET TESTED BY THE BOOK.
+Status: P0 canonical service proof AUTHORED / UNTESTED BY THE BOOK pending
+exact-head disposable-stack CI; the historical Project 2 service proof stays
+at its own older pin.
 
 This milestone must update the client/fixture boundary only when the test
 runtime genuinely supports the canonical StarLang 0.10.1 release.
