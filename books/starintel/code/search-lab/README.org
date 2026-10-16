@@ -897,3 +897,28 @@ The existing Python unittest discovery automatically executes this guard.
 Registration is not execution evidence: a GitHub Actions workflow with zero
 allocated runners and zero executed steps has NOT run these regressions, even
 when every test command appears in the workflow's shell script.
+
+
+* Present already-authorized results without trusting document markup
+
+=render_search_hits.py= is a small *display-only* HTML-fragment renderer for the
+=Hit= observations returned by =lab.interpret_page=. It consumes selected stored
+search fields as text (not executable markup), HTML-escapes every interpolated
+identity, label, dtype, dataset and revision, and deliberately does not render
+the arbitrary embedded =doc=. If a supplied page is empty, it says only that
+the supplied page contains no rows, not that the corpus has no matching
+canonical evidence. No user authorization, record validation, installed-index
+read or durable read-back is performed in this renderer.
+
+Run focused synthetic tests with no network, SDK, or upstream checkout:
+
+#+begin_src sh
+cd books/starintel/code/search-lab
+python3 -m unittest -v test_render_search_hits
+#+end_src
+
+The standard =run-tests= Python discovery will also include this test in a
+complete pinned lab environment. These native rendering tests do not establish
+actual browser execution, HTTP security, CouchDB/Clouseau behavior, or a
+successful EPUB build. See the manuscript section \"Display a search hit without
+executing its markup\" for the combined =interpret_page= teaching example.

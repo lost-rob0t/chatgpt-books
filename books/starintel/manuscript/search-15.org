@@ -888,6 +888,49 @@ query/surface/time/version context of a retrieval. Canonical provenance lives
 with the record; query execution context describes how you obtained that
 record. They complement each other.
 
+** Display a search hit without executing its markup
+
+A returned search field is *data*, not trusted HTML. The source-pinned FTS
+callback passes raw scalar =name= and =title= values to =index()=, and the
+book's =interpret_page= retains stored =fields= separately from the embedded
+=document=. Neither step promises that these strings are safe to paste into a
+web page as markup. A fictional record whose name looks like an HTML tag must
+display as literal text, not create a script, image, link or browser action.
+
+The new =render_search_hits.py= demonstrates this last-mile consumer boundary.
+It renders only selected stored text fields, escapes all interpolated values
+using Python's standard =html.escape(quote=True)=, clips labels before
+escaping, never generates dynamic links, and keeps the observed CouchDB
+storage revision separate from a possible canonical =rev=. The returned fragment
+is inert presentation: it authenticates no user, grants no dataset or tenant
+access, validates no canonical record, and proves no durable by-ID read.
+
+#+name: search15-render-untrusted-hit
+#+begin_src python
+from lab import interpret_page
+from render_search_hits import render_hits
+
+page = {'rows': [{
+    'id': 'org:fictional',
+    'fields': {'name': '<script>alert("fictional")</script>'},
+    'doc': {'_id': 'org:fictional', 'dtype': 'org',
+            'dataset': 'book-synthetic'}
+}]}
+hits, bookmark = interpret_page(page)
+fragment = render_hits(hits)
+assert '&lt;script&gt;' in fragment
+assert '<script>' not in fragment
+#+end_src
+
+This input is a synthetic response object, not a harvested user, a measured
+vulnerability, or a live HTTP result. The standalone native regressions in
+=test_render_search_hits.py= exercise inert markup, type rejection, field/document
+separation, revision labels, zero-row language and bounded display labels.
+The actual combined =interpret_page= example and EPUB export remain UNTESTED
+until the complete authentic book checkout and toolchain are run. Display
+escaping is not a substitute for the earlier authorization and index-coverage
+checks.
+
 ** Retaining an observation without rewriting its evidence
 
 A decoded search response is mutable Python data. Even if a result wrapper uses
