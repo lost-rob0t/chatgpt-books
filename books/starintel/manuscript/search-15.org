@@ -698,6 +698,43 @@ a live installed index, tenant/dataset authorization, query matching,
 or by-ID durability. A missing type-filtered search result cannot establish
 absence of a canonical organization; diagnose each evidence boundary.
 
+** A searchable investigation target is not a queryable operation state
+
+Canonical StarLang =0.10.1= defines separate =InvestigationTarget= and
+=Operation= documents. An investigation target has a =target= value and
+optional =query= and =status=. An Operation requires =mission=, =status= and
+=phases=. Its status is a controlled vocabulary, including =planned=,
+=active= and =completed=. These are document-contract fields; they do not
+automatically become searchable terms.
+
+Execute the original pinned =search/fts= JavaScript callback with two fictional
+canonical-shaped records. The historical and merged generations agree:
+
+| Canonical type | Key | Original raw FTS emission |
+|----------------+-----+---------------------------|
+| InvestigationTarget | =target= | =target= |
+| InvestigationTarget | =query= / =status= | none |
+| Operation | =mission= / =status= / =phases= | none |
+| Both | =dtype= / =dataset= | corresponding values |
+
+In the experiment, changing a target's =status= or =query= does not alter
+its emitted fields. Changing =target= does. Changing an operation's mission,
+status or phases leaves the original projection unchanged. Its =dtype= and
+=dataset= are still emitted. Thus a matching target token cannot report
+whether the investigation finished, and an =operation= type hit cannot be
+treated as an operation-status query or completion record.
+
+=code/search-lab/test_investigation_operation_fts.js= executes both original
+source callbacks, checks their exact Git blobs, and includes a deliberately
+augmented index as a positive control. The standard pinned runner executes
+the historical cases; a separately pinned merged design adds the second
+generation. This establishes *raw index emissions only*: neither synthetic
+input was accepted by a canonical SDK in this test, and no HTTP middleware,
+Clouseau search, durable read-back, authorization or completion workflow ran.
+Read canonical status from a validated, authorized document and distinguish
+that observation from actual workflow execution evidence. Tenant/dataset
+visibility remains server-owned, not an inference from an FTS hit.
+
 ** A canonical Relation is not an FTS graph edge
 
 Canonical StarLang =0.10.1= has a distinct =Relation= document model with

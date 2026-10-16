@@ -704,6 +704,37 @@ authorization, indexing freshness, or durable canonical provenance. A
 0.10.1 migration needs an explicitly reviewed canonical-field projection
 and separate live service validation, not an assumed spelling alias.
 
+* Canonical investigation work is not searchable lifecycle state
+
+Canonical StarLang =0.10.1= gives =InvestigationTarget= a required =target=
+and optional =query= / =status=; an =Operation= requires =mission=, =status=
+and =phases=. The pinned historical and merged FTS callbacks project the
+investigation target's =target=, but neither projects its =query=/=status=
+or the operation's =mission=/=status=/=phases=. Both still project =dtype=
+and =dataset=. The exact source-executing regression uses synthetic, fictional
+schema-shaped objects and a modified-index positive control:
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_investigation_operation_fts.js
+# Optional independent merged source generation:
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+STAR_SEARCH_WORK_MERGED_DESIGN=PINNED_MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_investigation_operation_fts.js
+#+end_src
+
+The source Git blobs must match
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= (historical) and
+=dd6336f3047982db2f0e3615fed1413ed1e58e13= (merged). Field names
+and the =Operation.status= controlled vocabulary were read from StarLang
+=0.10.1= generated schema blob
+=537163da436f67a973e280d1704e32bdba5b888b=.
+Six native historical checks run by default; providing the merged design
+executes twelve. These are callback-emission tests, *not* canonical SDK
+validation, installed FTS design attestation, server authorization, status
+query matching, durable storage or proof that work executed. The server owns
+tenant/dataset visibility. A search hit is not a workflow completion event.
+
 * Canonical Relation fields are not indexed graph edges
 
 Canonical StarLang =0.10.1= defines a =Relation= with separate =source= and
