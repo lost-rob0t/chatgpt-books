@@ -282,6 +282,15 @@ because the read plane is configured public.
 </figure>
 #+end_export
 
+The editable =search-boundaries.dot= diagram and its exported SVG are
+reproducible evidence artifacts, not authorization tests. The lab's
+source-to-export regression now checks its Graphviz graph/node defaults
+alongside nodes, labels and directed edges. Previously, changing a background,
+adding a graph label or changing node typography could go unnoticed against an
+unchanged SVG; a distinct native regression now makes such changes fail closed.
+These diagrams describe authorization and retrieval boundaries but do not
+validate a deployed server, Clouseau index or durable canonical evidence.
+
 ** A canonical visibility label is not a public search permission check
 
 The canonical StarLang =0.10.1= =Org= has optional =visibility= and

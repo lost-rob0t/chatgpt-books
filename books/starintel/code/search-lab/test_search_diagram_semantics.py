@@ -19,6 +19,14 @@ STRING = r'"((?:\\.|[^"\\])*)"'
 DECL = re.compile(rf'^\s*({IDENT})\s+\[label={STRING}\];\s*$')
 EDGE = re.compile(rf'^\s*({IDENT}(?:\s*->\s*{IDENT})+)\s*(?:\[label={STRING}\])?;\s*$')
 HEADER = re.compile(rf'^digraph\s+({IDENT})\s*\{{$')
+# These are the complete figure-level defaults in both authored Chapter 15
+# DOT sources.  Previously any graph/node defaults were silently ignored, so
+# an inserted Graphviz label or a changed visual default could pass against
+# the old SVG. Make style changes explicit and force a new rendered artifact.
+DEFAULTS = frozenset({
+    'graph [rankdir=TB, bgcolor="white"];',
+    'node [shape=box, fontname="DejaVu Sans", fontsize=11];',
+})
 
 
 def parse_dot(raw: str) -> tuple[str, dict[str, tuple[str, ...]], dict[str, tuple[str, ...]]]:
@@ -29,8 +37,12 @@ def parse_dot(raw: str) -> tuple[str, dict[str, tuple[str, ...]], dict[str, tupl
     graph_name = match.group(1)
     nodes: dict[str, tuple[str, ...]] = {}
     edges: dict[str, tuple[str, ...]] = {}
+    seen_defaults: set[str] = set()
     for stmt in statements[1:-1]:
         if stmt.startswith('graph [') or stmt.startswith('node ['):
+            if stmt not in DEFAULTS or stmt in seen_defaults:
+                raise ValueError('unsupported or duplicate DOT graph/node defaults')
+            seen_defaults.add(stmt)
             continue
         if match := DECL.fullmatch(stmt):
             node, label = match.groups()
@@ -48,6 +60,8 @@ def parse_dot(raw: str) -> tuple[str, dict[str, tuple[str, ...]], dict[str, tupl
                 edges[key] = () if label is None else tuple(json.loads('"' + label + '"').split('\n'))
             continue
         raise ValueError(f'unsupported DOT statement: {stmt[:100]}')
+    if seen_defaults != DEFAULTS:
+        raise ValueError('missing required DOT graph/node defaults')
     if not nodes or not edges or any(part not in nodes for key in edges for part in key.split('->')):
         raise ValueError('DOT graph contains an undeclared endpoint or has no graph content')
     return graph_name, nodes, edges

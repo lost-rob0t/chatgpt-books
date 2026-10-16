@@ -635,6 +635,22 @@ This source-to-export regression does not test pixel positioning, accessibility,
 deployed middleware, an installed search index, or real CouchDB/Clouseau search.
 Retain the separate figure-alt checks and official EPUBCheck build verification.
 
+The two maintained DOT sources share explicit =graph= and =node= default
+declarations. The semantic checker previously skipped every such declaration,
+which meant an injected =graph label=, background change, duplicate directive
+or different node font size could pass against an unchanged SVG. The parser
+now accepts only complete, known defaults exactly once and rejects missing,
+changed or duplicated declarations. New native regressions run under the
+existing =test_*.py= discovery:
+
+#+begin_src sh
+python3 -m unittest discover -s books/starintel/code/search-lab -p 'test_dot_default_semantics.py' -v
+#+end_src
+
+This guard checks known diagram semantics, not pixels, HTTP security,
+installed index visibility or EPUBCheck. Intentional Graphviz style edits
+must update this documented contract and regenerate both exports.
+
 * Typed canonical text field coverage across source generations
 
 Run the Git-blob-attested historical JavaScript FTS callback as part of the
