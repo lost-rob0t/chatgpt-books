@@ -844,3 +844,37 @@ include source-blob attestation, input independence, changed/unchanged fields,
 repeated values, order-only changes and CLI failure cases. The fixed example
 =compare_index_generations.js= remains an independent generation comparison;
 this new helper isolates the effect of a *document edit* within a chosen pin.
+
+
+* Inventory single-field raw search effects without guessing a schema-to-index mapping
+
+Run =field_footprint.js= against one synthetic JSON document and the exact
+pinned historical or merged search design. The tool systematically perturbs
+supported *top-level* string, Boolean, safe-integer, and scalar-array values
+one field at a time, then executes the original checked Git-blob index callback.
+It reports =raw_emission_changed=, =no_raw_change=, or =not_probed= for each
+input field and the emitted field names affected by a change.
+
+#+begin_src sh
+node books/starintel/code/search-lab/field_footprint.js historical \
+  PINNED_HISTORICAL_SERVER/source/views/search.json \
+  books/starintel/code/search-lab/fixtures/org.json
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_field_footprint.js
+#+end_src
+
+This is a multi-field *experiment planner*, not a schema coverage percentage.
+Identifier, revision, dtype, dataset, tenant, visibility and access-control
+metadata are deliberately not probed. Structured values such as =data= and
+=provenance= are reported =not_probed=, never called unindexed; the historical
+callback can read supported fields from =data= ahead of root fields. A
+=no_raw_change= proves only that this particular controlled perturbation did
+not change captured index emissions. It says nothing about canonical validity,
+all possible values, a deployed index, query matching, access policy, or durable
+records. Even a =raw_emission_changed= result is not a successful query.
+
+The native regression executes the original, attested historical search
+callback. The merged mode is supported when supplied the separately pinned
+merged index file; the standard one-checkout runner does not pretend to have
+that second checkout. Input files must be fictional. The tool never writes to
+StarIntel or modifies its input JSON.

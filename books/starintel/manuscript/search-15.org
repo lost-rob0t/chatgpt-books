@@ -1237,3 +1237,33 @@ search authorization, or demonstrate durable storage. A source projection
 changed is not the same assertion as an authorized search hit changed. This
 is a diagnostic precursor to the independently provisioned HTTP lab, not a
 replacement for it.
+
+
+*** Exercise 9 -- Build a falsifiable raw-search field footprint (★★★)
+
+A list of canonical fields is not a list of fields searchable through a given
+index. Execute the multi-field perturbation helper on the fictional
+=fixtures/org.json= under the historical search design:
+
+#+begin_src sh
+node books/starintel/code/search-lab/field_footprint.js historical \
+  PINNED_HISTORICAL_SERVER/source/views/search.json \
+  books/starintel/code/search-lab/fixtures/org.json
+#+end_src
+
+For each supported top-level scalar or scalar-array field, the helper varies
+one value and observes the original JavaScript callback's raw emissions. Why
+must its output distinguish =no_raw_change= from =not_probed=? Which fields
+require separate investigation before you can assert actual search coverage?
+
+Answer: unchanged emissions mean only that a particular synthetic mutation
+caused no observed field/value change, not that a field can never be indexed.
+Structured =data= and provenance, identity/revision, dataset/tenant and access
+metadata are intentionally not probed; the implementation therefore reports
+those categories separately rather than misclassifying them as unindexed.
+Changing a fictional organization's =name= changes a raw =name= emission at the
+historical pin, while a top-level =organizationType= change does not alter raw
+index emissions. Neither result validates the mutated document against the
+StarLang 0.10.1 schema or proves installed FTS design adoption, Lucene query
+behavior, authorized visibility, or a durable canonical read-back. The
+source-pinned client is a planning instrument for the later real-service lab.
