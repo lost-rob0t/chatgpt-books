@@ -969,3 +969,36 @@ complete pinned lab environment. These native rendering tests do not establish
 actual browser execution, HTTP security, CouchDB/Clouseau behavior, or a
 successful EPUB build. See the manuscript section \"Display a search hit without
 executing its markup\" for the combined =interpret_page= teaching example.
+
+* Alert lifecycle is not an FTS priority queue
+
+The generated canonical StarLang =0.10.1= =Alert= definition includes =status=,
+=severity=, =triggeredAt=, =resolvedAt=, =acknowledgedBy=,
+=suppressedUntil=, =ruleId= and =subjectIds=. The original historical Server
+FTS callback and the merged source callback emit none of these fields from a
+synthetic Alert. This does *not* establish a running alert service, a valid
+canonical write, or actual Clouseau search behavior.
+
+The original callbacks do emit =dataset= and =dtype=. Therefore a text-search
+hit or a =dtype:alert= filter, even when permitted by a server-owned
+public/authenticated scope, cannot demonstrate that an alert is still open,
+acknowledged, suppressed, severe, or resolved. For a state-dependent decision,
+perform a separately authorized canonical by-ID read and check the returned
+revision, state and evidence. A by-ID read is an observation at one time, not a
+transactional snapshot with previous search pages.
+
+This offline source regression compares two immutable designs with synthetic
+records; it does *not* call the canonical SDK validator:
+
+#+begin_src sh
+STAR_SEARCH_ALERT_HISTORICAL_DESIGN=HISTORICAL_SERVER/source/views/search.json \
+STAR_SEARCH_ALERT_MERGED_DESIGN=MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_alert_lifecycle_fts.js
+#+end_src
+
+Only the historical design is required by the normal pinned =run-tests=
+runner; the optional merged environment variable enables comparison. The
+regression verifies the Git blob of each original source before execution and
+has scope/type-positive controls. It verifies raw JavaScript =index()=
+emissions only, not schema acceptance, Lucene tokenization, installed index
+coverage, authentication, durable read-back or notification delivery.

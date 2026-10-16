@@ -791,6 +791,45 @@ operator, test that implementation separately; neither raw JavaScript FTS
 callback demonstrates such a feature. No CouchDB/Clouseau query execution,
 authenticated search, durable read-back, or graph inference was performed.
 
+** An Alert search result is not a live operations queue
+
+Canonical StarLang =0.10.1= defines an =Alert= document with fields for
+=status=, decimal-string =severity=, =triggeredAt=, =resolvedAt=,
+=acknowledgedBy=, =suppressedUntil=, =ruleId= and =subjectIds=. Those fields
+carry different operational questions. A status answers what the alert record
+currently declares; severity is a field value, not retrieval relevance;
+acknowledgment and suppression have their own lifecycle meanings. None of
+these can be reconstructed from a simple full-text search hit.
+
+Execute the byte-attested historical and merged =source/views/search.json=
+functions on a fictional Alert-shaped object. Both emit =tenant_id=,
+=dataset= and =dtype=; neither emits those Alert lifecycle fields. Changing
+=status= from =open= to =resolved= leaves raw emissions unchanged. So does
+changing =severity=, =triggeredAt= or =acknowledgedBy=. A second input with
+a different =dataset= *does* change the stored scope field. These are
+observations about the original raw =index()= callbacks, not real Lucene
+matching, schema validation, a deployed design, or alert-delivery behavior.
+
+The distinction affects an analyst and an operator differently. Search may
+locate an authorized Alert record through terms or type, but the returned hit
+is not a reliable priority queue ordered by severity or a proof that an alert
+is still active. A decision that depends on current lifecycle state needs a
+separately authorized canonical by-ID read, revision/evidence examination and
+application-defined freshness policy. That read is itself a point observation;
+it does not retroactively make earlier search pages a transactionally
+consistent snapshot. Neither public access nor a caller's query string grants
+new dataset or tenant scope: the server's policy does that before backend
+retrieval. Search visibility, raw indexed coverage, and durable canonical
+record evidence remain distinct.
+
+The native executable test is =code/search-lab/test_alert_lifecycle_fts.js=.
+It uses the historical Server =ce14c77ccd2f51f543410fdeef3d78fb9978b769=
+and the independently merged source design at
+=ca6fdcbdc1f3b8aa344c533a40d298f741a54f25=, with the canonical
+StarLang =0.10.1= schema at =96d26c338078676ec1dc6928755901636c9f7ef0=.
+The fixture is deliberately *shape-based* and is not an SDK-validated Alert.
+Its conclusions are therefore restricted to index-source behavior.
+
 ** A canonical Relation is not an FTS graph edge
 
 Canonical StarLang =0.10.1= has a distinct =Relation= document model with
@@ -1422,3 +1461,21 @@ add that optional canonical field explicitly before probing it. Neither result v
 StarLang 0.10.1 schema or proves installed FTS design adoption, Lucene query
 behavior, authorized visibility, or a durable canonical read-back. The
 source-pinned client is a planning instrument for the later real-service lab.
+
+*** Exercise 10 -- Does an Alert search hit prove open state? (★★★)
+
+Start with a fictional =Alert=-shaped JSON object with =status: open=,
+=severity: "0.75"= and =dataset: book-synthetic=. Compare its raw index
+emissions with a copy whose =status= is =resolved=, =severity= is =0.01= and
+=acknowledgedBy= contains one fictional operator. Run the source-pinned
+regression for both historical and merged Server designs. Then change only
+=dataset=. Which comparison differs, and what would you inspect before
+acting on a supposed active alert?
+
+Answer: changes in status/severity/acknowledgment do not change either
+original callback's raw emissions, while changing dataset does. For
+lifecycle-dependent action, retrieve an authorized canonical record by ID,
+check its revision, status and timestamp evidence, and apply a freshness
+policy appropriate to the operation. No raw emission check proves installed
+Clouseau coverage, a successful 0.10.1 ingest, an authorized search result,
+notification delivery, or coherent state across concurrent changes.
