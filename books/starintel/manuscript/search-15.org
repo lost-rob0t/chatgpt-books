@@ -1737,3 +1737,77 @@ revision and provenance and a durable request/response artifact or transaction
 record whose declared hashes are independently checked. Neither raw FTS
 projection nor a URL hit establishes those checks. [cite:@starintel-search-runtime-20261009;
 @starlang-starintel-0101]
+
+** A deleted canonical record and a CouchDB deletion are not the same event
+
+Imagine an operator searching for a fictional person record named =Fictional
+Example=. A hit comes back even though a newer canonical revision might be
+marked =deleted=true= or have passed its declared validity interval. Does the
+hit prove the subject remains an active canonical record? No. Search delivers
+an authorized view of indexed values; it is not a live-retention service or
+an independently authenticated read of the current revision.
+
+In StarLang =org.starintel/core@1= version =0.10.1=, the generated =Person=
+definition includes =deleted= (boolean), =tombstoneReason= (string),
+=validFrom=/=validUntil= (UnixTime) and =retentionPolicy= (string). The
+historical Server full-text design at Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and merged 0.10.1
+design at =dd6336f3047982db2f0e3615fed1413ed1e58e13= do not
+select these lifecycle properties. Both select =name=, =dataset=, =dtype=
+and server-derived =tenant_id= instead. This is an observation about the
+source-defined *raw index emissions*, not a claim about installed Clouseau
+or a completed canonical 0.10.1 runtime migration.
+
+The new =test_canonical_tombstone_fts.js= executes both original Git-blob-
+attested callbacks against a synthetic =Person=-shaped specimen. Changing only
+=deleted=, its tombstone reason, validity interval or retention policy
+leaves the emitted field/value pairs unchanged. Changing an indexed =name=
+or =dataset= changes emissions. A deliberately changed callback that
+emits =deleted= differentiates =false= from =true=: a positive control
+showing that the experiment can observe the distinction when present.
+These fixtures are *not* asserted to pass the canonical SDK or to have
+been persisted through StarIntel's ingest pipeline.
+
+#+begin_src sh
+STAR_SEARCH_TOMBSTONE_HISTORICAL_DESIGN=HISTORICAL_SERVER/source/views/search.json \
+STAR_SEARCH_TOMBSTONE_MERGED_DESIGN=MERGED_SERVER/source/views/search.json \
+node --test books/starintel/code/search-lab/test_canonical_tombstone_fts.js
+#+end_src
+
+Do not conflate the canonical =deleted= field with CouchDB's special
+storage =_deleted= marker. The regression also directly feeds =_deleted=true=
+to the JavaScript callback, confirming only that the callback body does not
+emit that property. It cannot establish whether CouchDB will invoke the
+indexer for an actual deleted document, retain its prior index entries, or
+return that document from a live service. The same limitation applies to
+validity windows: the search callback does not enforce a clock-based
+retention policy simply because an indexed name matches.
+
+A careful investigation records which interface returned the row: public
+=GET /api/v1/search= applies server-owned public datasets, whereas
+=documents.search= compiles the authenticated caller's tenant/dataset scopes.
+Treat the bookmark as opaque continuation state, not as an index snapshot or
+lifecycle certificate. For a current-state claim, perform a separate
+authorized by-ID read and compare canonical =id=/=rev=, storage =_id=/=_rev=,
+source/provenance and recorded lifecycle fields against the relevant policy.
+A search hit does not prove current existence; absence from search does not
+prove deletion or that durable evidence never existed.
+[cite:@starlang-starintel-0101;@starintel-search-runtime-20261009]
+
+*** Exercise -- Search hits cannot certify a tombstone (★★★)
+
+Construct a fictional =Person=-shaped record with =deleted=false= and an
+indexed =name=. Capture historical and merged raw emissions, then change only
+=deleted=true= and =tombstoneReason=. Explain why identical emissions cannot
+support an active/deleted conclusion. As positive controls, change =name=
+and =dataset=. Finally, distinguish one piece of *canonical* deletion evidence
+from the CouchDB storage-level =_deleted= mechanism; identify why neither an
+opaque bookmark nor a zero-hit search is sufficient to establish durable
+record absence.
+
+Worked answer: both callbacks ignore the canonical lifecycle fields in
+this experiment, while the indexed name and dataset change the emitted
+values. The current lifecycle state needs a separately authorized canonical
+read with revisions and provenance; CouchDB deletion and physical purge need
+their own storage evidence. The capture harness has not tested service-backed
+deletes, index refresh, retention enforcement or authorization middleware.

@@ -1151,3 +1151,38 @@ and body digest against the durable artifact, and distinguish record existence
 from fresh search-index coverage. Public search uses server-owned dataset and
 tenant scopes; authenticated =documents.search= uses caller authorization.
 Neither raw projection test establishes those live policy outcomes.
+
+* Canonical tombstones are not raw FTS lifecycle filters
+
+The generated =org.starintel/core@1= =0.10.1= =Person= contract includes
+=deleted= (boolean), =tombstoneReason=, =validFrom=, =validUntil= and
+=retentionPolicy=. Neither pinned FTS callback selects these canonical
+lifecycle fields. The source-exact regression toggles each on a fictional
+=Person=-shaped record and compares captured raw =index()= emissions. Its
+positive controls change the indexed =name= and =dataset= fields, and a
+mutated callback demonstrates that a =deleted= transition *would* be detectable
+if deliberately indexed. The test uses byte-attested original Git blobs:
+
+- Historical Server =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=.
+- Merged 0.10.1 Server =dd6336f3047982db2f0e3615fed1413ed1e58e13=.
+- Canonical schema =537163da436f67a973e280d1704e32bdba5b888b=
+  from StarLang commit =96d26c338078676ec1dc6928755901636c9f7ef0=.
+
+#+begin_src sh
+STAR_SEARCH_TOMBSTONE_HISTORICAL_DESIGN=PINNED_HISTORICAL/source/views/search.json \
+STAR_SEARCH_TOMBSTONE_MERGED_DESIGN=MERGED_SERVER/source/views/search.json \
+node --test books/starintel/code/search-lab/test_canonical_tombstone_fts.js
+#+end_src
+
+The normal =run-tests= integration requires the historical checkout and runs
+its historical cases; the merged test tier is opt-in through the second path.
+This is source-index projection evidence, not canonical SDK admission or a
+live CouchDB/Clouseau deletion test. In particular, canonical =deleted=true=
+means something different from CouchDB's storage-level =_deleted= marker. The
+callback is invoked directly with =_deleted=true= only as a structural
+control; that *does not demonstrate* how CouchDB handles deleted documents.
+Do not infer retention enforcement, purge, current existence or active
+visibility from a raw index emission or a search hit. Verify via an
+independently authorized canonical by-ID read and the relevant storage,
+revision and provenance evidence. Public search scope is server-owned;
+authenticated search uses caller scopes. Neither is proof of indexed coverage.
