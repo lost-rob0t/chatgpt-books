@@ -1186,3 +1186,49 @@ visibility from a raw index emission or a search hit. Verify via an
 independently authorized canonical by-ID read and the relevant storage,
 revision and provenance evidence. Public search scope is server-owned;
 authenticated search uses caller scopes. Neither is proof of indexed coverage.
+
+* Raw index callback accepts shapes that canonical StarLang rejects
+
+This is a separate test of *projection behavior*, not canonical admission or a
+working search index. StarLang =0.10.1= declares
+=SocialMediaPost.content= as a string in generated schema blob
+=537163da436f67a973e280d1704e32bdba5b888b=, from canonical commit
+=96d26c338078676ec1dc6928755901636c9f7ef0=. The historical Server
+search design is Git blob =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=; the
+merged =0.10.1= design is blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=.
+
+The original JavaScript callback uses a recursive =add= helper. It does not
+validate an entire document. When explicitly fed *invalid* =content= shapes,
+its raw behavior is:
+
+| Synthetic content input | Captured =content= emissions |
+|-------------------------+------------------------------|
+| ="alpha"=               | ="alpha"=                    |
+| =["alpha","beta"]=      | ="alpha"=, ="beta"=          |
+| =[["alpha"],["beta"]]=   | ="alpha"=, ="beta"=          |
+| ={"text":"alpha"}=      | none                         |
+| =null= or absent        | none                         |
+| =""=                    | one empty string             |
+
+Only the string and empty-string cases have the correct =content= *type* for
+this canonical property; the other shapes are deliberate hostile inputs to
+an isolated index function, not SDK-validated canonical records. Even an
+emitted empty string does not establish any Clouseau/Lucene tokens or matches.
+
+The test uses the original Git-blob-attested callbacks, not a reimplementation.
+Run in a checkout of the pinned historical Server:
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=/absolute/path/to/historical/starintel-server \
+  node --test books/starintel/code/search-lab/test_index_input_shape.js
+#+end_src
+
+Optionally supply =STAR_SEARCH_SHAPE_MERGED_DESIGN=/absolute/path/to/merged/source/views/search.json=
+for an additional *read-only* generation. The script pins both Git blobs and
+fails closed on drift. It needs no CouchDB, Clouseau, credentials or network.
+
+*Interpretation*: seeing an =index()= call proves neither schema validity nor
+stored durability. Scope and publication rights are decided by the server's
+authorization and document validation boundaries; an FTS callback is not a
+second validator. Search visibility, canonical evidence and the source index
+emission stream must be tested independently.

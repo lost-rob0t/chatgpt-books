@@ -1811,3 +1811,62 @@ values. The current lifecycle state needs a separately authorized canonical
 read with revisions and provenance; CouchDB deletion and physical purge need
 their own storage evidence. The capture harness has not tested service-backed
 deletes, index refresh, retention enforcement or authorization middleware.
+
+
+** Projection shape is not canonical admission
+
+A full-text callback can process a malformed document-shaped input without
+rejecting it. That behavior is not proof the official document validator would
+admit the record, nor proof CouchDB stored it. The distinction matters during
+historical migrations, forensic debugging and index-design review.
+
+At the pinned StarLang =org.starintel/core@1= version =0.10.1=,
+=SocialMediaPost.content= has the generated type =string= (schema Git blob
+=537163da436f67a973e280d1704e32bdba5b888b=). Both the historical Server
+index =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and inspected merged
+=0.10.1= index =dd6336f3047982db2f0e3615fed1413ed1e58e13= have an
+=add= helper that flattens arrays recursively, emits primitive values, and
+skips nulls and unrecognized objects.
+
+#+caption: Source-exact raw =content= emissions from isolated FTS callback inputs (NOT schema admission).
+| Input at =content=      | Raw emission observation | Canonical type for =content=? |
+|-------------------------+--------------------------+-------------------------------|
+| ="alpha"=               | One ="alpha"=           | Yes                           |
+| =["alpha","beta"]=      | Two string emissions     | No                            |
+| =[["alpha"],["beta"]]=   | Two string emissions     | No                            |
+| ={"text":"alpha"}=      | No =content= emission    | No                            |
+| =null= or absent        | No =content= emission    | Absent is optional; null is not a string |
+| =""=                    | One empty raw emission   | Yes                           |
+
+Execute =test_index_input_shape.js= from the Chapter 15 lab on the original
+byte-attested historical callback; the optional merged input tests its own
+pinned source. Positive controls confirm the server-owned scope projection
+(=tenant_id=), =dataset=, and =dtype= remain emitted. A deliberately altered
+callback would string-encode an object instead: the native test detects that
+difference. This does *not* test Lucene analyzers, search results, installed
+index state, authorized HTTP access or durability.
+
+The engineering rule: *never treat indexability as validation*. Validate
+canonical =id=/=rev= and datatype under the correct versioned StarLang
+contract, authorize reads and writes at the actual server boundary, confirm
+durable storage separately, and only then interpret a scoped search page.
+Public dataset policy is server-owned; a client's guessed scope is not an
+authorization proof. A bookmark is opaque retrieval state, not evidence of a
+stable corpus snapshot.
+
+*** Exercise -- Which invalid record is searchable? (★★★)
+
+A course probe invokes only the original FTS callback on two *invalid*
+=SocialMediaPost= shapes: A has =content=["one","two"]=; B has
+=content={"text":"one"}=. Predict the ordered raw =content= emissions for
+each. Why can neither emission trace answer whether the actual service would
+accept, authorize, durably store or return the record? What additional
+observations would turn it into an end-to-end verification?
+
+*Answer:* A emits ="one"= followed by ="two"=; B emits nothing under
+=content=. Both shapes violate the generated string type for this field.
+Independently validate the exact canonical schema, inspect the pinned server
+write/admission and authorization paths, perform authorized durable by-ID
+read-back in a disposable stack, confirm the installed index generation and
+query an allowed positive control in that same search scope. A raw callback
+alone settles none of those questions.
