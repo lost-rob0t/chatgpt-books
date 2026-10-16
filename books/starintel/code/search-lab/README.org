@@ -1106,3 +1106,48 @@ perturbations, and confirms known indexed fields still change emissions.
 The standard =run-tests= executes the historical half. This is not an
 SDK-validation, HTTP, CouchDB/Clouseau, indexed-coverage, authorization or
 by-ID persistence test.
+
+* An HTTP-transaction URL is not a searchable request/response audit
+
+The generated canonical StarLang =org.starintel/core@1= =0.10.1= contract
+contains =HttpTransaction= with required =transactionId=, =method=, =url= and
+=responseStatus= (as well as =id=, =dataset=, =dtype= and =schemaVersion=).
+It separately describes redacted headers and request/response body artifact
+hashes. These fields have different evidentiary purposes; a full-text search
+hit for a URL is not proof of the request method, returned HTTP status, or
+integrity or availability of the body artifact.
+
+=test_http_transaction_fts.js= executes *both original JavaScript callbacks*
+from the pinned historical Server FTS design (Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=) and, when explicitly
+supplied, merged 0.10.1 Server FTS design (Git blob
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=). It rejects incorrect
+source bytes before loading the callback. The fixture is synthetic and
+canonical-*shaped*, not validated by the StarLang-generated SDK or submitted
+to a service. The callback's =index()= emissions are observed with Node's
+native VM; no Clouseau analyzer, HTTP route, persistence, or authorization
+check is simulated.
+
+#+begin_src sh
+STAR_SEARCH_HTTP_HISTORICAL_DESIGN=PINNED_HISTORICAL_SERVER/source/views/search.json \
+STAR_SEARCH_HTTP_MERGED_DESIGN=PINNED_MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_http_transaction_fts.js
+#+end_src
+
+For the maintained single-generation =run-tests= pipeline only the historical
+file is required; the separately set merged path activates the optional second
+comparison. The test expects =url=, =dataset= and =dtype= index emissions and
+confirms that changes to =method=, =responseStatus=, redacted headers, and
+request/response body hashes do not change raw emissions. A deliberately
+changed callback that adds =responseStatus= must break this observational
+invariance (regression sensitivity control).
+
+The outcome is *not* that requests with different statuses cannot be found:
+a shared URL can be searched through the indexed =url= field. Rather, a hit
+alone cannot distinguish whether that transaction returned 200 or 503, and
+there is no present raw =responseStatus= index field to filter by. A caller
+must use an independently authorized canonical by-ID read, verify provenance
+and body digest against the durable artifact, and distinguish record existence
+from fresh search-index coverage. Public search uses server-owned dataset and
+tenant scopes; authenticated =documents.search= uses caller authorization.
+Neither raw projection test establishes those live policy outcomes.

@@ -1674,3 +1674,66 @@ parse it with Python's =csv.reader=, then JSON-decode each =s:= value. Verify
 that one result remains one row and that neither revision replaces the other.
 Explain why an authorized by-ID read and separate schema/provenance check are
 still needed before treating the row as current canonical evidence.
+
+** Searching an HTTP transaction URL does not verify its response
+
+A synthetic HTTP transaction says it fetched =https://example.invalid/resource=
+with method =GET= and status =200=. Imagine that the server later stores
+another transaction for the same URL that returned =503=. Does a search
+for the URL prove the first request succeeded? No. It establishes, at most,
+that an index visible to the caller returned a row for that query. The
+canonical HTTP request/response evidence must be recovered and checked on
+its own terms.
+
+StarLang =org.starintel/core@1= =0.10.1= requires =transactionId=, =method=,
+=url= and =responseStatus= for =HttpTransaction=, alongside its envelope.
+The generated schema also declares =redactedHeaders= and request/response
+body artifact hash fields. The historical Server FTS design at Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and the merged 0.10.1
+server design at blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=
+select =url= for raw =index()= emissions, but do not select =method=,
+=responseStatus=, =redactedHeaders=, =requestBodyHash= or =responseBodyHash=.
+This is a source-index coverage observation, *not* an experiment in live
+Lucene query matching or SDK admission.
+
+The new =test_http_transaction_fts.js= executes each original source callback
+with synthetic records. Altering only response status (200 -> 503), method,
+redacted headers, or body artifact hashes leaves raw emitted fields unchanged.
+Changing the URL or dataset changes emissions, as expected for selected
+fields. An intentionally altered callback that emits =responseStatus=
+exposes the difference; that positive control makes the negative result
+falsifiable. The experiment runs without a network or privileged service.
+
+#+begin_src sh
+STAR_SEARCH_HTTP_HISTORICAL_DESIGN=HISTORICAL_SERVER/source/views/search.json \
+STAR_SEARCH_HTTP_MERGED_DESIGN=MERGED_SERVER/source/views/search.json \
+node --test books/starintel/code/search-lab/test_http_transaction_fts.js
+#+end_src
+
+For a defensible audit, first establish which public or authenticated search
+surface returned the hit and which tenant/dataset authorization policy it
+applied. The public search route derives its scope from server configuration;
+the authenticated route compiles the requesting principal's scopes. Treat the
+opaque bookmark as a page token, not a durable proof of coverage. Then obtain
+the canonical record through an *independently authorized by-ID read* and
+verify the stored revision, canonical =id=/=rev=, provenance, and artifact
+hashes against the retained evidence. The successful query does not attest
+that a response body was captured, survived ingest or still exists. A record
+not found in search may still be durable or omitted by the index projection.
+
+*** Exercise -- Same URL, different outcomes (★★★)
+
+Create two synthetic =HttpTransaction=-shaped records differing only in
+=responseStatus=, one =200= and the other =503=. Capture both historical and
+merged index emissions and compare. Then change =url= while holding status
+constant. Explain why a URL-only hit cannot tell an operator which response
+occurred and name two additional independently verified pieces of evidence
+needed to support an HTTP response claim.
+
+Worked answer: the status-only change leaves the raw emissions identical,
+whereas the URL change alters the =url= emission. A trustworthy response
+claim needs, at minimum, an authorized canonical read-back with identity,
+revision and provenance and a durable request/response artifact or transaction
+record whose declared hashes are independently checked. Neither raw FTS
+projection nor a URL hit establishes those checks. [cite:@starintel-search-runtime-20261009;
+@starlang-starintel-0101]
