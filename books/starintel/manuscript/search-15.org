@@ -661,6 +661,36 @@ indexed. For a development search feature, start with an explicit,
 versioned, dtype-aware text projection; test canonical validation, server
 admission, installed indexing and authorized retrieval as separate gates.
 
+
+** A canonical Relation is not an FTS graph edge
+
+Canonical StarLang =0.10.1= has a distinct =Relation= document model with
+required =source=, =destination= and =predicate= fields as well as
+=id=, =dataset=, =dtype= and =schemaVersion=; optional fields include
+=direction=, =rev= and =provenance=. This structure defines a candidate
+record shape, not a claim that the book has stored or inferred a graph edge.
+The canonical source is generated schema blob
+=537163da436f67a973e280d1704e32bdba5b888b= at StarLang commit
+=96d26c338078676ec1dc6928755901636c9f7ef0=.
+
+The =test_relation_fts_boundary.js= lab executes both byte-attested original
+historical and merged Server JavaScript callbacks with a fictional, typed,
+directed =owns-device= example. The unchanged callbacks emit =tenant_id=,
+=dataset= and =dtype=; changing the relation's =predicate=, =source=,
+=destination= or =direction= does not change the captured emissions. Changing
+=dataset= does. A deliberately altered (non-upstream) callback that indexes
+=predicate= acts as a test-sensitivity control. The normal one-checkout run
+verifies the historical function; an optional second input exercises the
+merged index definition without presenting it as the historical deployment.
+
+This is *raw index-field coverage*, not a graph query, live search result,
+canonical SDK validation or authority to traverse endpoints. A search hit
+cannot itself establish a stored, directional or inferred relationship.
+A future graph workflow must separately verify authorized scope, canonical
+identity and revision, provenance, and whether its edge is a candidate,
+a durable document, or a rule-derived inference. No Project 4 graph or Prolog
+implementation is assumed here.
+
 ** A canonical GeoPoint is not automatically a spatial search result
 
 A StarLang 0.10.1 =GeoPoint= defines =geometryType=, =longitude= and

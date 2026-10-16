@@ -669,3 +669,33 @@ original =index()= callbacks with synthetic canonical-*shaped* objects, not
 the StarLang SDK or a service. A missing text field in this raw projection is
 not a claim of failed storage, unavailable read-by-ID, or unauthorized access;
 reverse conclusions from a positive FTS emission are equally invalid.
+
+* Canonical Relation fields are not indexed graph edges
+
+Canonical StarLang =0.10.1= defines a =Relation= with separate =source= and
+=destination= references, a typed =predicate=, an optional =direction= and
+revision/provenance fields. The historical and merged FTS callbacks do not
+emit those relation topology keys for the synthetic relation below. The raw
+projection emits only =tenant_id=, =dataset= and =dtype= when no other selected
+text fields are populated. This does NOT prove the record was stored, that any
+edge is traversable, that middleware permitted access, or that a graph service
+would make the same selection.
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_relation_fts_boundary.js
+# Optional read-only merged-generation comparison:
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+STAR_SEARCH_RELATION_MERGED_DESIGN=PINNED_MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_relation_fts_boundary.js
+#+end_src
+
+The harness checks the exact historical Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=, and the optional merged
+blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=. The relation field
+names come from generated canonical StarLang =0.10.1= schema blob
+=537163da436f67a973e280d1704e32bdba5b888b= at
+=96d26c338078676ec1dc6928755901636c9f7ef0=. This is a shape-based,
+synthetic, source-executing comparison, NOT an SDK validation, HTTP/CouchDB
+integration, or authorization test. A real graph/inference workflow requires
+its separately owned implementation and scoped, versioned canonical evidence.
