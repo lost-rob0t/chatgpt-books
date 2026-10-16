@@ -670,6 +670,40 @@ the StarLang SDK or a service. A missing text field in this raw projection is
 not a claim of failed storage, unavailable read-by-ID, or unauthorized access;
 reverse conclusions from a positive FTS emission are equally invalid.
 
+
+* Canonical Org type is not the indexed migration alias
+
+StarLang =org.starintel/core@1= =0.10.1= defines =Org.organizationType=
+as a string, but does *not* define =Org.orgType= or =Org.org_type=.
+The generated schema is pinned to
+=96d26c338078676ec1dc6928755901636c9f7ef0= (blob
+=537163da436f67a973e280d1704e32bdba5b888b=). Both historical and
+merged FTS callbacks omit =organizationType=; the historical callback
+selects =org_type=, while the merged callback additionally selects =orgType=.
+These superficially similar names are *not* automatically equivalent.
+
+=test_canonical_org_type_coverage.js= executes the unchanged original
+callback(s) over fictional canonical-shaped organization fields: mutating
+=organizationType=, including inside =data=, leaves raw emissions unchanged.
+An indexed =name= acts as a positive control, and a deliberately altered
+index function demonstrates that the negative assertion is discriminating.
+The default pinned checkout runs five historical tests; pass a second,
+independently pinned merged design to execute all ten:
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_canonical_org_type_coverage.js
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+STAR_SEARCH_ORG_MERGED_DESIGN=PINNED_MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_canonical_org_type_coverage.js
+#+end_src
+
+The samples are *not* SDK-validated, and the tests establish only raw index
+callback emissions, never installed Clouseau coverage, query matching,
+authorization, indexing freshness, or durable canonical provenance. A
+0.10.1 migration needs an explicitly reviewed canonical-field projection
+and separate live service validation, not an assumed spelling alias.
+
 * Canonical Relation fields are not indexed graph edges
 
 Canonical StarLang =0.10.1= defines a =Relation= with separate =source= and

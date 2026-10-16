@@ -662,6 +662,42 @@ versioned, dtype-aware text projection; test canonical validation, server
 admission, installed indexing and authorized retrieval as separate gates.
 
 
+
+** Canonical Org organizationType is not an indexed spelling alias
+
+The generated canonical =Org= model defines =organizationType= (string),
+whereas its schema does not define =orgType= or =org_type=. The historical
+search callback indexes the legacy =org_type= spelling; the inspected merged
+0.10.1 callback adds =orgType=, but neither indexes the actual canonical
+=organizationType=. This is a concrete migration boundary, not evidence of
+automatic field renaming or invalidity of a canonical record.
+
+#+caption: Org type field coverage in the two pinned raw JavaScript FTS callbacks.
+| Field | Canonical 0.10.1 Org property? | Historical callback | Merged callback |
+|-------+------------------------------+---------------------+-----------------|
+| =organizationType= | Yes | Not emitted | Not emitted |
+| =org_type= | No | Emitted if present | Emitted if present |
+| =orgType= | No | Not emitted | Emitted if present |
+| =name= | Yes | Emitted | Emitted |
+
+The source-backed =test_canonical_org_type_coverage.js= uses a fictional
+canonical-shaped organization. Changing only =organizationType=, at either
+the top level or inside the nested =data= object, does not change the original
+callback's ordered emissions. Changing =name= does. A mutated callback
+that explicitly indexes =organizationType= confirms that the test detects
+the distinction when the field is actually selected.
+
+StarLang schema authority is pinned to
+=96d26c338078676ec1dc6928755901636c9f7ef0= (generated blob
+=537163da436f67a973e280d1704e32bdba5b888b=); the source-executing
+historical and merged index blobs are
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=. These network-free
+regressions do not validate the sample through the canonical SDK or prove
+a live installed index, tenant/dataset authorization, query matching,
+or by-ID durability. A missing type-filtered search result cannot establish
+absence of a canonical organization; diagnose each evidence boundary.
+
 ** A canonical Relation is not an FTS graph edge
 
 Canonical StarLang =0.10.1= has a distinct =Relation= document model with
