@@ -1,0 +1,52 @@
+#+title: P0 — StarIntel Canonical 0.10.1 Disposable Service Proof
+
+* Goal
+The earlier service-trace lab is deliberately pinned to StarIntel Server's
+historical runtime. It must not be relabelled as canonical 0.10.1 evidence.
+PR #313 was merged into =starintel-server= on 2026-10-10, so this independent
+P0 experiment uses an exact *post-migration* server master SHA:
+=0137ead90ab9560b5a5090f0b62c1b59aac08c68= (inspected 2026-10-16).
+
+* Experiment
+The book reuses upstream =scripts/stack-test.sh= without duplicating deployment
+or authentication. An exact-once source hook runs after upstream has verified
+its real Nix-built RabbitMQ/CouchDB/StarIntel stack and restart persistence.
+The runtime-generated bootstrap credential stays only in the environment.
+
+The book-local stdlib client:
+1. Requires the OpenAPI operations =documents.create= and =documents.get=.
+2. Requires unauthenticated document GET to fail with 401/403.
+3. Requires a malformed canonical document with a storage =_id= field to be
+   rejected with 422 before attempting the valid evidence path.
+4. POSTs three synthetic canonical 0.10.1 fixtures through
+   =/api/v1/documents=: =person=, =org=, then a directional =relation= with
+   =member-of=, explicit typed endpoints, and evidence metadata.
+5. Polls the authenticated =/api/v1/documents/:id= read path separately and
+   demands exact ID/dataset/dtype/schema-version preservation; checks person
+   and organization facts, and the relation's predicate and direction.
+6. Rejects storage-private/legacy keys in public canonical read-back.
+
+Only after all checks pass does it emit
+=.cache/starintel-canonical-live.json= with an exact upstream SHA, status codes,
+observation counts, and explicit nonclaims. Raw payloads, credentials, response
+bodies, container diagnostics and private documents are not copied to that
+artifact. Every test uses deliberately synthetic data in a disposable stack.
+
+* Commands
+From repository root:
+
+#+begin_src sh
+python3 -m unittest discover -s books/starintel/code/canonical-live -p 'test_*.py' -v
+bash books/starintel/code/canonical-live/run-service-proof
+#+end_src
+
+The service command needs Git, Nix, Docker/Compose, jq and Python 3.11+.
+A source hook or upstream revision drift fails closed. CI is responsible for
+establishing =TESTED= at the exact book HEAD; authored code alone is UNTESTED.
+
+* What this does not prove
+This does not prove reference integrity, all canonical document types,
+publisher confirms, actor execution, outbox crash-window recovery, performance,
+or production reliability. Nor does a successful POST alone prove persistence;
+the authorized GET observation is the separate evidence gate. Existing
+historical experiments remain historical.
