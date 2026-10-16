@@ -41,21 +41,22 @@ release lock declares both release and schema version =0.10.1= and
 
 That does *not* mean every runtime has already adopted that contract.
 
-The current =starintel-server= default branch was rechecked on 2026-10-05 at
-=ce14c77ccd2f51f543410fdeef3d78fb9978b769=.  Its checked-in runtime lock still
-identifies the historical =0.9.1= release profile over the =0.9.0= wire schema.
-A separate draft migration, server PR #313 at
-=117057d6f5bbf2e2b40d5cfd89eb7adcca5e28fd=, has executable evidence for
-accepting the StarLang-generated =0.10.1= contract but is not merged into the
-default branch. [cite:@starintel-server-20261005;@starintel-server-pr313]
+A 2026-10-16 recheck found =starintel-server= master at
+=0137ead90ab9560b5a5090f0b62c1b59aac08c68=. Server PR #313 merged on
+2026-10-10 as =ca6fdcbdc1f3b8aa344c533a40d298f741a54f25= and adopted
+the generated =0.10.1= contract at canonical ingress/storage/read-back
+boundaries. Explicit historical 0.9 compatibility remains. This adoption
+fact is source/CI evidence, not the book's independent canonical service
+proof; the P0 lab is documented in the pass-16 research record.
+[cite:@starintel-server-pr313]
 
 So the reader must keep three statements separate:
 
 | Question | Current answer for this edition |
 |----------+---------------------------------|
 | What defines the canonical StarIntel document model? | StarLang =core.star= and its generated =0.10.1= release |
-| What does server =main= accept today? | The checked-in server runtime still carries the older =0.9.1=/=0.9.0= lock |
-| Is a server =0.10.1= implementation available? | Yes, as the tested but unmerged PR #313 migration |
+| What does server =master= accept today? | Generated =0.10.1= canonical documents with explicit retained 0.9 compatibility |
+| Is the server =0.10.1= migration merged? | Yes, PR #313 merged 2026-10-10; book-side durable service proof is still a separate gate |
 
 This is not editorial trivia.  It is the same distinction you need in a real
 rolling migration: *specification authority*, *implementation support*, and
