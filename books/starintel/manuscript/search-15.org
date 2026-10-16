@@ -791,6 +791,54 @@ index definition, authorized query, exact source/runtime pin, and real
 integration tests. Never infer a directional graph link or spatial predicate
 from a plain text-search match.
 
+** Measure a controlled result set without claiming corpus recall
+
+The dedicated HTTP lab seeds five fictional records sharing a random fielded
+search term. Three belong to the public dataset in the default tenant, one to a
+private dataset and one to another public dataset in a different tenant. At this
+/declared fixture configuration/, the expected public identity set has four
+members and the default-tenant reader's set has three. These expectations come
+from the lab's setup and the server's source-inspected public/authenticated
+scope contracts; do not infer them from whatever a search happened to return.
+
+A negative test alone is ambiguous: the private fixture may be absent because
+scope enforcement excluded it, or because the index never returned anything.
+A controlled cohort therefore needs positive controls /and/ exclusion checks.
+Run =code/search-lab/visibility_matrix.py= on sets already collected by the
+optional live service experiment, or on the fictional values below. The module
+is *offline*: it does not authenticate, query, read durable documents, inspect
+an installed FTS design or validate the canonical StarLang schema. It admits
+only the lab's synthetic =starintel:person:bookneedle= identity namespace.
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/visibility_matrix.py <<'JSON'
+{"universe":["starintel:person:bookneedle-demo-0","starintel:person:bookneedle-demo-1","starintel:person:bookneedle-demo-2","starintel:person:bookneedle-demo-3","starintel:person:bookneedle-demo-4"],"expected":{"public":["starintel:person:bookneedle-demo-0","starintel:person:bookneedle-demo-1","starintel:person:bookneedle-demo-2","starintel:person:bookneedle-demo-4"],"authenticated":["starintel:person:bookneedle-demo-0","starintel:person:bookneedle-demo-1","starintel:person:bookneedle-demo-2"]},"observed":{"public":["starintel:person:bookneedle-demo-0","starintel:person:bookneedle-demo-1","starintel:person:bookneedle-demo-2","starintel:person:bookneedle-demo-4"],"authenticated":["starintel:person:bookneedle-demo-0","starintel:person:bookneedle-demo-1","starintel:person:bookneedle-demo-2"]}}
+JSON
+#+end_src
+
+The evaluator independently computes true positives (expected and observed),
+false positives (observed but not expected), false negatives (expected but
+missing), and true negatives (neither observed nor expected) /within this
+explicit five-record cohort/. It reports precision as =TP/(TP+FP)= only if any
+records were returned, and recall as =TP/(TP+FN)= only if at least one record
+was expected. An undefined denominator remains JSON =null=: an empty page is
+not assigned fictitious perfect precision. Unknown or duplicate identities and
+missing oracle sets are errors, not quietly ignored data. The CLI exits zero
+only for matching expected sets, one for an observed mismatch and two for
+invalid input. The native =test_visibility_matrix.py= tests positive controls,
+forbidden fixtures, missing results, undefined metrics and those exit codes.
+
+These are *controlled identity-set measurements*, not an estimate of recall
+across the StarIntel corpus, a proof of server authorization, or a measure of
+the accuracy of a canonical record. The public and authenticated scopes are
+independent contracts: one generally cannot assume their result sets are
+nested. Likewise, identifying a record in a search page proves neither that
+its canonical content was validated nor that the same revision can be read back
+from durable storage. Historical and merged source projections may differ;
+an actual deployed generation and index state still require separate evidence.
+Opaque bookmarks are followed by the service experiment before its collected
+identities can be compared; the evaluator itself never traverses a page.
+
 ** Interpret a page as retrieval evidence
 
 A typical explanatory page looks like this; it is a synthetic response fixture,
