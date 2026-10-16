@@ -1,6 +1,7 @@
 #+include: "reader-orientation-07.org"
 #+include: "foundation-runtime.org"
 #+include: "actor-runtime-06.org"
+#+include: "actor-failure-07.org"
 #+include: "investigation-model-08.org"
 #+include: "osint-foundations-11.org"
 #+include: "control-plane-api-09.org"
