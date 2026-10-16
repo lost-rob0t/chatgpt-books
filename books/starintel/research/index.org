@@ -22,3 +22,5 @@
 - [[file:osint-fieldwork-pass-11.org][Fictional OSINT fieldwork and location evidence]]
 
 - [[file:owned-equipment-pass-12.org][Owned-equipment temporal sightings and profiles]]
+
+- [[file:canonical-runtime-p0-20261016.org][P0 post-merge canonical 0.10.1 service proof]] -- merged server revision, executable real-stack proof design, exact-head CI gates, and evidence exclusions.
