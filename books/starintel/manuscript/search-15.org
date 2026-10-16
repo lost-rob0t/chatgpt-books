@@ -1261,9 +1261,10 @@ caused no observed field/value change, not that a field can never be indexed.
 Structured =data= and provenance, identity/revision, dataset/tenant and access
 metadata are intentionally not probed; the implementation therefore reports
 those categories separately rather than misclassifying them as unindexed.
-Changing a fictional organization's =name= changes a raw =name= emission at the
-historical pin, while a top-level =organizationType= change does not alter raw
-index emissions. Neither result validates the mutated document against the
+Changing =name= in the supplied fictional Org fixture changes a raw =name=
+emission at the historical pin, while changing its =collector= or =tags=
+produces no raw change. The fixture does not contain =organizationType=;
+add that optional canonical field explicitly before probing it. Neither result validates the mutated document against the
 StarLang 0.10.1 schema or proves installed FTS design adoption, Lucene query
 behavior, authorized visibility, or a durable canonical read-back. The
 source-pinned client is a planning instrument for the later real-service lab.
