@@ -1002,3 +1002,41 @@ regression verifies the Git blob of each original source before execution and
 has scope/type-positive controls. It verifies raw JavaScript =index()=
 emissions only, not schema acceptance, Lucene tokenization, installed index
 coverage, authentication, durable read-back or notification delivery.
+
+
+* Terminal-safe search-hit preview -- display-only boundary
+
+=terminal_hits.py= renders already-interpreted Chapter 15 =Hit= objects as an
+ASCII-only console report. It uses =json.dumps(..., ensure_ascii=True)= to
+make untrusted stored =name=/=title=, row IDs, dataset/dtype and revision
+strings inert in a terminal. Thus control characters, OSC 8 hyperlinks, line
+breaks, non-ASCII bidirectional controls and embedded quotation marks are
+shown as printable escapes rather than terminal instructions.
+
+Example after obtaining one authorized HTTP search-page response:
+
+#+begin_src python
+from lab import interpret_page
+from terminal_hits import render_hits
+hits, bookmark = interpret_page(page)
+print(render_hits(hits))  # bookmark stays opaque and is not displayed
+#+end_src
+
+This renderer performs *no HTTP request*, authentication, policy selection,
+CouchDB/Clouseau index attestation, canonical validation, by-ID read-back or
+log integrity verification. It does not use arbitrary embedded =doc= data as
+presentation instructions, infer operational Alert state, or present output
+as a durable evidence receipt. Identity/label output is truncated and marked
+when oversized; truncated identities must not be used for subsequent lookups.
+The all-ASCII choice sacrifices direct display of non-ASCII names intentionally.
+An empty preview means only that the supplied page has zero interpreted hits.
+
+#+begin_src sh
+cd books/starintel/code/search-lab
+python3 -m unittest -v test_terminal_hits
+#+end_src
+
+The standalone suite uses fictional Hit-shaped values and does not need a
+network, an SDK checkout, or a running server; the normal Python discovery in
+=run-tests= also registers it. No terminal emulator, live HTTP service or
+external dataset is exercised by these unit tests.

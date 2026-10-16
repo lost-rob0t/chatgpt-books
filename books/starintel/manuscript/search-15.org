@@ -1479,3 +1479,73 @@ check its revision, status and timestamp evidence, and apply a freshness
 policy appropriate to the operation. No raw emission check proves installed
 Clouseau coverage, a successful 0.10.1 ingest, an authorized search result,
 notification delivery, or coherent state across concurrent changes.
+
+
+** Display a search result in a terminal without executing source text
+
+The public =GET /api/v1/search= and authenticated =documents.search= handlers
+both request CouchDB FTS results with =include_docs=true= at the inspected
+historical server pin. Their search index emits stored =name= and =title=
+values from selected document properties. The authorized result can therefore
+contain untrusted source text. Server scope compilation answers /whether a
+caller may receive a result/; it does not turn that result into trusted terminal
+control instructions. [cite:@starintel-search-runtime-20261009]
+
+Suppose a fictional result's stored name includes a terminal escape sequence
+that clears the screen, rewrites a previous line, or creates an OSC 8 hyperlink.
+Simply running =print(hit.fields["name"])= could make a log or terminal screen
+misleading. Newlines and directional formatting marks can also visually disguise
+which result a label belongs to. This is a *presentation* threat, distinct from
+server authorization, canonical schema admission, installed index coverage and
+durable storage.
+
+=code/search-lab/terminal_hits.py= formats /already interpreted/ =Hit=
+observations. Every untrusted string is JSON-quoted with =ensure_ascii=True=,
+so ANSI control bytes, carriage returns, newlines, non-ASCII directional
+controls, embedded quotes and terminal hyperlink escapes appear as printable
+ASCII escape notation rather than display instructions. It shows one page
+(maximum 100 hits), bounds each displayed value, marks truncation, and never
+prints the opaque bookmark or arbitrary embedded =doc= object. Stored
+=name=/=title= are only candidate labels: neither a label nor a matched row
+establishes a canonical fact. The view keeps CouchDB storage =_rev= distinct
+from canonical =rev= and never asserts that an Alert is active.
+
+#+begin_src python
+from lab import interpret_page
+from terminal_hits import render_hits
+
+# page is one previously obtained search JSON page, not a raw corpus export.
+hits, bookmark = interpret_page(page)
+print(render_hits(hits))  # deliberately does not print bookmark
+#+end_src
+
+The terminal renderer is deliberately *not* a search client, authorization
+service, schema validator, persistence check, or a verified log-signing system.
+Pass a page only after retrieving it through the appropriate server-owned
+public or caller-authorized search context. A printed =dtype= or =dataset= is
+still a label from the supplied search observation, not a new policy decision.
+Even an empty preview proves only that this supplied page has no rows, not
+that the corpus lacks an indexed or durable record.
+
+#+begin_src sh
+cd books/starintel/code/search-lab
+python3 -m unittest -v test_terminal_hits
+#+end_src
+
+The native, offline regression uses fictional =Hit=-shaped values to verify
+ASCII-only output, screen-clear/OSC escape inertness, carriage-return and
+newline containment, bidirectional-control visibility, independent revision
+labels, explicit truncation, and rejection of malformed input. It does not run
+a terminal emulator, read private records, query CouchDB/Clouseau, validate a
+canonical 0.10.1 document, or prove successful HTTP authorization. A clear
+screen in a shell is not a suitable substitute for those service experiments.
+
+*** Exercise -- Separate a terminal preview from evidence
+
+Inject a fictional =name= containing =\x1b[2J= or =\r\n[2] VERIFIED= into an
+offline interpreted search =Hit=. Verify that a rendered preview contains
+only printable escapes and no additional result line. Then state which
+separate authorized read-back and canonical validation steps you would still
+need before treating that record as durable evidence. The answer is that
+rendering safety improves the operator's view but proves nothing about those
+earlier boundaries; the displayed strings remain unverified observations.
