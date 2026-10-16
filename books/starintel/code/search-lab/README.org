@@ -1081,3 +1081,28 @@ These offline unit tests do not execute HTTP requests, a spreadsheet, CouchDB,
 Clouseau, the canonical SDK, or the complete book/EPUBCheck pipeline. The
 maintained =run-tests= Python discovery automatically includes the new test
 only when its authentic pinned upstream checkouts are available.
+
+* Canonical taxonomy arrays are not raw FTS facets
+
+The generated StarLang =0.10.1= schema defines =labels=, =tags= and
+=topics= as arrays of strings on canonical =Org=, =Event= and =Alert=.
+The original historical and merged StarIntel Server =search.json= callbacks
+do not emit those fields as independent FTS properties. This lab tests the
+source boundary rather than promising installed Lucene facets.
+
+Run with the historical immutable checkout:
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_taxonomy_metadata_fts.js
+#+end_src
+
+For a two-generation offline comparison, set
+=STAR_SEARCH_TAXONOMY_HISTORICAL_DESIGN= and
+=STAR_SEARCH_TAXONOMY_MERGED_DESIGN= to the respective pinned
+=source/views/search.json= files. The test verifies each Git blob, executes
+the unaltered source with synthetic records, checks tags/labels/topics
+perturbations, and confirms known indexed fields still change emissions.
+The standard =run-tests= executes the historical half. This is not an
+SDK-validation, HTTP, CouchDB/Clouseau, indexed-coverage, authorization or
+by-ID persistence test.

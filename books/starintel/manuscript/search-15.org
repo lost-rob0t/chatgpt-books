@@ -886,6 +886,59 @@ index definition, authorized query, exact source/runtime pin, and real
 integration tests. Never infer a directional graph link or spatial predicate
 from a plain text-search match.
 
+
+** Canonical taxonomy is not an FTS tag-filter contract
+
+Canonical StarLang =org.starintel/core@1= version =0.10.1= declares
+=labels=, =tags=, and =topics= as string-array properties on =Org=,
+=Event=, and =Alert= (and other canonical types). Those properties describe
+a document, but their mere presence in a validated record does not make them
+FTS facets or an authorization policy. The generated schema source is pinned
+at StarLang commit =96d26c338078676ec1dc6928755901636c9f7ef0=
+(schema Git blob =537163da436f67a973e280d1704e32bdba5b888b=).
+
+The historical Server FTS index (Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=) and its merged =0.10.1=
+counterpart (Git blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=)
+select a narrow list of scalar fields. Neither calls =index()= for
+=labels=, =tags=, or =topics=, including when those arrays are supplied
+inside =data=. The native regression executes each *unchanged* source
+callback. Changing only those arrays leaves the complete ordered raw emission
+list unchanged. Positive controls change =name=, =content=, =dataset=,
+=dtype= and server-stamped =tenant_id= to prove the capture is not simply
+discarding all differences.
+
+#+begin_src sh
+STAR_SEARCH_TAXONOMY_HISTORICAL_DESIGN=HISTORICAL_SERVER/source/views/search.json \
+STAR_SEARCH_TAXONOMY_MERGED_DESIGN=MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_taxonomy_metadata_fts.js
+#+end_src
+
+For the normal pinned Chapter 15 runner, only the historical checkout is
+required. Supplying the separately pinned merged design adds the comparison;
+both inputs are checked against their original Git blob hashes before
+evaluation. A keyword appearing in =content= can still be emitted under
+=content=, but that is not the same as a dedicated =tags= filter. There is no
+basis here to claim that a query such as =tags:robotics= works in Clouseau,
+that every tag-bearing document has been indexed, or that a tag grants access.
+
+A reliable Project 4 tag-browser design must therefore first establish an
+*authorized* candidate set, validate the installed projection and live query
+behavior, then distinguish a returned hit from a fresh canonical by-ID
+read. Client-side post-filtering of an arbitrary search page does not create a
+complete, scope-safe tag index; missing candidates remain missing. If the
+product needs first-class tag discovery, treat the index projection,
+authorization tests, reindexing, and migration plan as separate owned work.
+Do not silently infer this capability from the canonical =0.10.1= schema.
+
+*** Exercise -- A tag change with no search change (★★★)
+
+On a fictional =Org= record with an unchanged =name= and =content=,
+change =tags=["robotics"]= to =tags=["archived"]= and leave
+=dtype=/=dataset=/=tenant_id= untouched. Predict the raw FTS emission delta.
+Then change =content= and compare. Explain why neither outcome proves
+live search visibility, durable canonical state, or authorization.
+
 ** Measure a controlled result set without claiming corpus recall
 
 The dedicated HTTP lab seeds five fictional records sharing a random fielded
