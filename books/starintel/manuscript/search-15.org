@@ -920,6 +920,42 @@ state. It may indicate a projection mismatch, index/backend state, query mismatc
 or visibility exclusion. It is not enough evidence to claim eventual index lag
 was the cause. Name the next measurement that would distinguish those cases.
 
+** Classify the first missing search observation without inventing a cause
+
+The ladder is actionable only when each observation is tagged as /true/,
+/false/ or /unknown/. A failed search does not make an unperformed by-ID read
+false; a locally emitted index field does not establish that CouchDB installed
+that FTS definition. The book's new offline
+=code/search-lab/diagnose_search_evidence.py= accepts the historical or merged
+Server generation and a public/authenticated route label, then chooses one
+next experiment. It does *not* execute queries, inspect credentials, or decide
+which dataset/tenant the server permits. The historical public handler
+constructs scopes from its server-owned dataset configuration; the
+=documents.search= handler uses the authenticated caller's authorization
+context. The two routes cannot be treated as interchangeable evidence.
+[cite:@starintel-search-runtime-20261009]
+
+For example, a synthetic document can be read back by ID while its canonical
+text field is omitted by the inspected historical FTS callback. Give the
+decision aid explicit =durable_by_id=true=, =field_emitted=false= and
+=target_search_hit=false=. It recommends selecting an actually indexed search
+field; it does *not* assert that the record is missing or the user was denied.
+By contrast, when a search hit is observed but a by-ID read has not been, the
+next check is an authorized by-ID read. A hit is still only retrieval evidence.
+
+#+begin_src sh
+printf '%s\n' '{"generation":"historical","surface":"public","checks":{"durable_by_id":true,"field_emitted":false,"target_search_hit":false}}' | \
+  python3 books/starintel/code/search-lab/diagnose_search_evidence.py -
+#+end_src
+
+The local =test_diagnose_search_evidence.py= suite proves that unknown is not
+silently converted into false, that neither source projection nor a matching
+exported FTS design proves active index coverage, and that even a positive
+control does not validate an individual target. The output is a proposed
+next measurement, not a production diagnosis. Actual HTTP authorization,
+index service behavior, search parser semantics and concurrent mutation
+remain UNTESTED unless separately observed on a running pinned stack.
+
 ** Run the reproducible lab
 
 From the repository root, fetch the two immutable pins and run:

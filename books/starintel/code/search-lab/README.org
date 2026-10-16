@@ -699,3 +699,42 @@ names come from generated canonical StarLang =0.10.1= schema blob
 synthetic, source-executing comparison, NOT an SDK validation, HTTP/CouchDB
 integration, or authorization test. A real graph/inference workflow requires
 its separately owned implementation and scoped, versioned canonical evidence.
+
+* Offline search-evidence triage (no service calls)
+
+=diagnose_search_evidence.py= turns *explicit observations* into a next
+verification step, never into a claim of data loss or authorization success.
+The input's =generation= chooses the immutable historical Server pin
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769= or the separately merged
+=0.10.1= Server pin =ca6fdcbdc1f3b8aa344c533a40d298f741a54f25=.
+It does not fetch either tree: the user must independently substantiate every
+observation. =surface= is either =public= or =authenticated=; the server, not
+this helper, decides tenant/dataset authorization for those routes.
+
+Supply only =true=, =false= or =null= for the optional =checks= below. Omission
+means unknown, *not* false; the tool refuses extra keys and string booleans.
+A =field_emitted=true= means the selected source callback was observed on
+that *specific synthetic input*. =installed_design_matched=true= means only
+that an independently exported FTS definition matched the source. A visible
+positive control checks the selected query context; it cannot authorize the
+target, establish completeness, or prove that the active index was rebuilt.
+
+#+begin_src sh
+printf '%s\n' '{"generation":"historical","surface":"public","checks":{"write_accepted":true,"durable_by_id":true,"field_emitted":false,"target_search_hit":false}}' | \
+  python3 books/starintel/code/search-lab/diagnose_search_evidence.py -
+python3 -m unittest discover -s books/starintel/code/search-lab \
+  -p 'test_diagnose_search_evidence.py' -v
+#+end_src
+
+The example chooses =choose_supported_search_field=: a durable read-back and
+omitted source field do not justify calling the record lost. If a by-ID read
+has not been observed, that is the first check even when search is empty.
+If a search hit exists but the by-ID read is unknown, the next check is still
+an authorized read. When all offline source/design/positive-control checks
+are affirmative but the target is absent, the tool says live indexing, query
+semantics and policy remain unresolved; it never declares a specific cause.
+
+The 13 Python tests exercise all decision boundaries, strict input handling,
+the CLI and an intentionally inconsistent observation. This decision aid is
+not an audit/authorization service, search engine, snapshot, or replacement
+for the opt-in HTTP/CouchDB/Clouseau experiment.
