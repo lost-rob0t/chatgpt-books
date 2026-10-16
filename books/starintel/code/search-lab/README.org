@@ -878,3 +878,22 @@ callback. The merged mode is supported when supplied the separately pinned
 merged index file; the standard one-checkout runner does not pretend to have
 that second checkout. Input files must be fictional. The tool never writes to
 StarIntel or modifies its input JSON.
+
+* Native Node regression registration is a separate validation gate
+
+The Chapter 15 =run-tests= script explicitly registers twelve native Node
+=test_*.js= suites after validating the historical Server and canonical SDK
+source pins. It intentionally excludes =test_index_generation_multiplicity.js=
+because that comparison needs *two* immutable index-design generations; the
+standard runner has only the historical checkout. The excluded experiment is
+not reported as a hosted PASS.
+
+The native =test_runner_node_inventory.py= regression enumerates every Node
+test in this directory, rejects omitted or duplicate registrations, checks
+the single two-checkout exception, and rejects unsupported or wildcard
+invocations. It also verifies source-pin checks precede the Node phase.
+The existing Python unittest discovery automatically executes this guard.
+
+Registration is not execution evidence: a GitHub Actions workflow with zero
+allocated runners and zero executed steps has NOT run these regressions, even
+when every test command appears in the workflow's shell script.

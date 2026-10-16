@@ -1058,6 +1058,13 @@ These prove the comparator's basic failure behavior, *not* byte equality of
 two authentic server checkouts; that latter experiment needs both immutable
 source trees and is separately documented in the lab README.
 
+The =test_runner_node_inventory.py= regression independently checks that every
+single-checkout native Node suite is registered exactly once in =run-tests=.
+The two-generation comparison is explicitly excluded because it requires a
+second pinned index design. This strengthens the test inventory without
+mistaking registration for execution: an Actions job with no runner and no
+executed steps provides no hosted test result.
+
 The two Chapter 15 diagrams are themselves checked against editable source.
 The native =test_search_diagram_semantics.py= regression compares both rendered
 SVGs with their DOT graph identities, directed edges, node texts and edge
