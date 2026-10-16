@@ -1,0 +1,64 @@
+#+title: Pass 16 — Post-Merge Canonical 0.10.1 Service Proof
+:PROPERTIES:
+:ID:       11d8d5fd-e2e9-47c1-a121-1a1d1de01016
+:END:
+
+* Source reconciliation (2026-10-16)
+The book's prior 2026-10-05 audit correctly treated StarIntel Server PR #313
+as a draft; that condition is no longer current. The server merged PR #313
+on 2026-10-10 as =ca6fdcbdc1f3b8aa344c533a40d298f741a54f25=.
+Read-only review of server =master= on 2026-10-16 resolved
+=0137ead90ab9560b5a5090f0b62c1b59aac08c68=.
+The current server default uses the generated 0.10.1 StarLang/Star-CL
+contract, with explicit retained historical compatibility boundaries.
+Upstream unit and service CI cannot substitute for book-owned exact-head
+reproduction of the canonical three-document evidence path.
+
+Primary sources:
+- [[https://github.com/lost-rob0t/starintel-server/pull/313][merged PR #313]]
+- [[https://github.com/lost-rob0t/starintel-server/blob/0137ead90ab9560b5a5090f0b62c1b59aac08c68/source/frontends/http-contract-routes.lisp][contract operation mounts]]
+- [[https://github.com/lost-rob0t/starintel-server/blob/0137ead90ab9560b5a5090f0b62c1b59aac08c68/source/frontends/http-authorization-routes.lisp][authorized create/get implementation]]
+- [[https://github.com/lost-rob0t/starintel-server/blob/0137ead90ab9560b5a5090f0b62c1b59aac08c68/scripts/stack-test.sh][disposable test-stack entrypoint]]
+- [[https://github.com/lost-rob0t/starintel-server/blob/0137ead90ab9560b5a5090f0b62c1b59aac08c68/docs/canonical-compatibility.md][compatibility boundaries]]
+
+* Experiment / claims
+A separate P0 book experiment reuses the post-merge upstream stack script,
+inserts an exact-once shell hook through the already-tested book injector,
+then runs a small Python stdlib HTTP client, not a copied server or validator.
+
+It requires discovery of the versioned create/get operations, authenticated
+read denial without a credential, a 422 malformed canonical request, and
+authorized read-back after successful canonical POST for each of:
+- =person=, including exact identity and =fname=;
+- =org=, including exact identity and =name=;
+- =relation=, including exact source, destination and =member-of= predicate.
+
+Identity, dataset, dtype, version and storage-private egress checks apply to
+all three. The directed relation proves a *stored record* with preserved
+endpoints, not an enforced referential-integrity invariant or graph index.
+HTTP POST is admission evidence; subsequent authenticated GET is distinct
+durability observation. No secret, raw HTTP body or subject data enters the
+reported machine-readable artifact.
+
+The earlier 0.9 service trace remains valid *only* at its original historical
+pin. It is not edited or retroactively upgraded.
+
+* Gates
+- Pure unit tests: =python3 -m unittest discover -s books/starintel/code/canonical-live -p 'test_*.py' -v=
+- Syntax: =python3 -m py_compile books/starintel/code/canonical-live/*.py=
+- Shell syntax: =bash -n books/starintel/code/canonical-live/{probe.sh,run-service-proof}=
+- Real stack: =bash books/starintel/code/canonical-live/run-service-proof=
+- Required artifact: =.cache/starintel-canonical-live.json=, containing 3
+  durable read-back observations and exact SHA.
+- Exact PR-head =starintel-book= CI and normal publishing checks.
+
+* Evidence class
+AUTHORED / UNTESTED until the exact-head CI service-backed job succeeds.
+A green hermetic unit job by itself is *not* the same as real service proof.
+Never change this evidence class based on a proposed workflow or guessed HTTP
+behavior.
+
+* Explicit exclusions
+No live external actor execution, RabbitMQ settlement proof, outbox crash
+window, reference integrity enforcement, all-dtype coverage, workload
+benchmark, unauthorized write-matrix, or production readiness is claimed.
