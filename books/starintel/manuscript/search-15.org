@@ -735,6 +735,53 @@ Read canonical status from a validated, authorized document and distinguish
 that observation from actual workflow execution evidence. Tenant/dataset
 visibility remains server-owned, not an inference from an FTS hit.
 
+** Event occurrence and observation time are not FTS date filters
+
+Canonical StarLang =0.10.1= distinguishes several time meanings. An
+=Event.startAt= and =Event.endAt= are date-time strings recording the event's
+planned or stated interval. =Event.observedAt= is a Unix-time integer recording
+an observation about the event. An =Observation= has its own =observedAt= and
+may separately carry a date-time =payloadObservedAt=. These are different
+canonical properties, not interchangeable search tokens. The authority is
+the generated schema at StarLang commit
+=96d26c338078676ec1dc6928755901636c9f7ef0=, blob
+=537163da436f67a973e280d1704e32bdba5b888b=.
+
+The pinned historical Server index function and the separately merged Server
+index function both index =Event.name= when present. Neither callback emits
+=Event.startAt=, =endAt=, =observedAt=, =eventKind= or =status= in the raw FTS
+projection. For the fictional =Observation= below, they emit only the scope and
+type fields; =observedAt=, =payloadObservedAt=, =observationType=,
+=subjectId=, =description= and =value= do not appear. Both callbacks still
+emit internal =tenant_id=, =dataset= and =dtype= values. The server, not the
+client, owns tenant/dataset visibility.
+
+| Fictional record | Changed canonical property | Captured raw FTS consequence |
+|------------------+----------------------------+------------------------------|
+| Event | =startAt= / =endAt= / =observedAt= | no change |
+| Event | =name= | =name= emission changes |
+| Observation | =observedAt= / =payloadObservedAt= / =value= | no change |
+| Either type | =dataset= | =dataset= emission changes |
+
+The executable =test_event_observation_time_fts.js= runs both original
+Git-blob-attested index callbacks (historical
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=; merged
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=). It changes timestamps
+without changing any indexed text, then changes an actual emitted name as a
+positive control. A deliberately augmented callback proves that the test
+would detect a new time emission. The sample records are fictional and
+schema-shaped; the experiment does *not* run canonical SDK validation.
+
+Consequently, a full-text hit about an event is not a time-range filter, a
+verified occurrence, or proof that its observation timestamp agrees with its
+stated interval. The absence of a hit also does not prove that no event took
+place. To answer a bounded temporal question, first obtain a server-authorized,
+revision-specific canonical document set and verify its actual time fields and
+provenance. If a deployment implements a dedicated time index or query
+operator, test that implementation separately; neither raw JavaScript FTS
+callback demonstrates such a feature. No CouchDB/Clouseau query execution,
+authenticated search, durable read-back, or graph inference was performed.
+
 ** A canonical Relation is not an FTS graph edge
 
 Canonical StarLang =0.10.1= has a distinct =Relation= document model with

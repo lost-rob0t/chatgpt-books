@@ -735,6 +735,37 @@ validation, installed FTS design attestation, server authorization, status
 query matching, durable storage or proof that work executed. The server owns
 tenant/dataset visibility. A search hit is not a workflow completion event.
 
+* Event and Observation time is not an FTS date-range contract
+
+Canonical =Event.startAt= / =endAt= are date-time strings, while =observedAt=
+is a Unix-time integer. =Observation= also distinguishes =observedAt= from
+=payloadObservedAt=. The generated StarLang =0.10.1= schema at
+=96d26c338078676ec1dc6928755901636c9f7ef0= (blob
+=537163da436f67a973e280d1704e32bdba5b888b=) defines these fields.
+The original historical and merged StarIntel =search/fts= callbacks do not
+emit them. =Event.name= *is* emitted, which provides a positive control for
+the same input. =Observation.description=, =value= and =subjectId= likewise
+are not emitted for this synthetic example. Dataset/type emissions remain.
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_event_observation_time_fts.js
+# Optional separately pinned merged source generation:
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+STAR_SEARCH_TIME_MERGED_DESIGN=PINNED_MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_event_observation_time_fts.js
+#+end_src
+
+Eight native checks run against the exact historical callback (Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=). Supplying the verified
+merged callback (Git blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=)
+executes sixteen. The callback functions are original; an intentionally altered
+callback is executed only as a test-sensitivity control. Inputs are fictional
+and schema-shaped, *not* independently accepted by the canonical SDK. This is
+not Lucene date-range matching, HTTP authorization, installed-design proof,
+stored canonical revision validation or evidence an event occurred. An absent
+full-text result cannot establish the nonexistence of a time-bounded event.
+
 * Canonical Relation fields are not indexed graph edges
 
 Canonical StarLang =0.10.1= defines a =Relation= with separate =source= and
