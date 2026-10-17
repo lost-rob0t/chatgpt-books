@@ -96,3 +96,32 @@ URL: https://github.com/systemd/systemd/blob/v261.3/man/systemctl.xml
 Release: v261.3, published 2026-09-10; retrieved 2026-09-16.
 Inspected material: =status= and =show=. The source describes =status= as human-readable runtime status with recent journal data and explicitly directs computer-parsable consumers to =show=. It also distinguishes the current/most recent retained invocation from older invocations/previous boots, which should be retrieved through journal queries; =show= exposes unit/job/manager properties.
 Used by: Project 2 milestone A collection-boundary discussion. No real collector or =systemctl status= parser is implemented in this milestone.
+
+* Inspected 2026-09-17
+** systemd.service v261.3 -- service result versus raw process status
+Authority: upstream systemd repository, pinned stable release source.
+URL: https://github.com/systemd/systemd/blob/v261.3/man/systemd.service.xml
+Release: v261.3, published 2026-09-10; retrieved 2026-09-17.
+Inspected material: =SuccessExitStatus==. The documentation permits additional numeric exit statuses or signals to count as successful termination and distinguishes that service-level success policy from the underlying numeric exit-status mapping.
+Used by: Project 2 milestone B. It falsifies the shortcut =ExecMainStatus != 0 -> failed service= and supports preserving =Result=, =ExecMainCode=, and =ExecMainStatus= as separate evidence.
+
+** org.freedesktop.systemd1 v261.3 -- Unit property surface
+Authority: upstream systemd repository, pinned stable release source.
+URL: https://github.com/systemd/systemd/blob/v261.3/man/org.freedesktop.systemd1.xml
+Release: v261.3, published 2026-09-10; retrieved 2026-09-17.
+Inspected material: Unit properties including =InvocationID=, =ActiveState=, and =SubState=, plus the manager's =GetUnitByInvocationID= surface.
+Used by: Project 2 milestone B. =InvocationID= is kept as unit-local observation identity. The book does not promote it to a cross-unit job/transaction identifier; cross-unit activation context and configuration generation remain explicit course-local caller data.
+
+** systemd v261.3 regression -- successful result with positive ExecMainStatus
+Authority: upstream systemd repository test at the exact pinned release.
+URL: https://github.com/systemd/systemd/blob/v261.3/test/units/TEST-07-PID1.pr-31351.sh
+Release: v261.3; inspected 2026-09-17.
+Inspected material: the test starts a service with an ignored nonexistent =ExecStart=, asserts that =Result= equals =success=, and separately asserts that =ExecMainStatus= is greater than zero.
+Used by: Project 2 milestone B as exact-version implementation evidence that raw main-process status and service result can diverge. It is not generalized into a full service-state model.
+
+** systemd issue #40046 -- missing requested show property may still exit zero
+Authority: upstream systemd issue tracker; user-reported bug, not official documentation and not independently reproduced here.
+URL: https://github.com/systemd/systemd/issues/40046
+Opened: 2025-12-09 against systemd 259-rc2; still open when inspected 2026-09-17.
+Inspected material: reporter shows an unknown requested =systemctl show --property= omitted from output while command exit status remains zero.
+Used by: Project 2 milestone B only as *UPSTREAM-REPORTED* design pressure for explicit required-key validation. The book makes no claim that this exact behavior was reproduced on v261.3.

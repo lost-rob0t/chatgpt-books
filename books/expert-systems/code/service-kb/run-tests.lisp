@@ -11,4 +11,6 @@
 
 (load (merge-pathnames "package.lisp" *load-truename*))
 (load (merge-pathnames "systemd-dependencies.lisp" *load-truename*))
+(load (merge-pathnames "systemd-show.lisp" *load-truename*))
 (load (merge-pathnames "tests.lisp" *load-truename*))
+(load (merge-pathnames "systemd-show-tests.lisp" *load-truename*))

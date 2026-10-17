@@ -6,3 +6,4 @@
 #+include: "assumptions-contradictions.org"
 #+include: "explanation-provenance.org"
 #+include: "systemd-dependency-kb.org"
+#+include: "systemd-show-evidence.org"
