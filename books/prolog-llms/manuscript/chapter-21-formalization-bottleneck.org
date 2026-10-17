@@ -1,0 +1,455 @@
+* Chapter 21 -- Program Synthesis, Semantic Parsing, and the Formalization Bottleneck
+:PROPERTIES:
+:ID:       bd29781a-0290-4829-a9f5-f450f3972c98
+:END:
+
+Chapter 20 compared systems by the artifact that crosses from the language model
+into a deterministic component.  The architectures look different, but most of
+them inherit the same hard problem:
+
+#+begin_quote
+The solver reasons about the formalization it receives, not about the sentence
+that inspired that formalization.
+#+end_quote
+
+This is the /formalization bottleneck/.  It is where natural-language ambiguity,
+missing context, entity resolution, units, quantifier scope, temporal meaning,
+and simple mistranslation become solver inputs.
+
+A stronger solver does not remove this bottleneck.  In one sense it makes the
+boundary more important: once a wrong formalization is accepted, a powerful
+solver can derive its consequences very confidently.
+
+** 21.1 Three translation targets, three kinds of mistake
+
+The primary systems we inspected ask the model to produce several kinds of
+artifact.
+
+PAL produces an imperative program [cite:@gao-pal-2023].  Faithful CoT produces
+a symbolic reasoning chain for a deterministic solver
+[cite:@lyu-faithful-cot-2023].  SatLM instead produces a declarative task
+specification [cite:@ye-satlm-2023].  LINC translates natural-language premises
+and conclusions into first-order logic [cite:@olausson-linc-2023].  Logic-LM
+also translates into symbolic formulations, then can use solver errors to
+refine them [cite:@pan-logic-lm-2023].  LLM+P translates a planning problem into
+PDDL [cite:@liu-llmp-2023].
+
+Each target language creates different failure modes.
+
+*** Imperative program
+
+A generated program can contain the right constants but the wrong algorithm,
+execute operations in the wrong order, mutate the wrong value, or simply encode
+the wrong interpretation of a sentence.  The interpreter can guarantee that it
+executes the program according to language semantics.  It cannot guarantee
+that the program corresponds to the user's problem.
+
+*** Declarative constraints or formulas
+
+A declarative artifact can omit a constraint, reverse an implication, choose
+the wrong quantifier, identify two distinct entities, separate two identical
+entities, or encode a closed-world assumption that the source never stated.
+The solver may then be entirely correct relative to the weakened or altered
+problem.
+
+*** Planning model
+
+A planning formalization can mistranslate the initial state, goal, action
+preconditions, effects, object types, or costs.  A classical planner can return
+an optimal plan for the formal model while the model itself is the wrong
+problem.
+
+These are not exotic attacks.  They are ordinary compiler-front-end mistakes
+in a system whose source language is human language.
+
+** 21.2 Treat translation like compilation
+
+The compiler analogy is useful as long as we do not overstate it.  A compiler
+has a relatively formal source language.  Natural language is not one.  Still,
+the architecture can borrow compiler discipline:
+
+#+begin_example
+source text
+  -> source segmentation / evidence identity
+  -> candidate intermediate representation
+  -> syntax and type validation
+  -> domain validation
+  -> cross-checks against source evidence
+  -> accepted formal representation
+  -> solver/runtime
+#+end_example
+
+The important move is the intermediate representation.  Earlier chapters did
+this twice.  A DCG mapped token sequences into a closed AST.  The typed gateway
+mapped model JSON into a closed capability request.  Neither boundary let
+external text become a general Prolog goal.
+
+A neuro-symbolic formalizer should have the same shape.  The model may propose
+terms, but the host owns the vocabulary that makes those terms meaningful.
+
+For a tiny scheduling domain, prefer data like:
+
+#+begin_src prolog
+constraint(before(normalize, validate)).
+constraint(duration(normalize, 2)).
+constraint(release(verify, 5)).
+#+end_src
+
+rather than model-generated source such as:
+
+#+begin_src prolog
+validate_start #>= normalize_start + 2,
+verify_start #>= 5.
+#+end_src
+
+The first representation is still model-proposed data.  Trusted source code can
+validate each constructor, resolve identifiers, attach evidence, and compile it
+to CLP(FD).  The second representation asks model text to participate directly
+in the executable object language.
+
+** 21.3 Syntax validity is the cheapest check
+
+A candidate can be invalid before semantics enter the discussion:
+
+#+begin_example
+constraint(before(normalize, validate)
+#+end_example
+
+A parser can reject malformed syntax.  A schema can reject unknown constructors.
+A type layer can require =duration/2= to contain a known task identifier and a
+non-negative bounded integer.
+
+These checks are valuable because they are deterministic and cheap.  They are
+also weak.  This candidate may be perfectly well-typed:
+
+#+begin_src prolog
+constraint(before(validate, normalize)).
+#+end_src
+
+If the source sentence said “normalization precedes validation,” type checking
+cannot discover the reversal.  We need evidence-sensitive semantic checks.
+
+This is the same lesson as Project 2A: structural validity is one proposition;
+semantic acceptability is another.
+
+** 21.4 Preserve source spans next to formal atoms
+
+Suppose a source document contains three sentences:
+
+#+begin_example
+S1: Collection takes two hours.
+S2: Normalization begins after collection completes.
+S3: Validation begins after normalization completes.
+#+end_example
+
+Do not store only:
+
+#+begin_src prolog
+constraint(duration(collection, 2)).
+constraint(before(collection, normalization)).
+constraint(before(normalization, validation)).
+#+end_src
+
+Store the evidence identity too:
+
+#+begin_src prolog
+candidate_constraint(
+    c_17,
+    before(collection, normalization),
+    evidence(document(schedule_spec), span(s2))).
+#+end_src
+
+Now a reviewer, a second parser, or a later repair pass can ask a concrete
+question: does =before(collection, normalization)= faithfully represent span
+=s2=?
+
+Without that edge, the formalization is an orphan.  The solver can explain its
+own derivation but cannot tell us where the premises came from.
+
+** 21.5 Semantic equivalence is usually too strong; test obligations instead
+
+For unrestricted natural language, proving that a formalization is semantically
+equivalent to the source is generally not a realistic runtime requirement.
+Instead, define narrower obligations that the application can actually test.
+
+For a bounded scheduling interface, examples include:
+
+- every referenced task identifier resolves to exactly one accepted task;
+- every duration carries an accepted unit and bounded numeric value;
+- every “before/after” relation preserves its two source roles;
+- all source requirements classified as mandatory have at least one candidate
+  formal constraint;
+- no accepted formal constraint lacks an evidence reference;
+- conflicting candidate constraints are surfaced before search;
+- a formalization version and schema identity are recorded with the run.
+
+These do not prove perfect translation.  They turn a vague semantic risk into a
+set of smaller falsifiable claims.
+
+** 21.6 The missing-constraint test
+
+SatLM's declarative framing is a useful place to see the problem.  A solver can
+find an answer satisfying every supplied constraint [cite:@ye-satlm-2023].  But
+if the model fails to encode one requirement, the solver cannot satisfy a
+constraint it never received.
+
+Create a coverage relation between source requirements and candidate formal
+objects:
+
+#+begin_src prolog
+covers(requirement(r1), constraint(c1)).
+covers(requirement(r2), constraint(c2)).
+#+end_src
+
+Then define a host-owned acceptance policy that requires coverage for the set
+of mandatory requirements.  The LLM may propose which constraint covers which
+requirement, but trusted validation must ensure both identifiers exist and the
+coverage claim is reviewable.
+
+A missing requirement now becomes a typed failure such as:
+
+#+begin_example
+error(uncovered_requirement(r3))
+#+end_example
+
+rather than a mysterious wrong answer downstream.
+
+This is not a universal solution to semantic parsing.  It is a design pattern:
+make omissions observable where the domain gives you a finite requirement set.
+
+** 21.7 Direction errors deserve first-class tests
+
+LINC and Logic-LM translate natural-language logic into symbolic formulas
+[cite:@olausson-linc-2023;@pan-logic-lm-2023].  Our Project 1 task graph already
+showed why argument order matters.  The same problem appears in semantic
+parsing.
+
+These two terms are both well formed:
+
+#+begin_src prolog
+parent(ada, ben).
+parent(ben, ada).
+#+end_src
+
+Only source evidence tells us which is intended.
+
+For every asymmetric relation exposed to model formalization, include a fixture
+that swaps arguments and is expected to be rejected or contradicted by source
+alignment.  If a test suite contains only happy-path sentences, it can miss an
+entire class of semantic reversals.
+
+The rule generalizes:
+
+- =before(A,B)= versus =before(B,A)=;
+- =depends_on(Task,Dependency)= versus its reverse;
+- =located_in(Thing,Place)= versus swapped roles;
+- =requires(Action,Precondition)= versus =requires(Precondition,Action)=;
+- universal versus existential quantifier scope.
+
+Treat relation roles as a type-level contract even when both positions happen
+to contain atoms.
+
+** 21.8 Counterexample-driven validation
+
+Some translations are easiest to challenge by asking what else they imply.
+Suppose a candidate formalization contains:
+
+#+begin_src prolog
+forall(X, task(X) -> requires_approval(X)).
+#+end_src
+
+but the source said only that /external/ tasks require approval.  If the host
+has a known internal task, the formalization generates a counterexample to the
+source classification.
+
+A symbolic checker can therefore be used before final acceptance:
+
+1. load the candidate into an isolated representation;
+2. derive consequences over a bounded fixture;
+3. compare those consequences with known positive and negative examples;
+4. reject or return a structured counterexample if the candidate overgeneralizes.
+
+This is closer to specification testing than to theorem proving in the abstract.
+It is especially useful when the source domain has examples that distinguish
+quantifier scope or relation direction.
+
+Do not let this become another authority hole.  The candidate must still be a
+closed representation interpreted by trusted code.  “Run the generated Prolog
+and see what happens” is not the validation architecture.
+
+** 21.9 PDDL exposes the same source/model split
+
+LLM+P's natural-language -> PDDL -> planner -> natural-language pipeline makes
+the split visible [cite:@liu-llmp-2023].  Imagine the source says:
+
+#+begin_example
+A robot may move a crate only while holding it.
+#+end_example
+
+If the generated PDDL action omits =holding(crate)= from its preconditions, an
+optimal planner may exploit the weakened action and return an invalid real-world
+plan.  The planner did not become unreliable.  The model changed the transition
+system.
+
+For planning integrations, test the model-produced domain/problem artifact as a
+software artifact:
+
+- action schemas have only allowlisted names and typed parameters;
+- preconditions/effects use an approved predicate vocabulary;
+- source-described invariants have corresponding formal obligations;
+- synthetic states exercise forbidden actions;
+- goals are compared against the host-held request rather than trusted because
+  the generated PDDL repeats them;
+- planner output is interpreted against the exact version of the domain that
+  was validated.
+
+That last requirement matters for replay.  A plan without its domain/problem
+artifact is incomplete provenance.
+
+** 21.10 “Faithful reasoning” has at least two meanings
+
+Faithful CoT calls its symbolic chain faithful to the deterministic computation
+that produces the answer [cite:@lyu-faithful-cot-2023].  CaRing later makes a
+related claim about proof steps generated from Prolog execution
+[cite:@yang-caring-2025].
+
+For this book, we will always ask: faithful /to what/?
+
+- *execution faithfulness*: does the explanation reflect the computation that
+  actually produced the formal answer?
+- *formalization faithfulness*: does the accepted formal representation preserve
+  the relevant meaning of the source?
+- *evidence faithfulness*: can each accepted premise be traced to admissible
+  evidence?
+- *world correctness*: are the premises and conclusion actually true of the
+  external world under the intended interpretation?
+
+A proof trace can strongly support the first.  It can help audit the second and
+third if provenance is preserved.  It does not magically establish the fourth.
+
+** 21.11 Use multiple formalizers only when disagreement is informative
+
+One obvious response to translation error is to ask several model calls to
+formalize the same source.  That can be useful, but “majority vote” is not a
+semantic proof.
+
+A better use of multiple formalizers is to expose disagreement:
+
+#+begin_example
+formalizer A: before(normalize, validate)
+formalizer B: before(validate, normalize)
+formalizer C: before(normalize, validate)
+#+end_example
+
+The disagreement tells the host that relation direction deserves review.  It
+does not prove A/C are correct merely because two calls agree.
+
+If a deterministic source rule can settle the question, use it.  If the domain
+needs human review, surface the ambiguity.  If a second model acts as a judge,
+record that as another model-produced judgment rather than laundering it into a
+symbolic guarantee.
+
+** 21.12 Formalization should be immutable per attempt
+
+Once a solver begins, freeze the accepted formal artifact for that attempt.
+Do not let a concurrent model response mutate premises while the solver is
+working.  Record:
+
+#+begin_example
+request_id
+attempt_id
+source_snapshot_id
+formalization_schema
+formalization_hash
+accepted_constraints
+validation_results
+solver_version/configuration
+solver_result
+#+end_example
+
+If repair is needed, produce a new attempt with a new formalization identity.
+This gives Chapter 22 a clean object to repair and gives Chapter 24 something
+that can actually be reproduced.
+
+** Lab 21.A -- Build a closed formalization vocabulary
+
+Extend the Project 1 scheduling story on paper or in a scratch module.  The
+model-facing vocabulary may propose only:
+
+#+begin_src prolog
+requirement(duration(Task, Minutes))
+requirement(before(Earlier, Later))
+requirement(release(Task, Minute))
+requirement(shared_resource(Resource, TaskA, TaskB))
+#+end_src
+
+Write host-side validation rules for:
+
+- known task IDs;
+- bounded non-negative integer durations/times;
+- distinct task positions where required;
+- an allowlisted resource ID;
+- exact outer constructors;
+- source-span provenance for every requirement.
+
+Then write a compiler from accepted data into the existing CLP(FD) worksheet.
+Do not accept raw =#=/2=, =#>=/2=, =labeling/2=, or arbitrary goal terms from
+the model.
+
+Required failure fixtures:
+
+1. an unknown constructor;
+2. a reversed relation relative to a frozen source fixture;
+3. a missing mandatory requirement;
+4. an unknown task;
+5. a negative duration;
+6. a duplicate/conflicting duration;
+7. a valid formalization that is infeasible under the constraints.
+
+The final case must remain different from a malformed or mistranslated input.
+An accurately formalized problem can legitimately be unsatisfiable.
+
+** Exercises
+
+1. Take one PAL example conceptually and separate /translation correctness/ from
+   /execution correctness/.  Which tests belong to each?
+2. Why does SatLM's declarative target reduce one class of model burden without
+   eliminating semantic parsing error?
+3. Construct a first-order formula that is syntactically valid but reverses the
+   meaning of an English “only” statement.  What source-sensitive test could
+   catch it?
+4. In LLM+P, where should an omitted PDDL precondition be detected: planner
+   search, domain validation, or natural-language rendering?  Explain the
+   earliest useful boundary.
+5. Give three relations whose arguments have the same machine type but
+   different semantic roles.  Design direction-swap regressions.
+6. Explain why model agreement is evidence of consistency among samples, not a
+   proof of correctness.
+7. Design a provenance term that links one accepted formal constraint to a
+   document, span, extraction attempt, and validation decision.
+8. What information must be frozen so a solver result can be replayed after the
+   knowledge base changes?
+9. When is “unknown” a better formalization result than forcing a Boolean fact?
+10. Explain why a candidate Prolog clause should remain data even when its
+    syntax is valid and its predicate name is allowlisted.
+
+** Evidence checkpoint
+
+DOCUMENTED: the architectural translation/solver roles described in the primary
+PAL, Faithful CoT, SatLM, LINC, Logic-LM, and LLM+P sources cited above.
+
+REPOSITORY DESIGN: the closed formalization vocabulary, coverage obligations,
+source-span provenance, frozen-attempt record, and suggested Prolog compilation
+boundary in this chapter are teaching designs derived for this book.  They are
+not claims that the cited systems use these exact mechanisms.
+
+UPSTREAM-REPORTED: all benchmark improvements attributed to those systems.
+
+UNTESTED: the Lab 21.A extension until a later project slice implements and runs
+it.  No benchmark reproduction or live model formalization experiment is
+claimed here.
+
+The next chapter asks what happens after a symbolic component rejects a
+candidate.  Error messages can become useful feedback—but only if repair is a
+bounded protocol rather than an excuse to keep prompting until something
+passes.

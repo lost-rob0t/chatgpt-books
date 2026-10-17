@@ -1,0 +1,523 @@
+* Chapter 24 -- Reproduce the Claim, Not the Vibe
+:PROPERTIES:
+:ID:       f22181af-3ab1-4ca3-9d35-2adfad7e183e
+:END:
+
+Neuro-symbolic research is easy to describe too strongly.
+
+A paper can contain an LLM, a parser, a theorem prover, a benchmark, and a proof
+trace.  A reproduction can run the code and obtain a similar final accuracy.
+Neither fact, by itself, tells us which component caused the improvement, which
+failure modes remain, whether the formalization was faithful, or whether a
+current provider/model behaves like the one used in the paper.
+
+This chapter turns the evidence labels used throughout the book into an
+experimental protocol.
+
+Our target is not “prove the paper right” or “prove the paper wrong.”  It is:
+
+#+begin_quote
+Identify a falsifiable claim, reconstruct the smallest experiment that actually
+tests it, preserve enough artifacts to replay it, and report what happened
+without promoting upstream measurements into local facts.
+#+end_quote
+
+** 24.1 Start with a claim ledger
+
+Before installing code or calling a provider, extract claims into a table.
+
+#+caption: Example claim ledger for a translate-and-solve system. Values are illustrative categories, not results from a specific paper.
+| Claim ID | Claim | Evidence needed | Local status |
+|-
+| C1 | parser emits accepted formal artifact | candidate + parser result | UNTESTED |
+| C2 | solver correctly solves accepted artifact | frozen artifact + solver/version + oracle | UNTESTED |
+| C3 | formal artifact preserves source problem | source + artifact + semantic oracle/review | UNTESTED |
+| C4 | full system improves benchmark accuracy | pinned benchmark + provider/model + baseline + scoring | UPSTREAM-REPORTED |
+| C5 | proof/explanation matches symbolic execution | proof trace + renderer + validator | UNTESTED |
+| C6 | repair loop improves acceptance without weakening source coverage | attempt history + coverage checks | UNTESTED |
+
+A benchmark accuracy claim and an architectural claim are not the same test.
+If your experiment only checks C2, do not report C3 or C4 as reproduced.
+
+** 24.2 Freeze the unit of evaluation
+
+For each example, preserve a stable input identity:
+
+#+begin_example
+example_id
+benchmark_name
+benchmark_version/hash
+split
+raw_input_hash
+expected_output / scoring oracle
+license/source metadata
+#+end_example
+
+If the benchmark is downloaded from a mutable URL with no version/hash, record
+that limitation.
+
+Do not silently remove examples that fail to parse unless the original protocol
+explicitly did so.  Parse failures are system outcomes.
+
+For retrieval-backed tasks, freeze the retrieval corpus too.  A benchmark
+question with a changing web index is not the same experiment next month.
+
+** 24.3 Pin the model as tightly as reality allows
+
+Provider-hosted models can change behind stable-looking names.  Record:
+
+#+begin_example
+provider
+requested model identifier
+resolved/returned model identifier if available
+request options
+reasoning controls if applicable
+structured-output/tool schema
+system/developer/user messages or prompt template hash
+provider response/generation ID if available
+run timestamp
+#+end_example
+
+If the provider does not expose a fixed revision, say so.  “GPT-X” is not a
+reproducible binary artifact merely because the string is in a paper.
+
+For local/open models, record weights hash, tokenizer, inference runtime,
+quantization, sampling settings, hardware-relevant options, and prompt format.
+
+Do not infer missing settings from contemporary defaults.  Mark them unknown.
+
+** 24.4 Pin the symbolic side too
+
+Formal systems are software.
+
+Record:
+
+- SWI-Prolog version;
+- loaded libraries and relevant flags;
+- solver/planner version;
+- object-language schema version;
+- host adapter commit;
+- rule/knowledge-base snapshot;
+- budgets/timeouts;
+- search/labeling policy where it affects operational results;
+- proof/trace renderer version.
+
+A changed rule base can change a proof without any model change.  A changed
+planner can alter tie-breaking.  A changed Prolog version can change warnings,
+library behavior, performance, or edge-case semantics even when the logical
+program is unchanged.
+
+The experiment manifest should make those changes visible.
+
+** 24.5 Separate translation score from solver score
+
+Translate-and-solve architectures need at least two evaluations.
+
+*** Solver-conditional evaluation
+
+Given a frozen formalization, does the symbolic component return the expected
+result?
+
+This can often be tested deterministically.  It tells us whether the back half
+of the pipeline works for that artifact.
+
+*** End-to-end formalization evaluation
+
+Given natural language, does the model produce a formalization whose solved
+result matches the intended task?
+
+This includes semantic parsing error.
+
+A third, stronger evaluation asks whether the formalization itself is faithful,
+not merely whether it happens to yield the right final label.  Two different
+formalizations can accidentally produce the same answer.
+
+For LINC, Logic-LM, SatLM, and LLM+P-style systems, these distinctions are
+fundamental [cite:@olausson-linc-2023;@pan-logic-lm-2023;@ye-satlm-2023;@liu-llmp-2023].
+
+** 24.6 Exact answer accuracy can hide formalization bugs
+
+Consider a binary entailment benchmark.  A model mistranslates both a premise
+and the query, but the two errors cancel and the solver returns the expected
+label.
+
+End-to-end answer accuracy counts success.
+Formalization accuracy should not.
+
+Therefore sample and inspect intermediate artifacts even when final answers are
+correct.  If a gold formalization exists, compare against it under a declared
+normalization/equivalence policy.  If no gold formalization exists, create a
+bounded human-review protocol or test semantic properties with generated
+counterexamples.
+
+Do not call string equality between formulas “semantic equivalence.”  Alpha
+renaming, commutativity, logically equivalent rewrites, and solver-specific
+normalization may create different strings with the same semantics.
+
+** 24.7 Failure taxonomy belongs in the result table
+
+A neuro-symbolic run should end in a typed category, not only correct/incorrect.
+
+A useful baseline taxonomy:
+
+#+begin_example
+correct
+wrong_answer
+malformed_model_output
+schema_rejection
+unknown_symbol
+semantic_translation_error
+solver_unsat_or_no_proof
+solver_runtime_error
+symbolic_budget_exhausted
+provider_error
+timeout
+repair_exhausted
+stale_or_duplicate_response
+scoring_error
+unknown_failure
+#+end_example
+
+Adjust categories to the architecture, but keep operational failures distinct
+from logical negative results.
+
+A theorem prover returning “not entailed” is not the same as the theorem prover
+crashing.  A planner proving no plan under a validated model is not the same as
+the LLM emitting invalid PDDL.  A provider timeout is not a wrong reasoning
+answer.
+
+** 24.8 Reproduce the baseline, not only the proposed system
+
+If a paper compares a neuro-symbolic architecture with direct prompting or
+chain-of-thought, rerunning only the proposed system cannot reproduce the
+relative claim.
+
+Pin and run the baseline under the same:
+
+- example set;
+- scoring code;
+- provider/model revision where applicable;
+- generation budget;
+- number of samples;
+- retry policy;
+- data preprocessing.
+
+If the historical baseline model is no longer available, do not quietly replace
+it and retain the historical comparison claim.  Report a contemporary
+replication with a different baseline.
+
+This is especially important for fast-moving LLM research.  Provider models can
+improve while the symbolic component stays unchanged, changing the relative
+benefit of the integration.
+
+** 24.9 Repair loops need attempt-level metrics
+
+A repairing system can report a good final accuracy while consuming many failed
+attempts.
+
+Measure at least:
+
+- first-attempt acceptance rate;
+- final acceptance rate;
+- mean/median attempts among accepted cases;
+- failure classes by attempt;
+- repeated-candidate rate;
+- source-coverage change across repair;
+- final correctness;
+- token/cost/latency where actually observable;
+- terminal reason for cases never accepted.
+
+Logic-LM motivates this explicitly because solver feedback is part of the
+architecture [cite:@pan-logic-lm-2023].  Explanation-Refiner likewise makes
+refinement behavior a first-class object rather than a hidden retry
+[cite:@quan-explanation-refiner-2024].
+
+A repair that raises parse success while lowering semantic faithfulness is not
+an unqualified improvement.
+
+** 24.10 Proof quality needs its own oracle
+
+CaRing studies reasoning proofs downstream of Prolog execution
+[cite:@yang-caring-2025].  Explanation-Refiner studies verification/refinement
+of natural-language explanations [cite:@quan-explanation-refiner-2024].
+
+If your system emits explanations, distinguish:
+
+1. *answer correctness*;
+2. *formal proof validity*;
+3. *proof-to-source provenance completeness*;
+4. *natural-language rendering fidelity*;
+5. *human usefulness/readability*.
+
+A beautiful explanation can fail 2.  A valid proof can fail 3.  A provenance-
+complete proof can be rendered confusingly and fail 5.
+
+Use the strongest automatic oracle available for each layer and human review
+only where needed.  Record reviewer protocol and disagreement instead of
+presenting subjective ratings as theorem-prover results.
+
+** 24.11 Ablate the integration seam
+
+To learn what the symbolic component contributes, remove or replace it.
+
+Examples:
+
+- model answer directly, no solver;
+- model formalization + real solver;
+- gold formalization + real solver;
+- model formalization + trivial/mock solver;
+- model formalization + solver but no repair;
+- model formalization + solver + repair;
+- proof renderer from real proof versus free-form explanation from answer only.
+
+These are not all meaningful for every paper.  The goal is to isolate failure
+sources.
+
+A particularly useful upper bound is *gold formalization + solver*.  If that
+configuration performs poorly, improving the LLM translator alone cannot fix
+the whole system.
+
+** 24.12 Test the negative space
+
+A system that passes normal benchmark items may still expose the wrong boundary.
+Add adversarial architecture tests independent of benchmark accuracy:
+
+- unknown predicate/capability;
+- extra JSON fields that attempt to inject provenance or authority;
+- callable-looking strings;
+- oversized candidate;
+- omitted mandatory requirement;
+- reversed relation arguments;
+- contradictory source claims;
+- repeated repair candidate;
+- child recursion requesting wider authority;
+- stale request ID;
+- provider response with missing usage metadata;
+- malformed proof trace;
+- explanation step unsupported by proof.
+
+These tests are especially valuable because they remain useful when the model
+provider changes.
+
+** 24.13 Do not fabricate precision around cost and usage
+
+Some providers return token/cost data; some return partial data; local runtimes
+may expose different counters.  Record observed fields exactly.
+
+Use representations such as:
+
+#+begin_src prolog
+usage{
+    input_tokens:known(817),
+    output_tokens:known(113),
+    cost_usd:unknown
+}.
+#+end_src
+
+Do not replace =unknown= with =0=.  Do not estimate provider billing from a
+public price table and mix that estimate into the same field as provider-
+reported charged cost without a label.
+
+For cross-system comparisons, normalize only quantities whose semantics are
+compatible.
+
+** 24.14 Statistical claims need repeated runs when generation is stochastic
+
+A deterministic fake-provider suite can prove boundary invariants.  It cannot
+measure model accuracy.
+
+For stochastic generation, preserve the sampling settings and run enough
+replicates for the intended statistic.  Report sample count and uncertainty.
+If a provider ignores or only approximately honors seeds, say so.
+
+Do not attach a confidence interval to one run and call it replication.
+Do not compare two systems with different retry counts and pretend each got one
+sample.
+
+For exact deterministic symbolic tests, repeated stochastic runs are usually
+unnecessary; the distinction between model variability and symbolic
+determinism is itself part of the experiment design.
+
+** 24.15 Paper code is evidence, but it is not the paper's prose
+
+When a paper and its repository disagree, record the discrepancy.
+
+Examples:
+
+- paper describes one prompt, repository contains another;
+- README reports a benchmark table that differs from the publication;
+- dependency versions are unpinned;
+- provider model aliases have moved;
+- an evaluation script filters failures not mentioned in the paper;
+- the current main branch has evolved far beyond the tagged artifact.
+
+Use the artifact closest to the published experiment if available.  If only
+current main exists, call the result a reconstruction against current source,
+not an exact reproduction of the historical paper.
+
+This is also why Chapter 23 separated the RLM paper from the current
+=lost-rob0t/prolog-rlm= repository.
+
+** 24.16 A reproducible experiment directory
+
+Project 5 will eventually build a full harness.  A minimal run directory should
+already look something like:
+
+#+begin_example
+runs/2026-09-16T201400Z/
+  manifest.json
+  environment.txt
+  dataset.lock
+  prompts/
+  candidates.jsonl
+  formalizations.jsonl
+  verifier-results.jsonl
+  attempts.jsonl
+  scores.json
+  failures.jsonl
+  summary.org
+#+end_example
+
+Secrets do not belong there.  Store secret references/configuration identities,
+not API keys.
+
+The manifest should identify the Git commit of the harness and symbolic code.
+Generated artifacts should be append-only for the run; post-hoc corrections
+belong in a new analysis artifact that records what changed.
+
+** 24.17 Use evidence labels in the manuscript, not only in lab notes
+
+This book uses these labels deliberately:
+
+- *DOCUMENTED* -- supported by inspected primary documentation/paper/source;
+- *TESTED* -- executed successfully under recorded local/CI conditions;
+- *UPSTREAM-REPORTED* -- reported by a cited paper/project but not reproduced
+  here;
+- *UNTESTED* -- proposed/implemented but not executed under the claimed condition;
+- *EXPERIMENTAL* -- exploratory result whose scope is intentionally narrow;
+- *FAILED* -- attempted and did not satisfy the stated gate;
+- *REPOSITORY DESIGN* -- an architecture/design visible in inspected source but
+  not necessarily validated by this book's runtime.
+
+One statement can need more than one label.  For example:
+
+#+begin_example
+DOCUMENTED: paper says system uses a theorem prover.
+TESTED: our reconstruction parser accepts 100 frozen examples.
+UPSTREAM-REPORTED: paper reports 82% benchmark accuracy.
+UNTESTED: our reconstruction has not run the paper's original provider/model.
+#+end_example
+
+That is not bureaucratic overhead.  It prevents evidence from drifting as prose
+moves between research notes, chapters, and PR descriptions.
+
+** Lab 24.A -- Reproduction plan for one paper
+
+Choose one of PAL, Faithful CoT, SatLM, LINC, Logic-LM, LLM+P, Explanation-
+Refiner, Reliable Reasoning Beyond Natural Language, or CaRing.
+
+Produce a plan containing:
+
+1. one exact primary claim;
+2. exact paper/version citation;
+3. code/artifact revision if available;
+4. benchmark identity/hash and license note;
+5. provider/model identity and whether a fixed revision exists;
+6. symbolic runtime/version;
+7. prompt/configuration artifacts;
+8. baseline definition;
+9. scoring code/oracle;
+10. failure taxonomy;
+11. intermediate artifacts to preserve;
+12. ablations;
+13. stopping/cost budget;
+14. expected evidence label before the run;
+15. promotion rule for calling the claim TESTED or EXPERIMENTAL afterward.
+
+Do not run a paid provider merely to complete the worksheet.  The plan itself
+should make clear what would be needed.
+
+** Lab 24.B -- Reproduce an architecture claim without an LLM
+
+Use deterministic fixtures to test one structural claim from Part V.  Examples:
+
+- rejected formalizations never reach the solver;
+- a repair loop cannot widen a capability set;
+- proof rendering cannot cite unaccepted premises;
+- missing usage metadata remains unknown;
+- a recursive child cannot exceed parent authority;
+- a solver result is tied to an immutable formalization ID.
+
+These are legitimate local TESTED claims even without reproducing a paper's
+accuracy.  State their scope precisely.
+
+** Exercises
+
+1. Why is rerunning only the symbolic solver insufficient to reproduce an
+   end-to-end neuro-symbolic accuracy claim?
+2. Design separate metrics for translation fidelity and solver correctness.
+3. Give an example where exact final-answer accuracy hides a wrong
+   formalization.
+4. If a provider model alias changes silently, what claims can still be
+   reproduced exactly?
+5. Why must parse failures remain in the benchmark denominator unless the
+   original protocol says otherwise?
+6. Design a gold-formalization upper-bound experiment for a theorem-prover
+   system.
+7. What attempt-level metric could reveal that repair improves syntax but harms
+   semantic coverage?
+8. Why should a human readability score not be presented as proof validity?
+9. Pick three fields that belong in a run manifest but should never contain
+   credentials.
+10. Find one sentence in an AI paper that would be easy to over-promote from
+    UPSTREAM-REPORTED to TESTED.  Rewrite it with the correct evidence label.
+
+** Part V checkpoint
+
+We can now describe the neuro-symbolic landscape without treating it as one
+architecture:
+
+- PAL-style systems offload execution to a runtime
+  [cite:@gao-pal-2023];
+- Faithful CoT separates symbolic translation from deterministic solving
+  [cite:@lyu-faithful-cot-2023];
+- SatLM asks the model for declarative specifications and lets a solver search
+  [cite:@ye-satlm-2023];
+- LINC uses LLM semantic parsing plus first-order theorem proving
+  [cite:@olausson-linc-2023];
+- Logic-LM adds solver-error-driven refinement
+  [cite:@pan-logic-lm-2023];
+- LLM+P uses natural-language/PDDL translation around a classical planner
+  [cite:@liu-llmp-2023];
+- Explanation-Refiner uses theorem proving to validate/refine explanatory
+  reasoning [cite:@quan-explanation-refiner-2024];
+- LLM-Modulo argues for broader verifier-guided interaction
+  [cite:@kambhampati-llm-modulo-2024];
+- Reliable Reasoning Beyond Natural Language and CaRing make Prolog a concrete
+  reasoning/proof runtime [cite:@borazjanizadeh-prolog-2024;@yang-caring-2025];
+- RLM-style systems add externalized context and recursive model invocation
+  [cite:@zhang-rlm].
+
+The common lesson is not that one of these patterns wins.  It is that each
+pattern moves a different operation out of unconstrained token generation and
+into an inspectable interface.  The quality of that interface—its types,
+provenance, authority, failure semantics, and evaluation—is what determines how
+much confidence the symbolic component actually earns.
+
+Part VI will turn those distinctions into measurements and failure injection.
+Part VII will then use them to build the bounded Prolog-RLM-style capstone.
+
+** Evidence checkpoint
+
+DOCUMENTED: architectural claims explicitly attributed to the cited primary
+papers and current source records.
+
+REPOSITORY DESIGN: the run-directory shape, claim-ledger schema, failure
+taxonomy, and evidence-promotion workflow are this book's research method unless
+a citation says otherwise.
+
+UPSTREAM-REPORTED: all cited paper benchmark/performance results not reproduced
+by this repository.
+
+UNTESTED: paper replications proposed by the labs until separately executed and
+recorded.  A successful book build does not change those labels.

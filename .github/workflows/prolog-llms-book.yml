@@ -37,6 +37,9 @@ jobs:
       - name: Test Project 2 typed gateway
         run: swipl -q -s books/prolog-llms/code/typed-gateway/run_tests.pl
 
+      - name: Test neuro-symbolic boundary fixtures
+        run: swipl -q -s books/prolog-llms/code/neurosymbolic-boundaries/run_tests.pl
+
       - name: Structural validation
         run: ./tools/check-structure
 

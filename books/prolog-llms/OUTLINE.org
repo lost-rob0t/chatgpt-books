@@ -76,21 +76,36 @@ Separate transient conversational state from durable experiment state. Record pr
 ** Chapter 19 -- Parallelism and stale work
 What changes when multiple candidate-generation/model calls race: request correlation, stale completion rejection, deterministic acceptance order where required, and the difference between throughput and semantic authority.
 
-* Part V -- Neuro-symbolic architectures
-** Chapter 20 -- Taxonomy without marketing fog
-Compare architectures where neural components propose, retrieve, rank, translate, or learn while symbolic components constrain, prove, search, execute, or explain. Claims about named systems require primary papers or implementation evidence.
+* Part V -- Neuro-symbolic architectures people actually built
+** Chapter 20 -- What People Actually Built: A Neuro-Symbolic Taxonomy
+Compare PAL, Faithful CoT, SatLM, LINC, Logic-LM, LLM+P, Explanation-Refiner, LLM-Modulo, Prolog-backed systems, and RLM-style recursion by the artifact that leaves the model, the trusted component that receives it, and the authority transition between them. The point is to classify mechanisms rather than repeat a “neuro-symbolic” label.
 
-** Chapter 21 -- Program synthesis and semantic parsing
-Treat LLM-to-logic translation as a program/term synthesis problem with syntax, type/schema, execution, and semantic tests. Discuss held-out examples and adversarial ambiguity.
+Evidence discipline: architecture claims come from primary papers/official proceedings or exact source evidence; published benchmark numbers remain UPSTREAM-REPORTED until reproduced.
 
-** Chapter 22 -- Symbolic feedback to models
-Use proof failures, unsatisfied constraints, counterexamples, and execution traces as structured feedback. Compare one-shot correction with bounded iterative repair and show when feedback can accidentally reward verifier gaming.
+** Research Interlude 20A -- 2026: Route the Solver, Compile to Prolog
+Add current EACL 2026 adaptive logical solver composition and the NeuroProlog preprint as two genuinely new directions: dynamically select a symbolic regime before solver-specific formalization, and train for executable Prolog generation with execution-guided repair. Keep route selection, formalization correctness, execution correctness, and semantic source faithfulness as separate propositions.
 
-** Chapter 23 -- Memory, retrieval, and symbolic state
-Differentiate vector retrieval memory, append-only traces, symbolic knowledge bases, and learned model parameters. Study consistency, updates, deletion, and provenance instead of calling all persistence “memory.”
+Boundary: the existence of research systems that execute generated Prolog does not change this book's production-facing rule. Model output remains closed data/AST under host validation and authorization unless an isolated reproduction explicitly studies generated-program execution as the experimental object.
 
-** Chapter 24 -- Research replication discipline
-Read a primary paper, identify the actual claim, reconstruct the smallest falsifiable experiment, pin artifacts and versions, and report negative results. No invented benchmark tables.
+** Chapter 21 -- Program Synthesis, Semantic Parsing, and the Formalization Bottleneck
+Treat LLM-to-program/logic/PDDL translation as a compilation-like boundary with syntax, type/schema, domain, source-coverage, and semantic-role obligations. Compare imperative PAL-style programs with declarative SatLM specifications, LINC/Logic-LM theorem-prover handoffs, and LLM+P planning models.
+
+Core invariant: a solver can be correct relative to the formalization while the formalization is wrong relative to the original natural-language problem. Preserve source spans and test omissions, direction errors, entity resolution, and semantic coverage separately from solver correctness.
+
+** Chapter 22 -- Symbolic Feedback, Repair, and Verifier-Guided Loops
+Use Logic-LM, Explanation-Refiner, and LLM-Modulo as concrete architectures for solver/verifier feedback. Derive typed rejection reasons, frozen request/source identity, attempt IDs, bounded retry rules, critic-combination policy, redacted feedback, repeated-candidate detection, and tests for verifier gaming.
+
+Boundary: feedback can explain why a candidate failed; it must not widen capability/authority or silently redefine the original problem.
+
+** Chapter 23 -- Prolog as Reasoning Runtime: Proofs, Provenance, and Bounded Control
+Study Reliable Reasoning Beyond Natural Language and CaRing as primary examples where Prolog performs deductive reasoning or supplies search/proof artifacts. Separate source provenance, acceptance provenance, and proof provenance. Then inspect the current read-only =lost-rob0t/prolog-rlm= runtime boundary as repository evidence: typed plans/direct outcomes, host-owned validation/capabilities/budgets, narrowed recursive authority, and duplicate-work controls.
+
+Boundary: current =prolog-rlm= design evidence is not interchangeable with claims from the RLM paper, and neither source licenses arbitrary model-generated =call/1= in the book capstone.
+
+** Chapter 24 -- Reproduce the Claim, Not the Vibe
+Build a replication protocol: claim ledger, dataset/artifact/model/solver pinning, separate translation versus solver metrics, failure taxonomy, attempt-level repair metrics, proof-quality evaluation, baselines, ablations, negative-space boundary tests, and explicit handling of unknown provider usage/cost metadata.
+
+No invented benchmark tables. A successful book build proves publication structure, not an upstream research result.
 
 * Part VI -- Evaluation and production debugging
 ** Chapter 25 -- What to measure

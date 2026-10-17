@@ -1,0 +1,320 @@
+* Chapter 20 -- What People Actually Built: A Neuro-Symbolic Taxonomy
+:PROPERTIES:
+:ID:       847d0104-30a9-48b2-b9d2-32928389c27f
+:END:
+
+By this point in the book we already have a rule for judging an LLM/Prolog
+boundary: ask what the model is allowed to propose, what trusted code validates,
+what the symbolic component actually proves or computes, and where authority
+changes hands.  That rule is more useful than the label /neuro-symbolic/.
+
+The literature contains systems with very different contracts under that same
+label.  In some, the model emits an imperative program and an interpreter does
+the arithmetic.  In others, the model translates natural language into a
+first-order theory and a theorem prover decides entailment.  Some systems send
+solver errors back to the model and ask for a repair.  Some use a classical
+planner.  Some explicitly use Prolog.  Recursive Language Models externalize a
+large context and allow recursive model invocations rather than using a logic
+solver as the central engine [cite:@zhang-rlm].
+
+We need a taxonomy that describes those mechanisms without borrowing the
+strongest marketing claim attached to any one of them.
+
+** 20.1 Classify the authority transition, not the brand name
+
+A useful first pass asks five questions about any architecture:
+
+1. *What does the model emit?*  Prose, executable code, a declarative theory, a
+   planning problem, a proof candidate, or a typed request?
+2. *Who checks the representation?*  The same model, host code, a parser, a type
+   checker, a theorem prover, a planner, or nobody?
+3. *Who performs the final inference?*  The model, a deterministic runtime, a
+   solver, a planner, Prolog, or a mixture?
+4. *What can the symbolic component actually guarantee?*  Usually something
+   about the formal object it receives, not the original natural-language
+   problem.
+5. *Can feedback cross back to the model?*  If yes, is the loop bounded, typed,
+   replayable, and capable of terminating without silently accepting a bad
+   candidate?
+
+That immediately separates several families that are often discussed together.
+
+#+caption: Primary systems in this chapter, grouped by where the neural-to-symbolic authority transition occurs. Reported benchmark gains are upstream evidence, not reproduced results of this book.
+| Family | Representative work | Model-owned artifact | Symbolic/runtime role | Main boundary to audit |
+|-
+| Program-aided execution | PAL | Imperative program | Execute program | Does generated code have more authority than intended? |
+| Solver-backed symbolic chain | Faithful CoT | Symbolic reasoning chain | Deterministically solve chain | Is the translation faithful to the original problem? |
+| Declarative solver handoff | SatLM | Declarative task specification | Satisfiability/theorem solving | Is the specification correct and complete? |
+| FOL theorem-prover handoff | LINC | First-order premises/query | Deductive theorem proving | Did semantic parsing preserve meaning? |
+| Solver + repair | Logic-LM | Symbolic formulation | Solve; return errors for refinement | Can repair change the problem instead of fixing syntax/semantics? |
+| Planner handoff | LLM+P | PDDL problem | Classical planning | Did NL -> PDDL preserve goals, state, and action semantics? |
+| Verifier-guided loop | Explanation-Refiner / LLM-Modulo | Explanation or candidate plan | Verify; provide critique | Are critics sound for the accepted property, and is the loop bounded? |
+| Prolog-backed reasoning | Reliable Reasoning Beyond Natural Language / CaRing | Logical code / Prolog representation | Deduction and proof/search trace | Is generated logic constrained, and what does the proof establish? |
+| Recursive externalization | RLM | Code/actions over external context plus recursive calls | Environment + recursive model orchestration | What bounds recursion, context access, and acceptance? |
+
+The rest of Part V will revisit these families in more detail.  For now, notice
+that the table has no column called “is reliable.”  Reliability is not a
+component type.  It is a claim that must name a property, an input distribution,
+a verifier, and an evidence trail.
+
+** 20.2 Program-aided execution: let the model decompose, let a runtime compute
+
+PAL, /Program-Aided Language Models/, asks a language model to generate a
+program as the intermediate reasoning representation, then delegates execution
+to a runtime such as Python [cite:@gao-pal-2023].  The architectural move is
+important even if we ignore every reported benchmark number: natural-language
+interpretation/decomposition remains model work, while arithmetic and symbolic
+execution are moved into an ordinary programming runtime.
+
+This gives the runtime a concrete advantage over free-form token generation. If
+the generated program says =7 * 13=, the interpreter does not need to “reason
+linguistically” about the multiplication.  But execution correctness does not
+repair a mistranslated program.  A perfectly executed program that encodes the
+wrong quantities still produces the wrong answer to the original problem.
+
+There is a second boundary that matters especially for this book: arbitrary
+program execution is a much larger authority surface than a closed Prolog
+capability vocabulary.  PAL is research about program-aided reasoning, not a
+security design for hostile model output.  When we borrow its architectural
+lesson, we keep our earlier rule: a model proposal is data until trusted code
+maps it into an explicitly permitted operation.
+
+Faithful Chain-of-Thought makes a related but more explicit separation.  Its two
+stages translate a natural-language query into a symbolic reasoning chain and
+then use a deterministic solver to derive the answer [cite:@lyu-faithful-cot-2023].
+The paper's notion of faithfulness concerns the relationship between the
+symbolic chain and the final answer.  It does not make semantic translation
+from natural language infallible.  That distinction will become the central
+subject of Chapter 21.
+
+** 20.3 Declarative handoff: state the problem, do not synthesize the search
+
+SatLM changes the artifact the model is asked to produce.  Instead of an
+imperative program that contains a solution procedure, the model produces a
+declarative task specification and an external automated solver derives the
+answer [cite:@ye-satlm-2023].  The paper explicitly frames the solver's
+correctness relative to the parsed specification.
+
+That phrase—/relative to the parsed specification/—is load-bearing.
+
+Suppose the natural-language problem says:
+
+#+begin_example
+Ada must run before Ben, and Ben must run before Cy.
+#+end_example
+
+A model might accidentally formalize only the first ordering constraint.  A
+complete solver can then find a schedule that is perfectly valid for the
+weakened formalization while violating the original problem.  The solver has
+not failed.  The semantic parser has.
+
+This suggests a design discipline for our later Prolog systems:
+
+#+begin_example
+natural-language claim
+  -> candidate formalization
+  -> formalization validation / provenance
+  -> symbolic inference
+  -> result tied back to the exact formalization
+#+end_example
+
+Never compress those arrows into “the solver verified the answer.”
+
+** 20.4 Semantic parser plus theorem prover
+
+LINC makes the role split especially clean.  The LLM acts as a semantic parser,
+translating natural-language premises and conclusions into first-order logic;
+an external theorem prover then performs deductive inference
+[cite:@olausson-linc-2023].
+
+Logic-LM uses the same broad translation-then-solve pattern but adds a
+self-refinement module: symbolic-solver error messages can be fed back to the
+LLM to revise the symbolic formulation [cite:@pan-logic-lm-2023].  That addition
+changes the architecture from a pipeline into a loop.
+
+These two systems give us three separate failure classes:
+
+- *translation failure*: the formula does not represent the source problem;
+- *formal rejection*: the generated symbolic artifact is malformed or outside
+  the solver's accepted language;
+- *reasoning result*: the solver accepts the formalization and derives or fails
+  to derive the requested consequence.
+
+If a system logs only the final answer, those distinctions disappear.  If it
+keeps the source, formalization, parser/validator outcome, solver input, and
+solver result, the failure becomes inspectable.
+
+That record shape is exactly why earlier chapters insisted on provenance before
+we had an interesting model in the loop.
+
+** 20.5 Planner handoff is the same pattern with different semantics
+
+LLM+P translates a natural-language planning problem into PDDL, invokes a
+classical planner, then translates the resulting plan back to natural language
+[cite:@liu-llmp-2023].  The solver is now a planner rather than a theorem prover,
+but the authority structure is familiar:
+
+#+begin_example
+natural language
+  -> model-produced formal planning problem
+  -> planner
+  -> formal plan
+  -> natural-language rendering
+#+end_example
+
+The planner can be excellent and the system can still fail if the PDDL problem
+omits a precondition, invents an action, flips an initial fact, or changes the
+goal.  This is why =books/symbolic-ai-prolog= owns the deep planner itself while
+this volume owns the LLM-to-planner boundary.  To understand the symbolic
+algorithm, study the planner volume.  To understand what happens when a model
+writes the planner's problem, stay here.
+
+** 20.6 From one-way handoff to verifier-guided loops
+
+A one-shot pipeline gives the symbolic component no opportunity to help the
+model repair its representation.  Several systems explicitly close that loop.
+
+Logic-LM uses solver errors as refinement feedback [cite:@pan-logic-lm-2023].
+Explanation-Refiner combines LLM generation/formalization with theorem-prover
+validation, then uses formal feedback for subsequent refinement of natural-
+language explanations [cite:@quan-explanation-refiner-2024].  The LLM-Modulo
+position paper argues for a broader generate-test-critique architecture in which
+LLMs interact with external model-based verifiers rather than being treated only
+as planners or only as syntax translators [cite:@kambhampati-llm-modulo-2024].
+
+A loop buys another chance to produce an acceptable artifact.  It also creates
+new obligations:
+
+- each attempt needs identity;
+- the verifier response needs a typed meaning;
+- retries need a maximum count or other stopping rule;
+- rejected candidates must not leak into durable symbolic state;
+- a later accepted candidate must not erase the evidence that earlier attempts
+  failed;
+- verifier feedback must not be confused with proof that the model understood
+  the original natural-language intent.
+
+Those obligations are why this book put budgets, replay, and stale-work handling
+before the literature survey.  We can now read repair-loop papers with a
+concrete checklist instead of admiring the arrows in an architecture figure.
+
+** 20.7 Systems that explicitly use Prolog
+
+Two works are especially relevant to the implementation language of this book.
+
+/Reliable Reasoning Beyond Natural Language/ asks models to encode problem
+information as logical code statements and then uses Prolog for iterative
+explicit deduction [cite:@borazjanizadeh-prolog-2024].  The paper reports
+improvements on several benchmarks, but those measurements are
+*UPSTREAM-REPORTED* here.  The architectural fact we use is narrower: Prolog is
+not a decorative post-processor; it performs the deductive computation over the
+model-produced logical representation.
+
+CaRing, published as /Neuro-Symbolic Integration Brings Causal and Reliable
+Reasoning Proofs/, also uses Prolog.  It inspects intermediate search logs from
+Prolog interpreters and turns them into human-readable reasoning proofs
+[cite:@yang-caring-2025].  Its paper is unusually explicit about the condition
+on its proof claim: the problem description first has to be translated
+correctly into the Prolog representation.
+
+That condition matters more than the adjective “reliable.”  A deterministic
+proof can show exactly why a Prolog program entails a conclusion.  It does not,
+by itself, prove that the program is a faithful model of the source text or the
+world.
+
+Chapter 23 will use these systems to separate *proof provenance* from *input
+provenance*.
+
+** 20.8 Recursive Language Models are a different family
+
+The RLM paper externalizes long context into an environment that a model can
+programmatically inspect and recursively invokes language models over selected
+subproblems [cite:@zhang-rlm].  This is not simply “LLM generates logic, Prolog
+solves it.”  Recursion, context access, decomposition, and repeated model calls
+are first-class mechanisms.
+
+The current =lost-rob0t/prolog-rlm= source is a repository-specific architecture
+that we will study later.  As of the source recheck for this chapter, its
+canonical =main= remains at commit
+=51d2530f0e18c84cff860b7c0bf3afcc3c488057=.  The existing book research pass
+has already documented a closed typed-plan boundary in that snapshot.  This
+chapter does not claim that =prolog-rlm= is an implementation of every mechanism
+or benchmark in the RLM paper.  The paper and the repository are two different
+sources of evidence.
+
+** 20.9 A stronger vocabulary for the rest of the book
+
+Instead of saying “the LLM reasons and Prolog verifies,” say exactly what
+happened.  For example:
+
+#+begin_example
+The model translated three source sentences into a closed relation vocabulary.
+The host rejected one malformed candidate.
+The accepted candidate produced these five Prolog facts with source IDs.
+The query succeeded under these rules.
+This proof term cites these accepted facts.
+The natural-language renderer summarized that proof term.
+#+end_example
+
+That description is longer because it preserves the architecture.
+
+A useful neuro-symbolic system does not make the neural and symbolic pieces
+mystically compensate for each other.  It gives each component a bounded job
+and preserves enough evidence to tell which job failed.
+
+** Lab 20.A -- Audit a paper by its boundary
+
+Choose one primary paper from this chapter and fill in this worksheet without
+using the paper's own architecture labels as your answer:
+
+1. What exact artifact leaves the model?
+2. Can that artifact directly execute code or only describe a problem?
+3. Which parser/type/schema checks occur before the solver/runtime?
+4. What property can the symbolic component establish about its *actual input*?
+5. What property about the original natural-language problem remains dependent
+   on translation quality?
+6. Is there feedback?  If so, what stops the loop?
+7. What provenance would you need to replay one result?
+8. Which published measurements are UPSTREAM-REPORTED rather than reproduced by
+   you?
+
+If the paper does not answer one of these questions, write =not established=
+instead of filling the gap with an architectural guess.
+
+** Exercises
+
+1. PAL and SatLM both delegate work to a non-LLM component.  Explain why an
+   imperative program and a declarative specification give that component
+   different responsibilities.
+2. Compare LINC with LLM+P.  What changes when the formal target is first-order
+   logic versus PDDL?  What translation risk stays the same?
+3. Logic-LM and Explanation-Refiner both feed formal feedback back toward a
+   model.  List three pieces of state required to replay the loop exactly.
+4. Give an example of a theorem that is correctly proved from an incorrectly
+   translated premise set.  Which component behaved correctly?
+5. Why is “the result has a proof” weaker than “the result is true of the source
+   document”?
+6. Why does a closed capability gateway in this book deliberately expose less
+   authority than arbitrary program execution, even though program-aided
+   language-model research can be useful?
+7. Sketch a version of the table above for one system not covered here.  Use its
+   primary paper or implementation, not a product blog summary.
+8. For RLM-style recursion, name three stopping/accounting invariants that do
+   not appear in a one-shot translate-and-solve pipeline.
+
+** Evidence checkpoint
+
+DOCUMENTED in this chapter: architectural roles described by the inspected
+primary papers/proceedings and the separately recorded current
+=lost-rob0t/prolog-rlm= source revision.
+
+UPSTREAM-REPORTED: accuracy, cost, latency, state-of-the-art, and benchmark
+improvement claims made by those papers unless a later book experiment actually
+reproduces them.
+
+UNTESTED by this chapter: provider behavior, paper benchmark reproduction,
+end-to-end execution of the cited systems, and live =prolog-rlm= experiments.
+
+The next chapter attacks the weakest seam shared by most of these
+architectures: translating an underspecified natural-language problem into the
+formal object that the deterministic component will actually solve.

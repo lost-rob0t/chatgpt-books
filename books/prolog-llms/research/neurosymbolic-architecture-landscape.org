@@ -1,0 +1,310 @@
+#+title: Prolog + LLMs -- Neuro-Symbolic Architecture Landscape Research
+:PROPERTIES:
+:ID:       41b840b0-44cf-4d9d-b06e-cd67c2df3d11
+:END:
+
+* Scope
+Issue #124 research pass for manuscript Chapters 20--24. The goal is to turn
+primary work people have actually built into a comparative architecture lesson,
+not to promote paper benchmark claims into local results.
+
+This note records what was inspected on 2026-09-16 and the evidence level used
+in the manuscript.
+
+* Evidence rules
+- DOCUMENTED: architecture/claim is stated by an inspected primary paper,
+  proceedings page, official documentation, or exact repository source.
+- REPOSITORY DESIGN: visible in inspected source/docs but not independently
+  executed by this book.
+- UPSTREAM-REPORTED: benchmark/result reported by authors; not reproduced here.
+- TESTED: reserved for book-owned code actually executed under a recorded gate.
+- UNTESTED: proposed experiment, integration, or behavior not executed here.
+
+No paper benchmark was run during this pass.
+
+* Primary architecture sources
+** PAL -- imperative program handoff
+Source: [cite:@gao-pal-2023].
+
+DOCUMENTED:
+- the LLM generates programs as intermediate reasoning steps;
+- solution execution is delegated to a runtime such as a Python interpreter;
+- the paper evaluates program-aided reasoning across multiple reasoning tasks.
+
+Interpretation used by book:
+- runtime execution can remove arithmetic/operational work from token generation;
+- runtime correctness does not establish semantic correctness of the generated
+  program relative to the source problem;
+- arbitrary generated program execution is a wider authority surface than this
+  book's closed capability/data interfaces.
+
+UPSTREAM-REPORTED:
+- all accuracy and state-of-the-art comparisons in the paper.
+
+UNTESTED:
+- PAL code, prompts, providers, datasets, and benchmark reproduction in this
+  repository.
+
+** Faithful Chain-of-Thought -- symbolic chain then deterministic solver
+Source: [cite:@lyu-faithful-cot-2023].
+
+DOCUMENTED:
+- two stages: natural-language query -> symbolic reasoning chain, then symbolic
+  chain -> answer with a deterministic solver;
+- the paper frames the resulting chain as faithful to the computation producing
+  the final answer.
+
+Book boundary:
+- execution/explanation faithfulness is not automatically semantic faithfulness
+  of the translation from source natural language.
+
+UPSTREAM-REPORTED:
+- benchmark improvements and accuracy figures.
+
+** SatLM -- declarative specification then automated solver
+Source: [cite:@ye-satlm-2023].
+
+DOCUMENTED:
+- the model generates a declarative task specification instead of an imperative
+  program;
+- an off-the-shelf automated theorem prover/solver derives the answer;
+- the paper explicitly scopes solver correctness to the parsed specification.
+
+Book boundary:
+- this source directly supports the formalization-bottleneck distinction: a
+  solver can be correct relative to an incorrect or incomplete translation.
+
+UPSTREAM-REPORTED:
+- comparative benchmark gains.
+
+** LINC -- semantic parser to first-order logic
+Source: [cite:@olausson-linc-2023].
+
+DOCUMENTED:
+- the LLM is used as a semantic parser for premises and conclusions;
+- translated expressions are first-order logic;
+- an external theorem prover performs the deductive inference.
+
+Book boundary:
+- semantic parsing and theorem proving are separate failure stages;
+- final correctness can fail because of translation even if the prover behaves
+  correctly on its actual input.
+
+UPSTREAM-REPORTED:
+- ProofWriter/FOLIO performance and model comparisons.
+
+** Logic-LM -- solver feedback into formalization repair
+Source: [cite:@pan-logic-lm-2023].
+
+DOCUMENTED:
+- the model translates natural-language problems into symbolic formulations;
+- deterministic symbolic solvers perform inference;
+- a self-refinement module uses solver error messages to revise symbolic
+  formalizations.
+
+Book boundary:
+- error-driven repair turns a pipeline into a stateful loop;
+- the loop needs frozen request/source identity, attempt IDs, bounded retries,
+  and tests against weakening/removing difficult requirements.
+
+UPSTREAM-REPORTED:
+- all benchmark deltas and effectiveness claims.
+
+** LLM+P -- natural language to PDDL to classical planner
+Source: [cite:@liu-llmp-2023].
+
+DOCUMENTED:
+- natural-language planning problem is translated to PDDL;
+- a classical planner solves the formal planning problem;
+- the resulting plan is translated back to natural language.
+
+Book boundary:
+- planner quality does not repair a wrong initial state, goal, precondition,
+  effect, type, or cost in generated PDDL;
+- the LLM-to-planner boundary belongs in this book, while classical planning
+  algorithm depth remains in =symbolic-ai-prolog=.
+
+UPSTREAM-REPORTED:
+- feasibility/optimality benchmark results.
+
+** Explanation-Refiner -- theorem-prover validation and feedback
+Source: [cite:@quan-explanation-refiner-2024].
+
+DOCUMENTED:
+- LLMs generate/formalize explanatory sentences and candidate inference
+  strategies;
+- theorem provers are used to validate logical explanation properties;
+- formal feedback is used for refinement.
+
+Book boundary:
+- answer correctness, formal explanation validity, proof/source provenance, and
+  natural-language readability require separate evidence.
+
+UPSTREAM-REPORTED:
+- evaluation results and paper-level quality claims.
+
+** LLM-Modulo -- generate/test/critique with external verifiers
+Source: [cite:@kambhampati-llm-modulo-2024].
+
+DOCUMENTED:
+- position paper argues against treating LLMs either as standalone reliable
+  planners/reasoners or merely one-way format translators;
+- proposes tighter bidirectional integration with external model-based
+  verifiers/critics in an LLM-Modulo framework.
+
+Book boundary:
+- critic identity and hardness must be explicit;
+- a critic bank needs a host-owned acceptance predicate;
+- repair feedback does not grant new authority;
+- a passing incomplete verifier can still be gamed by a degenerate candidate.
+
+UPSTREAM-REPORTED / not adopted as local fact:
+- empirical claims from cited/related planning work.
+
+** Reliable Reasoning Beyond Natural Language -- Prolog deductive runtime
+Source: [cite:@borazjanizadeh-prolog-2024].
+
+DOCUMENTED:
+- the LLM is prompted to encode relevant information as logical code statements;
+- Prolog performs iterative explicit deductive reasoning.
+
+Book boundary:
+- this is strong evidence that Prolog has been used as the actual symbolic
+  computation layer in an LLM integration;
+- it does not justify executing arbitrary model-generated source in this book's
+  production-facing teaching architecture;
+- benchmark results stay upstream-reported.
+
+UPSTREAM-REPORTED:
+- GSM8K, Navigate, and NLR results.
+
+** CaRing -- Prolog search logs to human-readable reasoning proofs
+Source: [cite:@yang-caring-2025].
+
+DOCUMENTED:
+- customized Prolog interpreters are used as the symbolic reasoning component;
+- intermediate search logs are accessed/interpreted into human-readable
+  reasoning proofs;
+- the paper conditions the proof reliability claim on correct translation of
+  problem descriptions into Prolog representations.
+
+Book boundary:
+- proof provenance must remain separate from source/formalization provenance;
+- deterministic proof artifacts can explain symbolic execution without proving
+  that the source translation was correct.
+
+UPSTREAM-REPORTED:
+- answer/proof accuracy improvements.
+
+** Recursive Language Models
+Source: [cite:@zhang-rlm].
+
+DOCUMENTED in existing research baseline:
+- treats long context as an external environment available to programmatic
+  inspection;
+- uses recursive language-model calls over selected subproblems.
+
+Book boundary:
+- RLM is a different family from translate-and-solve theorem-prover pipelines;
+- recursion needs explicit depth/call/concurrency/budget and duplicate-work
+  accounting before the book's capstone can make strong claims.
+
+UPSTREAM-REPORTED:
+- paper task/benchmark results.
+
+* Current lost-rob0t/prolog-rlm source evidence
+Source: [cite:@prolog-rlm-source].
+Exact recheck on 2026-09-16: canonical =main= remained
+=51d2530f0e18c84cff860b7c0bf3afcc3c488057=.
+
+Files re-inspected read-only for this pass:
+- =docs/completion-runtime.md=
+- =docs/providers.md=
+
+REPOSITORY DESIGN documented by current source/docs:
+- =rlm_completion/4= is a bounded supervisor over a strict direct envelope or a
+  typed plan;
+- plan parsing, structural validation, capability checks, budget checks, and
+  execution are host-owned phases;
+- documented closed plan operation vocabulary includes final/model/context/tool
+  plus bounded composition/recursion operations;
+- provider-visible schemas are separate from trusted runtime bindings/authority;
+- planner repair diagnostics are bounded host-generated feedback for parse or
+  structural validation failures, while capability/budget denials are
+  authoritative failures rather than repair hints;
+- child recursion capabilities may remain equal to or narrower than parent
+  capabilities, not wider;
+- obvious repeated recursive subplans are fingerprinted/rejected;
+- completion budget documents depth, concurrency, model/tool/context calls,
+  tokens/cost where available, output size, and wall-clock limits;
+- missing provider usage/cost metadata is represented as unknown rather than
+  fabricated;
+- no arbitrary model-generated =call/1= production path is documented;
+- provider-neutral =model_complete/3= outcomes classify provider/transport
+  failures as data;
+- provider-native tool-call IDs are correlation, not authority/effect identity.
+
+UNTESTED BY THIS PASS:
+- live OpenRouter lanes described by upstream docs;
+- complete =prolog-rlm= test suite;
+- provider behavior;
+- performance, token/cost, concurrency, cancellation, or streaming behavior;
+- equivalence between current =prolog-rlm= architecture and all claims in the
+  RLM paper.
+
+* Cross-system synthesis used by Chapters 20--24
+** Family 1 -- program-aided execution
+PAL demonstrates model-produced imperative programs executed by a runtime.
+Primary audit question: what authority does generated program text receive?
+
+** Family 2 -- symbolic/declarative solver handoff
+Faithful CoT and SatLM move final solving into deterministic/symbolic components.
+Primary audit question: what exactly is guaranteed relative to the translated
+artifact?
+
+** Family 3 -- semantic parser to theorem prover
+LINC makes translation to FOL explicit. Logic-LM adds feedback-driven repair.
+Primary audit question: how are mistranslation, malformed formalization, solver
+result, and repair separated in evidence?
+
+** Family 4 -- formal planner handoff
+LLM+P translates natural language to PDDL for a classical planner.
+Primary audit question: did the formal planning model preserve source state,
+actions, invariants, and goals?
+
+** Family 5 -- verifier-guided iterative systems
+Logic-LM, Explanation-Refiner, and LLM-Modulo motivate bounded feedback loops.
+Primary audit question: is verifier feedback typed and is the acceptance policy
+complete enough to resist trivial verifier gaming?
+
+** Family 6 -- Prolog-backed reasoning/proofs
+Reliable Reasoning and CaRing put Prolog in the concrete reasoning path.
+Primary audit question: can proof provenance be tied to accepted source-backed
+premises without allowing arbitrary generated Prolog execution?
+
+** Family 7 -- recursive externalized inference
+RLM plus the current =prolog-rlm= implementation evidence motivate the later
+capstone.
+Primary audit question: how are recursive authority, budgets, duplicate work,
+context access, and acceptance bounded?
+
+* Manuscript consequences
+Chapters 20--24 should not become a chronological paper survey. They are drafted
+around architectural mechanisms:
+1. taxonomy by authority transition;
+2. formalization/semantic-parsing bottleneck;
+3. verifier-guided repair;
+4. Prolog proof/provenance and bounded recursive control;
+5. replication/evaluation discipline.
+
+All paper performance remains upstream-reported until the evaluation project
+actually runs a pinned reproduction.
+
+* Follow-up research
+- When Project 5 begins, inspect code/tagged artifacts for one or two candidate
+  systems before selecting a reproduction target.
+- Freeze dataset/provider/model constraints before any paid run.
+- Keep gold-formalization solver tests separate from end-to-end model
+  translation tests.
+- For the capstone, recheck =lost-rob0t/prolog-rlm= current main and actual code
+  paths again; do not let this snapshot become a timeless architecture claim.

@@ -1,0 +1,92 @@
+#+title: Prolog + LLMs -- 2026 Neuro-Symbolic Directions
+:PROPERTIES:
+:ID:       5b9d1ca5-6ad2-4d1f-a5dd-a7acd243008d
+:END:
+
+* Scope
+Dated 2026-09-16. This follow-up to issue #124 checks current 2026 work after the
+main Part V primary-literature pass. It records two sources that materially
+extend the chapter taxonomy rather than collecting papers for completeness.
+
+* Adaptive LLM-Symbolic Reasoning via Dynamic Logical Solver Composition
+Primary source: [cite:@xu-adaptive-symbolic-2026].
+
+Verified metadata:
+- Lei Xu, Pierre Beckmann, Marco Valentino, Andre Freitas.
+- EACL 2026 long papers, pages 1187--1208.
+- DOI 10.18653/v1/2026.eacl-long.54.
+- ACL Anthology primary proceedings record inspected 2026-09-16.
+
+DOCUMENTED:
+- the architecture treats selection of the logical reasoning strategy/solver as
+  a dynamic step rather than assuming one fixed symbolic backend;
+- natural-language problems are connected to specialized logical solvers via
+  autoformalization interfaces;
+- the paper evaluates routing/solver-composition behavior.
+
+Book consequence:
+- solver routing becomes its own typed, replayable authority transition;
+- route correctness must be distinguished from solver-specific formalization
+  correctness and from the selected solver's own inference result;
+- a host-visible route/backend identity belongs in provenance.
+
+UPSTREAM-REPORTED:
+- all routing accuracy, task accuracy, and comparative numerical results.
+
+UNTESTED:
+- paper code/models/datasets, real dynamic solver routing, and any reproduction
+  of reported measurements.
+
+* NeuroProlog
+Primary source: [cite:@zunjare-neuroprolog-2026].
+
+Verified metadata:
+- Pratibha Zunjare, Michael Hsiao.
+- arXiv:2603.02504, submitted 2026-03-03.
+- Primary arXiv record inspected 2026-09-16.
+
+DOCUMENTED:
+- the work compiles natural-language mathematical problems into executable
+  Prolog programs;
+- it uses multi-task training across related formalization/alignment tasks;
+- it uses execution feedback and an error taxonomy for iterative program repair.
+
+Book consequence:
+- this is current evidence that Prolog is being used as a generated
+  intermediate program/execution runtime, not merely a post-hoc checker;
+- execution-guided repair must still distinguish “program now executes” from
+  “program still faithfully formalizes the original problem”;
+- the book's application boundary remains narrower than the research harness:
+  model output is closed data/AST under host validation and authorization, not
+  ambient source code automatically consulted into the application process;
+- any future reproduction that executes model-generated Prolog should do so in
+  an isolated experiment harness because generated-program execution is itself
+  part of the experimental claim.
+
+UPSTREAM-REPORTED:
+- all model, benchmark, repair, and comparative numerical results.
+
+UNTESTED:
+- model training/inference, generated-program execution, repair rates, and any
+  reproduction of the paper's results.
+
+* Why these sources were promoted
+The earlier Part V pass already covers fixed program runtimes, fixed theorem
+provers, planners, verifier-guided repair, explicit Prolog deduction/proof
+artifacts, and recursive externalization. These 2026 sources add two genuinely
+new architecture dimensions:
+
+1. dynamically route a problem to a logical solver family before formalization;
+2. train explicitly for Prolog program generation and execution-guided repair.
+
+They are therefore promoted into Research Interlude 20A rather than added only
+to a bibliography or stretched across unrelated chapters.
+
+* Claims intentionally not promoted
+- No numerical result from either work is TESTED locally.
+- No claim that formal verification of the generated program proves faithful
+  translation from the original natural language is adopted.
+- No claim that arbitrary generated Prolog is an acceptable production
+  authorization boundary is adopted.
+- No claim that dynamic solver routing is universally superior to a fixed
+  symbolic backend is adopted.
