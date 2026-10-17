@@ -1420,3 +1420,37 @@ visibility remains server-owned; authenticated retrieval requires
 permitted tenant/dataset scope.  Opaque bookmarks are not stable corpus
 snapshots, and a clipped search label is never evidence of full index
 coverage or durable canonical provenance.
+
+* Canonical Artifact OCR is not raw FTS coverage
+
+The StarLang =org.starintel/core@1= =0.10.1= generated schema (source commit
+=96d26c338078676ec1dc6928755901636c9f7ef0=, Git blob
+=537163da436f67a973e280d1704e32bdba5b888b=) defines independent
+=Artifact.ocrText=, =extractedText=, =rawContent= and =name= string fields,
+and =filename=, =mediaType= and =contentHash= metadata. A generic =content=
+field is *not* declared for this document type.
+
+The historical Server index Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and merged 0.10.1
+Server blob =dd6336f3047982db2f0e3615fed1413ed1e58e13= are
+executed *unchanged* by =test_artifact_ocr_fts.js=. The Node test attests
+each source as a Git blob, checks that fictional OCR/extracted/raw text does
+not change index emissions, checks that =filename= alone does not stand in
+for =name=, and verifies =name= and =dataset= positive controls.
+
+#+begin_src sh
+# Uses the existing, independently pinned historical Server checkout:
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_artifact_ocr_fts.js
+# Opt-in separately pinned merged source:
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+STAR_SEARCH_ARTIFACT_MERGED_DESIGN=PINNED_MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_artifact_ocr_fts.js
+#+end_src
+
+The source-exact test is NOT canonical SDK validation, live HTTP,
+CouchDB/Clouseau tokenization, installed-design attestation, or a by-ID
+read-back. A hit on an indexed name and non-emission of OCR fields are
+separate observations. Public search binds server-owned dataset/tenant
+visibility; authenticated =documents.search= is scoped to the caller.
+Neither a row nor an opaque bookmark proves a durable canonical record.

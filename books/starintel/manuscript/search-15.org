@@ -2253,3 +2253,77 @@ renderer omitted a suffix from each selected *stored-field display*.
 It does not prove the stored strings or canonical documents are equal,
 nor that both hits remain searchable under the same scope or bookmark.
 Keep their distinct hit identities and verify canonical data separately.
+
+** An Artifact's OCR text is not automatically in the search index
+
+An =Artifact= is a separate canonical document from the text an extractor
+might derive from it. In the generated StarLang =org.starintel/core@1=
+=0.10.1= schema, =Artifact= declares =name=, =filename=, =ocrText=,
+=extractedText=, =rawContent=, =mediaType= and =contentHash= as distinct
+optional properties. The type *does not declare* a generic =content=
+property. Its minimal required envelope includes =id=, =dataset=,
+=dtype= and =schemaVersion=. This is a generated-schema fact, not a claim
+that the pinned historical Server accepted a new canonical Artifact.
+
+Now compare the real, separately pinned Server =_design/search= callbacks.
+Both the historical design at Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and the merged
+0.10.1 design at blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=
+emit =name= when present. Neither directly emits the canonical Artifact's
+=filename=, =ocrText=, =extractedText=, =rawContent=, =mediaType= or
+=contentHash=. Changing only the fictional OCR/extraction text leaves the
+ordered raw =index()= calls identical. Changing =name= or =dataset=
+changes those calls. =dataset= and =tenant_id= remain server-owned scope
+facts; an Artifact's OCR text is not a publication grant.
+
+#+caption: A fictional Artifact viewed across three different evidence boundaries.
+| Observation | What was checked | What it does NOT establish |
+|-------------+------------------+----------------------------|
+| Canonical schema | =Artifact.ocrText= and =extractedText= are declared strings | Validated SDK admission or durable ingest |
+| Historical and merged raw index callbacks | OCR/extraction fields produce no direct =index()= emission | Installed design, Lucene tokenization or a live negative query |
+| Authorized by-ID read-back, not exercised here | Required to establish a persisted =id=/=rev= and provenance | Search freshness or public visibility |
+
+This is a concrete diagnostic for a scanned evidence packet. A search hit
+on =name= does not prove the document's OCR was indexed; no hit on a token
+found only in =ocrText= does not establish the Artifact was lost. A synthetic
+=content= key *would* be indexed by the unchecked JavaScript projection,
+but adding that key is not a valid replacement for the generated
+=Artifact= contract. Do not silently relabel arbitrary OCR as canonical
+=content= or copy sensitive extracted text into a public field.
+
+The executable =test_artifact_ocr_fts.js= invokes both original index
+callbacks in a bounded Node VM, attests their Git blob hashes and compares
+ordered emissions. The standard course runner uses its historical Server
+checkout; a merged checkout is optional and must be explicitly supplied.
+These are deliberately fictional *canonical-shaped* inputs, not SDK-tested
+canonical records, installed CouchDB designs, HTTP authorizations or live
+Clouseau searches.
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_artifact_ocr_fts.js
+# Optional read-only comparison, after verifying the merged revision:
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+STAR_SEARCH_ARTIFACT_MERGED_DESIGN=PINNED_MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_artifact_ocr_fts.js
+#+end_src
+
+*** Exercise -- Does a searchable scan name imply searchable OCR? (★★★)
+
+A fictional authenticated reader can retrieve a canonical Artifact by
+=id=, but a search for an unusual string in its =ocrText= returns no rows.
+The same reader can find the Artifact by =name=. Identify *three* facts
+that can be established independently and *two* facts that cannot be
+concluded from these observations alone. Explain how the public
+=/api/v1/search= route differs from authenticated =documents.search=.
+
+/Worked answer:/ An authorized by-ID read may establish a particular durable
+record and =rev= at that read time; a name hit establishes a search
+observation under that query/scope; the pinned raw callback establishes that
+neither generation directly emits =ocrText=. These do not prove installed
+index revision, OCR-token retrieval, a complete corpus, or a continuously
+consistent snapshot. Public search uses the server-configured public
+datasets and its server-owned tenant scope; authenticated search evaluates
+the caller's permitted tenant/dataset scope. Neither route grants its own
+canonical evidence status. Treat bookmarks as opaque continuation state,
+not proof of durable coverage.
