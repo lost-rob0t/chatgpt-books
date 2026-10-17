@@ -2207,3 +2207,49 @@ permitted tenant and dataset scope.  Treat bookmarks as opaque and
 never infer a missing durable canonical document from a missing hit.
 A hit would still require an independently authorized by-ID read and
 provenance check to support a durable-evidence claim.
+
+** A clipped search label is not the complete stored field
+
+The Chapter 15 HTML preview deliberately caps a displayed =name= or =title=
+label at 160 Python characters.  The earlier renderer sliced the string
+silently.  A reader could mistake a prefix for the whole stored field, even
+though the original =Hit.fields= had more text.  A fictional source record
+named =AAAAAAAA..._original= and a different record named
+=AAAAAAAA..._revision= can display the same prefix.  This is a
+/presentation collision/, not proof that the indexed tokens, canonical
+records or document identities are equal.
+
+=render_search_hits.py= now appends a literal visible
+=[display truncated]= marker *only* when the selected stored label exceeds
+the display budget.  Exactly 160 characters receive no marker.  A missing
+=stored name= can fall back to =stored title=; that fallback is subject to
+the same rule.  The marker is markup authored by the renderer, never
+HTML supplied by the search result.  The renderer still escapes the
+original label prefix, keeps the row's separate identity/dataset and
+storage/canonical revisions, avoids links and embedded =doc= text, and
+never mutates the supplied search observation.
+
+The native offline regression proves the original silent clipping defect
+with a RED control and tests the corrected HTML against the 160/161
+boundary, fallback labels, escaped markup and multiple rows.  This
+establishes only a *display* property.  The caller must already possess
+an authorized page; public search uses server-owned dataset/tenant
+visibility, whereas authenticated search is constrained by the user's
+allowed dataset and tenant scopes.  A bookmark is opaque.  A clipped
+label cannot establish index coverage or the presence, revision, or
+provenance of a durable canonical 0.10.1 record; those need independent
+authorized by-ID validation and source checks.
+
+#+begin_src sh
+python3 -m unittest -v books/starintel/code/search-lab/test_render_search_hits.py
+#+end_src
+
+*** Exercise -- Same preview, different stored titles (★★)
+
+Two fictional indexed hits share the same first 160 characters of their
+displayed =title=, but differ at character 161.  What does the
+=[display truncated]= marker prove?  Answer: it proves only that the
+renderer omitted a suffix from each selected *stored-field display*.
+It does not prove the stored strings or canonical documents are equal,
+nor that both hits remain searchable under the same scope or bookmark.
+Keep their distinct hit identities and verify canonical data separately.

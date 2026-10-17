@@ -1393,3 +1393,30 @@ The public search surface uses server-controlled visible datasets;
 authenticated search is constrained by permitted tenant and dataset.
 Index coverage, authorized hit visibility, opaque bookmarks, and durable
 canonical evidence are distinct observations.
+
+* HTML search labels disclose display truncation
+
+=render_search_hits.py= presents already interpreted, previously authorized
+search hits.  The historical HTML preview clipped =name=/=title= to 160
+Python characters without indicating a suffix was removed.  The renderer
+now emits an inert =<span class="label-truncation">[display truncated]</span>=
+only when the selected name/title exceeds 160 characters.  The original
+=Hit= and its stored fields remain unmodified and the omitted suffix is
+not copied into a title attribute, hidden element, or raw HTML.  The
+identity, dataset, dtype, and two revision namespaces remain independent
+search-result observations, not durable canonical attestations.
+
+#+begin_src sh
+python3 -m unittest -v books/starintel/code/search-lab/test_render_search_hits.py
+#+end_src
+
+The focused native control demonstrates a RED test on the exact earlier
+renderer (four missing-marker failures across 17 tests).  The corrected
+renderer passes all 17, including existing markup/inertness checks, exact
+160/161 boundaries, title fallback, per-row marking, and avoidance of
+embedded =doc= content.  This proof does not execute Server HTTP,
+CouchDB/Clouseau, the complete book build or EPUBCheck.  Public
+visibility remains server-owned; authenticated retrieval requires
+permitted tenant/dataset scope.  Opaque bookmarks are not stable corpus
+snapshots, and a clipped search label is never evidence of full index
+coverage or durable canonical provenance.

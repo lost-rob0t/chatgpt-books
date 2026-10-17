@@ -87,5 +87,41 @@ class SearchHitRenderingTests(unittest.TestCase):
         self.assertNotIn('<form', html)
 
 
+    def test_overlong_name_declares_lossy_display(self):
+        source = 'A' * MAX_LABEL_CHARS + 'TAMPERED_SUFFIX'
+        rendered = render_hits([hit(fields={'name': source})])
+        self.assertIn('<strong>' + 'A' * MAX_LABEL_CHARS + '</strong>', rendered)
+        self.assertIn('<span class="label-truncation">[display truncated]</span>', rendered)
+        self.assertNotIn('TAMPERED_SUFFIX', rendered)
+
+    def test_overlong_title_fallback_declares_truncation(self):
+        title = 'B' * (MAX_LABEL_CHARS + 1)
+        rendered = render_hits([hit(fields={'name': '', 'title': title})])
+        self.assertIn('label-truncation', rendered)
+        self.assertNotIn('B' * (MAX_LABEL_CHARS + 1), rendered)
+
+    def test_boundary_and_short_labels_are_not_called_truncated(self):
+        for size in (0, 1, MAX_LABEL_CHARS - 1, MAX_LABEL_CHARS):
+            with self.subTest(size=size):
+                rendered = render_hits([hit(fields={'name': 'X' * size})])
+                self.assertNotIn('label-truncation', rendered)
+
+    def test_marker_is_literal_and_never_exposes_embedded_document(self):
+        name = '<svg onload=alert(1)>' + ('Z' * MAX_LABEL_CHARS)
+        rendered = render_hits([hit(fields={'name': name},
+                                    document={'title': 'UNRETRIEVED_SECRET'})])
+        self.assertIn('label-truncation', rendered)
+        self.assertIn('&lt;svg onload=alert(1)&gt;', rendered)
+        self.assertNotIn('<svg ', rendered)
+        self.assertNotIn('UNRETRIEVED_SECRET', rendered)
+        self.assertNotIn('<a ', rendered)
+
+    def test_marker_is_per_row_not_per_page(self):
+        rendered = render_hits([hit(identity='first', fields={'name': 'x' * 161}),
+                                hit(identity='second', fields={'name': 'Safe'})])
+        self.assertEqual(rendered.count('label-truncation'), 1)
+        self.assertEqual(rendered.count('<li>'), 2)
+
+
 if __name__ == '__main__':
     unittest.main()

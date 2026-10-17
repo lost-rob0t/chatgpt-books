@@ -47,6 +47,7 @@ def render_hits(hits: Iterable[object]) -> str:
         for key in ('name', 'title'):
             _scalar(fields.get(key), f'stored {key}')
         label = fields.get('name') or fields.get('title') or 'Unnamed search hit'
+        label_truncated = len(label) > MAX_LABEL_CHARS
         label = label[:MAX_LABEL_CHARS]
         dtype = _scalar(getattr(hit, 'dtype', None), 'dtype')
         dataset = _scalar(getattr(hit, 'dataset', None), 'dataset')
@@ -54,6 +55,8 @@ def render_hits(hits: Iterable[object]) -> str:
         canonical_rev = _scalar(getattr(hit, 'canonical_revision', None), 'canonical revision')
         lines.append('<li>')
         lines.append(f'<strong>{_literal(label)}</strong>')
+        if label_truncated:
+            lines.append('<span class="label-truncation">[display truncated]</span>')
         lines.append(f'<code class="hit-id">{_literal(identity)}</code>')
         for name, value in (('dtype', dtype), ('dataset', dataset),
                             ('storage revision', storage_rev),
