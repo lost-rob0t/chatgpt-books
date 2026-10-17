@@ -2029,3 +2029,71 @@ registry's separate runtime status/observation and independently observe
 handler receipt before claiming execution. The isolated index emissions
 remain unchanged under an actor-name-only edit. No graph relation or
 Prolog rule is inferred from either result.
+
+** Rolling-upgrade field preflight: source support is not deployed search
+
+A query that uses =fullName= can have different *source-level* prospects on a
+historical server and on the merged 0.10.1 migration.  The historical FTS
+callback at =ce14c77ccd2f51f543410fdeef3d78fb9978b769= selects
+=full_name= but not =fullName=.  The merged source at
+=ca6fdcbdc1f3b8aa344c533a40d298f741a54f25= selects both.  Neither
+spelling is interchangeable merely because they describe similar human
+attributes.  Both pinned callbacks emit =name= when given a nonempty top-level
+string; both omit =organizationType= in the same synthetic probe, even though
+that field exists in the canonical StarLang 0.10.1 Org schema.
+
+The executable =generation_field_gate.py= is a *source preflight*, not a
+search-query parser or a deployment health check.  It verifies each original
+=source/views/search.json= by its Git blob, then invokes its unchanged index
+callback in a bounded isolated Node VM against a fictional top-level scalar
+probe.  For each requested field it reports the actual raw =index()= emission
+and the source's declared analyzer.  A two-generation run classifies an
+observed field as common, merged-only, historical-only, or absent in this
+probe.  It does not infer Lucene tokens, query matching, authorization,
+backend installation, reindexing, durable canonical records, or a working
+opaque bookmark.
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/generation_field_gate.py \
+  PINNED-HISTORICAL-SERVER/source/views/search.json \
+  --merged MERGED-SERVER/source/views/search.json \
+  --field name --field fullName --field organizationType
+#+end_src
+
+For an offline compatibility gate that requires a field to be emitted in
+*both* source generations, add =--require both=.  It returns exit 1 and a
+machine-readable list of unsatisfied fields if, for example, =fullName= is
+required across the historical/merged boundary.  Missing or altered source
+blobs, malformed field names, and a request to check an unavailable merged
+source fail with exit 2.  This avoids treating an unavailable source as a
+successful compatibility check.  A single-generation run never reports
+knowledge of the other generation.
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=PINNED-HISTORICAL-SERVER \
+STAR_SEARCH_FIELD_GATE_MERGED=MERGED-SERVER/source/views/search.json \
+  python3 -m unittest discover \
+    -s books/starintel/code/search-lab \
+    -p test_generation_field_gate.py -v
+#+end_src
+
+The ordinary chapter runner has only the historical checkout and executes
+its historical-source tests; independent merged-source checks require the
+second immutable input.  This is an intentional distinction between TESTED
+observations, skipped optional tests and unobserved deployment behavior.
+
+*** Exercise: evaluate a mixed-generation rollout
+
+An operator proposes =fullName:"Example"= as the only search probe across a
+rolling update.  Run the gate for =name=, =full_name=, =fullName= and
+=organizationType=.  Explain why a green =--require merged= check for
+=fullName= still does not establish production hit coverage or that the caller
+may see the relevant dataset.  Then identify the independent experiments:
+inspect the installed FTS design, verify reindexing with a controlled
+positive hit, exercise authorized public and authenticated queries in their
+respective scopes, and read any claimed evidence by canonical identity.
+
+The key distinction is *a source callback can emit a field* versus *the
+running system demonstrably indexed it* versus *this principal can retrieve
+it* versus *a canonical revision is durably read back*.  None of those
+observations implies the others without evidence.

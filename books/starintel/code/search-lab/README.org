@@ -1309,3 +1309,17 @@ A public search uses server-owned datasets; authenticated document search
 uses the caller's permitted tenant/dataset scopes.  Neither search capability
 is interchangeable with =actors:read=.  An opaque search bookmark cannot
 be reused as a registry cursor or treated as proof of an actor's state.
+
+** Rolling-generation field preflight
+
+=python3 generation_field_gate.py HISTORICAL/source/views/search.json
+--merged MERGED/source/views/search.json --field name --field fullName
+--require both= tests a specific *raw source-index emission* against two
+immutable Git-blob pins.  Exit 1 means a requested emission was not observed
+in a required generation; exit 2 means the source/probe could not be safely
+evaluated.  The tool does not parse Lucene, authorize a caller, validate a
+canonical document, inspect an installed CouchDB design, or establish a
+search hit.  The Python native tests run from the standard historical-server
+runner.  Set =STAR_SEARCH_FIELD_GATE_MERGED= to a separately pinned merged
+design to run the optional two-generation assertions; no second checkout is
+silently assumed.
