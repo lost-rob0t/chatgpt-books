@@ -1232,3 +1232,31 @@ stored durability. Scope and publication rights are decided by the server's
 authorization and document validation boundaries; an FTS callback is not a
 second validator. Search visibility, canonical evidence and the source index
 emission stream must be tested independently.
+
+* Canonical wireless and social channel share a raw FTS field name
+
+=WirelessNetwork.channel= is a StarLang =0.10.1= integer; the unrelated
+=SocialMediaPost.channel= is a string. The generated schema authority is
+commit =96d26c338078676ec1dc6928755901636c9f7ef0=, Git blob
+=537163da436f67a973e280d1704e32bdba5b888b=. Both Server FTS callbacks
+index both as raw =channel= emissions (historical design blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=; merged blob
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=). The indexer does not
+emit =ssid=, =bssid=, =security=, =frequencyMhz= or =signalDbm= for the
+fictional canonical-shaped =WirelessNetwork= input.
+
+#+begin_src sh
+STAR_SEARCH_WIRELESS_HISTORICAL_DESIGN=PINNED_HISTORICAL/source/views/search.json \
+STAR_SEARCH_WIRELESS_MERGED_DESIGN=PINNED_MERGED/source/views/search.json \
+node --test books/starintel/code/search-lab/test_wireless_network_fts.js
+#+end_src
+
+The main pinned =run-tests= runner passes the historical file; the merged
+path is optional/read-only. The source-exact native tests confirm two
+semantically different =channel= raw emissions, absent wireless-specific
+fields, invariance under synthetic security/SSID changes, and sensitivity
+under actual indexed channel/dataset changes. The experiment is synthetic,
+network-free and *not* an SDK validation, radio capture, authorized HTTP
+request, installed Clouseau test, or durable document proof. No query-result
+cross-type matching is asserted: raw field-name reuse does not prove Lucene
+analyzer equivalence or deployed search scope.

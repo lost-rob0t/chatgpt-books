@@ -1870,3 +1870,68 @@ write/admission and authorization paths, perform authorized durable by-ID
 read-back in a disposable stack, confirm the installed index generation and
 query an allowed positive control in that same search scope. A raw callback
 alone settles none of those questions.
+
+** One raw =channel= index field represents two different canonical concepts
+
+Field names in a full-text index are not an ontology. StarLang =0.10.1= defines
+=WirelessNetwork.channel= as an integer radio-channel field and
+=SocialMediaPost.channel= as a string naming a conversation channel. Both
+properties are present in generated schema Git blob
+=537163da436f67a973e280d1704e32bdba5b888b= at canonical commit
+=96d26c338078676ec1dc6928755901636c9f7ef0=. They share a spelling,
+not a meaning. [cite:@starlang-starintel-0101]
+
+The historical Server FTS callback (Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=) and the merged =0.10.1=
+source callback (=dd6336f3047982db2f0e3615fed1413ed1e58e13=) both
+select =channel= from the canonical-shaped input. An isolated execution on a
+fictional =WirelessNetwork= emits raw =channel= value =6=; a fictional
+=SocialMediaPost= emits =channel= value ="fictional-room"=. The emitted *field
+name* is identical despite the number/string distinction. The original
+callback does *not* emit the wireless =ssid=, =bssid=, =security=,
+=frequencyMhz= or =signalDbm= properties from this synthetic record.
+
+#+caption: Two different canonical fields map to one raw FTS field name; neither row is an authorized search hit.
+| Canonical type       | Canonical =channel= value | Raw field name | Raw value         |
+|----------------------+---------------------------+----------------+-------------------|
+| =WirelessNetwork=    | integer =6=               | =channel=      | number =6=        |
+| =SocialMediaPost=    | string =fictional-room=   | =channel=      | =fictional-room=  |
+
+Execute the Git-blob-attested =test_wireless_network_fts.js= regression with
+both original index generations:
+
+#+begin_src sh
+STAR_SEARCH_WIRELESS_HISTORICAL_DESIGN=HISTORICAL_SERVER/source/views/search.json \
+STAR_SEARCH_WIRELESS_MERGED_DESIGN=MERGED_SERVER/source/views/search.json \
+node --test books/starintel/code/search-lab/test_wireless_network_fts.js
+#+end_src
+
+This is an index-design *collision of field names*, not evidence that
+Clouseau equates a radio channel with a discussion channel or that a
+particular Lucene query returns both types. Analyzer behavior, installed
+index state and actual query matching remain UNTESTED. A query designer must
+make type and dataset constraints explicit in a permitted search context;
+public =GET /api/v1/search= uses server-owned datasets, and authenticated
+=documents.search= uses the caller's authorized tenant/dataset. Interpret a
+result through a separately authorized canonical =id=/=rev= read and source
+provenance. Distinguish index visibility, durable =_id=/=_rev= state and
+canonical wireless evidence, and treat bookmarks as opaque continuation
+state. A network-name hit cannot establish observed radio security or device
+location. [cite:@starintel-search-runtime-20261009]
+
+*** Exercise -- Which =channel= was retrieved? (★★★)
+
+The source-exact callback emits =channel= from two fictional records: =6=
+for =WirelessNetwork= and ="fictional-room"= for =SocialMediaPost=. Why is a
+query for =channel= without a =dtype= constraint insufficient to interpret
+the result as an observation about Wi-Fi? Then change only the fictional
+wireless =security= from =wpa2-psk= to =open= and predict the raw emissions.
+Name one positive control demonstrating that the test can detect relevant
+index changes.
+
+*Worked answer:* field-name equality does not make the concepts equivalent.
+The isolated callback emits the same channel field label for both datatypes.
+Changing =security= alone leaves raw emissions unchanged. Changing the radio
+=channel= from =6= to =11= or changing =dataset= produces a different raw
+emission. Confirm actual interpretation through an authorized canonical read
+and its evidence; no live Lucene matching or capture is proved by this test.
