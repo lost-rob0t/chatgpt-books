@@ -2097,3 +2097,61 @@ The key distinction is *a source callback can emit a field* versus *the
 running system demonstrably indexed it* versus *this principal can retrieve
 it* versus *a canonical revision is durably read back*.  None of those
 observations implies the others without evidence.
+
+
+** Canonically equivalent Unicode is not automatically an equivalent search result
+
+Consider two fictional records with the same canonical =Person.id=,
+=Person.rev=, =dtype= and =dataset=.  Their only difference is the spelling
+of =fname=: one uses precomposed =Caf\u00e9= (U+00E9), the other =Cafe\u0301=
+(=e= followed by the combining acute U+0301).  These are different sequences
+of Unicode code points that yield the same string when normalized to NFC.
+The same distinction appears between precomposed =\u00c5sa= and an =A=
+followed by a combining ring then =sa=.  A visual match does not establish
+byte identity or raw index-emission identity.
+
+StarLang =org.starintel/core@1= 0.10.1 declares =Person.fname= and
+=Person.notes= as strings.  The historical Server FTS source at
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769= and the merged source at
+=ca6fdcbdc1f3b8aa344c533a40d298f741a54f25= each place an unchanged
+=fname= value into the raw index callback.  Executing both exact Git-blob-
+attested callbacks demonstrates that NFC and NFD spellings generate
+*different raw stored emissions* even when their metadata is identical.
+Changing an unindexed =Person.notes= string does not change those emissions;
+changing the indexed =fname= does.  Neither callback emits the fictional
+record's canonical =id= or =rev= as an =index()= field.
+
+This experiment does *not* establish different Lucene tokens or different
+query results.  The source declares a =perfield= analyzer with a =standard=
+default and a =keyword= override for =name=, but these tests inspect
+emissions *before* analyzer execution.  Do not claim that searching for one
+Unicode spelling will miss the other without an installed-design check and a
+controlled, permitted HTTP search.  The name-field declaration also does not
+supply evidence of normalization, tokenization or ranking in a live backend.
+
+#+begin_src sh
+STAR_SEARCH_TEXT_HISTORICAL_DESIGN=PINNED-SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_canonical_text_coverage.js
+#+end_src
+
+The maintained Chapter 15 runner already calls this native Node suite.
+The two-generation version additionally sets =STAR_SEARCH_TEXT_MERGED_DESIGN=
+only with the separately pinned merged source.  Synthetic shape-only inputs
+do not demonstrate 0.10.1 SDK admission.  Source emissions do not establish
+installed index coverage, and an installed index does not authorize the caller:
+public search uses server-owned datasets; authenticated search must respect
+the principal's tenant and dataset permissions.  An opaque bookmark and an
+FTS hit cannot certify a durable canonical revision, its provenance or any
+query-result consistency across index generations.
+
+*** Exercise -- Unicode spellings and three different claims (★★★)
+
+A user searches for =Caf\u00e9= and reports no hit.  Explain why the
+Node regression cannot prove the cause.  Identify the separate evidence
+needed to establish (1) generated-SDK-valid canonical documents and a durable
+by-ID read, (2) installed and populated index coverage for the selected
+source generation and analyzer behavior, and (3) a query issued through the
+right public or authenticated search surface under an authorized scope.
+Retain the server's bookmark as an opaque cursor rather than interpreting its
+bytes as evidence of ordering or text normalization.  A missing hit remains
+an incomplete retrieval observation, not evidence that the document is absent.

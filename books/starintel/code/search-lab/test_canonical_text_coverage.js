@@ -121,3 +121,57 @@ for (const {generation, file} of inputs) {
     assert.deepEqual(valuesFor(emitted, 'message'), []);
   });
 }
+
+
+// Canonical Unicode equivalence is a string-level fact, not evidence that
+// the raw FTS callback, Lucene analyzer, and authorized query are equivalent.
+// Person.fname and Person.notes are strings in the pinned StarLang 0.10.1 schema.
+for (const {generation, file} of inputs) {
+  const source = loadIndex(file, generation);
+  const equivalents = [
+    ['acute', 'Caf\u00e9', 'Cafe\u0301'],
+    ['ring', '\u00c5sa', 'A\u030asa'],
+  ];
+  for (const [label, composed, decomposed] of equivalents) {
+    test(generation + ': ' + label + ' canonical-equivalent text has distinct raw fname emissions', () => {
+      assert.notEqual(composed, decomposed);
+      assert.equal(composed.normalize('NFC'), decomposed.normalize('NFC'));
+      const left = capture(source, sample('person', {fname: composed}));
+      const right = capture(source, sample('person', {fname: decomposed}));
+      assert.deepEqual(valuesFor(left, 'fname'), [composed]);
+      assert.deepEqual(valuesFor(right, 'fname'), [decomposed]);
+      assert.notDeepEqual(left, right);
+      for (const key of ['tenant_id', 'dataset', 'dtype']) {
+        assert.deepEqual(valuesFor(left, key), valuesFor(right, key));
+      }
+      assert.ok(left.every(row => row.stored));
+    });
+  }
+  test(generation + ': the keyword name analyzer declaration is not a Lucene test', () => {
+    const design = JSON.parse(fs.readFileSync(file, 'utf8'));
+    assert.equal(design.indexes.fts.analyzer.name, 'perfield');
+    assert.equal(design.indexes.fts.analyzer.default, 'standard');
+    assert.equal(design.indexes.fts.analyzer.fields.name, 'keyword');
+    const a = capture(source, sample('person', {name: 'Caf\u00e9'}));
+    const b = capture(source, sample('person', {name: 'Cafe\u0301'}));
+    assert.deepEqual(valuesFor(a, 'name'), ['Caf\u00e9']);
+    assert.deepEqual(valuesFor(b, 'name'), ['Cafe\u0301']);
+    assert.notDeepEqual(a, b);
+  });
+  test(generation + ': raw index carries neither canonical identity nor revision', () => {
+    const a = sample('person', {fname: 'Caf\u00e9'});
+    const b = sample('person', {fname: 'Cafe\u0301'});
+    assert.equal(a.id, b.id);
+    assert.equal(a.rev, b.rev);
+    assert.deepEqual(valuesFor(capture(source, a), 'id'), []);
+    assert.deepEqual(valuesFor(capture(source, a), 'rev'), []);
+    assert.notDeepEqual(capture(source, a), capture(source, b));
+  });
+  test(generation + ': omitted canonical notes are independent of indexed fname', () => {
+    const a = capture(source, sample('person', {fname: 'Fictional', notes: 'Caf\u00e9'}));
+    const b = capture(source, sample('person', {fname: 'Fictional', notes: 'Cafe\u0301'}));
+    assert.deepEqual(a, b);
+    assert.deepEqual(valuesFor(a, 'notes'), []);
+    assert.notDeepEqual(a, capture(source, sample('person', {fname: 'Different'})));
+  });
+}

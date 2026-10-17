@@ -1323,3 +1323,40 @@ search hit.  The Python native tests run from the standard historical-server
 runner.  Set =STAR_SEARCH_FIELD_GATE_MERGED= to a separately pinned merged
 design to run the optional two-generation assertions; no second checkout is
 silently assumed.
+
+
+* Canonically equivalent Unicode does not establish identical raw FTS emissions
+
+The canonical StarLang 0.10.1 =Person.fname= and =Person.notes= schema
+properties have string types.  Unicode nevertheless permits different code-point
+sequences for some visually similar text: =Caf\u00e9= (U+00E9) and
+=Cafe\u0301= (=e= plus U+0301) normalize to the same NFC string.
+An equivalent example is =\u00c5sa= versus =A\u030asa=.
+
+The pinned historical and merged JavaScript FTS callbacks copy the original
+=fname= scalar to =index('fname', value, {store:true})= without normalizing
+it in the callback.  The existing =test_canonical_text_coverage.js= now runs
+five additional Node regressions for *each* supplied Git-blob-attested source:
+NFC/NFD raw-emission differences for two examples; =name= emission under the
+source's =keyword= analyzer declaration; the absence of =id=/=rev= from these
+raw emissions; and a positive =fname= control against unindexed =Person.notes=.
+No separate test-registration exception or fallback runner was added.
+
+#+begin_src sh
+STAR_SEARCH_TEXT_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_canonical_text_coverage.js
+# Optional, only with independently pinned merged source:
+STAR_SEARCH_TEXT_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_TEXT_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_canonical_text_coverage.js
+#+end_src
+
+The precise finding is about *raw source callback emissions*.  Although
+the source design declares =perfield= analysis, =name= keyword analysis and a
+=standard= default, these Node tests do not execute CouchDB, Clouseau or its
+Lucene analyzer.  They cannot determine whether a live query normalizes either
+spelling, how it ranks, or whether any hit appears.  They do not validate the
+fixtures with the generated 0.10.1 SDK.  Public search still uses server-owned
+visible datasets; authenticated search still requires permitted dataset and
+tenant scopes.  A bookmark remains opaque, and a matched index token is not
+an authorized by-ID read, durable canonical revision or source provenance.
