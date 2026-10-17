@@ -1507,3 +1507,30 @@ Canonical schema authority: =96d26c338078676ec1dc6928755901636c9f7ef0=.
 These tests do not attest to SDK admission, installed CouchDB/Clouseau,
 public or authenticated search authorization, opaque bookmark semantics,
 canonical durability or corpus coverage. See =manuscript/search-15.org=.
+
+* EvidenceRecord assessment/custody fields versus searchable claim text
+
+The source-pinned =test_evidence_admissibility_fts.js= executes the unchanged
+historical and merged Server search callbacks against a fictional,
+canonical-shaped =0.10.1= EvidenceRecord.  Both callbacks emit =claim=,
+=dataset=, =dtype= and server tenant scope, but not =verificationStatus=,
+=admissibilityStatus=, =status=, =contentHash=, =chainOfCustody=,
+=claimIds=, =collectionMethod=, or =provenance=.  These absences are
+observations about *raw callback field selection*, not Lucene matches,
+canonical SDK admission, authorized access, durable evidence or verified
+integrity.  The negative control deliberately adds a verification-status
+emission and causes the unchanged-field assertion to fail.
+
+#+begin_src sh
+STAR_SEARCH_EVIDENCE_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_evidence_admissibility_fts.js
+STAR_SEARCH_EVIDENCE_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_EVIDENCE_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_evidence_admissibility_fts.js
+#+end_src
+
+Git design blobs: historical =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=,
+merged =dd6336f3047982db2f0e3615fed1413ed1e58e13=.
+StarLang =0.10.1= schema: =96d26c338078676ec1dc6928755901636c9f7ef0=
+(blob =537163da436f67a973e280d1704e32bdba5b888b=).
+See =manuscript/search-15.org= for the authorization/evidence exercise.

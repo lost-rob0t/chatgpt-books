@@ -2475,3 +2475,80 @@ bookmarks to inspect bounded pages; do not derive corpus completeness
 from one page. No step here proves that every message was indexed or
 that a specific query was matched by the running analyzer without a
 service-backed experiment.
+
+** An evidence record's searchable claim is not its verification verdict
+
+A canonical StarLang =0.10.1= =EvidenceRecord= can carry a human-readable
+=claim= alongside =verificationStatus=, =admissibilityStatus=, =status=,
+=contentHash=, =chainOfCustody=, =claimIds=, =collectionMethod= and
+=provenance=.  These properties answer *different* questions.  The claim is
+an assertion worth finding; the verification fields describe recorded
+assessment; chain-of-custody and hash metadata are inputs to an integrity
+check, not an integrity check performed by search.
+
+The two pinned StarIntel Server search-index functions make the distinction
+observable.  Both emit the top-level =claim= string as a stored raw FTS field,
+but neither emits those assessment, integrity, reference, or custody fields.
+The source-backed experiment below changes a fictional record from
+=verificationStatus= "unverified" to "verified" while changing
+=admissibilityStatus= from "pending-review" to "rejected".  The raw emitted
+fields are *unchanged*.  Changing the =claim= text, by contrast, changes
+its raw =claim= emission.  This is about the *selection function* alone:
+it neither proves that the canonical SDK accepts these particular example
+values nor that a deployed Lucene index contains them.
+
+| Fictional field change                      | Historical raw index | Merged raw index | What it does /not/ prove |
+|---------------------------------------------+----------------------+------------------+--------------------------|
+| =claim= different text                      | Changed              | Changed          | No claim verification    |
+| =verificationStatus= unverified -> verified | Unchanged            | Unchanged        | No verified verdict      |
+| =admissibilityStatus= pending -> rejected   | Unchanged            | Unchanged        | No admissibility ruling  |
+| =contentHash= or =chainOfCustody= changed   | Unchanged            | Unchanged        | No integrity attestation |
+| =dataset= changed                           | Changed              | Changed          | No authorization grant   |
+
+The index's =dataset= field is emitted by the callback, but it is not a
+client-controlled authorization bypass.  The public =GET /api/v1/search=
+route compiles a query from *server-owned* public dataset/tenant scopes and
+rejects caller scope overrides; authenticated =documents.search= compiles
+the authorized caller's allowed dimensions.  A matching raw field, a
+successful scoped search, and an authorized canonical by-ID read must be
+reported as separate observations.  Bookmarks are opaque cursors for
+bounded pages, not evidence of complete coverage.
+
+The regression executes the unchanged historical and merged Server index
+callbacks with a bounded Node capture.  It attests both Git blobs before
+execution, includes positive =claim=/=dataset= controls, and has a
+mutation control demonstrating that an explicit =verificationStatus= index
+addition would be detected.  It does *not* execute HTTP middleware,
+CouchDB/Clouseau, the canonical SDK, a custody verifier, or a live search.
+
+#+begin_src sh
+STAR_SEARCH_EVIDENCE_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_EVIDENCE_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_evidence_admissibility_fts.js
+#+end_src
+
+*** Exercise -- A found assertion is not an attested evidence record (★★★)
+
+A fictional analyst sees a search hit whose indexed =claim= describes a
+laboratory observation.  A UI labels the hit "verified and admissible".
+What additional evidence is necessary before the UI may make that claim?
+How should a search miss be reported?
+
+/Worked answer:/ Retain the authorized query surface, dataset, tenant,
+observed page and opaque bookmark as retrieval context.  Resolve the
+record's canonical identity/revision through a separately authorized
+by-ID read.  Inspect the actual =verificationStatus= and
+=admissibilityStatus= at that revision, the provenance and custody
+records, and verify any claimed hash using the system's independently
+specified integrity procedure.  A populated field is not itself proof
+that verification occurred.  If search returns no hit, report *no hit
+observed within the checked surface/pages*; do not infer that the
+canonical record is absent, invalid, rejected or undisclosed elsewhere.
+
+Source identity: historical Server =ce14c77ccd2f51f543410fdeef3d78fb9978b769=
+(FTS design Git blob =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=);
+merged Server =ca6fdcbdc1f3b8aa344c533a40d298f741a54f25= (design
+blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=).  Schema
+field names come from canonical StarLang =0.10.1= commit
+=96d26c338078676ec1dc6928755901636c9f7ef0=; the fixture is
+*canonical-shaped*, not an independently admitted canonical document.
