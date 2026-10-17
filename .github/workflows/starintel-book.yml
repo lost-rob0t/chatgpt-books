@@ -88,6 +88,13 @@ jobs:
             books/starintel/code/ingest-adapter/adapter.py \
             books/starintel/code/ingest-adapter/test_adapter.py
 
+      - name: Run canonical 0.10.1 proof hermetic tests
+        run: |
+          python3 -m unittest discover -s books/starintel/code/canonical-live -p 'test_*.py' -v
+          python3 -m py_compile books/starintel/code/canonical-live/*.py
+          bash -n books/starintel/code/canonical-live/probe.sh
+          bash -n books/starintel/code/canonical-live/run-service-proof
+
       - name: Run service-trace evidence tests
         run: |
           bash books/starintel/code/live-stack/run-tests
@@ -234,3 +241,45 @@ jobs:
       - name: Flake check
         run: sudo nix flake check -L
 
+  canonical-0101-service-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install disposable stack prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y jq
+          docker --version
+          docker compose version
+          python3 --version
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Run canonical StarIntel 0.10.1 real-stack proof
+        run: bash books/starintel/code/canonical-live/run-service-proof
+
+      - name: Validate sanitized canonical proof
+        run: |
+          test -s .cache/starintel-canonical-live.json
+          jq -e '.schema == "starintel-book-canonical-service-proof-v1"
+              and .schema_version == "0.10.1"
+              and .claim_status == "TESTED"
+              and ([.documents[].dtype] == ["person","org","relation"])
+              and all(.documents[]; .readback_http_status == 200)'               .cache/starintel-canonical-live.json >/dev/null
+
+      - name: Upload canonical evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: starintel-canonical-0101-proof
+          path: .cache/starintel-canonical-live.json
+          if-no-files-found: error

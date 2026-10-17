@@ -379,15 +379,14 @@ contract you actually have.
 
 *** Canonical does not mean every runtime has adopted it
 
-At the time of this edition, =starintel-server= default branch still carries its
-older runtime lock: release/profile 0.9.1 over the 0.9.0 wire schema.
-[cite:@starintel-server-20261005]
-
-A tested draft migration exists in server PR #313.  That work changes the
-server to accept flat lowerCamelCase 0.10.1 documents through generated StarLang
-artifacts and =star-cl= at HTTP, bulk, Rabbit mutation, update and generated API
-schema boundaries.  It is not merged into the default branch at this book
-revision. [cite:@starintel-server-pr313]
+The 2026-10-16 recheck of =starintel-server= master at
+=0137ead90ab9560b5a5090f0b62c1b59aac08c68= confirms that the tested
+StarLang-generated 0.10.1 adoption from server PR #313 is now merged
+(2026-10-10). Canonical flat lowerCamelCase documents are accepted through
+generated =star-cl= at HTTP, bulk, Rabbit mutation, update, and generated API
+schema boundaries. Historical 0.9 compatibility is still explicit; older
+book labs describe their pinned historical server, not the default today.
+[cite:@starintel-server-pr313]
 
 This gives us a realistic distributed-software lesson:
 
@@ -812,22 +811,24 @@ moves to 0.10.1.
 
 What changes is the document authority at the edge.
 
-*** The current adoption gap
+*** The current adoption boundary
 
-At the 2026-10-05 audit:
+As rechecked on 2026-10-16:
 
 | Layer | State |
 |-------+-------|
 | Canonical StarLang authority | 0.10.1 |
 | Generated 0.10.1 artifacts | published/locked in StarLang |
-| =starintel-server= default branch | still older 0.9.1/0.9.0 lock |
-| server PR #313 | tested draft 0.10.1 migration |
+| =starintel-server= default branch | merged canonical 0.10.1 ingress/storage boundaries |
+| server PR #313 | merged on 2026-10-10 |
 | every downstream actor/client | not assumed migrated |
+| book-owned 0.10.1 service trace | P0 lab authored, pending exact-head execution |
 
-[cite:@starlang-starintel-0101;@starintel-server-20261005;@starintel-server-pr313]
+[cite:@starlang-starintel-0101;@starintel-server-pr313]
 
-The table prevents a common migration failure: sending canonical bytes to a
-runtime that has not loaded the canonical reader yet.
+The table prevents two opposite migration errors: assuming every downstream
+producer has adopted 0.10.1, or falsely describing the merged server as still
+limited to the historical 0.9 document profile.
 
 *** What the 0.10.1 server migration changes conceptually
 

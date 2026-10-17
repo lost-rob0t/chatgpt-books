@@ -325,9 +325,10 @@ feature migration are moving independently.
 
 ** The 0.10.1 migration changes document semantics, not the concept of named operations
 
-Server PR #313 reports a tested draft implementation that moves document
-boundaries to StarLang-generated 0.10.1 while retaining the hardened service
-architecture. [cite:@starintel-server-pr313]
+Server PR #313 merged on 2026-10-10, moving canonical document boundaries
+to StarLang-generated 0.10.1 while retaining the hardened service
+architecture and explicit legacy compatibility. The book's P0 service test
+remains a separate executable evidence gate. [cite:@starintel-server-pr313]
 
 Conceptually:
 

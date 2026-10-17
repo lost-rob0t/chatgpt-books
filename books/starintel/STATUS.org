@@ -24,18 +24,19 @@ the reader to reconstruct the mental model from repository history.
 
 * Canonical edition boundary
 
-As of the 2026-10-05 audit:
+As of the 2026-10-16 recheck:
 
 - canonical StarIntel document authority is StarLang
   =org.starintel/core@1= / =0.10.1=;
 - canonical keys are lowerCamelCase;
 - canonical public identity/revision are =id=/=rev=;
-- =starintel-server= default branch at
-  =ce14c77ccd2f51f543410fdeef3d78fb9978b769= still carries the historical
-  0.9.1/0.9.0 document lock;
-- server PR #313 at
-  =117057d6f5bbf2e2b40d5cfd89eb7adcca5e28fd= is the tested but unmerged
-  StarLang-generated 0.10.1 migration;
+- =starintel-server= master was inspected at
+  =0137ead90ab9560b5a5090f0b62c1b59aac08c68= and now uses
+  StarLang-generated 0.10.1 at canonical ingress/storage/read-back boundaries;
+- server PR #313 merged 2026-10-10 as
+  =ca6fdcbdc1f3b8aa344c533a40d298f741a54f25=;
+- historical 0.9 compatibility remains explicit and older book labs remain
+  pinned to their original server revisions;
 - book prose must distinguish canonical authority, runtime adoption,
   compatibility input, storage projection, and exact historical test pins.
 
@@ -248,8 +249,9 @@ Still required before the book can claim full current-schema mastery:
   failure coverage without duplicating StarLang authority;
 - complete authoritative compatibility-fixture replay beyond the one SDK
   historical-input migration and current-input identity case now tested;
-- canonical 0.10.1 end-to-end service ingest/read-back on a runtime that
-  actually supports 0.10.1;
+- canonical 0.10.1 end-to-end service ingest/read-back on the post-merge
+  runtime: P0 disposable-stack probe is now AUTHORED but remains UNTESTED
+  until the new exact-head service-backed CI job passes;
 - canonical relation persistence/read-back test;
 - semantic actor registry discovery test from the book;
 - complete =investigation-target= -> =operation= -> capability selection ->
@@ -327,10 +329,10 @@ not started.
 
 No prose blocker is known.
 
-The strongest current educational blocker is executable adoption evidence: the
-book cannot honestly claim a canonical 0.10.1 end-to-end server path until it
-pins a runtime that actually supports that contract and runs the complete
-service-backed test.
+The strongest current educational blocker is now the book-owned exact-head
+execution of the post-merge canonical 0.10.1 disposable-stack probe. The
+existing historical HTTP/Rabbit/Couch experiments do not prove canonical
+read-back, and authored P0 tests do not become TESTED until CI runs them.
 
 Publication and merge state are governed by the current task instructions and
 exact-head checks; this file does not itself grant merge authority.

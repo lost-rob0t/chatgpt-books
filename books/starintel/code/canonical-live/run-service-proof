@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+# Post-PR #313 merged master, checked on 2026-10-16.
+server_pin="0137ead90ab9560b5a5090f0b62c1b59aac08c68"
+upstream="$repo_root/.cache/starintel-server-canonical-live"
+output="$repo_root/.cache/starintel-canonical-live.json"
+
+rm -rf "$upstream"
+mkdir -p "$(dirname "$upstream")"
+git init -q "$upstream"
+git -C "$upstream" remote add origin https://github.com/lost-rob0t/starintel-server.git
+git -C "$upstream" fetch --depth=1 origin "$server_pin"
+git -C "$upstream" checkout --detach FETCH_HEAD
+test "$(git -C "$upstream" rev-parse HEAD)" = "$server_pin"
+
+# Fail-closed, exact-once source hook. Upstream changes remain disposable.
+python3 "$repo_root/books/starintel/code/live-stack/inject_probe.py" \
+  "$upstream/scripts/stack-test.sh"
+
+export BOOK_REPO_ROOT="$repo_root"
+export STARINTEL_SERVER_PIN="$server_pin"
+export STARINTEL_BOOK_PROBE="$repo_root/books/starintel/code/canonical-live/probe.sh"
+
+(
+  cd "$upstream"
+  bash scripts/stack-test.sh
+)
+
+source_artifact="$upstream/stack-test-artifacts/book-canonical-live.json"
+test -s "$source_artifact"
+mkdir -p "$(dirname "$output")"
+cp "$source_artifact" "$output"
+python3 -m json.tool "$output" >/dev/null
+python3 - "$output" "$server_pin" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert data["schema"] == "starintel-book-canonical-service-proof-v1"
+assert data["claim_status"] == "TESTED"
+assert data["server_pin"] == sys.argv[2]
+assert [x["dtype"] for x in data["documents"]] == ["person", "org", "relation"]
+assert all(x["readback_http_status"] == 200 for x in data["documents"])
+PY
+printf 'Verified canonical 0.10.1 proof artifact: %s\n' "$output"
