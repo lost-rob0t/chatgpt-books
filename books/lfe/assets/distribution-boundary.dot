@@ -1,0 +1,27 @@
+digraph distribution_boundary {
+  rankdir=LR;
+  graph [fontname="sans-serif", labelloc="t", label="Project 4: distribution adds a node boundary; it does not erase failure"];
+  node [shape=box, fontname="sans-serif"];
+  edge [fontname="sans-serif"];
+
+  origin [label="Origin BEAM node\nCommon Test case"];
+  address [label="Remote server ref\n{'otp-router', PeerNode}"];
+  transport [label="Erlang distribution\nnode name + cookie\n(test-only plain transport)"];
+  app [label="Peer BEAM node\notp_router application"];
+  sup [label="Local supervisor\n'on the peer node'"];
+  worker [label="LFE gen_server\n'otp-router'"];
+  kernel [label="Pure LFE routing kernel\nevent-rules:route/2"];
+  monitor [label="Node monitor\n{nodedown, PeerNode}"];
+  callfail [label="Remote call after loss\nexit reason {nodedown, PeerNode}"];
+
+  origin -> address [label="gen_server:call/3"];
+  address -> transport [label="resolve node-scoped name"];
+  transport -> app [label="authenticated connection"];
+  app -> sup [label="application owns"];
+  sup -> worker [label="local restart policy"];
+  worker -> kernel [label="domain transition"];
+  app -> monitor [style=dashed, label="peer node stops"];
+  monitor -> origin [style=dashed, label="failure observation"];
+  transport -> callfail [style=dashed, label="connection absent"];
+  callfail -> origin [style=dashed, label="caller observes exit"];
+}
