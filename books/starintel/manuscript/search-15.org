@@ -2327,3 +2327,57 @@ datasets and its server-owned tenant scope; authenticated search evaluates
 the caller's permitted tenant/dataset scope. Neither route grants its own
 canonical evidence status. Treat bookmarks as opaque continuation state,
 not proof of durable coverage.
+
+** ASN numbers and routing adjacency are not searchable topology
+
+StarLang =org.starintel/core@1= version =0.10.1= defines an =Asn=
+record with a required integer =number= and optional =prefixes=, =peers=,
+=upstreams=, =rir=, =registry= and =name=.  This typed canonical shape is
+*not* an installed full-text index contract.  The source-exact offline
+regression =test_asn_routing_fts.js= executes the historical Server
+=ce14c77c= and merged =ca6fdcbd= search-design callbacks on fictional
+ASN-shaped records.  In both generations, it observes only the standard
+=tenant_id=, =dataset=, =dtype= emissions plus optional =name=.  Changing
+=number=, =prefixes=, =peers=, =upstreams=, =rir= or =registry= does not
+alter these *raw emissions*.  Changing =name= or =dataset= does.
+
+| Property | Canonical 0.10.1 =Asn= | Historical / merged raw FTS |
+|----------+------------------------+------------------------------|
+| =number= | Required integer       | Not emitted                  |
+| =prefixes= | String array         | Not emitted                  |
+| =peers= / =upstreams= | Integer arrays | Not emitted       |
+| =rir= / =registry= | Optional strings | Not emitted        |
+| =name= | Optional string         | Emitted when supplied        |
+
+A hit on =name:...= can show that one *name* was indexed; it cannot
+establish the numeric ASN identity, a BGP adjacency, observed routing or
+an authoritative prefix origin.  Conversely, no =number= hit does not
+show that the record was never admitted or persisted.  The public endpoint
+uses a server-owned allowed dataset list; the authenticated endpoint
+applies its own caller tenant/dataset scopes.  These permission boundaries
+are not changed by the shape of the FTS projection.  Iterate search pages
+with opaque bookmarks, not numeric offsets, and independently verify the
+canonical =id=/=rev=, typed =Asn= properties and provenance by an authorized
+durable read.  A stored/indexed projection, a search-visible hit and a
+durable canonical document remain three different observations.
+
+#+begin_src sh
+STAR_SEARCH_ASN_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_ASN_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_asn_routing_fts.js
+#+end_src
+
+*** Exercise -- prefix-change counterexample
+
+On the fictional record, change =number= from =64512= to =64515= and
+=prefixes= from =["192.0.2.0/24"]= to =["198.51.100.0/24"]=.  Execute
+the two pinned callbacks and compare their raw =index(...)= emissions.
+Explain why equal emission lists neither prove equal canonical records nor
+guarantee identical deployed Lucene results.  Then change only =name=.
+
+/Worked answer:/ Both callbacks retain the same scope/type and =name=
+emissions when the numeric identity and prefixes change.  =number= and
+=prefixes= are not in their enumerated source fields; the callbacks do
+not attest actual indexing, Lucene analyzers, authorization, search
+bookmarks, or durable storage.  A name change alters the emitted =name=
+value, which is a positive control for the *source* projection only.

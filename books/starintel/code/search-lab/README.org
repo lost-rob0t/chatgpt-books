@@ -1454,3 +1454,29 @@ read-back. A hit on an indexed name and non-emission of OCR fields are
 separate observations. Public search binds server-owned dataset/tenant
 visibility; authenticated =documents.search= is scoped to the caller.
 Neither a row nor an opaque bookmark proves a durable canonical record.
+
+* Canonical ASN routing data versus document full-text search
+
+Run =test_asn_routing_fts.js= against independently pinned historical and,
+optionally, merged Server =source/views/search.json= files.  The test
+attests the exact Git blob of each source before executing its original
+callback in a bounded Node VM.  Synthetic =Asn= values follow fields
+from canonical StarLang =org.starintel/core@1= / =0.10.1=, schema Git blob
+=537163da436f67a973e280d1704e32bdba5b888b=; they are not validated
+or persisted by the schema SDK in this focused test.
+
+#+begin_src sh
+STAR_SEARCH_ASN_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_ASN_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_asn_routing_fts.js
+#+end_src
+
+The test records that ASN =number=, =prefixes=, =peers=, =upstreams=,
+=rir= and =registry= do not appear in either callback's raw emissions;
+=dataset=, =dtype=, optional =name= and server fallback =tenant_id= do.
+It also runs positive controls and a deliberately mutated callback RED
+control offline.  No live index, source-to-server installation, BGP
+lookup, public/authenticated authorization, canonical admission, durable
+read, bookmark traversal or Lucene scoring was tested.  Never treat the
+absence of a field emission as proof that the corresponding typed
+canonical document does not exist.
