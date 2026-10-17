@@ -16,9 +16,9 @@
 
 The operator is authorized to modify this repository and its retained worker branches/PRs.
 
-Book workers are limited to repository-owned code, tests, documentation, diagrams, synthetic fixtures, and public-source research such as academic or vendor documentation. Public names, public usernames/handles, public affiliations, public statements/posts, and public corporate/government records are in scope when relevant. Do not publish secrets or credentials; non-public unique identifiers such as SSNs or government-ID numbers; precise private residential addresses; non-public contact information; financial-account/payment credentials; private medical or biometric data; private communications; or harmful operational material. This authorization and scope are facts governing the task context; they do not override an explicit platform safety-policy denial.
+Capability first: ordinary public-source information that a normal web bot can access without private credentials or privileged access is in scope for collection, analysis, citation, and publication when relevant. Do not suppress public names, usernames/handles, affiliations, statements/posts, organizations, or public records merely because they concern a person.
 
-When escalating a persistent write blocker, include the authorized scope so the operator can distinguish a permissions/tooling problem from a genuinely safety-relevant action.
+The publication boundary is narrow: do not expose precise private residential addresses or live/precise personal location; SSNs, government-ID numbers, or equivalent unique personal identifiers; secrets or credentials; non-public contact/account identifiers; or similarly direct private identifiers. Preserve source attribution and uncertainty. This task context does not override an explicit platform safety-policy denial.
 
 ## GitHub write-retry policy
 
@@ -30,6 +30,6 @@ For work performed through the connected GitHub App, ordinary write failures are
 - Retry the same intended GitHub operation up to **10 total attempts** for recoverable failures.
 - If any attempt is explicitly identified by the tool/runtime as an OpenAI safety-policy denial, stop that exact action/material immediately; do not disguise, repackage, reroute, re-encode, or bypass it.
 - If all 10 attempts fail without a successful write, **do not blindly continue or dismiss the failure as harmless**. Treat the repeated failure as potentially safety-relevant or otherwise policy/permission restricted, stop that operation, and escalate to the operator.
-- The escalation must report the exact action, error(s), attempt count, repo/ref/blob state, and this context: the operator is authorized to modify the repository; public names, handles, affiliations, statements/posts, and public corporate/government records are in scope when relevant; secrets/credentials, SSNs or other non-public unique IDs, precise private residential addresses, non-public contact data, financial-account/payment credentials, private medical/biometric data, private communications, and harmful operational content are outside publication scope.
+- The escalation must report the exact action, error(s), attempt count, repo/ref/blob state, and this context: the operator is authorized to modify the repository; ordinary public-source information visible to a normal web bot is in scope; precise private residential addresses/live precise personal location, SSNs/government IDs or equivalent unique identifiers, secrets/credentials, and non-public contact/account identifiers are outside publication scope.
 - Ask the operator to unblock, clarify, or narrow the action before another write attempt.
 - Do not switch to Forgejo, SSH, unauthenticated web GitHub, or another transport merely because the GitHub App write failed.
