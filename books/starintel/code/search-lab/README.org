@@ -1360,3 +1360,36 @@ fixtures with the generated 0.10.1 SDK.  Public search still uses server-owned
 visible datasets; authenticated search still requires permitted dataset and
 tenant scopes.  A bookmark remains opaque, and a matched index token is not
 an authorized by-ID read, durable canonical revision or source provenance.
+
+* Canonical language metadata and FTS source coverage
+
+StarLang =org.starintel/core@1= =0.10.1= declares =language= as an
+optional string on =Person= and =SocialMediaPost=.  In the historical
+Server callback (=ce14c77ccd2f51f543410fdeef3d78fb9978b769=,
+Git blob =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=) and the
+merged Server callback (=ca6fdcbdc1f3b8aa344c533a40d298f741a54f25=,
+blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=), changing
+only the fictional document's =language= leaves raw =index()=
+emissions unchanged.  The explicit analyzer map also has no
+=language= field override; =standard= is its default.  In contrast,
+changing the indexed =content= or =dataset= changes the emissions.
+
+#+begin_src sh
+STAR_SEARCH_LANGUAGE_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_language_metadata_fts.js
+# Optional, with independently pinned merged design:
+STAR_SEARCH_LANGUAGE_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_LANGUAGE_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_language_metadata_fts.js
+#+end_src
+
+The maintained =run-tests= executes the historical generation through its
+already-verified pinned Server checkout.  The second-generation experiment
+is optional; neither source is silently substituted for the other.
+The native regression uses synthetic shapes, not generated SDK admission,
+CouchDB, Clouseau, an installed design, or HTTP.  An FTS callback can omit
+=language= without proving what a deployed query for =language:fr= does.
+The public search surface uses server-controlled visible datasets;
+authenticated search is constrained by permitted tenant and dataset.
+Index coverage, authorized hit visibility, opaque bookmarks, and durable
+canonical evidence are distinct observations.

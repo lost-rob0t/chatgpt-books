@@ -2155,3 +2155,55 @@ right public or authenticated search surface under an authorized scope.
 Retain the server's bookmark as an opaque cursor rather than interpreting its
 bytes as evidence of ordering or text normalization.  A missing hit remains
 an incomplete retrieval observation, not evidence that the document is absent.
+
+** Canonical language metadata is not an indexed language filter
+
+StarLang =org.starintel/core@1= 0.10.1 defines optional string
+=language= fields on =Person= and =SocialMediaPost=.  This property can
+record a source-language assertion in a canonical document; it is not
+a request to change a search analyzer or a proof of translation.
+
+The historical Server search design at
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769= and the inspected
+merged source at =ca6fdcbdc1f3b8aa344c533a40d298f741a54f25=
+run the same selection rule for this case.  They emit synthetic =fname=
+for a Person and =content= for a SocialMediaPost, along with =dtype=,
+=dataset= and a server-side tenant index field.  Neither emits a
+=language= index field.  Changing only =language= from =en= to =fr=,
+=ar= or =he= leaves the *raw index() emission sequence* unchanged.  The
+source design declares =perfield= analysis with a =standard= default,
+=keyword= rules for =name= and scope fields, and no =language=-specific
+rule.  This last observation concerns a *configuration declaration*,
+not execution of Clouseau/Lucene analysis.
+
+The offline regression executes the two original JavaScript callbacks
+under their exact Git-blob pins, with a positive control showing that
+changing =content= or =dataset= does change emissions.  A deliberate
+mutant adds a =language= emission to demonstrate that the test would
+notice a changed index design.  The inputs are fictional canonical-
+/shaped/ objects; the test does *not* run the 0.10.1 SDK validator or
+prove any live tokenization, stemming, query matching, ranking, or
+language-aware search capability.
+
+#+begin_src sh
+STAR_SEARCH_LANGUAGE_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_LANGUAGE_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_language_metadata_fts.js
+#+end_src
+
+*** Exercise -- do not infer language-filter coverage (★★)
+
+A synthetic French-language post has a durable canonical =id=/=rev=
+read-back and a =language="fr"= property, but a query using
+=language:fr= reports no hits.  What can the offline callback test
+establish?  Answer: this selected source callback does not emit a
+=language= field for the probe; it cannot establish that the installed
+index has been updated, that any analyzer handled the query, or that
+an authorized request should return the record.  Check the installed
+FTS design and a known-visible positive control before evaluating
+live query behavior.  Public search uses server-owned visible
+datasets, whereas authenticated search depends on the principal's
+permitted tenant and dataset scope.  Treat bookmarks as opaque and
+never infer a missing durable canonical document from a missing hit.
+A hit would still require an independently authorized by-ID read and
+provenance check to support a durable-evidence claim.
