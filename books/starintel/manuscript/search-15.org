@@ -1935,3 +1935,97 @@ Changing =security= alone leaves raw emissions unchanged. Changing the radio
 =channel= from =6= to =11= or changing =dataset= produces a different raw
 emission. Confirm actual interpretation through an authorized canonical read
 and its evidence; no live Lucene matching or capture is proved by this test.
+
+** Finding actor documents is not discovering runnable actors
+
+A StarIntel search result about an actor does *not* certify that an actor is
+registered, invocable or online. Conversely, a registered actor might be
+invisible to document full-text search. The precise reason lies in two
+separate contracts that share vocabulary but not authority.
+
+At canonical StarLang =org.starintel/core@1= version =0.10.1=, the generated
+=ActorManifest= document type requires =id=, =dataset=, =dtype=,
+=schemaVersion= and =actor=. It permits string arrays =accepts=,
+=produces= and =capabilities=. This is a /canonical corpus document type/.
+In the historical StarIntel Server's semantic actor registry, a different
+/trusted runtime manifest/ requires =resourceUri=, =resourceKind=,
+=semantic= (name/version/digest), accepted and produced contracts,
+capabilities, =operatorVisible=, and package provenance. The names overlap,
+but a canonical document does not register an executable actor and a
+registered runtime manifest is not proof that an equivalent canonical
+document was durably ingested. [cite:@starlang-starintel-0101;
+@starintel-search-runtime-20261009]
+
+The two pinned Server FTS callbacks do not select the canonical
+=ActorManifest.actor=, =accepts=, =produces= or =capabilities= properties.
+The exact historical index Git blob is
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=, while the inspected
+merged-Server =0.10.1= index blob is
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=. A synthetic
+canonical-shaped actor-manifest input with these fields emits
+=tenant_id=, =dataset= and =dtype= but *no* actor name or capability
+field. Altering the actor name and contracts leaves the raw emissions
+unchanged; changing =dataset= or =dtype= changes them. The native
+=code/search-lab/test_actor_registry_fts_boundary.js= regression runs both
+original callback bodies and includes these positive controls. It also
+checks the pinned runtime catalog source's visibility/status structure
+when that file is supplied; source inspection is not Lisp execution.
+
+#+caption: Actor document FTS and semantic registry discovery have different authority and evidence.
+| Question                             | Evidence boundary                        | What it cannot prove                     |
+|--------------------------------------+------------------------------------------+------------------------------------------|
+| Can a text query see a document?     | Scoped CouchDB/Clouseau search result    | Actor registration or index completeness |
+| Is an actor advertised to operators? | Authorized =GET /v1/actors= catalog      | Liveness or corpus storage               |
+| Is it currently ready?               | Separate registry runtime observation    | Successful handling of the next target   |
+| Is a canonical manifest durable?     | Independently authorized by-ID read      | Actor registration or invocation rights  |
+
+The maintained actor catalog source at historical Server commit
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769= has Git blob
+=d4fb16570c9e7b40c40d2c3c01124fa83855e8fe= for
+=source/actor-registry.lisp=. Its =actor-registry-public-entries=
+filters on explicit operator visibility; its public projection includes
+resource identity, semantic contracts and capabilities, provenance, and
+separate =status=/=ready= derived from runtime observations. The
+contracted =GET /v1/actors= operation requires authenticated
+=actors:read=. It is *not* the public document-search operation and does
+not expose internal actor references or broker routing details. An actor
+that is not operator-visible cannot be enumerated simply by guessing a
+name. Catalog presence without a runtime observation does not certify
+readiness. [cite:@starintel-search-runtime-20261009]
+
+The complementary search contract is narrower than an operator might
+assume. Public =GET /api/v1/search= uses server-owned public dataset
+scopes, while authenticated =documents.search= compiles the caller's
+allowed tenant/dataset context. Neither implicitly grants =actors:read=.
+An opaque search bookmark only continues a permitted search page; it is
+not a registry cursor, index-completeness certificate or durable audit
+record. The historical Server still runs an older document wire contract:
+testing canonical-shaped synthetic inputs against its JavaScript index
+does not prove StarLang =0.10.1= SDK admission, installed Clouseau query
+results, a live actor registry, or an authenticated deployment. Keep
+these claims separate in an operational report.
+
+*** Exercise -- Search says zero actors; registry says one (★★★)
+
+A fictional canonical =ActorManifest= named =demo-enricher= has
+=capabilities=["fictional-transform"]=. An authorized document search
+for its actor name returns zero hits. Separately, an operator's authenticated
+=actors:read= request lists one visible =star://= actor with =ready=false=.
+Which of the following can be concluded: that the canonical document is
+missing, that the actor is registered, that the actor is ready to handle
+work, or that its capability name is searchable? Name the extra evidence
+needed to establish durable canonical state and the next diagnostic step
+for readiness. Predict what the source-exact FTS callback emits after
+changing only the canonical document's =actor= value.
+
+*Worked answer:* The operator-visible catalog supports only the bounded
+claim that the registry contains that advertised resource at the queried
+moment. =ready=false= does not support successful dispatch or liveness.
+Zero document hits prove neither canonical absence nor that the capability
+is unindexed universally; this precise pinned callback does not emit it.
+Perform an independently authorized canonical by-ID read with =id=/=rev=,
+storage revision and provenance to establish durability; inspect the
+registry's separate runtime status/observation and independently observe
+handler receipt before claiming execution. The isolated index emissions
+remain unchanged under an actor-name-only edit. No graph relation or
+Prolog rule is inferred from either result.

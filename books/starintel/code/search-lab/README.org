@@ -1260,3 +1260,52 @@ network-free and *not* an SDK validation, radio capture, authorized HTTP
 request, installed Clouseau test, or durable document proof. No query-result
 cross-type matching is asserted: raw field-name reuse does not prove Lucene
 analyzer equivalence or deployed search scope.
+
+* Canonical actor-manifest search is not actor/service discovery
+
+The StarLang =0.10.1= =ActorManifest= document type requires an =actor=
+string and supports =accepts=, =produces= and =capabilities= arrays.  This
+canonical document shape is *not* the runtime catalog manifest: the pinned
+Server's semantic registry consumes a separate manifest with
+=resourceUri=, =resourceKind=, =semantic=, contracts, capabilities,
+=operatorVisible= and package provenance.  Do not turn either contract
+into the other by guessing fields.
+
+The historical Server FTS callback (Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=) and inspected merged
+0.10.1 callback (blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=)
+do not select canonical =ActorManifest.actor=, =accepts=, =produces= or
+=capabilities=.  On a fictional canonical-shaped document with no
+optional display fields, both emit only =tenant_id=, =dataset= and
+=dtype=.  Changing only the actor name and its contracts changes no raw
+index emissions.  Changing =dataset= or =dtype= does change emissions.
+
+#+begin_src sh
+STAR_SEARCH_ACTOR_HISTORICAL_DESIGN=PINNED_SERVER/source/views/search.json \
+STAR_SEARCH_ACTOR_MERGED_DESIGN=MERGED_SERVER/source/views/search.json \
+STAR_SEARCH_ACTOR_REGISTRY=PINNED_SERVER/source/actor-registry.lisp \
+node --test books/starintel/code/search-lab/test_actor_registry_fts_boundary.js
+#+end_src
+
+The native test runs source-attested callbacks in an isolated Node VM and
+inspects the original registry source when provided.  Its registry checks
+assert source structure only; they do not execute Lisp or authorize HTTP.
+The main runner binds the historical design and registry from the one pinned
+Server checkout; a merged-design checkout is optional.
+
+** Diagnostic case: a missing search hit is not an absent actor
+
+Given an actor name known to a deployment, do not decide registration or
+availability from =GET /api/v1/search= or =documents.search=.  Instead use a
+principal permitted =actors:read= on the separate =GET /v1/actors= control
+surface; it lists operator-visible registered actor/service resources and
+reports =status= and =ready= from separate runtime observations.  An invisible
+manifest must not be inferred absent, nor does catalog presence imply
+liveness.  FTS index coverage, read authorization, registry eligibility and
+runtime readiness are four distinct questions.  Canonical durability and
+provenance require independently authorized document read-back.
+
+A public search uses server-owned datasets; authenticated document search
+uses the caller's permitted tenant/dataset scopes.  Neither search capability
+is interchangeable with =actors:read=.  An opaque search bookmark cannot
+be reused as a registry cursor or treated as proof of an actor's state.
