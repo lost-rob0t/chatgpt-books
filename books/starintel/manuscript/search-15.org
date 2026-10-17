@@ -2381,3 +2381,97 @@ emissions when the numeric identity and prefixes change.  =number= and
 not attest actual indexing, Lucene analyzers, authorization, search
 bookmarks, or durable storage.  A name change alters the emitted =name=
 value, which is a positive control for the *source* projection only.
+
+** An EmailMessage's subject and body are not guaranteed search text
+
+A canonical =EmailMessage= is not a generic blob of searchable words. The
+pinned StarLang =org.starintel/core@1= 0.10.1 generated schema
+(=96d26c338078676ec1dc6928755901636c9f7ef0=, schema Git blob
+=537163da436f67a973e280d1704e32bdba5b888b=) declares optional
+=subject=, =body=, =bodyHtml=, =messageId=, =threadId=, =from= and =to=
+properties. The required canonical envelope is =id=, =dataset=, =dtype=
+and =schemaVersion=. There is no =content= property in this type, and
+its generated object schema sets =additionalProperties=false=. This
+is a schema inspection, not an assertion of validated SDK admission or
+an executed email collector.
+
+The historical server search design at Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and the merged
+0.10.1-source design at
+=dd6336f3047982db2f0e3615fed1413ed1e58e13= have an identical
+boundary for these message properties: their =index(doc)= field lists
+contain none of =subject=, =body=, =bodyHtml=, =messageId=, =threadId=,
+=from= or =to=. A fictional EmailMessage-shaped input containing only
+these fields and its envelope yields just =tenant_id=, =dataset= and
+=dtype= in the raw index-call capture. Varying the fictional subject,
+plain-text/HTML bodies or correspondence headers does not change those
+emissions. Varying =dataset= does, which is a positive control for the
+capture. The test executes both source functions, not a simulated search
+implementation.
+
+#+caption: Distinct email evidence boundaries under the two pinned FTS source generations.
+| Property / observation | Canonical 0.10.1 fact | Raw index-function evidence |
+|------------------------+-----------------------+-----------------------------|
+| =subject=, =body=, =bodyHtml= | Optional typed message text | No direct field emission |
+| =messageId=, =threadId= | Optional message/thread identifiers | No direct field emission |
+| =from=, =to= | Optional structured address values | No direct field emission |
+| =dataset=, =dtype= | Required canonical envelope fields | Present for the synthetic fixture |
+| =tenant_id= | Server-side index scope property, not canonical EmailMessage | Default emitted by source callback |
+| =id= / =rev= | Canonical identity and revision | Do not confuse with stored =_id= / =_rev= |
+
+A common workaround appears to work but changes the contract: adding a
+generic =content= property to the synthetic JavaScript input produces a
+=content= index emission. The canonical =EmailMessage= schema does /not/
+allow that top-level property. Copying a message body into an unmodeled
+field is not a schema migration or a permission decision. A future
+supported projection should be versioned, validate the canonical input,
+respect source sensitivity and tenant/dataset policy, test analyzer
+behavior, and establish installed design/reindex state independently.
+
+The evidence ladder stays intact. A public =GET /api/v1/search= query uses
+server-configured public dataset/tenant visibility. Authenticated
+=documents.search= uses the caller's authorized tenant/dataset scopes;
+these are not inferred from the sender, recipient or message subject.
+Either API can yield zero rows when no subject/body field is projected.
+A zero-row response cannot show that a canonical message was never
+admitted or durably stored. Conversely, a coincidental term in another
+indexed field cannot establish that the body was indexed. Use opaque
+bookmarks for continuation and an independently authorized by-ID read
+with =id=/=rev= plus provenance to establish what actually exists.
+
+The network-free =test_email_message_payload_fts.js= runs the source
+callbacks with bounded emissions under Node and checks the immutable
+historical Git blob; an optional independently pinned merged design adds
+the corresponding comparisons. Its fictional =EmailMessage=-shaped
+objects are not SDK-validated records, installed CouchDB designs, live
+Clouseau observations or mail-server integration tests.
+
+#+begin_src sh
+STAR_SEARCH_EMAIL_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_email_message_payload_fts.js
+# Optional source-generation comparison; both files must match their Git blobs:
+STAR_SEARCH_EMAIL_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_EMAIL_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_email_message_payload_fts.js
+#+end_src
+
+*** Exercise -- Search absence versus message durability (★★★)
+
+A fictional authorized reader receives no hits for a unique phrase in a
+message's =subject=, although a separate by-ID read returns a document.
+A colleague concludes that the message is absent from the index and all
+other messages are absent too. Design the minimal experiment that
+corrects this inference without expanding public search permissions.
+
+/Worked answer:/ First verify the durable read's canonical identity,
+revision, schema authority and provenance. Check the pinned source
+index-function emissions for =subject= and a positive =dataset= control;
+they establish only *source field selection*, not deployed index coverage.
+Separately compare an exported installed =_design/search= with its
+attested source and run an allowed positive search control on the same
+surface, tenant and dataset. Confirm the public route's server-owned
+scope or the authenticated route's caller-bound scope. Use opaque
+bookmarks to inspect bounded pages; do not derive corpus completeness
+from one page. No step here proves that every message was indexed or
+that a specific query was matched by the running analyzer without a
+service-backed experiment.

@@ -1480,3 +1480,30 @@ lookup, public/authenticated authorization, canonical admission, durable
 read, bookmark traversal or Lucene scoring was tested.  Never treat the
 absence of a field emission as proof that the corresponding typed
 canonical document does not exist.
+
+* EmailMessage payload versus raw FTS projection
+
+The source-pinned =test_email_message_payload_fts.js= covers canonical-shaped
+fictional EmailMessage subjects, plain/HTML bodies, message/thread identifiers
+and address headers. The generated StarLang =0.10.1= EmailMessage type permits
+these fields but not a generic =content= convenience key. In both historical
+and merged server callback sources, the message fields make no direct raw
+=index()= emissions. The positive controls vary =dataset= and add a deliberately
+noncanonical =content= key to show precisely what the callback would index.
+The latter does NOT authorize altering a canonical document to force a hit.
+
+#+begin_src sh
+STAR_SEARCH_EMAIL_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_email_message_payload_fts.js
+STAR_SEARCH_EMAIL_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_EMAIL_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_email_message_payload_fts.js
+#+end_src
+
+Immutable index-source Git blobs: historical
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=; merged
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=.
+Canonical schema authority: =96d26c338078676ec1dc6928755901636c9f7ef0=.
+These tests do not attest to SDK admission, installed CouchDB/Clouseau,
+public or authenticated search authorization, opaque bookmark semantics,
+canonical durability or corpus coverage. See =manuscript/search-15.org=.
