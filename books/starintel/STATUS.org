@@ -102,6 +102,23 @@ Not promoted by that milestone:
 - real Rabbit delivery to an external actor;
 - actor-generated durable canonical output.
 
+* P0 actor fault continuation -- current-main port (2026-10-16)
+
+Project 3 milestone B from the conflicting historical PR #136 was ported
+onto current =main= without copying its stale STATUS/manuscript indexes over
+later merged book work. The same =book-audit= actor now includes a one-shot,
+test-only handler failure. The upstream-runtime regression queues a valid
+post-fault envelope, demands receipt from the same running/registered actor
+object, and never calls handler continuation a restart.
+
+The fail-closed source guard separately checks the exact pinned server ASDF
+load order and effective =start-actors= body. It does not execute a whole
+process restart or prove target schedule recovery after a crash.
+
+This slice is AUTHORED / UNTESTED until exact-head actor-runtime and publishing
+CI gates complete. Automatic persisted-target recovery, genuine external
+Rabbit delivery and actor-generated durable canonical outputs remain open.
+
 * Merged reader spine -- Passes 07--10 / PR #153
 
 Current branch:
