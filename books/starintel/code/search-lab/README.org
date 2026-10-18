@@ -1534,3 +1534,28 @@ merged =dd6336f3047982db2f0e3615fed1413ed1e58e13=.
 StarLang =0.10.1= schema: =96d26c338078676ec1dc6928755901636c9f7ef0=
 (blob =537163da436f67a973e280d1704e32bdba5b888b=).
 See =manuscript/search-15.org= for the authorization/evidence exercise.
+
+* Domain name versus DNS state -- two-source raw index experiment
+Canonical =0.10.1= Domain fields include DNS records, DNSSEC, nameservers,
+MX/TXT entries and registrar information, but a searchable Domain name
+is not an authoritative resolver answer. This source-pinned experiment
+changes fictional DNS state without changing =name= and executes the
+historical and optional merged *original index callbacks* to distinguish
+raw FTS emission from the canonical document's other fields.
+
+#+begin_src sh
+STAR_SEARCH_DOMAIN_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_DOMAIN_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_domain_dns_search_boundary.js
+node books/starintel/code/search-lab/domain_dns_search_boundary.js \
+  HISTORICAL/source/views/search.json MERGED/source/views/search.json
+#+end_src
+
+Only source Git blobs =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and
+=dd6336f3047982db2f0e3615fed1413ed1e58e13= are admitted. The normal
+historical-only =run-tests= lane uses =STAR_SEARCH_LAB_SERVER= and does not
+claim an optional second checkout exists. The negative-control test mutates a
+throwaway callback *in memory*, not an upstream checkout. The fixed .invalid
+name and documentation IP are entirely fictional. This is *not* canonical SDK
+admission, a DNS request, a verified resolver answer, an HTTP search, a
+CouchDB/Clouseau query, or a durable by-ID read. See the exercise in Chapter 15.

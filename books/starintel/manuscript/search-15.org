@@ -2671,3 +2671,71 @@ blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=).  Schema
 field names come from canonical StarLang =0.10.1= commit
 =96d26c338078676ec1dc6928755901636c9f7ef0=; the fixture is
 *canonical-shaped*, not an independently admitted canonical document.
+
+** A searchable Domain name is not evidence of DNS resolution
+
+A Domain document can be returned for a name without establishing that the
+name resolves, that a particular DNS record is current, or that DNSSEC was
+validated. Those are separate observations at separate boundaries. Consider
+=lab.example.invalid=, an invented name used only for this exercise. A search
+hit may identify a stored Domain observation, but it is not a DNS query result
+and cannot certify the contents of its =dnsRecords=, =mxRecords=, =txtRecords=,
+=nameservers=, =resolvedAddresses= or =dnssec= fields.
+
+The canonical StarLang =org.starintel/core@1= =0.10.1= Domain declaration
+requires =id=, =dataset=, =dtype=, =schemaVersion= and =name=. Its separate
+DNS-specific properties include =dnsRecords=, =mxRecords=, =txtRecords=,
+=nameservers=, =dnssec=, =resolvedAddresses=, =registrar= and =whois=.
+The contract and the search index answer different questions. The following
+experiment uses a Domain-/shaped/ fictional value; it does not claim the
+example passed the canonical SDK or was ingested by a running Server.
+
+The historical search design at Server
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769= (Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=) and the merged
+=0.10.1=-adopting source at
+=ca6fdcbdc1f3b8aa344c533a40d298f741a54f25= (design Git blob
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=) both emit the raw
+=name=, =dtype= and =dataset= fields, along with the server-selected
+=tenant_id=. Neither indexed callback emits the DNS-specific properties
+above from this fictional value. Replacing an A record and its resolver
+metadata with unrelated fictional values, changing nameservers and toggling
+=dnssec= changes *zero* captured raw emissions in both generations.
+Changing the Domain's =name= does change the emitted =name= value. Changing
+=dataset= and the fictional server tenant stamp changes those two emitted
+scope fields. These are deliberately positive controls: they establish that
+the experiment is actually observing the original callback, not testing a
+surrogate that always reports "no difference." They do *not* establish a
+public result, tenant authorization, or an installed Clouseau index.
+
+The source-pinned runnable experiment is
+=code/search-lab/domain_dns_search_boundary.js=. Run it against a
+historical =source/views/search.json= and optionally an independently pinned
+merged source file. It reads the files, verifies their exact Git blob IDs,
+executes the actual JavaScript index callback in the course's bounded VM, and
+reports raw emission differences without opening a socket. The companion
+=test_domain_dns_search_boundary.js= includes a negative control that
+modifies *only its disposable copy* of the callback to emit =dnssec=; the
+invariant fails on that mutant, showing that the test can detect a changed
+projection. A changed projection still does not prove a deployed index was
+updated, let alone that a DNS observation is accurate or fresh.
+
+*** Exercise -- A found name with conflicting DNS claims (★★★)
+
+An analyst finds a fictional Domain named =lab.example.invalid= in an
+authorized Chapter 15 search page. Its visible label matches the expected
+name. A separate observation says the Domain had a different DNSSEC status
+and different nameservers. Can the search result resolve the disagreement?
+Which steps can establish the strongest bounded claim?
+
+/Worked answer:/ No. Record the exact search surface, caller scope, page and
+bookmark as *retrieval context*, not authoritative DNS observations. Perform
+an independently authorized by-ID read of the Domain's canonical
+=id=/=rev= and separately identify the CouchDB storage =_id=/=_rev= where
+present. Compare each DNS observation's acquisition time, collection method,
+resolver configuration, response, validation status and provenance; collect a
+new explicitly scoped DNS measurement if needed. Report disagreement or
+missing evidence rather than silently selecting a result by search rank.
+A search miss on the same page is similarly not evidence that the Domain or
+its DNS record never existed. Neither the historical nor merged raw callback
+can prove authorized cross-tenant visibility or completed indexing.
