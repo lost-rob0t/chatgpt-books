@@ -3154,3 +3154,79 @@ is available, collect a new time-bound handshake and independent certificate
 validation observation; report failures and ambiguity. Neither search
 visibility nor stored assertions are conclusive service-availability or TLS
 trust evidence. No network experiment is part of this chapter's native test.
+
+** Timed speech has two evidence clocks: media position and search visibility
+
+A fictional training recording contains the sentence "The signal occurs at
+thirty seconds." A =transcript= document names the recording through
+=sourceMedia= and may hold =text=, references to =segments=, =speakerTurns=
+and a list of =wordTimings=. Its time-aligned =speech-segment= has a
+=recording= reference, integer =startMs=/=endMs= and optional spoken =text=.
+An =audio-segment= has the recording/timing fields without requiring speech
+text. These are separate persistent StarLang =0.10.1= document contracts,
+not a single flattened free-text blob. [cite:@starlang-starintel-0101]
+
+The historical Server at =ce14c77ccd2f51f543410fdeef3d78fb9978b769=
+and the merged 0.10.1 Server search design from =ca6fdcbdc1f3b8aa344c533a40d298f741a54f25=
+execute two slightly different index functions. Neither one emits
+=transcript.text=, =speech-segment.text=, =sourceMedia=, =recording=,
+=wordTimings=, =speakerTurns=, =startMs= or =endMs= as raw search fields.
+Both emit selected top-level fields such as =title=, =dtype= and =dataset=.
+They also emit a *scalar* =channel= field when one exists: the canonical
+segment's channel is an integer (for example, =1=), not an utterance. The
+merged generation adds selected naming fields but does not automatically
+index transcribed words or recover a time-aligned media chain. These are
+source-level observations, not proof of installed Lucene tokenization or
+actual query hits. [cite:@starintel-search-runtime-20261009;
+@starintel-server-20261005]
+
+| Question | Observation required | What a matching search label cannot prove |
+|----------+----------------------+-------------------------------------------|
+| Which recording? | Authorized canonical =sourceMedia=/=recording= read-back | That linked media exists or is authorized |
+| Which words? | Retrieved transcript/segment =text= and source provenance | That indexed title equals utterance text |
+| When in the recording? | Segment =startMs=/=endMs= and source clock interpretation | That a search bookmark is a media cursor |
+| Who spoke? | Independently supported speaker attribution | That a segment's =channel= names a person |
+| Was it saved? | Durable =id=/=rev= read-back | That a search hit verifies persistence |
+
+This distinction matters in both directions. A correctly persisted transcript
+can remain invisible to a full-text query for its spoken words when those words
+are not projected. Conversely, an indexed title can appear even if the
+transcription is unfinished or contradicted by the underlying media.
+The index callback cannot adjudicate either proposition. Keep source-provenance
+and quality status separate from search relevance.
+
+The following native lab executes each original pinned JavaScript callback on
+three fictional canonical-shaped records. It changes spoken text, time
+alignment, media references and speaker links without changing the raw index
+emissions; changing an indexed title or numeric channel is a positive control.
+An in-memory indexing mutant serves as a deliberately failing RED control.
+The test *does not* execute canonical SDK admission, live HTTP, CouchDB,
+Clouseau, an audio decoder, or speaker verification.
+
+#+begin_src sh
+STAR_SEARCH_TRANSCRIPT_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_transcript_timeline_fts.js
+# To compare the merged generation, also set:
+# STAR_SEARCH_TRANSCRIPT_MERGED_DESIGN=MERGED/source/views/search.json
+#+end_src
+
+*** Exercise -- One search result, two different recordings (★★★)
+
+A public query finds the fictional transcript title "Clock synchronization
+training audio" in dataset =book-fictional-audio=. Two proposed revisions
+retain that title but differ in =sourceMedia=, spoken =text= and =wordTimings=.
+A third reader suggests following the search =bookmark= to skip to second 30
+of the audio. Which parts of this proposal are justified?
+
+/Worked answer:/ The search observation establishes a result visible through
+one endpoint, caller context, server-selected dataset/tenant scope, query and
+opaque page token. It does not establish the underlying audio identity,
+transcription, alignment, or completeness. The bookmark resumes *search
+pagination*, not audio playback. First retain the query and its scope; then
+perform separately authorized durable by-ID reads of the transcript and media
+references, noting =id=/=rev= and provenance, and verify the timing claims
+against independently accessible audio only when permitted. If a referenced
+recording or speaker identity lies outside the caller's authorization, do not
+follow it and mark that conclusion unavailable. The canonical declaration
+means a field is permitted by schema; actual stored state, indexing coverage
+and validated evidence each require their own observations.

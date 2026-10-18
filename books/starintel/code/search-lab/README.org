@@ -1682,3 +1682,43 @@ validation, an authorized by-ID read, or durable canonical evidence. Public
 search is confined by server-owned dataset settings; authenticated search
 remains confined by principal-scoped permissions. Pagination bookmarks are
 opaque. See the Chapter 15 worked Service exercise.
+
+* Timed speech is not indexed transcript content
+
+Canonical StarLang =org.starintel/core@1= v0.10.1 declares three different
+persistent document types relevant to time-aligned audio: =transcript= requires
+=sourceMedia= and may have =text=, =segments=, =speakerTurns= and =wordTimings=;
+=audio-segment= requires =recording=, =startMs= and =endMs=; and
+=speech-segment= extends =audio-segment= with optional =text=, =speaker= and
+=transcript=. The canonical segment =channel= is an *integer*, not a label for
+the words spoken. Source: pinned =specs/starintel/0.10.1/core.star= at
+=96d26c338078676ec1dc6928755901636c9f7ef0=, declarations
+=audio-segment=, =speech-segment= and =transcript=.
+
+=test_transcript_timeline_fts.js= runs the actual unchanged historical and
+merged =_design/search= JavaScript index functions under exact Git blob
+attestation. It records the raw index calls for fictional transcript,
+speech-segment and audio-segment objects, then edits the utterance, word
+alignment, segment times, and media/speaker links. Each edit leaves the index
+emissions unchanged. An indexed transcript =title= change and integer
+=channel= change are positive controls. An in-memory =text= indexing mutation
+supplies a deliberately failing RED control without changing the pinned server.
+
+#+begin_src sh
+STAR_SEARCH_TRANSCRIPT_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_transcript_timeline_fts.js
+# Optional second original source generation, independently hash-attested:
+STAR_SEARCH_TRANSCRIPT_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_TRANSCRIPT_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_transcript_timeline_fts.js
+#+end_src
+
+The test does *not* claim generated-SDK admission of its canonical-shaped
+fictional examples, verification of an audio recording, transcription
+accuracy, installed CouchDB/Clouseau behavior, deployment search coverage,
+search authorization, or persisted canonical evidence. In particular,
+source-level emission of =channel= does not prove Lucene query matching. The
+public search endpoint remains bounded by *server-selected* public datasets;
+authenticated search is limited by the principal's server-enforced dataset and
+tenant scope. A bookmark is opaque and not an audio time cursor. See the
+Chapter 15 worked transcript exercise for the required evidence ladder.
