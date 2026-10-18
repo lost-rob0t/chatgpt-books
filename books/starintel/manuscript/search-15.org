@@ -3230,3 +3230,83 @@ recording or speaker identity lies outside the caller's authorization, do not
 follow it and mark that conclusion unavailable. The canonical declaration
 means a field is permitted by schema; actual stored state, indexing coverage
 and validated evidence each require their own observations.
+
+** Finding a map layer does not prove that its features render
+
+Canonical StarLang =org.starintel/core@1= =0.10.1= defines a persistent
+=map-layer= document with required =name= and =kind=. It can also declare
+=features=, =sourceDataset=, =query=, =style=, =minimumZoom=,
+=maximumZoom=, =visible= and =readOnly=. Those are properties of a proposed
+layer configuration, not independent observations that the backing feature
+set exists, that the client rendered it, or that a geospatial query succeeded.
+The chapter's synthetic example uses a fictional grid overlay, not live
+location information. [cite:@starlang-starintel-0101]
+
+The original historical Server search callback and the merged 0.10.1
+callback emit =name=, =dtype=, =dataset= and a =tenant_id= projection for
+the fictional map-layer. Neither emits its =kind=, source dataset, feature
+inventory, renderer style, zoom range, visibility/read-only flags or query.
+Changing or removing every declared feature, switching the source dataset,
+or hiding the layer leaves its raw index emissions identical. Changing its
+=name= changes the emission, providing a positive control. The merged
+indexer's additional camel-case name aliases do not change these results.
+This test concerns exact source-index emissions, not Lucene analysis or an
+observed HTTP result. [cite:@starintel-search-runtime-20261009;
+@starintel-server-20261005]
+
+| Evidence stage | What it may establish | What it does not establish |
+|----------------+-----------------------+----------------------------|
+| Index emission | A layer name and scoped metadata were projected | That feature IDs, styling or zoom rules were indexed |
+| Search hit | A named layer appeared in one authorized result page | That the map is visible, complete or even renderable |
+| Authorized canonical =id=/=rev= read | The layer's asserted current configuration at read time | That its external source dataset is accessible or populated |
+| Separate feature/renderer observation | Bounded availability and display behavior at a specified time | That the search index exhaustively covers every feature |
+
+A public =GET /api/v1/search= uses *server-owned* public datasets and tenant
+selection. Authenticated =documents.search= uses the principal's authorized
+scope. The =sourceDataset= named inside a visible layer is *not* a search or
+read authorization grant. Likewise, a public layer label cannot justify
+fetching restricted features from another dataset. Record the endpoint,
+query, caller scope, observed hit identity and opaque search =bookmark=
+without treating that token as a map viewport, geospatial cursor or coverage
+certificate. No hit may mean an unindexed field, a missing or stale index,
+a later page, or a scope restriction; it does not prove the underlying
+canonical =map-layer= does not exist. An indexed label is not a durable
+canonical revision read, and CouchDB =_rev= is not canonical =rev=.
+
+The native regression =code/search-lab/test_maplayer_rendering_fts.js=
+loads both source generations only after verifying their original Git-blob
+hashes. It executes the unmodified JavaScript indexing callbacks on
+fictional canonical-shaped layer objects and checks controls for label,
+scope, feature presence, visibility and renderer configuration. A deliberately
+mutated in-memory callback that indexes scalar feature labels fails under
+the RED switch. The test does *not* run the canonical SDK validator, install
+CouchDB/Clouseau, request HTTP results, evaluate geospatial queries or render
+a map. These remain explicitly untested boundaries.
+
+#+begin_src sh
+STAR_SEARCH_MAP_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_MAP_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_maplayer_rendering_fts.js
+# A deliberately failing control also sets STAR_SEARCH_MAP_RED=1.
+#+end_src
+
+*** Exercise -- One searchable layer, zero verified features (★★★)
+
+A reader searches for "Fictional grid overlay" and sees a public map-layer
+result. Proposed revision A lists two fictional features, while revision B
+lists none and sets =visible=false=, but retains the same name. A colleague
+asserts that the map contains two features because both records have the
+same search label. Another tries to follow =sourceDataset= into a separate
+restricted corpus. What may be concluded, and how should the result be
+verified?
+
+/Worked answer:/ The hit only establishes a name projection visible through
+that specific query, server-selected scope and pagination context. The
+pinned indexers do not emit =features= or =visible=, so they cannot
+reconcile A and B or establish feature count. Obtain an authorized by-ID
+read, note canonical =id=/=rev= and read time, and inspect the actual
+feature references only within independently granted dataset/tenant scope.
+A separately permitted feature-query and renderer test is needed to claim
+which features displayed. If feature access is denied or a backing source
+is missing, stop at "layer configuration observed; feature coverage and
+rendering unverified." Search absence does not establish canonical absence.

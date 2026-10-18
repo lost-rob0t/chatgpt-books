@@ -1722,3 +1722,27 @@ public search endpoint remains bounded by *server-selected* public datasets;
 authenticated search is limited by the principal's server-enforced dataset and
 tenant scope. A bookmark is opaque and not an audio time cursor. See the
 Chapter 15 worked transcript exercise for the required evidence ladder.
+
+* Map-layer names versus feature and renderer coverage
+
+The 0.10.1 canonical =map-layer= type requires =name= and =kind=, but a
+searchable name is not evidence that =features=, =sourceDataset=, =style=,
+=visible= or zoom behavior have been verified. The network-free
+=test_maplayer_rendering_fts.js= runs the original pinned historical and
+merged Server indexing callbacks, checks a label/scope positive control and
+absence of the feature/renderer fields, and provides an intentional RED
+index-mutation control. Both fixture and mutation are synthetic; neither
+canonical SDK admission nor live Clouseau, HTTP or map rendering is tested.
+
+#+begin_src sh
+STAR_SEARCH_MAP_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_MAP_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_maplayer_rendering_fts.js
+# Set STAR_SEARCH_MAP_RED=1 only when confirming the expected failing control.
+#+end_src
+
+The exact source blobs are =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=
+(historical) and =dd6336f3047982db2f0e3615fed1413ed1e58e13=
+(merged). Schema authority is =org.starintel/core@1= =0.10.1=, separate
+from either Server runtime generation. The lesson does not grant access
+to datasets referenced by a map-layer document.

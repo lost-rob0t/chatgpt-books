@@ -46,6 +46,7 @@ node --test "$HERE/test_finding_triage_fts.js"
 node --test "$HERE/test_analysis_reasoning_fts.js"
 node --test "$HERE/test_service_tls_fts.js"
 node --test "$HERE/test_transcript_timeline_fts.js"
+node --test "$HERE/test_maplayer_rendering_fts.js"
 python3 -m unittest discover -s "$HERE" -p 'test_*.py' -v
 EXTRACTED="$(mktemp)"
 trap 'rm -f "$EXTRACTED"' EXIT
