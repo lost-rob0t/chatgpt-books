@@ -2881,3 +2881,63 @@ result *unverified* rather than inferring truth from a search hit. A missing
 search hit likewise cannot establish that no canonical File exists: index
 field coverage, per-caller scope, installed design, ingestion delay and
 incomplete bookmark traversal may all limit visibility.
+
+** Finding discovery is not vulnerability triage or remediation evidence
+
+A search page can find a =Finding= by its title without establishing the
+finding's severity, vulnerability identifiers, workflow status, or remediation.
+The generated canonical StarLang =org.starintel/core@1= / =0.10.1= =Finding=
+schema requires =id=, =dataset=, =dtype=, =schemaVersion=, and =title=.
+It also declares distinct =severity=, =status=, =cve= (array of strings),
+=cwe= (array of strings), =cvss= (object), =recommendation=, and integer
+=discoveredAt=/=resolvedAt= fields. Declaring a field makes it available to
+a canonical document; it does not put that field in an FTS index or verify
+that the underlying security assertion is true. The authority inspected for
+these field shapes is StarLang commit
+=96d26c338078676ec1dc6928755901636c9f7ef0=, generated schema Git blob
+=537163da436f67a973e280d1704e32bdba5b888b=.
+
+The book executes both historical Server index blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and merged Server
+index blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=. Both original
+JavaScript callbacks emit =title= and the raw =dtype=/=dataset=/=tenant_id=
+fields for the fictional Finding, but neither selects =severity=, =status=,
+=cve=, =cwe=, =cvss=, =recommendation= or =resolvedAt=. Thus a revision
+changing the declared severity from low to critical, recording a resolution,
+or replacing a CVE claim produces the *same raw index emissions* if its title
+and emitted scope fields stay fixed. A changed title is the experiment's
+positive control. An in-memory mutated callback that indexes =severity=
+is detected by the negative control. These tests establish callback behavior,
+not real Lucene tokenization, installed design state, or an operational triage
+outcome.
+
+#+begin_src sh
+STAR_SEARCH_FINDING_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_finding_triage_fts.js
+# Add STAR_SEARCH_FINDING_MERGED_DESIGN=MERGED/source/views/search.json
+# to test both independently pinned generations.
+#+end_src
+
+*** Exercise -- Same search label, incompatible finding status (★★★)
+
+An analyst searches for a fictional training finding and receives a result
+with the expected title. Two separately supplied canonical-shaped revisions
+share that title and dataset: one says =severity=low= and =status=open=;
+the other says =severity=critical= and =status=resolved=. Is the finding
+low-priority, still open, resolved, or fully remediated? Can an identical
+search hit tell which revision is stored? Does a public search result authorize
+an analyst to read the underlying record?
+
+/Worked answer:/ None of those conclusions follows from the raw FTS
+projection. Treat the result as a *scoped search observation*, preserve its
+query, opaque bookmark, returned identity, and public-versus-authenticated
+surface, and obtain a separately authorized canonical by-ID read. The public
+surface constructs server-owned dataset and tenant scopes; the authenticated
+surface applies the caller's authorization. Neither a matching title nor a
+successful by-ID read independently verifies the underlying vulnerability,
+severity calculation, remediation action, or installed index freshness.
+Check the returned canonical =id=/=rev= and any CouchDB =_id=/=_rev=
+separately, obtain primary evidence for the finding and closure claim, and
+record which checks were actually performed. A missing hit is likewise not
+proof of zero findings: index coverage, authorization, projection generation,
+index lag, and incomplete pagination can all limit the visible subset.

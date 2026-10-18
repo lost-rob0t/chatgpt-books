@@ -1616,3 +1616,21 @@ completed bookmark pagination, or durable by-ID retrieval. The pinned public
 handler's datasets are server-owned; authenticated scope is caller-authorized.
 Never interpret a searchable filename/label as safe-to-open or bitwise verified.
 See =manuscript/search-15.org= for the worked integrity exercise.
+
+* Canonical Finding severity and remediation claims are not raw FTS evidence
+The canonical StarLang 0.10.1 =Finding= type has =title=, =severity=,
+=status=, =cve=, =cvss=, =cwe=, =recommendation=, and timestamp fields.
+Both pinned historical and merged original Server callbacks emit the
+fictional Finding =title= but omit those triage/remediation properties.
+The network-free =test_finding_triage_fts.js= runs each exact Git-blob-attested
+callback under a bounded Node VM and compares synthetic revisions that change
+risk and workflow claims while preserving an identical raw index projection.
+It includes a title positive control, dataset scope control, and a deliberate
+in-memory severity-indexing mutant. No canonical SDK admission, live
+search/authorization, deployed Clouseau result, or durable read is claimed.
+
+#+begin_src sh
+STAR_SEARCH_FINDING_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_finding_triage_fts.js
+# Optional: STAR_SEARCH_FINDING_MERGED_DESIGN=MERGED/source/views/search.json
+#+end_src
