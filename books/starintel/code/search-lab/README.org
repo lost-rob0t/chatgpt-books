@@ -1746,3 +1746,27 @@ The exact source blobs are =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=
 (merged). Schema authority is =org.starintel/core@1= =0.10.1=, separate
 from either Server runtime generation. The lesson does not grant access
 to datasets referenced by a map-layer document.
+
+* Meeting labels versus decision/minutes evidence
+
+Canonical StarLang =0.10.1= =meeting= declares names separately from
+=participantIds=, =attendeeRoles=, =minuteFileIds=, =decisionIds=, =decisions=,
+=agenda=, =outcome=, =startAt=, =endAt=, and =status=. In both pinned historical
+and merged Server =source/views/search.json= callbacks, a fictional meeting
+=name= can be emitted while those other fields produce no raw emissions.
+Changing the fictional approval outcome and minutes reference therefore does
+not change the raw search projection; renaming the meeting does.
+
+#+begin_src sh
+STAR_SEARCH_MEETING_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_MEETING_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_meeting_decisions_fts.js
+# Run STAR_SEARCH_MEETING_RED=1 only for the expected failing control.
+#+end_src
+
+This is an exact Git-blob-pinned Node index-callback regression, not proof of
+canonical SDK admission, installed CouchDB/Clouseau indexing, minutes content,
+meeting decisions, actual attendance, HTTP authorization or durable by-ID
+retrieval. The public search dataset scope belongs to the server, authenticated
+search is caller-scoped, and opaque bookmarks are not version evidence. The
+Chapter 15 exercise spells out the separate proof obligations.

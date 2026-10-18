@@ -3310,3 +3310,64 @@ A separately permitted feature-query and renderer test is needed to claim
 which features displayed. If feature access is denied or a backing source
 is missing, stop at "layer configuration observed; feature coverage and
 rendering unverified." Search absence does not establish canonical absence.
+
+* A searchable meeting name is not approved minutes or a decision
+
+A meeting is often described in search results as if the appearance of its name
+established who attended, what was decided, and whether the minutes are final.
+That collapses three different evidence questions. Canonical StarLang
+=org.starintel/core@1= version =0.10.1= defines =meeting= with an optional
+=name=, alongside separate =startAt=, =endAt=, =status=, =participantIds=,
+=attendeeRoles=, =agenda=, =minuteFileIds=, =decisionIds=, =decisions=,
+=actionItemIds=, and =outcome= fields. None of those latter fields is a
+meeting name or evidence that an attendee approved a decision. Source:
+[[https://github.com/lost-rob0t/star-lang/blob/96d26c338078676ec1dc6928755901636c9f7ef0/specs/starintel/0.10.1/core.star][canonical Meeting declaration at the pinned StarLang commit]].
+
+The historical =starintel-server= full-text callback (Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=) and the subsequently merged
+0.10.1 callback (blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=)
+emit =name= when supplied, along with =dataset=, =dtype=, and the server's
+=tenant_id= scope projection. They do not emit the canonical meeting's
+participants, minutes, decisions, agenda, time, status, or outcome. This is a
+claim about the actual JavaScript =index()= calls, not a claim about the words
+Clouseau can retrieve from a deployed corpus.
+
+A fictional committee meeting is named "Fictional equipment committee".
+Before its minutes are finalized, the draft says "Proposal deferred". Later
+its decision is changed to "Approved" and its minutes reference changes.
+The original callback produces the *same ordered raw emissions* for both
+versions if the indexed name and scope stay constant. An unchanged search
+projection therefore cannot decide which, if either, version is durable,
+valid, authorized, ratified, or accurately reported.
+
+#+begin_src sh
+STAR_SEARCH_MEETING_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_meeting_decisions_fts.js
+# Optional independent comparison with the exact merged Server design:
+STAR_SEARCH_MEETING_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_MEETING_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_meeting_decisions_fts.js
+#+end_src
+
+The source-pinned regression runs each *unmodified* callback in a bounded Node
+VM, checks the exact Git blob, asserts the difference between indexed label
+and unindexed meeting claims, and includes name/dataset/tenant positive
+controls. A deliberately injected, in-memory decision-indexing callback
+supplies a failing negative control. Neither the synthetic fixture nor its
+mutation is installed in the server. Canonical SDK admission, a minutes-file
+read, meeting attendance verification, signature/ratification, live HTTP
+search, CouchDB/Clouseau indexing, and durable by-ID read-back were NOT RUN.
+
+** Worked exercise -- What does the hit prove?
+
+A public =/api/v1/search= call returns the committee's name and one opaque
+bookmark. A second person, holding an authenticated =documents.search=
+credential, asks whether the vote was approved. The two callers can have
+different dataset and tenant visibility; the public scope is server-owned,
+while the authenticated route compiles caller permissions. Neither hit nor
+bookmark proves the decision. A defensible answer requires an authorized,
+version-specific canonical record read-back, separately retrieved minutes or
+decision artifact, explicit provenance and any approval/ratification evidence.
+If those checks are absent, report *decision not established*. The bookmark
+is a pagination cursor, not a revision, attendance record, or historical
+snapshot. [cite:@starintel-search-runtime-20261009]
