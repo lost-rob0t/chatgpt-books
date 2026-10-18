@@ -495,6 +495,125 @@ backed-up logs, or a replayable audit trail. Retain the query, caller context,
 response and authorized by-ID evidence separately when the investigation needs
 reproducibility.
 
+** A full-query digest does not authenticate the retained audit prefix
+:PROPERTIES:
+:ID:       f8d31332-b901-46c2-930f-51e810831ac7
+:END:
+
+A search audit is an *observation* recorded before authorization, not a
+certificate that a query ran or returned a particular result. The pinned
+historical Server =source/authorization/services-final.lisp= at
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769= (Git blob
+=cb0344ca916ce54af8413289b12d234b5d61b781=) obtains UTF-8 bytes from
+the submitted query, computes the SHA-256 digest of the *complete* string, and
+retains the first 16,384 bytes only when the original is longer. It then
+decodes that retained byte slice with Babel =:errorp nil=. These choices
+create two independent integrity questions:
+
+1. Does an independently supplied complete query match the recorded full
+   =query.sha256= and =query.bytes= values?
+2. Does the independently observed =query.text= retain the expected *decoded
+   prefix* of that same query?
+
+The first answer does not entail the second. A source record can contain the
+correct complete-query digest while the retained text has been accidentally
+altered, substituted, or truncated again downstream. In the earlier offline
+checker, a forged 16,384-character =query.text= made of =z= characters passed
+the full-query digest check for a 16,400-character =a= query whenever that
+complete =a= query was separately supplied. The checker verified the supplied
+original and never compared it to the log prefix. It did not claim to
+authenticate the log, but it also did not reject this contradiction.
+
+The revised offline =verify_query_audit.py= checks that contradiction only
+when the caller supplies the independently obtained complete original. It
+compares the unambiguously decoded portion of =original.encode("utf-8")[:16384]=
+with the beginning of the retained =query.text=. If the slice ends at a valid
+UTF-8 boundary, the entire retained text must match. If it cuts a multi-byte
+character, the checker does *not* try to reconstruct that character: the
+incomplete terminal sequence may be dropped or replaced by the pinned Lisp
+decoder. The entire safely decoded portion must still match, and the only
+uncertain suffix is at most one Unicode codepoint. This is a deliberately
+bounded consistency check, not a promise of byte-for-byte equivalence to
+Babel's implementation.
+
+There is a second boundary detail. A decoder replacement character occupies
+three UTF-8 bytes upon *re*-encoding, so decoded =query.text= may be up to
+16,386 UTF-8 bytes even though the original slice was precisely 16,384
+bytes. Conversely, dropping an incomplete final four-byte character may
+produce only 16,381 bytes of re-encoded text. The offline checker therefore
+accepts the narrow 16,381--16,386 range for a genuinely truncated event and
+rejects an implausibly short or inflated retained string without requiring
+the original query. The range comes from a valid UTF-8 input cut at one
+codepoint; it is not a claim that a particular Babel version always inserts
+U+FFFD. No log contents or actual logger are exercised by these Python tests.
+
+An example can be reproduced without credentials or network access:
+
+#+begin_src sh
+cd books/starintel/code/search-lab
+python3 -B -Werror -m unittest -v \
+  test_query_audit_evidence test_audit_prefix_integrity
+#+end_src
+
+The 16 new synthetic regressions include an unchanged complete-query digest
+paired with an unrelated retained prefix (expected rejection), one altered
+character in the middle, dropped/padded audit text, exact two-byte Unicode
+boundaries, and partial three-/four-byte UTF-8 tails. Existing audit tests
+remain unchanged. Neither the log event nor the offline checker establishes
+the principal's dataset/tenant permissions, the installed design, an actual
+search hit, or a durable canonical =id=/=rev= read-back. The full-query digest
+also does *not* authenticate who emitted the log: its hash is an ordinary
+comparison value, not a keyed signature.
+
+*** Exercise -- Why is a matching complete-query digest insufficient?
+
+A fictional audit claims =query.text="zz..."=, =query.bytes=16414=, and
+=query.sha256= equal to an independently provided 16,414-byte =aa...= query.
+Explain how its first 16,384 characters could be checked without assuming
+a successful search.
+
+Worked answer: Recompute length and SHA-256 over the independent full query,
+then compare the first 16,384 safely decoded UTF-8 bytes to the retained
+=zz...= text. Its mismatch invalidates the retained-prefix consistency claim
+even though the full-query digest agrees. Nothing in the audit establishes
+a search response or authorization.
+
+*** Exercise -- A Unicode boundary is not a license to ignore earlier bytes
+
+Take a 16,383-byte ASCII prefix followed by a three-byte snowman and more
+text. A 16,384-byte cut contains the ASCII prefix plus only the first byte
+of the snowman. May the offline checker accept a changed ASCII character
+because the final Unicode character is undecidable?
+
+Worked answer: No. The 16,383 ASCII bytes decode completely, and they must
+match exactly. Only the incomplete terminal snowman is uncertain. The
+checker permits at most one following replacement codepoint and rejects
+changes anywhere in the intact prefix.
+
+*** Exercise -- Why can displayed byte length exceed the slice budget?
+
+A log's =query.text= re-encodes to 16,386 UTF-8 bytes even though the source
+sliced the original at 16,384 bytes. Is the event necessarily forged?
+
+Worked answer: Not necessarily. One incomplete source byte at the boundary
+may decode as one U+FFFD replacement, which occupies three UTF-8 bytes on
+re-encoding. That can add two bytes. Test the pinned decoder separately
+before asserting the exact suffix; validate the safely decoded prefix and
+the narrow plausible range without upgrading it into byte-exact evidence.
+
+*** Exercise -- No independently known original
+
+You have =query.sha256= and a plausible 16,384-byte retained text, but no
+separately captured full query. What can you conclude about the suffix and
+the person who issued the query?
+
+Worked answer: Neither the omitted suffix nor the query's origin is
+established. A digest cannot reconstruct the omitted bytes, and an
+unkeyed digest does not authenticate the logger or caller. A matching
+search-hit identity would still require a separate authorized by-ID read
+and canonical provenance validation before any durable evidence claim.
+
+
 ** Stored documents become selected index fields
 
 The server calls =cl-couch:fts-search= against the default CouchDB database,
