@@ -1832,3 +1832,32 @@ source index, that a public caller can see a result, that an authenticated
 caller has tenant/dataset rights, or that by-ID canonical evidence exists.
 Opaque bookmarks are only continuation tokens, not proof of freshness or
 index coverage. Those remain separate Chapter 15 evidence gates.
+
+* Verify Org search-evidence table structure before EPUB export
+
+The Chapter 15 evidence matrices are part of the teaching contract: each
+row must retain its observation, supported claim, and missing proof in the
+correct column. The original Analysis matrix used the abbreviated rule
+=|-=. Pandoc accepted it and generated the same HTML table as an expanded
+separator, so this is *source consistency and regression protection*, not
+an observed broken EPUB or a claimed exporter failure.
+
+=check_search_table_rules.py= checks consecutive Org table rows outside
+source/example/export/comment/verse blocks. It detects mismatched cell
+counts, abbreviated/mis-sized horizontal rules and malformed table shapes.
+The native =test_search_table_rules.py= suite includes a regression built
+from the actual Analysis table and checks the entire manuscript when an
+authentic book checkout is available.
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/check_search_table_rules.py \
+  books/starintel/manuscript/search-15.org
+python3 -m unittest discover -s books/starintel/code/search-lab \
+  -p test_search_table_rules.py -v
+#+end_src
+
+This source check neither interprets truth of table cells nor verifies
+Pandoc's full EPUB output. The actual server's public scopes remain
+server-owned; authenticated scopes remain caller-bound. Index projections,
+search visibility and durable canonical documents require independent
+source/runtime evidence, not merely well-formatted evidence tables.

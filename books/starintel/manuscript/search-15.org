@@ -2967,7 +2967,7 @@ not proof that a deployed search installation has refreshed its index.
 [cite:@starintel-search-runtime-20261009;@starintel-server-20261005]
 
 | Distinct observation | What it establishes | What it does not establish |
-|-
+|----------------------+--------------------------+----------------------------|
 | Search hit | A query surfaced a scoped projected record | Which conclusion was accepted, or whether the revision is current |
 | Authorized canonical by-ID read | The returned document fields and revision at read time | That the analytical method or cited evidence is valid |
 | Verified sources and reasoning | A bounded basis for independently evaluating an asserted conclusion | Search index freshness or authorization to other datasets |
@@ -3475,3 +3475,42 @@ source inputs. Counting commands would miss that functional drift. Passing
 the restored inventory establishes only command registration. The HTTP
 public/authenticated search scope, CouchDB/Clouseau behavior and durable
 canonical by-ID read are separate experiments requiring independent evidence.
+
+** Keep the evidence matrix readable through export
+
+The tables in this chapter distinguish three kinds of evidence: what a
+search callback projected, what a scoped query actually returned, and what
+an independently authorized canonical read established. Moving text into
+the wrong table column can silently turn a limitation into an apparent
+proof. The result may look polished while teaching the wrong boundary.
+
+The local table-shape guard checks consistent cell counts and complete
+Org separator rows without interpreting a table's claims:
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/check_search_table_rules.py \
+  books/starintel/manuscript/search-15.org
+#+end_src
+
+One original Analysis evidence table used abbreviated separator =|-=.
+Pandoc rendered the abbreviated and expanded forms identically in a
+focused Org-to-HTML comparison. The source is nevertheless normalized to
+an explicit three-column rule so reviewers and future edits can see the
+expected shape. The checker deliberately ignores literal table examples
+in code blocks and does not pretend to replace =make check BOOK=starintel=
+or official EPUBCheck. A passing table check says nothing about public
+visibility, the authenticated tenant/dataset decision, index completeness,
+opaque bookmark freshness, or durable canonical evidence.
+
+*** Exercise -- Does a pretty table prove the observation? (★★)
+
+A three-column table says that an FTS callback emitted =name=, a search
+hit returned the document, and a durable =id=/=rev= read succeeded.
+The table-shape check passes. Which observations have actually been proved?
+
+/Worked answer:/ None from layout alone. Verify the callback at its pinned
+Git blob, separately exercise the appropriate public or authenticated
+search route in a provisioned service, and perform the authorized durable
+read. Keep any missing or failed stage explicit; correctly aligned Org
+columns and successful HTML/EPUB export are publishing checks, not runtime
+or authorization evidence.
