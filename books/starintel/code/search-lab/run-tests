@@ -40,6 +40,7 @@ node --test "$HERE/test_visibility_index_boundary.js"
 node --test "$HERE/test_confidence_not_retrieval_score.js"
 node --test "$HERE/test_route_generation.js"
 node --test "$HERE/test_domain_dns_search_boundary.js"
+node --test "$HERE/test_webcapture_provenance_fts.js"
 python3 -m unittest discover -s "$HERE" -p 'test_*.py' -v
 EXTRACTED="$(mktemp)"
 trap 'rm -f "$EXTRACTED"' EXIT

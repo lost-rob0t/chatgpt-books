@@ -1559,3 +1559,24 @@ throwaway callback *in memory*, not an upstream checkout. The fixed .invalid
 name and documentation IP are entirely fictional. This is *not* canonical SDK
 admission, a DNS request, a verified resolver answer, an HTTP search, a
 CouchDB/Clouseau query, or a durable by-ID read. See the exercise in Chapter 15.
+
+* WebCapture screenshot provenance is not FTS evidence
+Canonical StarLang =0.10.1= WebCapture requires =captureId=, =url=,
+=screenshotUri= and =screenshotHash=, but the historical and merged pinned FTS
+callbacks select =url=/=title=, not screenshot or DOM hashes. The new native
+regression executes both original Git-blob-attested callbacks against fictional
+canonical-shaped inputs, changes screenshot/DOM artifact claims without changing
+raw emissions, and uses a URL/title mutation as a positive control.
+
+#+begin_src sh
+STAR_SEARCH_WEBCAPTURE_HISTORICAL_DESIGN=PINNED_HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_webcapture_provenance_fts.js
+# To execute both pinned generations, also set:
+# STAR_SEARCH_WEBCAPTURE_MERGED_DESIGN=PINNED_MERGED/source/views/search.json
+#+end_src
+
+This is a *raw indexing test*, not a canonical SDK admission, installed
+Clouseau coverage measurement, HTTP/authorization test, screenshot retrieval,
+image integrity test or durable by-ID read. The named hashes/URLs are invented
+and never fetched. A hash printed in a WebCapture is an assertion until verified
+against separately retrieved authorized bytes. See =manuscript/search-15.org=.

@@ -2739,3 +2739,66 @@ missing evidence rather than silently selecting a result by search rank.
 A search miss on the same page is similarly not evidence that the Domain or
 its DNS record never existed. Neither the historical nor merged raw callback
 can prove authorized cross-tenant visibility or completed indexing.
+
+** A WebCapture URL hit does not attest a screenshot
+
+A =WebCapture= can be found through its URL without proving that the attached
+screenshot was captured, that its digest matches any stored bytes, or that
+its DOM artifact was preserved. This is a *source-index boundary*, not a claim
+that screenshots are invalid. A citation to an FTS hit alone cannot replace a
+canonical by-ID read, a verified artifact hash, and the provenance of the
+capture operation.
+
+StarLang =org.starintel/core@1= version =0.10.1= defines =WebCapture= with
+required =id=, =dataset=, =dtype=, =schemaVersion=, =captureId=, =url=,
+=screenshotUri= and =screenshotHash=. Its optional fields include =title=,
+=capturedAt=, =domArtifactUri=, =domArtifactHash=, =statusCode=,
+=challengeStatus=, =screenshotMediaType= and =screenshotSizeBytes=. These are
+canonical schema declarations, not proof that any artifact exists or that an
+HTTP service has verified the associated data. The immutable StarLang authority
+is commit =96d26c338078676ec1dc6928755901636c9f7ef0=, generated schema Git
+blob =537163da436f67a973e280d1704e32bdba5b888b=.
+
+The pinned historical Server FTS callback (Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=) and the merged source callback
+(Git blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=) emit the fictional
+record's =tenant_id=, =dataset=, =dtype=, =title= and =url=. Neither emits
+=screenshotHash=, =screenshotUri=, =captureId=, =capturedAt=, =domArtifactHash=,
+=domArtifactUri=, =statusCode= or =challengeStatus=. Swapping the screenshot
+hash, URI, DOM hash and capture time while keeping the URL/title fixed therefore
+leaves *raw index emissions* unchanged. Changing the URL or title yields a
+positive-control difference. These tests execute the original pinned index
+functions directly; they do not execute an installed CouchDB index or Clouseau.
+
+#+begin_src sh
+STAR_SEARCH_WEBCAPTURE_HISTORICAL_DESIGN=PINNED_HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_webcapture_provenance_fts.js
+# Optional second source-generation check:
+STAR_SEARCH_WEBCAPTURE_HISTORICAL_DESIGN=PINNED_HISTORICAL/source/views/search.json \
+STAR_SEARCH_WEBCAPTURE_MERGED_DESIGN=PINNED_MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_webcapture_provenance_fts.js
+#+end_src
+
+An index emission is not a verified screenshot, and a supplied digest is not a
+successful digest comparison. An authorized search page is likewise not a
+canonical validation result, a durable by-ID read, or exhaustive index
+coverage. In a real investigation, retain the canonical =id=/=rev=, record the
+authorized dataset/tenant scope and search bookmark, retrieve the referenced
+artifact through a separately authorized path, and verify its bytes against
+the canonical claim before treating the screenshot as evidence. The offline
+lab performs none of those live steps.
+
+*** Exercise -- Same URL, different captured bytes (★★★)
+
+Two fictional WebCapture documents use the same URL and title. One declares
+=screenshotHash= =sha256:aaaa...=, while the other declares
+=sha256:bbbb...= and a different =domArtifactHash=. Would identical raw FTS
+emissions establish the identity of their screenshots? Would a new URL alone
+prove that a screenshot was successfully collected?
+
+Worked answer: Neither. The original source callbacks emit the URL and title
+but not either digest. A URL difference changes the raw FTS input but proves
+nothing about the artifact bytes. Only separate canonical validation, durable
+read-back, artifact retrieval and digest verification can support that stronger
+claim. The source callback test does not establish live query matching or
+network behavior.
