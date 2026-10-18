@@ -1861,3 +1861,38 @@ Pandoc's full EPUB output. The actual server's public scopes remain
 server-owned; authenticated scopes remain caller-bound. Index projections,
 search visibility and durable canonical documents require independent
 source/runtime evidence, not merely well-formatted evidence tables.
+
+
+* GitHub Actions evidence: JSON booleans are not numeric execution identities
+
+The offline =classify_hosted_ci.py= helper consumes GitHub-App-exported job
+metadata to report *observed* execution evidence, not to diagnose a test
+failure. Python =bool= is a subclass of =int=. Before this regression, a
+malformed job payload with =runner_id=true= and a listed step could be
+classified as =SUCCESSFUL_JOBS_WITH_STEPS_NOT_TEST_ATTESTATION=; =id=true=,
+=total_count=true=, and a nonhex 40-character head could also pass the
+identity checks. None is a valid GitHub job/runner/commit identity.
+
+The hardened classifier now requires positive, nonboolean integer job and
+workflow IDs; an exact 40-hex-character head; a nonboolean total count matching
+the complete list; runner IDs that are either null or nonnegative integers;
+and named step-object entries rather than arbitrary list members. Missing
+steps still fail closed. =runner_id=0 with =runner_name=""= and an empty
+step list remains an *observation of no reported execution*, not a claimed
+root cause, billing diagnosis or finding against the book code.
+
+#+begin_src sh
+python3 -m unittest discover -s books/starintel/code/search-lab \
+  -p test_classify_hosted_ci.py -v
+python3 -m unittest discover -s books/starintel/code/search-lab \
+  -p test_hosted_ci_identity_types.py -v
+#+end_src
+
+The regression's seven deliberately malformed inputs are synthetic negative
+controls; the maintained baseline suite's pre-runner observations are only
+compact historical App records. It performs no GitHub API calls, does not
+allocate a runner, and cannot explain the repository's recurring zero-step
+failures. It prevents manufactured numeric-looking metadata from being
+mistaken for valid exact-head job evidence. A green local classifier test
+neither validates the full book/EPUB nor proves public/authenticated search
+scope, indexed coverage, opaque bookmark behavior, or durable canonical data.

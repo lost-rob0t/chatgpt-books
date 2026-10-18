@@ -3514,3 +3514,59 @@ search route in a provisioned service, and perform the authorized durable
 read. Keep any missing or failed stage explicit; correctly aligned Org
 columns and successful HTML/EPUB export are publishing checks, not runtime
 or authorization evidence.
+
+
+** CI evidence needs type-valid identities before it can support a claim
+
+Chapter 15 distinguishes a search hit from an index emission, and both from
+an authorized durable canonical read. The same logic applies when evaluating
+this book's own tests: a hosted workflow labelled =failure= says nothing
+about which code failed until there is evidence a runner and steps executed.
+Even a reported =success= with step names does not, by itself, verify a
+particular assertion or demonstrate that the current exact head was tested.
+
+The offline =classify_hosted_ci.py= helper makes that distinction explicit.
+Its input is an independently exported GitHub Actions job JSON response.
+It insists that all jobs refer to one exact commit and run, that the listing
+is complete, and that the observed runner/step boundary is recognizable.
+These checks are necessary for classifying execution evidence, not a
+replacement for reading the actual step logs and test reports.
+
+An implementation trap is specific to Python: =True= compares equal to =1=
+and satisfies =isinstance(True, int)=. In an unguarded parser,
+=runner_id=true= could masquerade as an assigned runner and combine with
+=conclusion="success"= and an alleged step to produce a successful-job
+classification. The original classifier also accepted =id=true=, a boolean
+job count, a missing run ID and 40-character strings that were not hexadecimal
+commit SHAs. The new native regression uses fabricated metadata to expose
+those mistaken identity boundaries, then requires nonboolean positive
+integer job/run IDs, a real hexadecimal SHA shape, a complete integer count,
+valid runner IDs and named step objects. No fake run is published or
+interpreted as a real CI event.
+
+The previous exact-head =books-ci= and =starintel-book= observations contained
+failed jobs with no reported steps or runner allocation. These observations
+must remain *not executed in the available evidence*: they do not establish
+a failing Chapter 15 unit test, a broken EPUB, a permission/billing cause,
+or a success. Passing the local type guard means only that the offline
+classifier will not promote malformed metadata into stronger execution
+claims. The actual public search route remains server-dataset scoped, the
+authenticated route principal/tenant/dataset scoped, and neither a search
+hit nor an opaque bookmark can establish a durable canonical document read.
+
+*** Exercise -- An apparent green job without a valid runner (★★★)
+
+A locally supplied JSON response reports one successful job for a
+40-character =z= string, with =runner_id=true= and
+=steps=["tests passed"]=. A colleague concludes that the book's latest
+EPUB passed CI. Identify three separate unsupported transitions and state
+what evidence would make a test result reportable.
+
+/Worked answer:/ The =z= string is not a hexadecimal commit ID; JSON
+=true= is not a numeric GitHub runner identity; and a string inside a steps
+array is not a GitHub step record or a test report. First obtain a complete,
+well-formed job response through the authorized App for the current exact
+commit. Confirm genuine runner/step execution and inspect the specific test
+step's logs and artifacts. Only executed results may be attributed to that
+head; local fixture classifications, static index projections, scoped search
+hits and bookmarks cannot substitute for those observations.
