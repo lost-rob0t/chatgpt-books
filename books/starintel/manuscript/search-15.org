@@ -3018,3 +3018,54 @@ interchangeable canonical =id=/=rev=. Do not cross an authorization boundary
 to resolve missing references. Mark the claim unresolved when evidence is
 absent or inaccessible. A visible analysis record is not a durable inference
 proof and an invisible one does not imply that no analysis exists.
+
+** A failed GitHub Actions badge does not identify the failing boundary
+
+The Chapter 15 validation chain is itself a distributed observation system.
+Treat a reported =failure= at the workflow level as an *outcome*, not proof
+that the book's Python/Node/SBCL tests executed or that a source regression
+caused the failure. The job inventory and exact commit are independent
+observations. An Actions run with failed jobs, =runner_id=0=, empty runner
+names, and zero reported job steps has no observed runner execution. It cannot
+be used as evidence that =run-tests= failed. This is not a claim that the
+unobserved code would pass; it remains *NOT RUN* on that host.
+
+The executable offline =code/search-lab/classify_hosted_ci.py= consumes
+an exported GitHub Actions run-job JSON page and an expected 40-character
+commit SHA. It rejects missing or partial pages, wrong commit identity,
+missing step inventories, mixed run IDs and duplicate jobs. It distinguishes
+completed failures with no observed runner/steps, failures with executed steps,
+pending jobs and successes with steps. Even completed successful jobs are
+labelled as job evidence, *not* independent attestation of a particular test
+command or produced EPUB. The source of each input page must be recorded
+separately; the tool performs no network fetch.
+
+On October 18, 2026, the GitHub App returned the exact-head run-job inventory
+for =books-ci= #39113611458 and =starintel-book= #39113611465, both tied to
+=6525b54d78b7d7b07972f1768f9cbb4f093fec19=. The former had one failed
+job and the latter four; all five showed =runner_id=0=, empty =runner_name=
+and zero steps. A sampled job-log request returned =404 BlobNotFound=.
+Neither observation identifies the infrastructure root cause or validates the
+book's source, publisher or EPUB. Do not rerun identical failed jobs blindly;
+first determine whether a runner can actually execute the workflow.
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/classify_hosted_ci.py \
+  exported-jobs.json --expect-head EXACT_40_CHARACTER_COMMIT_SHA
+python3 -m unittest discover -s books/starintel/code/search-lab \
+  -p 'test_classify_hosted_ci.py' -v
+#+end_src
+
+*** Exercise -- A failed workflow versus a failed test (★★)
+
+An exact-head workflow reports =failure= for every job. Every job reports
+zero steps and no assigned runner. A separate local native test run reports
+11 passed checks. Can either observation establish hosted green CI? Can the
+hosted failure be attributed to a Python assertion?
+
+/Worked answer:/ No. The local result is TESTED only in its recorded local
+environment. The hosted evidence stops before observed job execution, so
+hosted tests and publishing checks are NOT RUN. Preserve run ID, commit SHA,
+status, runner and step evidence, avoid weakening gates or manufacturing a
+pass, and investigate runner/account/workflow eligibility through authorized
+administrative evidence before attempting another hosted validation.
