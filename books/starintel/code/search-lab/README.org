@@ -1634,3 +1634,23 @@ STAR_SEARCH_FINDING_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
   node --test books/starintel/code/search-lab/test_finding_triage_fts.js
 # Optional: STAR_SEARCH_FINDING_MERGED_DESIGN=MERGED/source/views/search.json
 #+end_src
+
+* Analysis reasoning is not search projection evidence
+Canonical StarLang 0.10.1 =Analysis= records declare questions, hypotheses,
+conclusions, counterarguments, limitations, input IDs, reasoning-artifact IDs,
+review IDs, and status. The exact historical and merged Server FTS callback
+Git blobs do not emit those reasoning fields, even when the same fictional
+title remains discoverable. The network-free =test_analysis_reasoning_fts.js=
+executes both original callbacks under Git-blob attestation, checks that
+opposing conclusions yield identical raw emissions, checks a title-positive
+control, and deliberately injects a conclusion-indexing mutation as RED
+control. It tests callback projection only—not SDK admission, actual
+Clouseau, installed index state, authorization, review validity, or durable
+canonical evidence. Read the Chapter 15 worked exercise before interpreting
+a hit as an analytical finding.
+
+#+begin_src sh
+STAR_SEARCH_ANALYSIS_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_ANALYSIS_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_analysis_reasoning_fts.js
+#+end_src

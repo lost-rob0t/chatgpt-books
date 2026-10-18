@@ -2941,3 +2941,80 @@ separately, obtain primary evidence for the finding and closure claim, and
 record which checks were actually performed. A missing hit is likewise not
 proof of zero findings: index coverage, authorization, projection generation,
 index lag, and incomplete pagination can all limit the visible subset.
+
+** Analysis documents: a matching title is not an inference verdict
+
+An =Analysis= document can represent an analytical question, competing
+hypotheses, conclusions, counterarguments, limitations, inputs and references
+to reasoning artifacts or reviews. In canonical StarLang
+=org.starintel/core@1= =0.10.1=, these are *separate properties*, not
+synonyms for the title. Its generated =Analysis= definition declares
+=question=, =hypotheses=, =conclusions=, =counterarguments=, =limitations=,
+=uncertaintySources=, =inputIds=, =reasoningArtifactIds= and =reviewIds=.
+The presence of these declared fields does not by itself establish that a
+reasoner ran, a review was completed, or an inference was independently checked.
+[cite:@starlang-starintel-0101]
+
+At the historical Server pin, =source/views/search.json= emits =title=,
+=dtype=, =dataset=, =tenant_id= and selected generic text fields. The
+merged Server search design adds four camelCase name aliases, but still
+does not select the =Analysis= reasoning properties above. This matters
+when the same fictional assessment title appears in two revisions: one
+revision concludes "insufficient evidence" and another declares an
+apparently definitive finding. The *raw calls to index()* can be identical
+for both revisions. This is a fact about those pinned JavaScript callbacks,
+not proof that a deployed search installation has refreshed its index.
+[cite:@starintel-search-runtime-20261009;@starintel-server-20261005]
+
+| Distinct observation | What it establishes | What it does not establish |
+|-
+| Search hit | A query surfaced a scoped projected record | Which conclusion was accepted, or whether the revision is current |
+| Authorized canonical by-ID read | The returned document fields and revision at read time | That the analytical method or cited evidence is valid |
+| Verified sources and reasoning | A bounded basis for independently evaluating an asserted conclusion | Search index freshness or authorization to other datasets |
+
+A public =GET /api/v1/search= uses the Server's public dataset/tenant
+scope, not arbitrary caller-supplied scope overrides. An authenticated
+=documents.search= request is restricted by the principal's permissions.
+Neither grants permission to resolve an =inputIds= reference simply because
+a matching analysis title was visible. Treat bookmarks as opaque, retain the
+query/surface and observed identity, and use separately authorized canonical
+reads for analysis documents and their referenced evidence. If they are not
+available or their revisions disagree, stop at "unverified analysis claim".
+
+The executable regression is
+=code/search-lab/test_analysis_reasoning_fts.js=. It attests both historical
+and merged original search-design Git blobs, executes their callbacks with
+fictional =Analysis= revisions, verifies unchanged raw emissions after
+reversing conclusions, and checks a title positive control. A deliberately
+modified in-memory callback is expected to fail a focused RED control.
+It does not validate the fictional document with the canonical SDK, execute
+Clouseau, retrieve a live record, check review authenticity, or infer a
+relationship. Those checks remain separate evidence obligations.
+
+#+begin_src sh
+STAR_SEARCH_ANALYSIS_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_ANALYSIS_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_analysis_reasoning_fts.js
+#+end_src
+
+*** Exercise -- Two matching analyses, opposite conclusions (★★★)
+
+A fictional, public training query returns a hit titled "Bridge closure
+assessment". Two canonical-shaped revisions use the same title and dataset.
+Revision A concludes "insufficient evidence" and includes an unresolved
+counterargument. Revision B concludes "definitely open" but changes only
+unindexed reasoning and review-reference fields. What does a search hit
+establish? Can it prove B is approved or that A is obsolete? How should a
+reader proceed when an input record is outside their authorized dataset?
+
+/Worked answer:/ The hit shows a query-visible index projection in a
+particular search scope and pagination session. Because the checked index
+callbacks do not emit these reasoning properties, the hit cannot identify the
+conclusion, analysis revision or review state. Record the surface, query,
+bookmark and returned identity; obtain an authorized by-ID =id=/=rev= read;
+then independently inspect the method, cited inputs, reasoning artifacts and
+review evidence. A CouchDB =_id=/=_rev= storage projection is not an
+interchangeable canonical =id=/=rev=. Do not cross an authorization boundary
+to resolve missing references. Mark the claim unresolved when evidence is
+absent or inaccessible. A visible analysis record is not a durable inference
+proof and an invisible one does not imply that no analysis exists.
