@@ -1580,3 +1580,39 @@ Clouseau coverage measurement, HTTP/authorization test, screenshot retrieval,
 image integrity test or durable by-ID read. The named hashes/URLs are invented
 and never fetched. A hash printed in a WebCapture is an assertion until verified
 against separately retrieved authorized bytes. See =manuscript/search-15.org=.
+
+* File integrity and quarantine are not FTS search evidence
+
+Use =test_file_integrity_fts.js= to compare the original historical Server
+search index (Git blob =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=)
+with the optional merged 0.10.1 Server index (Git blob
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=). The synthetic =File=
+fixture draws its fields from canonical StarLang =org.starintel/core@1=
+version =0.10.1= at schema commit
+=96d26c338078676ec1dc6928755901636c9f7ef0= (generated schema blob
+=537163da436f67a973e280d1704e32bdba5b888b=).
+
+#+begin_src sh
+STAR_SEARCH_FILE_HISTORICAL_DESIGN=PINNED_HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_file_integrity_fts.js
+# Optional separately pinned merged design:
+STAR_SEARCH_FILE_HISTORICAL_DESIGN=PINNED_HISTORICAL/source/views/search.json \
+STAR_SEARCH_FILE_MERGED_DESIGN=PINNED_MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_file_integrity_fts.js
+#+end_src
+
+Both source-exact callbacks emit synthetic File =name= and scope fields, but
+not =filename=, =bytesHash=, =bytesHashAlgorithm=, =storageUri=,
+=quarantined=, =executable=, =passwordProtected=, =encrypted=, or
+=parseStatus=. The fixture changes all these unindexed assertions while
+raw emissions remain equal; changing =name= or =dataset= changes emissions.
+A disposable mutated callback in the test intentionally violates the
+non-emission boundary as a regression detector. No upstream file is changed.
+
+The test checks captured raw =index()= calls, *not* canonical SDK admission,
+actual archive parsing, content digest verification, antivirus/quarantine
+policy, HTTP authorization, installed CouchDB/Clouseau state, search ranking,
+completed bookmark pagination, or durable by-ID retrieval. The pinned public
+handler's datasets are server-owned; authenticated scope is caller-authorized.
+Never interpret a searchable filename/label as safe-to-open or bitwise verified.
+See =manuscript/search-15.org= for the worked integrity exercise.

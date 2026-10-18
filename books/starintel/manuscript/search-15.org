@@ -2802,3 +2802,82 @@ nothing about the artifact bytes. Only separate canonical validation, durable
 read-back, artifact retrieval and digest verification can support that stronger
 claim. The source callback test does not establish live query matching or
 network behavior.
+
+** Finding a File by name does not verify bytes or permit opening it
+
+A search result labelled "Fictional Evidence Package" may be useful for
+locating a candidate =File= record. It cannot establish that a referenced
+archive has the promised bytes, that extraction succeeded, or that opening it
+is safe. Keep *discoverability*, *integrity*, *handling policy* and *durable
+evidence* as four different propositions.
+
+The canonical StarLang =org.starintel/core@1= version =0.10.1= generated
+=File= schema requires =id=, =dataset=, =dtype=, =schemaVersion=,
+=bytesHash= and =bytesHashAlgorithm=. It also declares optional =name=,
+=filename=, =path=, =storageUri=, =mediaType=, =quarantined=,
+=executable=, =encrypted=, =passwordProtected=, =parseStatus= and
+=archiveEntries=. These are *document fields*, not proof that any file bytes
+have been read or that a scanner has approved their execution. The pinned
+canonical schema commit is
+=96d26c338078676ec1dc6928755901636c9f7ef0= (generated JSON Schema
+Git blob =537163da436f67a973e280d1704e32bdba5b888b=).
+
+The historical Server's =source/views/search.json= at
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769= (Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=) and the merged
+0.10.1-adopting Server design at
+=ca6fdcbdc1f3b8aa344c533a40d298f741a54f25= (Git blob
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=) both emit the
+following fields from our fictional File-shaped input: =tenant_id=,
+=dataset=, =dtype= and =name=. Neither original callback emits the File's
+=bytesHash=, =bytesHashAlgorithm=, =storageUri=, =filename=,
+=quarantined=, =executable=, =encrypted=, =passwordProtected= or
+=parseStatus=. The raw output therefore remains unchanged if we switch the
+claimed hash and algorithm, storage URI, archive contents and handling flags,
+while preserving the same name and scope. Swapping =name= is a positive
+control; swapping =dataset= changes an emitted scope field but does not
+establish whether either caller was authorized to see that dataset.
+
+The runnable experiment =code/search-lab/test_file_integrity_fts.js= attests
+the exact Git blob of each provided design, executes its *original*
+JavaScript indexing callback in a bounded Node VM, and compares the raw
+=index()= emissions. It also tests a deliberately modified *in-memory*
+callback that emits =bytesHash=: this produces a failing control under the
+normal invariant, proving that the test can detect this kind of projection
+change. The synthetic example is canonical-/shaped/ but does not claim SDK
+validation, HTTP ingest, Clouseau installation, archive parsing, malware
+scanning, successful by-ID reads or actual content-hash equality. The
+historical runtime lock and canonical 0.10.1 schema remain separate.
+
+#+begin_src sh
+STAR_SEARCH_FILE_HISTORICAL_DESIGN=PINNED_HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_file_integrity_fts.js
+# Optional independently pinned merged search.json:
+STAR_SEARCH_FILE_HISTORICAL_DESIGN=PINNED_HISTORICAL/source/views/search.json \
+STAR_SEARCH_FILE_MERGED_DESIGN=PINNED_MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_file_integrity_fts.js
+#+end_src
+
+*** Exercise -- One label, two incompatible file-handling claims (★★★)
+
+An authorized Chapter 15 result page contains a File label that matches an
+expected training archive. A second canonical-shaped observation has the
+same name but a different =bytesHash= and =storageUri=, claims that the
+archive is encrypted, and flips =quarantined= from =true= to =false=. Can
+identical raw index emissions establish that the archive is byte-identical,
+non-executable, safe, parsed or durable? Would a new search page or bookmark
+settle the disagreement?
+
+/Worked answer:/ No. Record the search surface and server-selected public
+or caller-authorized dataset/tenant scope. Preserve the returned identity,
+opaque bookmark and query context only as *retrieval evidence*. Independently
+read the canonical =id=/=rev= through an authorized durable read, noting
+CouchDB storage =_id=/=_rev= as a different namespace when present.
+Separately retrieve the artifact through an authorized storage path, compare
+actual bytes with the declared digest using the specified hash algorithm,
+and verify parser output and quarantine/handling decisions under the
+applicable operating policy. If any step cannot be performed, label its
+result *unverified* rather than inferring truth from a search hit. A missing
+search hit likewise cannot establish that no canonical File exists: index
+field coverage, per-caller scope, installed design, ingestion delay and
+incomplete bookmark traversal may all limit visibility.
