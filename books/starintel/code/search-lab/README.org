@@ -197,6 +197,28 @@ backend that maps its failure to 404 or another status needs an explicitly
 reviewed assertion, not a fabricated pass. Restore the service manually.
 No target recovery or actor failure is simulated.
 
+* Guard the Chapter 15 export spine
+
+=manuscript/index.org= includes =search-15.org= after the fieldwork chapters
+and before the glossary. Within that include, a stray single-star heading
+creates another top-level Org section instead of continuing Chapter 15.
+The meeting decision case originally contained that defect, and its worked
+exercise was also promoted to sibling level. The canonical manuscript now
+nests both under Chapter 15 and preserves every existing Org-roam ID.
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/check_search_outline.py
+python3 -m unittest discover -s books/starintel/code/search-lab -p 'test_search_outline.py' -v
+#+end_src
+
+The checker is network-free, preserves Org block boundaries, requires one
+Chapter 15 root and stable IDs, and rejects detached exercise headings.
+A source-exact RED case reproduces the previous accidental chapter split;
+the corrected outline passes the same assertions. These are structural
+checks only: they do not execute Babel, prove the book export, or replace
+=make book BOOK=starintel=, =make check BOOK=starintel= and EPUBCheck.
+The regular search-lab Python discovery runner also executes the tests.
+
 * Files
 - =lab.py=: version-pin checks, projection capture, URL encoding, hit interpretation.
 - =index_projection.js=: exact index function execution with captured emissions.

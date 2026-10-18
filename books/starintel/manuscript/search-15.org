@@ -3311,7 +3311,7 @@ which features displayed. If feature access is denied or a backing source
 is missing, stop at "layer configuration observed; feature coverage and
 rendering unverified." Search absence does not establish canonical absence.
 
-* A searchable meeting name is not approved minutes or a decision
+** A searchable meeting name is not approved minutes or a decision
 
 A meeting is often described in search results as if the appearance of its name
 established who attended, what was decided, and whether the minutes are final.
@@ -3358,7 +3358,7 @@ mutation is installed in the server. Canonical SDK admission, a minutes-file
 read, meeting attendance verification, signature/ratification, live HTTP
 search, CouchDB/Clouseau indexing, and durable by-ID read-back were NOT RUN.
 
-** Worked exercise -- What does the hit prove?
+*** Worked exercise -- What does the hit prove?
 
 A public =/api/v1/search= call returns the committee's name and one opaque
 bookmark. A second person, holding an authenticated =documents.search=
@@ -3371,3 +3371,53 @@ decision artifact, explicit provenance and any approval/ratification evidence.
 If those checks are absent, report *decision not established*. The bookmark
 is a pagination cursor, not a revision, attendance record, or historical
 snapshot. [cite:@starintel-search-runtime-20261009]
+
+
+** Project 4 integration -- A search hit is a claim to investigate
+
+At the end of this chapter, the same method applies across the many
+canonical document types. Record the *claim being made*, the *observation
+actually available*, and the *next independently authorized check*. A hit
+must never silently acquire the authority of a canonical record, a related
+artifact, a running service, or a finished operation.
+
+#+caption: Evidence handoff for fictional Chapter 15 search examples.
+| Proposed claim | What this Chapter 15 search can observe | What must be checked separately |
+|----------------+-----------------------------------------+---------------------------------|
+| "The committee approved it" | =meeting= name and scoped metadata | Authorized versioned Meeting, decision record, minutes and approval evidence |
+| "This endpoint has valid TLS" | =service= name and scoped metadata | Time-bounded protocol handshake, certificate and host verification |
+| "The map is complete" | =map-layer= label and scoped metadata | Authorized feature source, feature counts and actual renderer output |
+| "The transcript says this" | Search-visible transcript metadata | Authorized recording, segment timing, speaker attribution and verified text |
+
+The table is not a field-level authorization matrix. The indexed fields
+depend on the *exact installed design and generation*, and the caller's
+visibility depends on the *actual public or authenticated server policy*.
+The book's pinned JavaScript regressions establish only callback emissions.
+Even a successful live search does not certify total indexed coverage,
+durable canonical identity/revision, or the truth of the unindexed claim.
+
+For a defensible handoff, preserve the route, query and time of observation;
+record which server generation and dataset/tenant scope were actually verified;
+then retrieve the canonical =id=/=rev= through an independently authorized
+read. If a claim depends on an external artifact or live measurement, test
+that separately. Treat an opaque bookmark solely as continuation state.
+If any witness is unavailable, leave the corresponding claim *unverified*.
+
+*** Exercise -- Two matching hits, one unsupported conclusion (★★★)
+
+A public reader finds a fictional committee meeting in =book-public=. An
+authorized analyst separately finds a Service document in =book-private=.
+Both hits contain matching names. A report concludes that the meeting
+approved the private service for production use and that its TLS certificate
+is valid. Identify the exact missing observations, and explain why merging
+the two search screenshots is insufficient.
+
+/Worked answer:/ The public meeting result supplies no approved decision,
+minutes or ratification; the private Service hit supplies no live TLS
+handshake or certificate verification. The readers have different
+authorization contexts, so neither may treat the other's result as a
+new permission grant. Obtain version-specific durable reads and authorized
+decision artifacts, and independently perform a time-bounded TLS check.
+Until then the report can say only that those names appeared in separate
+scoped search observations. Their presence establishes neither approval,
+protocol health nor complete corpus coverage.
