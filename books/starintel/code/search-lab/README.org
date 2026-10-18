@@ -1654,3 +1654,31 @@ STAR_SEARCH_ANALYSIS_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
 STAR_SEARCH_ANALYSIS_MERGED_DESIGN=MERGED/source/views/search.json \
   node --test books/starintel/code/search-lab/test_analysis_reasoning_fts.js
 #+end_src
+
+* Service discovery versus verified TLS state
+
+Canonical StarLang 0.10.1 =Service= requires a host reference and port; it
+also declares optional =tls=, =tlsCertificate=, =state=, =transport= and
+=fingerprints= properties. The two source-pinned historical/merged Server
+=_design/search= callbacks emit a fictional Service =name= and scope fields,
+not those protocol/certificate claims. Network-free
+=test_service_tls_fts.js= executes both unchanged original Git-blob-attested
+callbacks, confirms unchanged raw emission after changing TLS, port, state,
+host and certificate assertions, exercises =name=/=dataset= positive
+controls, and detects a deliberately mutated TLS-indexing callback as RED.
+
+#+begin_src sh
+STAR_SEARCH_SERVICE_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_service_tls_fts.js
+# Optional independently pinned merged generation:
+STAR_SEARCH_SERVICE_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_SERVICE_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_service_tls_fts.js
+#+end_src
+
+This is a test of source JavaScript emission only. It is not canonical SDK
+admission, deployed search coverage, a protocol/TLS handshake, certificate
+validation, an authorized by-ID read, or durable canonical evidence. Public
+search is confined by server-owned dataset settings; authenticated search
+remains confined by principal-scoped permissions. Pagination bookmarks are
+opaque. See the Chapter 15 worked Service exercise.

@@ -3069,3 +3069,88 @@ hosted tests and publishing checks are NOT RUN. Preserve run ID, commit SHA,
 status, runner and step evidence, avoid weakening gates or manufacturing a
 pass, and investigate runner/account/workflow eligibility through authorized
 administrative evidence before attempting another hosted validation.
+
+** A searchable Service is not a verified TLS endpoint
+
+A canonical StarLang =org.starintel/core@1= =0.10.1= =Service= record
+requires a =host= reference and numeric =port=, and may also declare =name=,
+=transport=, =state=, =tls=, =tlsCertificate=, =fingerprints=,
+=firstOpenAt= and =lastOpenAt=. Those are assertions inside a document;
+their presence alone does not establish a completed connection, a certificate
+chain validation, or that a service is currently reachable. A stored document,
+an indexed text field, and a fresh protocol observation are three different
+kinds of evidence.
+
+The historical pinned =_design/search= callback and the merged 0.10.1 Server
+callback both emit a fictional Service's =name= and =dtype=/=dataset= fields,
+but neither emits its =host=, =port=, =transport=, =state=, =tls=,
+=tlsCertificate=, =fingerprints= or =lastOpenAt= properties. The exercise uses
+*raw JavaScript index emissions*, not analyzer output or a deployed search
+result. For instance, change a fictional service's port from 8443 to 22,
+change =tls= from true to false, and point =tlsCertificate= at another
+fictional record while retaining the name. Both callbacks emit the same
+field/value sequence. Change =name= instead, and the indexed sequence changes.
+This is why a search hit named "Owned lab status endpoint" is not proof of a
+working HTTPS listener or a valid certificate.
+
+#+begin_example
+Search result: name + dtype + dataset (index observation)
+     |  do not infer port, TLS negotiation, or certificate status
+     v
+Authorized by-ID read: canonical id/rev and asserted Service fields
+     |  still an assertion; host/certificate references need their own scope
+     v
+Explicit independently measured transport/TLS evidence, if available
+     |  record timing, host/port, verification policy and negative results
+     v
+Bounded claim supported by those observations, never by the hit alone
+#+end_example
+
+The public =GET /api/v1/search= surface derives datasets and tenant scope
+from *server-owned* public settings; an anonymous caller cannot supply a
+private dataset override. Authenticated =documents.search= uses the
+principal's permitted dataset/tenant dimensions. Finding a Service name does
+not authorize a by-ID read of its =host= or certificate reference. Even a
+successful separately authorized read has to distinguish canonical =id=/=rev=
+from CouchDB =_id=/=_rev= and preserve retrieval time. Treat search bookmarks
+as opaque pagination tokens, not proof of corpus coverage, order stability,
+current service health, or durable canonical evidence. A missing search hit
+cannot prove that the service has never been indexed or does not exist.
+
+The network-free =code/search-lab/test_service_tls_fts.js= runs the exact
+historical index Git blob =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=
+and optionally the merged blob
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=. It preserves all actual
+=index()= emissions, tests identical projections after changing unindexed
+fields, checks =name= and =dataset= positive controls, and includes an
+in-memory TLS-indexing mutation that fails under the deliberate RED switch.
+No canonical SDK admission, HTTP query, live network request, certificate
+parsing, Clouseau analyzer result, authorization middleware, or durable read
+was executed by this callback test.
+
+#+begin_src sh
+STAR_SEARCH_SERVICE_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_service_tls_fts.js
+# Add STAR_SEARCH_SERVICE_MERGED_DESIGN=MERGED/source/views/search.json
+# to exercise both independently pinned server source generations.
+#+end_src
+
+*** Exercise -- Discovery and protocol verification are different (★★★)
+
+Two fictional revisions share an indexed =name= and the same caller-visible
+dataset. Revision A asserts =port=8443=, =tls=true= and a referenced
+certificate. Revision B asserts =port=22=, =tls=false= and a different
+certificate, with no new observation. A query returns only the name and
+scope fields. What can an operator conclude, and how should the operator
+investigate without crossing tenant or dataset boundaries?
+
+/Worked answer:/ Only the indexed name and permitted search projection are
+observed. The raw index cannot distinguish A from B or prove any transport
+handshake. Record query, endpoint, scope, page/bookmark and hit identity, then
+perform an authorized by-ID read and note its =id=/=rev= and collection time.
+If host/certificate references are not separately authorized, stop and label
+the protocol claim unverified. If an explicitly permitted endpoint experiment
+is available, collect a new time-bound handshake and independent certificate
+validation observation; report failures and ambiguity. Neither search
+visibility nor stored assertions are conclusive service-availability or TLS
+trust evidence. No network experiment is part of this chapter's native test.
