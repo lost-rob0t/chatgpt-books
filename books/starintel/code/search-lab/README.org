@@ -1792,3 +1792,43 @@ meeting decisions, actual attendance, HTTP authorization or durable by-ID
 retrieval. The public search dataset scope belongs to the server, authenticated
 search is caller-scoped, and opaque bookmarks are not version evidence. The
 Chapter 15 exercise spells out the separate proof obligations.
+
+* Runner inventory: environment-pinned Node suites
+
+The Chapter 15 =run-tests= script intentionally invokes most Node suites
+without inline environment assignments. Three exceptions bind paths inside
+the already attested historical Server checkout: public aggregate statistics
+use =source/views/data.json=, the wireless-search regression uses
+=source/views/search.json=, and the actor-registry boundary regression uses
+both =source/views/search.json= and =source/actor-registry.lisp=.
+
+The first inventory checker recognized only the statistics prefix. Consequently,
+its own native inventory test rejected the real wireless invocation as
+"unrecognized" before determining whether the runner had registered every
+suite. This was a test-harness defect, not a search-result observation or an
+explanation for hosted jobs that never allocated a runner.
+
+The checker now recognizes inline assignments but compares the *complete*
+ordered binding string against an explicit three-suite allowlist. Swapped
+file paths, a missing actor registry binding, an extra assignment, an unknown
+variable reference, omitted suites and duplicate invocations fail. Plain
+suites cannot inherit one of the special bindings by accident. The two-checkout
+index-generation experiment remains explicitly excluded from the single-server
+runner; this does not weaken any of its separate prerequisites.
+
+Run the focused native regression on a complete source checkout:
+
+#+begin_src sh
+python3 -m unittest discover -s books/starintel/code/search-lab \
+  -p test_runner_node_inventory.py -v
+#+end_src
+
+For an end-to-end lab run, use the existing =run-tests= command with the exact
+historical Server and canonical SDK pins. The focused inventory test observes
+shell command registration *as text*; it executes no Node indexing callback,
+no HTTP request, and no authorization middleware. Successful registration does
+not prove that a local Node suite ran, that CouchDB/Clouseau installed the
+source index, that a public caller can see a result, that an authenticated
+caller has tenant/dataset rights, or that by-ID canonical evidence exists.
+Opaque bookmarks are only continuation tokens, not proof of freshness or
+index coverage. Those remain separate Chapter 15 evidence gates.

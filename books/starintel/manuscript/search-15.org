@@ -3421,3 +3421,57 @@ decision artifacts, and independently perform a time-bounded TLS check.
 Until then the report can say only that those names appeared in separate
 scoped search observations. Their presence establishes neither approval,
 protocol health nor complete corpus coverage.
+
+** Audit the search lab runner before trusting its coverage
+
+A test file on disk is not proof that CI invokes it. Conversely, a test runner
+containing a command is not proof the command executed. The Chapter 15
+=run-tests= script enumerates native Node suites after verifying the exact
+historical Server and generated-SDK checkouts. Three suites require inline
+source-path bindings rather than the default environment: statistics read the
+historical =data.json= view, wireless-search examines =search.json=, and the
+actor-registry comparison needs =search.json= plus the Lisp registry source.
+
+A concrete checker defect made this distinction visible. The original
+=test_runner_node_inventory.py= accepted only the statistics prefix. It
+rejected the existing wireless suite's valid environment-bound invocation,
+reporting an unrecognized command before it could evaluate suite coverage.
+That is a *native harness failure*. It is not evidence that search was
+unauthorized, index fields were missing, or a hosted workflow ran tests.
+
+The repaired inventory checker compares all three expected, ordered
+environment-binding strings exactly. A normal suite with an unexpected
+binding fails. So does a wireless suite pointed at the aggregate statistics
+view, or an actor suite missing its registry source. It continues to reject
+unregistered and duplicate suites. The independent two-checkout generation
+test remains outside the one-Server runner on purpose.
+
+#+begin_src sh
+python3 -m unittest discover -s books/starintel/code/search-lab \
+  -p test_runner_node_inventory.py -v
+#+end_src
+
+This is a network-free registration check, not an executed JavaScript index
+probe. It does not show whether the published Server installed the historical
+FTS source, whether a keyword was tokenized, or whether either search route
+served a caller. Public visibility still follows the server-owned dataset
+policy; authenticated visibility follows the service's principal, tenant and
+dataset authorization. A search hit does not establish indexed field coverage
+elsewhere, and neither a hit nor an opaque bookmark proves durable canonical
+record evidence. Treat a hosted workflow with zero reported steps as
+*unexecuted*, regardless of the locally passing inventory test.
+
+*** Exercise -- Break a source-pinned suite binding (★★★)
+
+On a disposable copy of =run-tests=, change the wireless suite's
+=source/views/search.json= binding to =source/views/data.json=. Predict the
+focused inventory-check result, then restore the path. Repeat by removing
+the actor-registry source binding while leaving its =node --test= command.
+Why is merely counting the commands insufficient?
+
+*Answer:* Both mutations must fail the focused inventory regression: the
+command still exists, but its suite no longer receives the declared pinned
+source inputs. Counting commands would miss that functional drift. Passing
+the restored inventory establishes only command registration. The HTTP
+public/authenticated search scope, CouchDB/Clouseau behavior and durable
+canonical by-ID read are separate experiments requiring independent evidence.
