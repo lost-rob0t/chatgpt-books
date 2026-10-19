@@ -58,6 +58,9 @@ def projection(root: Path, document: dict) -> list[dict]:
 def request_path(surface: str, query: str, **params) -> str:
     if surface not in ('public', 'authenticated'):
         raise ValueError('unknown search surface')
+    # Match the pinned HTTP handler's required nonempty query-string shape.
+    if not isinstance(query, str) or not query:
+        raise ValueError('search requires a nonempty search query string')
     # Public search ignores sort; refuse a parameter that only appears honored.
     if surface == 'public' and 'sort' in params:
         raise ValueError('public search does not forward sort')
