@@ -45,6 +45,16 @@ def diagnose(payload: object) -> dict[str, object]:
         raise InvalidEvidence("check values must be true, false or null")
     evidence = {name: checks.get(name) for name in CHECKS}
     established = [name for name in CHECKS if evidence[name] is True]
+    # Report the caller's actual input state. An omitted check was never
+    # reported; an explicit null is a reported inconclusive observation.
+    # These labels do not certify that the caller performed the check.
+    observation_states = {
+        name: ('not_reported' if name not in checks else
+               'reported_inconclusive' if checks[name] is None else
+               'reported_true' if checks[name] is True else
+               'reported_false')
+        for name in CHECKS
+    }
     search = evidence["target_search_hit"]
     by_id = evidence["durable_by_id"]
 
@@ -81,6 +91,7 @@ def diagnose(payload: object) -> dict[str, object]:
         "finding": finding,
         "next_check": next_check,
         "established_observations": established,
+        "observation_states": observation_states,
         "limits": [
             "Only explicit caller-supplied observations were evaluated.",
             "A positive control does not authorize or validate the target document.",

@@ -3820,3 +3820,75 @@ an explicit required-=q= list. A live fetch and review of the deployed
 would be necessary for a deployment claim. A production patch, generated-client
 regeneration, and tests belong in a separately owned Server change; this book
 experiment only exposes the difference and preserves authorized search scope.
+
+** A reported negative is not an unperformed search check
+
+When debugging an empty search page, the word /unknown/ often hides two
+materially different situations: the operator performed a check but its
+result was inconclusive, or nobody performed the check. Likewise, a reported
+negative is not the same thing as a missing observation. The distinction
+matters before deciding whether a source index field was omitted, an
+installed design differs, or the caller simply cannot see the record.
+
+The offline Chapter 15 decision aid =diagnose_search_evidence.py= now
+preserves four *caller-reported* states for each supported check:
+=reported_true=, =reported_false=, =reported_inconclusive= and
+=not_reported=. In the input JSON, these correspond respectively to
+=true=, =false=, explicit =null= and an absent key. Each diagnostic response
+reports the same six named checks in a stable order while retaining the
+existing =next_check= decision. A reported value is an *assertion supplied
+to the lab*, not a validated observation obtained by the diagnostic tool.
+
+#+begin_src json
+{"generation":"historical","surface":"public",
+ "checks":{"target_search_hit":false,"durable_by_id":null}}
+#+end_src
+
+The resulting =observation_states= includes
+=target_search_hit: reported_false=,
+=durable_by_id: reported_inconclusive=, and
+=field_emitted: not_reported=. The appropriate next step remains an
+authorized by-ID read, not a claim that a canonical document was deleted or
+that the full-text index is behind. [cite:@starintel-search-runtime-20261009]
+
+#+caption: An offline report's stated evidence boundary.
+| Caller supplied | Diagnostic label | Does the lab independently verify it? |
+|-----------------+------------------+---------------------------------------|
+| =true= | =reported_true= | No |
+| =false= | =reported_false= | No |
+| =null= | =reported_inconclusive= | No |
+| key absent | =not_reported= | No |
+
+The source pins attached to the report identify the historical
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769= and merged
+=ca6fdcbdc1f3b8aa344c533a40d298f741a54f25= Server editions. The
+labels are the same for both; the diagnostic cannot authenticate a caller,
+read a database, establish public dataset exposure, or decide tenant
+permissions. Only the actual public or authenticated Server boundary can
+establish permitted visibility. Neither a reported search hit nor an opaque
+bookmark proves Lucene index coverage or a durable canonical =id=/=rev=.
+The experimental Star-KB projection is not invoked; no candidate inference
+is silently upgraded to a stored typed relation.
+
+The seven network-free regressions in
+=code/search-lab/test_diagnose_observation_states.py= exercise the original
+and corrected decision aid, including CLI JSON serialization and distinct
+historical/merged pins. They show that adding observation-state reporting
+changes no branching decision. This is *TESTED local diagnostic behavior*,
+not a live HTTP, CouchDB, Clouseau, SDK or graph integration test.
+
+*** Exercise -- A negative result with no read-back (★★)
+
+An operator provides =target_search_hit=false= and
+=durable_by_id=null= but says nothing about =field_emitted=. Is the
+correct diagnosis "the record was never stored"? Which checks have actually
+been reported as negative, inconclusive and missing? Run the offline tool
+against that JSON, inspect =observation_states= and =next_check=, and state
+what evidence a subsequent authorized by-ID read would add.
+
+/Worked answer:/ No. The caller reports a negative search observation, an
+inconclusive durability check, and no field-coverage check. The tool next
+recommends =authorized_by_id_read=. A successful scoped durable read would
+establish the returned stored document and storage revision at that time;
+it would not establish canonical validation, installed index freshness, or
+authorization to any other tenant or dataset.
