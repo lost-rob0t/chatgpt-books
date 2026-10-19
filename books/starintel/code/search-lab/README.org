@@ -1896,3 +1896,34 @@ failures. It prevents manufactured numeric-looking metadata from being
 mistaken for valid exact-head job evidence. A green local classifier test
 neither validates the full book/EPUB nor proves public/authenticated search
 scope, indexed coverage, opaque bookmark behavior, or durable canonical data.
+
+* Product-name discovery versus software supply-chain evidence
+
+=StarLang= 0.10.1 Product declares =name=, =displayName=,
+=versionName=, =dependencyIds=, =sbomFileIds=,
+=securityAdvisoryIds=, =supportEndAt=, and related properties. The
+original source-pinned Server callbacks index product names but *not* the
+listed supply-chain or support evidence. The merged callback also indexes
+=displayName=; the historical callback does not. This does not establish
+search permission or a deployed full-text index.
+
+#+begin_src sh
+STAR_SEARCH_PRODUCT_HISTORICAL_DESIGN=/path/to/historical/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_product_sbom_fts.js
+# Optional separate merged-edition source, verified by its Git blob SHA:
+STAR_SEARCH_PRODUCT_HISTORICAL_DESIGN=/path/to/historical/source/views/search.json \
+STAR_SEARCH_PRODUCT_MERGED_DESIGN=/path/to/merged/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_product_sbom_fts.js
+# Intended failing control, never production mutation:
+STAR_SEARCH_PRODUCT_RED=1 STAR_SEARCH_PRODUCT_HISTORICAL_DESIGN=/path/to/historical/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_product_sbom_fts.js
+#+end_src
+
+The first file must match Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=; the optional merged file
+must match =dd6336f3047982db2f0e3615fed1413ed1e58e13=. The test uses
+fictional canonical-shaped Product input and executes the exact unchanged
+Server JavaScript callback. It does *not* validate with the StarLang SDK,
+contact an HTTP endpoint, confirm installed Clouseau design or assess actual
+SBOM bytes or advisory applicability. The normal runner includes only the
+historical mandatory input.

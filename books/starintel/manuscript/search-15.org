@@ -3570,3 +3570,81 @@ commit. Confirm genuine runner/step execution and inspect the specific test
 step's logs and artifacts. Only executed results may be attributed to that
 head; local fixture classifications, static index projections, scoped search
 hits and bookmarks cannot substitute for those observations.
+
+** Software product discovery is not a dependency or advisory inventory
+
+A search hit for a software =product= is useful for discovering a catalog
+entry. It does not prove what the entry depends on, whether a software bill of
+materials (SBOM) exists, whether advisories were assessed, or whether the
+product remains supported. These are separate claims with different evidence
+requirements. A keyword-index entry is not an SBOM parser, a dependency
+resolver, a security scanner, or a current vendor-support statement.
+
+The generated StarLang =org.starintel/core@1= schema at canonical commit
+=96d26c338078676ec1dc6928755901636c9f7ef0= defines Product fields
+including =name=, =displayName=, =versionName=, =dependencyIds=,
+=sbomFileIds=, =securityAdvisoryIds=, =license=, =supportEndAt=,
+=endOfLife= and =status=. It defines *record shape*, not installed index
+coverage or an assertion that the linked files/records were retrieved and
+verified. The supplied example uses fictional values; the Node regression
+executes the original pinned JavaScript index callbacks but does *not* run
+the canonical SDK or ingest a Product into a service.
+
+The historical Server search design Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= emits =name= but not
+camelCase =displayName=. The merged 0.10.1 design blob
+=dd6336f3047982db2f0e3615fed1413ed1e58e13= additionally emits
+=displayName=. Neither callback emits the Product-specific SBOM,
+dependency, advisory, version, licensing or support-state fields listed
+above. This is a statement about the *raw index functions at two source
+pins*, not a measurement of authorized search results, index deployment,
+reindex completion, analyzer matching or actual corpus coverage.
+
+| Question                                     | Evidence needed                  |
+|----------------------------------------------+----------------------------------|
+| Does the raw index emit a product name?      | Executed pinned FTS callback     |
+| May this caller retrieve the hit?            | Server-side dataset/tenant grant |
+| Was a particular Product record stored?      | Authorized durable read-back     |
+| Does the SBOM cover its shipped components?  | Retrieved SBOM bytes and audit   |
+| Are listed advisories applicable?            | Advisory and version assessment  |
+| Is this release still supported?             | Dated authoritative lifecycle evidence |
+
+The first question is *TESTED* by the Chapter 15 offline test. The remaining
+questions are not established by that test. Index =dataset= and =tenant_id=
+emissions are searchable scope metadata; only the maintained server's public
+or authenticated authorization boundary decides which scope is queryable.
+A private tenant entry does not become public because its name is indexed.
+
+Two fictional records can have the same indexed =name= while specifying
+contradictory =sbomFileIds=, =securityAdvisoryIds= and =supportEndAt= values.
+The raw historical and merged projections remain unchanged under those
+updates. Even an authorized search hit therefore cannot decide whether a
+release has an assessed vulnerability, a complete dependency inventory, or
+valid support. A separate canonical read and inspection of referenced
+artifacts would be necessary; linked dependency IDs are not automatically
+persisted typed =Relation= edges or a traversable production graph.
+
+Reproduce the source-pinned counterexample through
+=code/search-lab/test_product_sbom_fts.js=. The regular Chapter 15 runner
+executes the historical design; setting
+=STAR_SEARCH_PRODUCT_MERGED_DESIGN= to the *exact original merged
+=source/views/search.json=* adds the merged source comparison. Each test
+checks the Git blob before executing the callback. The optional
+=STAR_SEARCH_PRODUCT_RED=1= control injects an SBOM-indexing change into a
+*disposable in-memory function*, not the product repository, and must fail.
+
+*** Exercise -- Same search name, incompatible supply-chain claims (★★★)
+
+Two search responses show “Fictional Parser Toolkit” under an allowed
+catalog. One underlying Product document references an SBOM and an advisory;
+the other records a different version and an empty advisory list. What can
+you conclude about vulnerability status and the release's dependencies?
+
+*Worked answer:* from the search response alone, neither claim is settled.
+Record the authorized search observation, then independently retrieve the
+canonical Product at an identified revision; resolve the referenced SBOM and
+advisories, determine version applicability, inspect the evidence timestamp
+and provenance, and explicitly mark missing checks as unknown. Empty
+=securityAdvisoryIds= is not proof of zero vulnerabilities. No inferred
+software dependency edge should be stored without its own authoritative
+contract and evidence.
