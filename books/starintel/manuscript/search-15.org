@@ -3709,3 +3709,53 @@ permitted measurement is necessary for a current-reachability claim.
 Neither a =closed= field nor an absent field can be distinguished by this
 pinned raw index projection alone. The public route's datasets are set by
 the server; the authenticated route enforces caller-specific scope.
+
+** A canonical legal-case name is not automatically a search field
+
+A legal-case record has a natural display label: =caseName=. An analyst might
+expect a text query for that label to retrieve the record. But the current
+canonical document schema and the maintained document-search index are
+/different contracts/. StarLang =org.starintel/core@1= =0.10.1= defines
+=LegalCase.caseName=, =caseNumber=, =court=, =citation=, =filedAt=,
+=docketEntries=, =status=, =disposition=, and =outcome=. At the pinned historical
+Server search design, the flat scalar whitelist includes =name= but *not*
+=caseName=; the merged 0.10.1 Server search design also does not include
+=caseName=. Neither callback automatically walks every canonical property.
+[cite:@starlang-starintel-0101;@starintel-search-runtime-20261009]
+
+The executable =code/search-lab/test_legal_case_fts.js= captures both
+original, Git-blob-attested index functions with an entirely fictional
+=LegalCase= document. The canonical-shaped fixture emits only =tenant_id=,
+=dataset=, and =dtype=. Changing its =caseName=, docket, filing time, parties,
+status, or disposition leaves those *raw index emissions* unchanged. This is a
+source-pinned test of projection behavior, *not* a claim that a deployed index
+contains the document, that either public or authenticated query returns it,
+or that the fictional fixture was accepted by the canonical SDK.
+
+| Question | Required evidence | What this FTS capture establishes |
+|----------+-------------------+-----------------------------------|
+| Does the record exist durably? | Authorized by-ID read and revision | Nothing about persistence |
+| Can this query find =caseName=? | Installed index plus scoped query | =caseName= is not emitted by either pinned callback |
+| Is this the correct court/case? | Canonical case ID, court and docket | Only raw =dtype=/=dataset=/=tenant_id= emissions |
+| Was it dismissed or appealed? | Current authorized case and source docket | No disposition or appeal evidence |
+
+The public =GET /api/v1/search= and authenticated =documents.search=
+surfaces must still apply their *different server-owned authorization scopes*;
+a dataset or tenant string in an indexed record does not grant the caller
+access. A missing result is not evidence of a missing lawsuit; a matching
+result, if obtained by another indexed field, is not evidence of any ruling.
+Treat source-document verification, current revision, index coverage,
+visibility, and legal interpretation as separate questions.
+
+*** Exercise -- A case number cannot certify a disposition (★★★)
+
+A fictional reader enters a case number from an authorized canonical record
+into full-text search and sees no hit. They then change the record's
+=disposition= from =none= to =dismissed= and still see no hit. Explain why
+neither observation proves that the court docket was lost or that a dismissal
+occurred. Run the lab regression against pinned historical and merged design
+files, inspect the =caseName=/=disposition= emission assertions, and describe
+what authorized by-ID and source-docket evidence would be needed. For a RED
+control, use =STAR_SEARCH_LEGALCASE_RED=1= with the *same* design inputs; this
+intentionally fails after instrumenting a copy of the in-memory callback to
+emit =caseName=. Never interpret that mutant as a production search feature.

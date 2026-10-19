@@ -1995,3 +1995,28 @@ installed Clouseau index content, establish a complete corpus, interpret an
 opaque bookmark, validate a canonical Port with the SDK, prove an authorized
 by-ID durable read, or establish current port reachability. No network probe
 is made. See the Chapter 15 Port exercise for the evidence ladder.
+
+** Legal-case names versus historical/merged search projection
+
+The native =test_legal_case_fts.js= suite executes the original pinned Server
+FTS functions against a fictional, canonical-shaped =LegalCase= example. The
+canonical StarLang 0.10.1 schema defines =caseName= and docket/disposition
+properties, but neither Server generation's raw search projection emits them.
+This is a projection test, not SDK validation, Lucene recall, installed design
+attestation, legal analysis, or authorization testing.
+
+#+begin_src sh
+STAR_SEARCH_LEGALCASE_HISTORICAL_DESIGN=PATH_TO_HISTORICAL_SOURCE_VIEWS_SEARCH_JSON \
+STAR_SEARCH_LEGALCASE_MERGED_DESIGN=PATH_TO_MERGED_SOURCE_VIEWS_SEARCH_JSON \
+node --test books/starintel/code/search-lab/test_legal_case_fts.js
+#+end_src
+
+Each source is verified against its exact Git blob before execution:
+- historical =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=;
+- merged =dd6336f3047982db2f0e3615fed1413ed1e58e13=.
+
+The normal =run-tests= registration uses its required pinned historical
+checkout. Supply the optional merged design path for a two-generation run.
+Use =STAR_SEARCH_LEGALCASE_RED=1= only to observe the deliberate failing
+mutation control. A green historical-only run must not be reported as a
+merged-generation test. No real court records or personal data are involved.
