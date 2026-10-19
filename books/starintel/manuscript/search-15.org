@@ -3648,3 +3648,64 @@ and provenance, and explicitly mark missing checks as unknown. Empty
 =securityAdvisoryIds= is not proof of zero vulnerabilities. No inferred
 software dependency edge should be stored without its own authoritative
 contract and evidence.
+
+
+** A searchable port name is not a current reachability observation
+
+The 0.10.1 StarLang =Port= document contract requires =id=, =dataset=,
+=dtype=, =schemaVersion= and =number=. It also permits =protocol=, =state=,
+=reason=, =transport=, =banner=, =host=, =firstOpenAt= and =lastOpenAt=.
+Those properties describe assertions in a document; they do not establish
+when a network endpoint was last independently observed or whether it is
+reachable now. In particular, a missing =state= and a recorded =closed=
+state have different meanings in the canonical record but need not be
+distinguishable through a search index.
+
+The historical Server =_design/search= function at Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and the merged
+0.10.1-generation function at
+=dd6336f3047982db2f0e3615fed1413ed1e58e13= emit a Port's generic
+=name= and server search-scope fields. Neither emits the Port-specific
+=number=, =state=, =protocol=, =transport=, =banner=, =host=, or temporal
+observation fields. This is a statement about the *raw JavaScript callback
+outputs at two pinned revisions*, not an assertion about a deployed
+Clouseau index or a particular caller's search results.
+
+The executable =code/search-lab/test_port_state_fts.js= changes a
+fictional Port from number 8443 and state =open= to number 9443 and state
+=closed=. The two raw projections remain identical until its =name= or
+server-scope metadata changes. A deliberate in-memory mutation that
+indexes =state= is a failing RED control: it verifies that the test can
+detect a real change in raw projection behavior. No host is contacted.
+
+| Question                                           | Required independent evidence                  |
+|----------------------------------------------------+------------------------------------------------|
+| Did the pinned callback emit the Port's name?      | Execution of the pinned design-function bytes  |
+| Could a public caller query that dataset?          | Server-owned public dataset configuration      |
+| Could an authenticated caller query that tenant?   | Principal-scoped server authorization decision |
+| Was the Port document durably stored at a revision?| Authorized by-ID read-back and revision        |
+| Was the service open at an observation time?       | Time-stamped, authorized observation evidence  |
+| Is it reachable now?                               | A fresh, permitted measurement and its limits  |
+
+An opaque bookmark merely carries pagination state; it is not a new probe,
+a canonical revision, a permission grant, or proof that indexing is complete.
+The source-level test cannot establish public visibility, authenticated
+search scope, Lucene matching, server deployment, SDK validation or durable
+canonical evidence. Those boundaries require separate tests.
+
+*** Exercise -- The searchable but supposedly open endpoint (★★★)
+
+A search page contains a Port with name “Fictional service endpoint.” An
+operator tells you it is open because a different document with the same
+name previously recorded =state=open=. What is missing before the claim
+can be considered current?
+
+/Worked answer:/ Record the exact authorized search query and page
+observation, but do not infer a socket state from a searchable name. Perform
+an authorized by-ID read of the intended Port's canonical =id=/=rev=,
+verify its =number=/=host=/=protocol= and time-bearing observation
+provenance, and state what that historical observation proves. A fresh
+permitted measurement is necessary for a current-reachability claim.
+Neither a =closed= field nor an absent field can be distinguished by this
+pinned raw index projection alone. The public route's datasets are set by
+the server; the authenticated route enforces caller-specific scope.

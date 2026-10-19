@@ -1958,3 +1958,40 @@ authentic manuscript checkout. Neither substitutes for a complete production
 source-level structural evidence, not validation of links or EPUB navigation
 artifacts. No HTTP, CouchDB, Clouseau, canonical document ingest, public or
 authenticated tenant scopes, or opaque search bookmarks are executed here.
+
+
+* Port reachability assertions versus discoverability
+
+The native =test_port_state_fts.js= regression executes the original pinned
+historical =_design/search= callback and optionally the merged 0.10.1 design.
+The source file's Git blob SHA is verified *before* execution. Fictional,
+canonical-shaped Port inputs are not admitted through the SDK, persisted or
+sent to an actual host. The test distinguishes raw =name= and =dataset=
+search emissions from unindexed =number=, =state=, =host=, =protocol=,
+=transport=, =banner=, =firstOpenAt= and =lastOpenAt= assertions.
+
+#+begin_src sh
+STAR_SEARCH_PORT_HISTORICAL_DESIGN=/path/to/historical/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_port_state_fts.js
+# Optional exact original merged design:
+STAR_SEARCH_PORT_HISTORICAL_DESIGN=/path/to/historical/source/views/search.json \
+STAR_SEARCH_PORT_MERGED_DESIGN=/path/to/merged/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_port_state_fts.js
+# Intentional negative control; must fail without changing the pinned design:
+STAR_SEARCH_PORT_RED=1 STAR_SEARCH_PORT_HISTORICAL_DESIGN=/path/to/historical/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_port_state_fts.js
+#+end_src
+
+The historical and merged designs must match Git blobs
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and
+=dd6336f3047982db2f0e3615fed1413ed1e58e13= respectively. Canonical
+Port field declarations originate in StarLang =org.starintel/core@1=
+=0.10.1= generated schema Git blob
+=537163da436f67a973e280d1704e32bdba5b888b=.
+
+*Claim limit:* a passing test only establishes the raw source callback's
+behavior. It cannot authorize public or authenticated queries, confirm
+installed Clouseau index content, establish a complete corpus, interpret an
+opaque bookmark, validate a canonical Port with the SDK, prove an authorized
+by-ID durable read, or establish current port reachability. No network probe
+is made. See the Chapter 15 Port exercise for the evidence ladder.
