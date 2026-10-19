@@ -3732,6 +3732,7 @@ source-pinned test of projection behavior, *not* a claim that a deployed index
 contains the document, that either public or authenticated query returns it,
 or that the fictional fixture was accepted by the canonical SDK.
 
+#+caption: Legal-case lookup evidence is separate from indexed field coverage.
 | Question | Required evidence | What this FTS capture establishes |
 |----------+-------------------+-----------------------------------|
 | Does the record exist durably? | Authorized by-ID read and revision | Nothing about persistence |

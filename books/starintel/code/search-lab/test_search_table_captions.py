@@ -19,6 +19,8 @@ EXPECTED = [
      'Canonical schema fields versus historical index coverage.'),
     ('Mistake | Why it fails | Better next step',
      'Search-evidence mistakes and recommended diagnostic steps.'),
+    ('Question | Required evidence | What this FTS capture establishes',
+     'Legal-case lookup evidence is separate from indexed field coverage.'),
 ]
 
 
@@ -43,7 +45,7 @@ class Captions(HTMLParser):
 
 
 class SearchTableCaptionTests(unittest.TestCase):
-    def test_each_of_six_tables_has_adjacent_org_caption(self):
+    def test_each_of_seven_tables_has_adjacent_org_caption(self):
         body = MANUSCRIPT.read_text(encoding='utf-8')
         for header, caption in EXPECTED:
             with self.subTest(table=header):
