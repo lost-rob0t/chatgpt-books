@@ -1,4 +1,5 @@
 """Hermetic tests for the pinned HTTP registry-vs-handler discovery seam."""
+import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -43,12 +44,20 @@ def fragments():
 
 
 class SearchDiscoveryTests(unittest.TestCase):
-    def test_real_pinned_declarations_have_a_public_discovery_gap(self):
+    def test_source_shaped_declaration_fragments_show_public_gap(self):
         result = analyze(fragments())
         self.assertTrue(result['public_discovery_q_gap'])
         self.assertTrue(result['public_route_requires_q'])
         self.assertFalse(result['public_registry_declares_query_parameters'])
         self.assertTrue(result['authenticated_registry_declares_required_q'])
+
+    def test_authentic_pinned_checkout_when_runner_supplies_it(self):
+        root = os.environ.get('STAR_SEARCH_LAB_SERVER')
+        if not root:
+            self.skipTest('authentic historical server checkout unavailable; pin audit NOT RUN')
+        result = audit_checkout(Path(root))
+        self.assertTrue(result['public_discovery_q_gap'])
+        self.assertEqual(result['claim_class'], 'PINNED_SOURCE_DECLARATIONS_ONLY')
 
     def test_fixing_public_query_declaration_changes_gap_result(self):
         items = fragments()
