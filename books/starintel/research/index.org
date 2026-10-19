@@ -22,3 +22,7 @@
 - [[file:osint-fieldwork-pass-11.org][Fictional OSINT fieldwork and location evidence]]
 
 - [[file:owned-equipment-pass-12.org][Owned-equipment temporal sightings and profiles]]
+
+
+* Search chapter -- 2026-10-09
+Search evidence and exact verification: =search-pass-15.org=.

@@ -116,3 +116,12 @@ Add only sources actually inspected. Record URL, authority, publication/version 
 - Retrieved :: 2026-09-16
 - Authority :: Official Apache CouchDB documentation.
 - Used by :: Chapters 3 and 9 for revision/MVCC concepts; current StarIntel mutation/outbox behavior is taken from the pinned server source rather than inferred from generic CouchDB documentation.
+
+
+* Chapter 15 -- Search sources
+Server search contract/index/policy pin:
+https://github.com/lost-rob0t/starintel-server/tree/ce14c77ccd2f51f543410fdeef3d78fb9978b769
+Official backend documentation:
+https://docs.couchdb.org/en/stable/ddocs/search.html
+https://docs.couchdb.org/en/stable/api/ddoc/search.html
+Inspected 2026-10-09; see =search-pass-15.org= and the verified BibTeX entries.

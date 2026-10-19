@@ -1,0 +1,17 @@
+digraph SearchVisibility {
+  graph [rankdir=TB, bgcolor="white"];
+  node [shape=box, fontname="DejaVu Sans", fontsize=11];
+  admitted [label="HTTP accepted\nAdmission / asynchronous ingest"];
+  durable [label="Stored document\nIdentity read-back and revision"];
+  projection [label="Selected index fields\nNot every JSON member is searchable"];
+  terms [label="Analyzer and index state\nTerms available to query"];
+  scope [label="Authorized query\nDataset / tenant constraints"];
+  result [label="Visible hit\nIndex fields + embedded document"];
+  absent [label="No hit\nDoes not establish no stored record"];
+  admitted -> durable [label="must observe"];
+  durable -> projection -> terms;
+  terms -> result;
+  scope -> result;
+  scope -> absent [label="scope excludes"];
+  projection -> absent [label="field omitted"];
+}

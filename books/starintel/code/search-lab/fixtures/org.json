@@ -1,0 +1,14 @@
+{
+  "dataset": "book-synthetic",
+  "schemaVersion": "0.10.1",
+  "collector": "starintel-book-fixture",
+  "collectionMethod": "manually authored synthetic teaching example",
+  "tags": [
+    "synthetic",
+    "book-example"
+  ],
+  "id": "org:book-example",
+  "dtype": "org",
+  "name": "Example Cooperative"
+}
+
