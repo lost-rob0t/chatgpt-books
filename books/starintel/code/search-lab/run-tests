@@ -16,6 +16,8 @@ require_pin(Path(sys.argv[3]), SDK_PIN)
 PY
 # Verify the full canonical Org chapter table structure before native suites.
 python3 "$HERE/check_search_table_rules.py" "$HERE/../../manuscript/search-15.org"
+# Verify that the long Chapter 15 reader map links to unique Org export landmarks.
+python3 "$HERE/check_search_navigation.py" "$HERE/../../manuscript/search-15.org"
 # Static source-example validation: compile/parse only; never execute manuscript snippets.
 python3 "$HERE/check_search_examples.py" "$HERE/../../manuscript/search-15.org"
 # Check that Chapter 15 Org citations resolve to local BibTeX entries.

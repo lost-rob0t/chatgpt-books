@@ -25,7 +25,27 @@ parallel StarIntel database. It also does not claim relationship traversal,
 vector retrieval, graph ranking, or automatic inference is available through
 these two document-search routes.
 
+** Reader map -- eight search evidence boundaries
+
+This chapter is a long reference as well as a practical lab. Start with the boundary
+you need to establish, then follow the linked source-backed exercise. These are
+stable *reader-navigation* anchors, not search routes or evidence identifiers.
+Neither an index emission nor an authorized search hit proves canonical validity,
+durable storage, or complete corpus coverage.
+
+- [[#search15-version][Evidence and version map]] -- Check the pinned historical Server, merged 0.10.1 Server, and canonical StarLang authority before attributing a behavior.
+- [[#search15-scope][Choose the search surface deliberately]] -- Distinguish server-owned public dataset and tenant scopes from authenticated caller-scoped search.
+- [[#search15-index][Stored documents become selected index fields]] -- Inspect the original index field projection; a canonical field may not be indexed.
+- [[#search15-page][Interpret a page as retrieval evidence]] -- Treat each returned hit as an observation, not canonical validation or durable read-back.
+- [[#search15-bookmark][Pagination needs a bounded client]] -- Carry the opaque bookmark instead of assuming offset-based pagination or corpus completeness.
+- [[#search15-debug][The visibility ladder is a debugging method]] -- Separate acceptance, durable storage, indexed coverage, and authorized search visibility.
+- [[#search15-lab][Run the reproducible lab]] -- Reproduce bounded, source-pinned local evidence while leaving real HTTP and Clouseau behavior unclaimed.
+- [[#search15-project4][Project 4 integration -- A search hit is a claim to investigate]] -- Apply those boundaries to a worked investigation, without treating search as a graph inference engine.
+
 ** Evidence and version map
+:PROPERTIES:
+:CUSTOM_ID: search15-version
+:END:
 
 The runtime source inspected for this chapter is =lost-rob0t/starintel-server=
 at =ce14c77ccd2f51f543410fdeef3d78fb9978b769=. The book base is
@@ -148,6 +168,9 @@ commands and limitations. A green hermetic check must never be relabeled as a
 successful HTTP or Clouseau experiment.
 
 ** Choose the search surface deliberately
+:PROPERTIES:
+:CUSTOM_ID: search15-scope
+:END:
 
 The two interfaces share a backend but establish their authority differently.
 The authenticated operation is =documents.search=, declared in
@@ -615,6 +638,9 @@ and canonical provenance validation before any durable evidence claim.
 
 
 ** Stored documents become selected index fields
+:PROPERTIES:
+:CUSTOM_ID: search15-index
+:END:
 
 The server calls =cl-couch:fts-search= against the default CouchDB database,
 design document =search= and index =fts=. This is the maintained full-text
@@ -1107,6 +1133,9 @@ Opaque bookmarks are followed by the service experiment before its collected
 identities can be compared; the evaluator itself never traverses a page.
 
 ** Interpret a page as retrieval evidence
+:PROPERTIES:
+:CUSTOM_ID: search15-page
+:END:
 
 A typical explanatory page looks like this; it is a synthetic response fixture,
 not captured service output:
@@ -1279,6 +1308,9 @@ prove that a CouchDB write persisted, or ensure an index snapshot. Record the
 query, route, pin and retrieval time separately when interpreting that hit.
 
 ** Pagination needs a bounded client
+:PROPERTIES:
+:CUSTOM_ID: search15-bookmark
+:END:
 
 Treat the bookmark as an opaque continuation value. Preserve the same query
 and sort while continuing it. The CouchDB search API documents bookmarks and
@@ -1322,6 +1354,9 @@ design a documented export/snapshot policy instead of treating a paged search
 as a durable frozen dataset.
 
 ** The visibility ladder is a debugging method
+:PROPERTIES:
+:CUSTOM_ID: search15-debug
+:END:
 
 #+begin_export html
 <figure>
@@ -1388,6 +1423,9 @@ index service behavior, search parser semantics and concurrent mutation
 remain UNTESTED unless separately observed on a running pinned stack.
 
 ** Run the reproducible lab
+:PROPERTIES:
+:CUSTOM_ID: search15-lab
+:END:
 
 From the repository root, fetch the two immutable pins and run:
 
@@ -3374,6 +3412,9 @@ snapshot. [cite:@starintel-search-runtime-20261009]
 
 
 ** Project 4 integration -- A search hit is a claim to investigate
+:PROPERTIES:
+:CUSTOM_ID: search15-project4
+:END:
 
 At the end of this chapter, the same method applies across the many
 canonical document types. Record the *claim being made*, the *observation
