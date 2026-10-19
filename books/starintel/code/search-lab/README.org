@@ -2020,3 +2020,31 @@ checkout. Supply the optional merged design path for a two-generation run.
 Use =STAR_SEARCH_LEGALCASE_RED=1= only to observe the deliberate failing
 mutation control. A green historical-only run must not be reported as a
 merged-generation test. No real court records or personal data are involved.
+
+* Search API discovery is not the mounted handler
+
+The historical Server contract registry at
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769= declares
+=public.search.get= without =:query-parameters= even though its public handler
+requires =q=. The authenticated =documents.search= contract declares a
+required =q= through =+document-search-query-parameters+=. This is a source
+contract discovery gap, not a claim about a deployed OpenAPI JSON artifact.
+
+The read-only tool checks four exact historical Git blobs before extracting
+Lisp forms; it does not run Lisp or communicate with GitHub or a service:
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/compare_search_discovery.py \
+  PATH_TO_PINNED_HISTORICAL_SERVER
+python3 -m unittest books/starintel/code/search-lab/test_search_discovery.py -v
+#+end_src
+
+The first command returns 0 and outputs =public_discovery_q_gap=true= for the
+expected historical source state, 1 if a recognized source has no such gap,
+and 2 on invalid/mismatched inputs. The second command tests the analyzer
+using deliberately small, *source-shaped* fixtures and source-integrity
+controls; it does not replace the four-file authentic-pin verification. The
+normal =run-tests= suite picks it up through Python discovery when the pinned
+server/SDK checkouts are already available. OpenAPI rendering, credential
+policy, public server-owned scopes, Clouseau and durable document evidence
+remain outside this source-only regression.

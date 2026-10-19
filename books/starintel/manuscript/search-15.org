@@ -3760,3 +3760,63 @@ what authorized by-ID and source-docket evidence would be needed. For a RED
 control, use =STAR_SEARCH_LEGALCASE_RED=1= with the *same* design inputs; this
 intentionally fails after instrumenting a copy of the in-memory callback to
 emit =caseName=. Never interpret that mutant as a production search feature.
+
+** Contract discovery can omit a required search parameter
+
+The HTTP contract registry is a third observation boundary, separate from the
+mounted search handler and from the index. At historical Server commit
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769=, the registry declares a
+public operation =public.search.get= at =GET /api/v1/search= in
+=cli/http-contract-final.lisp= (Git blob
+=787169f771845c153d40371d6896838d820cfafa=). Unlike the authenticated
+=documents.search= operation in =cli/http-contract-documents.lisp= (blob
+=b95fb786cfab6122013229349b7cea54145c1993=), that public declaration
+has no =:query-parameters= property. The authenticated declaration refers to
+=+document-search-query-parameters+=, which includes a required =q=, plus
+=limit=, =bookmark=, =sort=, =dataset= and =tenant=.
+
+The *mounted handlers* establish a different fact. The pinned public handler
+in =source/frontends/http-contract-routes.lisp= (blob
+=572e78602c2b273f7ed8b45ffaa8d939ce7ce88c=) calls
+=(require-query-string params "q")= and reads =limit= and =bookmark=. The
+pinned authenticated handler in =source/frontends/http-authorization-routes.lisp=
+(blob =eac4f1d38973cbbe3d19e9ed5e7b1b3c520919a5=) likewise requires =q=.
+A generated API client relying solely on the registry's public declaration
+might not discover that =q= is required; a direct request to the pinned public
+handler still needs it. *Missing discovery metadata is not evidence that the
+runtime handler ignores the parameter.* This mismatch is a documented source
+contract gap, not a verified result from a deployed =/openapi.json= endpoint.
+
+The network-free =compare_search_discovery.py= source audit checks all four
+pinned Git blobs, extracts their balanced Lisp declarations without executing
+them, and reports =public_discovery_q_gap=true= only when it observes both
+the missing registry parameter metadata and the live-handler source requirement.
+The accompanying ten Python regressions test normal, altered and malformed
+source declarations. They do not prove that a deployed OpenAPI artifact matches
+the checked-in registry or that any HTTP client, credential policy, database or
+search index is working. The published test runner's existing Python discovery
+loads them when an authentic pinned source checkout is provided.
+
+*** Exercise -- The operation exists, but is its query contract discoverable? (★★★)
+
+At the historical Server pin, inspect the two contract declarations and both
+route handlers. Then run:
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/compare_search_discovery.py \
+  PATH_TO_PINNED_HISTORICAL_SERVER
+#+end_src
+
+Explain why =public.search.get= exists in the contract but its declared query
+parameters are missing; why =documents.search= is not affected by the same
+omission; and what additional observation you would need before asserting the
+*deployed* OpenAPI JSON also has the gap. Do not repair this by adding
+=dataset= or =tenant= to public requests: those scopes remain server-owned.
+
+*Answer:* the public contract omits =:query-parameters= at this exact historical
+pin, while the public route requires =q=. The authenticated contract references
+an explicit required-=q= list. A live fetch and review of the deployed
+=/openapi.json= (alongside its exact running version and mount configuration)
+would be necessary for a deployment claim. A production patch, generated-client
+regeneration, and tests belong in a separately owned Server change; this book
+experiment only exposes the difference and preserves authorized search scope.
