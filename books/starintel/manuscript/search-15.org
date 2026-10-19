@@ -3892,3 +3892,51 @@ recommends =authorized_by_id_read=. A successful scoped durable read would
 establish the returned stored document and storage revision at that time;
 it would not establish canonical validation, installed index freshness, or
 authorization to any other tenant or dataset.
+
+** A diagnostic representation is not a safe evidence export
+
+A search hit may contain an =id=, dataset, canonical/storage revisions,
+index-stored fields and an embedded document. The teaching client intentionally
+preserves these *different observations* in =Hit= instead of flattening them
+into one claim. However, a Python =dataclass= normally includes every
+attribute in its default =repr=. Logging an entire list of hits during a
+failed experiment could therefore copy untrusted labels, identifiers or
+embedded document contents into a diagnostic record. The server's search
+scope and the caller's permission to retrieve a hit are separate from who is
+allowed to see that diagnostic output.
+
+The book-local =Hit.__repr__= now returns an inert constant:
+=Hit(<search evidence redacted>)=. This is a *display safeguard*, not a
+new search filter or an authorization policy. =identity=, =dataset=,
+=fields= and =document= remain available to explicit callers, with the
+same frozen-dataclass equality and storage/canonical revision semantics.
+An explicit =dataclasses.asdict(hit)= or a raw HTTP response still contains
+the original information and must be handled according to its actual access
+scope. The implementation never changes server-owned public dataset selection,
+authenticated tenant authorization, index coverage, pagination bookmarks,
+or canonical durable reads.
+
+The eight native =test_search_hit_repr.py= regressions demonstrate why
+the original representation was too revealing: synthetic nested fields and
+IDs appeared in its =repr=, while an adversarial object's =__repr__= could
+raise during debugging. The new default representation avoids traversing
+those objects and does not mistake successful search for canonical truth.
+The tests are network-free and do not establish anything about live HTTP,
+CouchDB/Clouseau, operator log retention or client access permissions.
+
+*** Exercise -- A successful search and an unsafe diagnostic (★★)
+
+A caller is authorized to retrieve a fictional document, but an exception
+handler sends =repr(hits)= to a shared debugging channel. Which security
+boundary is missing? Why is the constant diagnostic representation useful,
+and why does it *not* mean =asdict(hit)= or the original result JSON are
+safe to publish?
+
+/Worked answer:/ The authorized search response does not establish permission
+to disclose its embedded data to every debug-channel reader. The inert
+representation avoids an *accidental* broad disclosure by ordinary Python
+logging. Explicit serialization still contains the stored projection and
+possibly full document; it needs its own access decision and redaction or
+nonpublication. None of these steps proves that indexed data covers the
+corpus or that a searched document was durably stored at its canonical
+=id=/=rev=.

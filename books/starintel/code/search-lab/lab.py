@@ -83,6 +83,10 @@ class Hit:
     storage_revision: str | None = None
     canonical_revision: str | None = None
 
+    def __repr__(self) -> str:
+        """Never print caller data, stored fields or embedded documents by default."""
+        return 'Hit(<search evidence redacted>)'
+
 
 def interpret_page(page: dict) -> tuple[list[Hit], str | None]:
     if not isinstance(page, dict) or 'error' in page or not isinstance(page.get('rows'), list):
