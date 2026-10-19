@@ -18,6 +18,8 @@ PY
 python3 "$HERE/check_search_table_rules.py" "$HERE/../../manuscript/search-15.org"
 # Static source-example validation: compile/parse only; never execute manuscript snippets.
 python3 "$HERE/check_search_examples.py" "$HERE/../../manuscript/search-15.org"
+# Check that Chapter 15 Org citations resolve to local BibTeX entries.
+python3 "$HERE/check_search_citations.py" "$HERE/../../manuscript/search-15.org" "$HERE/../../references.bib"
 STAR_SEARCH_STATS_DESIGN="$STAR_SEARCH_LAB_SERVER/source/views/data.json" node --test "$HERE/test_public_stats_scope_difference.js"
 node --test "$HERE/test_geo_index_coverage.js"
 node --test "$HERE/test_schema_version_index.js"
