@@ -1927,3 +1927,34 @@ Server JavaScript callback. It does *not* validate with the StarLang SDK,
 contact an HTTP endpoint, confirm installed Clouseau design or assess actual
 SBOM bytes or advisory applicability. The normal runner includes only the
 historical mandatory input.
+
+* Chapter 15 Org ID ownership regression
+
+=check_search_outline.py= previously accepted the expected Chapter 15 =:ID:=
+anywhere in the manuscript, including a later section's property drawer or an
+ordinary text line. That passes the simple uniqueness test but fails to show
+that the Chapter 15 heading itself owns its stable Org anchor. A downstream
+Org link or EPUB navigation target can therefore silently lose the intended
+chapter ID while the former checker reports success.
+
+The native =test_root_id_binding.py= suite covers the original defect and the
+corrected behavior. The checker now requires the Chapter 15 top-level heading
+to be followed by its own closed =:PROPERTIES:= drawer containing exactly the
+stable chapter =:ID:=. Other properties are allowed; an ID in a subheading,
+source block, prose, or misspelled/unclosed drawer is not accepted. The
+existing uniqueness, chapter-count, exercise hierarchy, and Org block checks
+remain in place.
+
+#+begin_src sh
+python3 -m unittest discover -s books/starintel/code/search-lab \
+  -p test_root_id_binding.py -v
+python3 books/starintel/code/search-lab/check_search_outline.py \
+  books/starintel/manuscript/search-15.org
+#+end_src
+
+The first command exercises synthetic *Org text only*; the second needs the
+authentic manuscript checkout. Neither substitutes for a complete production
+=make check BOOK=starintel= or official EPUBCheck. The root ID check is
+source-level structural evidence, not validation of links or EPUB navigation
+artifacts. No HTTP, CouchDB, Clouseau, canonical document ingest, public or
+authenticated tenant scopes, or opaque search bookmarks are executed here.

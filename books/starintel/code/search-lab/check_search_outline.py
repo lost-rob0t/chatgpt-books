@@ -19,6 +19,33 @@ ID = re.compile(r'^\s*:ID:\s*(\S+)\s*$', re.IGNORECASE)
 EXERCISE = re.compile(r'^(?:Worked exercise\b|Exercise\b)', re.IGNORECASE)
 
 
+def _root_owns_id(lines: list[str], root_line: int) -> bool:
+    """Require the persistent Org ID in the root heading's own property drawer.
+
+    Org ID resolution associates a property drawer with its owning heading,
+    not with an arbitrary matching :ID: line later in the manuscript.
+    """
+    current = root_line  # 1-based heading; next line is zero-based [root_line].
+    while current < len(lines) and not lines[current].strip():
+        current += 1
+    if current >= len(lines) or lines[current].strip().upper() != ':PROPERTIES:':
+        return False
+    current += 1
+    found: list[str] = []
+    while current < len(lines):
+        raw = lines[current]
+        line = raw.strip()
+        if line.upper() == ':END:':
+            return found == [CHAPTER_ID]
+        if HEADING.match(raw) or BEGIN.match(raw) or END.match(raw):
+            return False
+        marker = ID.match(raw)
+        if marker:
+            found.append(marker.group(1))
+        current += 1
+    return False
+
+
 def inspect(text: str) -> list[str]:
     """Return precise violations; do not interpret markup inside Org blocks."""
     errors: list[str] = []
@@ -56,6 +83,9 @@ def inspect(text: str) -> list[str]:
     recorded = [value for _, value in ids]
     if recorded.count(CHAPTER_ID) != 1 or len(recorded) != len(set(recorded)):
         errors.append('expected one stable Chapter 15 Org ID and no duplicate IDs')
+    if len(roots) == 1 and roots[0][1].startswith('Chapter 15 --'):
+        if not _root_owns_id(text.splitlines(), roots[0][0]):
+            errors.append('Chapter 15 root must own its stable Org ID')
     previous_section: tuple[int, str] | None = None
     for line, level, title in headings:
         if level == 2:
@@ -83,7 +113,7 @@ def main(args: list[str]) -> int:
         print(f'FAIL: {violation}', file=sys.stderr)
     if violations:
         return 1
-    print('PASS: one Chapter 15 root, stable ID, exercise nesting, balanced Org blocks')
+    print('PASS: one Chapter 15 root with owned stable ID, exercise nesting, balanced Org blocks')
     return 0
 
 
