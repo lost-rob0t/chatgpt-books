@@ -1,0 +1,218 @@
+*** Project 3, milestone B -- Fault the same actor before inventing a supervisor story
+:PROPERTIES:
+:ID:       b8864241-993d-43fd-9645-1712afcaf321
+:END:
+Milestone A ended with a deliberately unanswered question: what does a handler
+exception actually do to a StarIntel extension actor?
+
+Now we can answer a *narrower and better* question with executable evidence.  We
+do not build a second actor.  We do not add a supervisor.  We do not stop the
+process and call the replacement a restart.  We inject one fault into the same
+=book-audit= handler and observe the exact component, registry entry, and next
+message. [cite:@starintel-server-20260916;@sento-starintel-pin]
+
+That constraint matters.  A fault experiment is useful only when the system
+under test still owns the behavior you claim to have observed.
+
+#+caption: Milestone B separates one handler exception from the still-unproven whole-process recovery question.  The positive post-fault observation is a receipt from a later valid envelope on the same running, still-registered actor object.
+#+attr_html: :alt A valid envelope faults the same Sento actor; Sento catches the handler condition, a later valid envelope reaches the same actor and produces a receipt, and post-fault assertions show the actor is still running and registered. Whole-process target recovery is shown separately as untested.
+[[file:assets/actor-failure-boundary.svg]]
+
+**** Read the exception boundary before writing the test
+At the exact Sento revision pinned by the StarIntel executable test fixture,
+=actor-cell:handle-message= wraps user handling in =handler-case=.  A
+=serious-condition= is logged and returned as a =:handler-error= result.  That
+path does not call the actor-cell =stop= method. [cite:@sento-starintel-pin]
+
+This gives us a source-grounded hypothesis:
+
+#+begin_example
+user handler raises ERROR
+        |
+        v
+Sento actor-cell catches serious-condition
+        |
+        +-- does not take explicit STOP path
+        |
+        +-- mailbox may continue processing
+#+end_example
+
+"May" is doing real work there.  Reading a catch clause is not the same thing as
+observing the StarIntel actor after a fault.  We need the test.
+
+**** Inject the fault without changing the actor's message contract
+The book actor still accepts only the current typed
+=target-dispatch-envelope=.  The fault mechanism is deliberately one-shot:
+
+#+begin_src lisp
+(defun arm-book-handler-failure ()
+  (bt:with-lock-held (*receipt-lock*)
+    (setf *fail-next-envelope* t)))
+#+end_src
+
+Inside =record-target-envelope=, the actor validates the envelope type first,
+then atomically consumes the one-shot flag.  If armed, that *valid* envelope
+raises before the receipt is recorded.
+
+Why not send a fake =:crash= message?  Because that would test a message shape
+StarIntel's current target dispatcher never sends to this actor.  A useful
+failure lab keeps the production-facing contract valid and changes one thing:
+the handler fails while processing it.
+
+**** Use the next message as the liveness probe
+A flaky test would dispatch the failing message, sleep 100 milliseconds, call
+=running-p=, and declare victory.  That proves very little.  The mailbox could
+be wedged while the running flag remained stale.
+
+The stronger sequence queues a second valid envelope immediately after the
+faulting one:
+
+#+begin_example
+F = valid envelope, one-shot fault armed
+N = valid envelope, normal handler path
+
+queue: [ F ][ N ]
+          |    |
+          X    +--> must produce sanitized receipt
+#+end_example
+
+The test waits for N's handler receipt.  Because the actor mailbox is serial,
+that receipt is a positive observation that execution crossed the fault boundary
+and reached later work.  It then checks two more facts:
+
+- =sento.actor-cell:running-p= is true for the original actor object A;
+- =star.actors:get-dest-actor("book-audit")= is =eq= to that same object A.
+
+If those assertions pass together, the accurate statement is:
+
+#+begin_quote
+For this deliberately injected handler exception at the exact pinned
+StarIntel/Sento revisions, the exception was isolated at the Sento actor-cell
+boundary; the same actor component remained running and registered and handled
+a later valid target-dispatch envelope.
+#+end_quote
+
+Notice what is *not* in that sentence: "restarted," "respawned," "supervised,"
+or "replaced."
+
+**** Debugging rule: preserve identity when you claim restart
+Suppose a dashboard shows traffic flowing again after an actor error.  That does
+not tell you whether:
+
+1. the original actor caught the error and continued;
+2. the original actor died and a supervisor created a replacement;
+3. the registry still points at a dead object while another path handled the
+   work;
+4. a remote Rabbit actor handled the later target;
+5. the whole process restarted.
+
+For a concrete restart claim, capture at least:
+
+#+begin_example
+before component identity
+before registry resolution
+fault observation
+post-fault component identity
+post-fault registry resolution
+post-fault running/lifecycle state
+post-fault successful work observation
+#+end_example
+
+If the component identity never changes, "automatic replacement" is the wrong
+explanation for that run.
+
+**** The recovery load-order guard is evidence, not a restart simulator
+The second open question from milestone A lives at a different layer.  Current
+StarIntel source still loads =target-recovery.lisp= before
+=runtime-lifecycle.lisp=.  The earlier =start-actors= calls
+=recover-persisted-targets=; the later effective =start-actors= does not.
+[cite:@starintel-server-20260916]
+
+Milestone B turns that observation into a fail-closed executable source guard:
+
+#+begin_src sh
+python3 books/starintel/code/actor-runtime/check_recovery_load_order.py \
+  .cache/starintel-server
+#+end_src
+
+The guard checks the serial ASDF order and extracts the two balanced Lisp
+=start-actors= forms.  It fails if the order flips, if the early function stops
+calling recovery, or if the final function gains a recovery call.
+
+This is useful because source evidence can go stale silently.  It is *not* a
+whole-process experiment.  A green guard supports only this statement:
+
+#+begin_quote
+At the exact inspected source boundary, the final loaded default actor startup
+function does not itself call the explicit persisted-target recovery function.
+#+end_quote
+
+It does not prove that a target fails to recover after a process restart.  Some
+other startup path could call the explicit API; a future source change could
+restore it; or persistence/runtime behavior could differ from our assumptions.
+The real restart lab still has to create a synthetic persisted target, restart
+the disposable StarIntel process, and observe schedule reconstruction directly.
+
+**** Lab notebook -- classify each observation before interpreting it
+Use this table when running the fault test or debugging a real extension:
+
+| Observation | What it proves | What it does not prove |
+|-------------+----------------+------------------------|
+| local destination selected | registry resolved a local component | handler ran |
+| dispatch call returned | async send boundary returned | work completed |
+| fault flag consumed | failing envelope entered book handler | actor survived |
+| receipt from later envelope | later handler execution occurred | actor identity stayed same |
+| original A is =running-p= | same component reports running state | registry still points to it |
+| registry returns =eq= A | address still resolves to original component | whole process recovery works |
+| recovery source guard green | effective loaded source omits default recovery call | restart loses schedules |
+
+This is the same evidence ladder used earlier for HTTP acceptance versus durable
+persistence.  The nouns changed; the reasoning did not.
+
+**** Failure analysis -- what if the regression goes red?
+A red result is more useful than weakening the assertion.
+
+If N never produces a receipt, inspect the pinned Sento failure path and mailbox
+state before changing timeouts.  If A becomes not-running, record the lifecycle
+transition and determine what code took the stop path.  If the registry returns
+a different object, record both identities before calling it a replacement.  If
+it returns NIL, the registry itself became part of the failure.  If the
+recovery-source guard fails, re-audit the current load graph before changing the
+book's prose.
+
+Do not "fix" a red test by adding a book-side restart loop.  That would replace
+the product/runtime behavior we are trying to teach with a new implementation
+owned by the book.
+
+**** Reader exercise -- make the claim stronger without making it broader
+- ★ Add a second post-fault envelope and require both receipts in order.  What
+  extra property does that demonstrate compared with one receipt?
+- ★★ Capture the =:handler-error= result through a synchronous Sento request in
+  an isolated test.  Why would that be a Sento-boundary test rather than a
+  StarIntel target-dispatch test?
+- ★★ Modify the one-shot fault so it raises only after extracting the target
+  record but before recording the receipt.  Which parts of the envelope path
+  are then proven to have executed?
+- ★★★ Design the whole-process target recovery experiment.  Specify the durable
+  target evidence, the process boundary, the schedule/execution observation,
+  and the exact condition under which you would conclude "explicit recovery is
+  required" rather than merely "this run did not fire."
+- ★★★ Design a *replacement* experiment.  What identity evidence must differ
+  before the word "restart" or "replacement" is justified?
+
+**** Milestone-B boundary
+This slice advances Project 3 by turning handler-failure semantics into a
+runnable upstream-runtime test and by making the recovery source claim
+fail-closed under drift.  It deliberately leaves these items for subsequent
+experiments:
+
+- whole-process persisted-target schedule reconstruction;
+- explicit recovery versus automatic recovery comparison;
+- real Rabbit delivery/settlement to an external actor;
+- mailbox pressure and overload behavior;
+- actor-generated document ingest/provenance;
+- multi-process discovery and production performance.
+
+That boundary is a feature.  The point of a hacker's guide is not to make every
+failure story sound complete.  It is to show exactly which observation buys you
+which conclusion.

@@ -18,6 +18,10 @@ if ! git -C "$server_root" diff --quiet \
   exit 3
 fi
 
+# Keep the restart/recovery statement at its honest evidence level.  This
+# executable guard proves the recorded source/load-order boundary only; it is
+# intentionally not treated as a whole-process recovery experiment.
+python3 "$script_dir/check_recovery_load_order.py" "$server_root"
 python3 "$script_dir/inject_upstream_test.py" "$server_root"
 
 # Nix's Git-flake source snapshot includes tracked/staged paths, not arbitrary

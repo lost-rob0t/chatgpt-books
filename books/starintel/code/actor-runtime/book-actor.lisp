@@ -1,4 +1,4 @@
-;;;; Project 3 milestone A: a deliberately small local StarIntel actor.
+;;;; Project 3: a deliberately small local StarIntel actor.
 ;;;;
 ;;;; This file is loaded only by the book's pinned upstream test harness.  It
 ;;;; uses StarIntel's current actor/dispatch API instead of reimplementing the
@@ -8,7 +8,9 @@
   (:use :cl)
   (:export
    #:*book-actor*
+   #:arm-book-handler-failure
    #:book-actor-name
+   #:book-failure-armed-p
    #:book-receipts
    #:reset-book-receipts
    #:start-book-actor))
@@ -17,6 +19,7 @@
 
 (defparameter *book-actor* nil)
 (defparameter *book-receipts* nil)
+(defparameter *fail-next-envelope* nil)
 (defparameter *receipt-lock* (bt:make-lock "starintel-book-actor-receipts"))
 
 (defun book-actor-name ()
@@ -24,20 +27,42 @@
   "book-audit")
 
 (defun reset-book-receipts ()
-  "Clear the in-memory test receipts for the teaching actor."
+  "Clear receipts and any pending test-only handler fault."
   (bt:with-lock-held (*receipt-lock*)
-    (setf *book-receipts* nil)))
+    (setf *book-receipts* nil
+          *fail-next-envelope* nil)))
 
 (defun book-receipts ()
   "Return a copy of the teaching actor's sanitized receipt records."
   (bt:with-lock-held (*receipt-lock*)
     (copy-tree (reverse *book-receipts*))))
 
+(defun arm-book-handler-failure ()
+  "Cause exactly the next valid target envelope to raise inside the handler.
+
+This switch exists only for the book's failure lab.  It leaves StarIntel and
+Sento failure handling untouched so the test observes the real pinned runtime
+boundary rather than a book-side substitute."
+  (bt:with-lock-held (*receipt-lock*)
+    (setf *fail-next-envelope* t)))
+
+(defun book-failure-armed-p ()
+  "Return true while the one-shot failure injection is still pending."
+  (bt:with-lock-held (*receipt-lock*)
+    *fail-next-envelope*))
+
+(defun consume-book-handler-failure-p ()
+  (bt:with-lock-held (*receipt-lock*)
+    (prog1 *fail-next-envelope*
+      (setf *fail-next-envelope* nil))))
+
 (defun record-target-envelope (message)
   "Record only routing metadata needed by the book's executable lab."
   (unless (typep message 'star.actors:target-dispatch-envelope)
     (error "book-audit expected TARGET-DISPATCH-ENVELOPE, got ~s"
            (type-of message)))
+  (when (consume-book-handler-failure-p)
+    (error "book-audit injected handler failure"))
   (let* ((record (star.actors:target-dispatch-envelope-record message))
          (receipt
            (list :target (star.actors:target-record-target record)

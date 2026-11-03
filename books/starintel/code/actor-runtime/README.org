@@ -6,33 +6,57 @@
 * Purpose
 This lab tests a deliberately small StarIntel actor extension against the exact
 pinned upstream StarIntel Server/Sento environment.  It does not copy the
-StarIntel router, scheduler, persistence code, or Rabbit transport into the
-book.
+StarIntel router, scheduler, persistence code, supervisor policy, or Rabbit
+transport into the book.
 
-The actor performs one observable task: accept the current
-=target-dispatch-envelope= and record a sanitized in-memory receipt.  That is
-enough to prove the local registry/delivery contract without inventing a fake
-scraper or writing investigation data.
+The actor normally performs one observable task: accept the current
+=target-dispatch-envelope= and record a sanitized in-memory receipt.  Milestone
+B adds a one-shot test-only fault switch that raises from inside that same
+handler on the next valid envelope.  The switch deliberately leaves StarIntel
+and Sento failure handling untouched: the experiment observes the real pinned
+runtime boundary instead of simulating a replacement policy in book code.
 
 * Files
-- =book-actor.lisp= -- explicit create+register extension used by the chapter.
-- =book-actor-test.lisp= -- Three FiveAM regressions injected into the upstream
-  unit suite: local registration+delivery, unresolved remote destination
-  selection, and invalid actor-name rejection.
+- =book-actor.lisp= -- explicit create+register extension plus the one-shot
+  handler-failure injection used by the fault lab.
+- =book-actor-test.lisp= -- Four FiveAM regressions injected into the upstream
+  unit suite: local registration+delivery; handler exception followed by a
+  successful message on the same running/registered component; unresolved
+  remote destination selection; and invalid actor-name rejection.
+- =check_recovery_load_order.py= -- fail-closed source-evidence guard for the
+  serial =target-recovery= -> =runtime-lifecycle= load order and the two
+  competing =start-actors= definitions.  This is explicitly *not* a process
+  restart simulator.
+- =test_recovery_load_order.py= -- hermetic regressions for that source guard.
 - =inject_upstream_test.py= -- fail-closed test injector.  It requires exact
   upstream ASDF/test-runner markers instead of guessing after source drift.
 - =test_injector.py= -- hermetic regressions for the injector itself.
 - =run-pinned-tests= -- refuses any StarIntel Server checkout except
-  =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f= and runs upstream
-  =nix run .#star-unit-tests= after injection.
+  =1ac298b797bd4bc0e71cfde083c6a59af55ccc6f=, audits the recorded recovery
+  load-order boundary, injects the teaching actor/tests, and runs upstream
+  =nix run .#star-unit-tests=.
 
 * Evidence boundary
-A green pinned run TESTS that the teaching actor registers and receives the
-current local dispatch envelope in the upstream unit-test environment, that an
-unregistered actor resolves to the current canonical Rabbit destination key,
-and that invalid actor identities fail before routing.
+A green pinned run TESTS the local actor/dispatch claims only at the exact
+recorded StarIntel/Sento revisions.  In addition to milestone A, milestone B
+requires the deliberately failing valid envelope to be consumed without a
+receipt, then requires a later valid envelope to be handled by the *same* actor
+component.  The test also requires that component to remain =running-p= and that
+StarIntel's registry still resolve the same object after the fault.
 
-It does *not* test a Rabbit delivery to an external actor, an actor process
-crash/restart policy, persisted-target recovery after process restart, or a
-production deployment.  Those stay explicitly UNTESTED until a later fault
-slice exercises them.
+That result must not be paraphrased as generic supervision or automatic
+restart.  At the pinned Sento revision the source catches a =serious-condition=
+from user handling at the actor-cell boundary.  The book's executable test asks
+the narrower StarIntel question: does this exact handler exception leave this
+exact actor alive, registered, and able to handle the next message?
+
+The recovery guard establishes only a DOCUMENTED executable-source invariant:
+=target-recovery.lisp='s earlier =start-actors= contains
+=recover-persisted-targets=, but later-loaded =runtime-lifecycle.lisp='s final
+=start-actors= does not.  Automatic persisted-target recovery across an actual
+whole-process restart therefore remains UNTESTED until a disposable
+service-backed restart experiment observes it.
+
+Real Rabbit delivery/settlement to an external actor, mailbox-pressure
+behavior, actor-generated document ingest/provenance, multi-process discovery,
+and production performance also remain outside this bounded lab.
