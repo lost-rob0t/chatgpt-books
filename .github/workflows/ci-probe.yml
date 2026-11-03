@@ -16,42 +16,9 @@ jobs:
         shell: bash
         run: |
           mkdir -p probe-logs
-          {
-            echo "== package archive reachability"
-            for h in https://elpa.gnu.org/packages/ https://elpa.nongnu.org/nongnu/ https://melpa.org/packages/; do
-              curl -sI -m 15 -o /dev/null -w "$h: %{http_code}\n" "$h" || echo "$h: curl FAILED"
-            done
-            echo "== emacs version"
-            emacs --version | head -1
-          } > probe-logs/net.log 2>&1 || true
-          cat probe-logs/net.log
-          cat > /tmp/op.roam-install.el <<'EOF'
-          (require 'package)
-          (setq package-user-dir (expand-file-name ".cache/elpa" default-directory))
-          (setq package-install-upgrade-built-in t)
-          (setq package-archives '(("gnu" . "https://elpa.gnu.org/packages/")
-                                   ("nongnu" . "https://elpa.nongnu.org/nongnu/")
-                                   ("melpa" . "https://melpa.org/packages/")))
-          (package-initialize)
-          (package-refresh-contents)
-          (package-install 'org-roam)
-          EOF
-          sed -i 's/^          //' /tmp/op.roam-install.el
-          if emacs -Q --batch -l /tmp/op.roam-install.el > probe-logs/org-roam-install.log 2>&1; then
-            echo "org-roam-install: OK"
-          else
-            echo "org-roam-install: FAILED (exit $?)"
-          fi
-          tail -20 probe-logs/org-roam-install.log
-          cat > /tmp/op.ert.el <<'EOF'
-          (require 'package)
-          (setq package-user-dir (expand-file-name ".cache/elpa" default-directory))
-          (package-initialize)
-          EOF
-          sed -i 's/^          //' /tmp/op.ert.el
-          if emacs -Q --batch -l /tmp/op.ert.el -L elisp -l test/chatgpt-books-test.el -f ert-run-tests-batch-and-exit > probe-logs/ert.log 2>&1; then rc=0; else rc=$?; fi
-          echo "ert-exit=$rc"; ls -la .cache/org-roam.db >> probe-logs/ert.log 2>&1 || true
-          tail -8 probe-logs/ert.log
+          bash tools/ci-probe-ert.sh || true
+          tail -25 probe-logs/org-roam-install.log || true
+          tail -10 probe-logs/ert.log || true
 
       - name: Publish probe results
         if: always()
