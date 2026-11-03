@@ -1,0 +1,27 @@
+== identity
+uid=0(root) gid=0(root) groups=0(root)
+== sudo
+/usr/bin/sudo
+sudo-ok
+== apt
+/usr/bin/apt-get
+== os
+PRETTY_NAME="Ubuntu 24.04.4 LTS"
+NAME="Ubuntu"
+== tools
+emacs: NOT FOUND
+pandoc: NOT FOUND
+java: NOT FOUND
+/usr/bin/git
+/usr/bin/make
+/usr/bin/python3
+== net to github releases
+github-releases: 200
+== apt update (60s cap)
+Get:26 http://archive.ubuntu.com/ubuntu noble-backports/multiverse amd64 Packages [669 B]
+Fetched 34.4 MB in 3s (11.6 MB/s)
+Reading package lists...
+Preparing to unpack .../hello_2.10-3build1_amd64.deb ...
+Unpacking hello (2.10-3build1) ...
+Setting up hello (2.10-3build1) ...
+== done
