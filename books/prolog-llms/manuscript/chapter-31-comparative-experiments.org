@@ -381,3 +381,44 @@ more mature than one that treats recursion as branding.
 We will therefore promote provider-backed comparative claims only after the
 frozen experiment exists, the runs have actually happened, and the raw evidence
 can survive an adversarial reading.
+
+** Exercises
+Every exercise below is answerable without any model call.  Where an exercise
+uses the lab at =books/prolog-llms/code/prolog-rlm-lab/=, remember what its
+estimates are: static plan shape, not benchmark performance.  Mark each of
+your conclusions DOCUMENTED, TESTED (only after the lab passes in CI on the
+merged head), or UNTESTED.
+
+*** ★ Confirm the structural table from the executable control
+Encode the chapter's flat =verify= variant as a lab plan (=tool/3= retrieve,
+normalize, verify, then =final/1=) and run =validate_plan/2=.  Check that you
+get =estimate(4, 1, 3, 0)=, matching the table row, and that the recursive
+study plan yields =estimate(7, 2, 3, 0)=.  Write down exactly which sentence
+of this chapter the two results support and which popular sentence they do
+not -- for example, anything about speed or accuracy.
+
+*** ★★ Project two variants into one answer schema
+The deterministic control variants intentionally return different value
+types.  Write the single =answer{...}= schema this chapter proposes, define a
+projection for both the flat =verify= result and the recursive result, and
+identify one field where the projection could silently favor the recursive
+variant.  Explain why scoring before projection manufactures a win and label
+this whole exercise as design (UNTESTED), not measurement.
+
+*** ★★ Populate three failure-class cells
+Pick three cells from the chapter's failure-class list: wrong answer accepted
+by the verifier, capability denial, and budget exhaustion.  For each, state
+the observation that would populate the cell and say whether the
+deterministic control can produce it (the lab's =capability_denied= and
+=budget_exceeded= outcomes are deterministic evidence) or whether a live run
+is required.  Explain why the accepted-wrong cell is the dangerous one.
+
+*** ★★★ Design the C-versus-D experiment so recursion can lose
+Write the experiment contract that would let "recursive orchestration is
+better than flat verification" come out false: frozen task set, reference
+verifiers, budget table, provider and model identifiers, runtime and book
+commit IDs, and the scoring code's position in the evidence ladder.  Mark
+each contract item as DOCUMENTED-only, TESTED-in-CI, or UNTESTED at draft
+time.  Then state, in one sentence, what result would make you keep the flat
+path for a task class -- and why that outcome is a success of the method
+rather than a failure of the architecture.

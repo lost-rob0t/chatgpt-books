@@ -21,6 +21,7 @@ Every research pass records:
 - [[file:dcg-task-language.org][DCG task-language research pass]] -- current SWI DCG expansion model, =phrase/[2,3]= complete/prefix parsing contracts, token-list representation, DCG escape-goal boundary, and the closed AST/dispatcher design for Chapter 6 / Project 1 milestone C.
 - [[file:clpfd-scheduling.org][CLP(FD) scheduling research pass]] -- current SWI finite-domain membership, constraint-posting versus labeling/search boundary, objective ordering, reification, and a derived single-resource Project 1 scheduling worksheet for milestone D.  The accompanying 2012 solver paper is historical/implementation context; its performance results remain UPSTREAM-REPORTED here.
 - [[file:meta-capability-boundary.org][Meta-programming and capability-boundary research pass]] -- current SWI =call/N=, ISO/SWI term inspection and construction boundaries, runtime predicate reflection, and the repository design rule that closed capability policy must be resolved before any meta-call.  Provider/model behavior remains absent.
+- [[file:prolog-rlm-capstone.org][Prolog-RLM capstone research pass]] -- revision pin for the capstone's =prolog-rlm-source= snapshot (cited commit =51d2530f0e18c84cff860b7c0bf3afcc3c488057=, still resolvable upstream on 2026-11-03; upstream =main= observed at =05455bba=), DOCUMENTED-from-source versus book-executed claim separation for Chapters 29--31, the DRAFT-until-CI claim policy, and the capstone non-scope.
 
 * Priority queues
 ** Prolog foundation

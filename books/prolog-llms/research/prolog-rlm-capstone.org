@@ -1,0 +1,124 @@
+#+title: Prolog + LLMs -- Prolog-RLM Capstone Research Pass
+:PROPERTIES:
+:ID:       bfedc957-8159-413c-9b5f-437f017c4c5c
+:END:
+
+* Scope
+Retrieval date: 2026-11-03.
+
+Questions:
+1. Which exact =prolog-rlm= revision do Chapters 29--31 document, and is that revision still resolvable upstream today?
+2. Which capstone claims come from the inspected upstream source and which are executed by this book?
+3. What is the claim policy for the capstone chapters while they are DRAFT, and what is explicitly out of scope?
+
+This pass supports the capstone slice (Chapters 29--31, the =prolog-rlm-lab=
+boundary lab, and their exercises).  It does not extend the SWI-Prolog
+foundation passes recorded elsewhere in this directory.
+
+* Revision pin
+The manuscript cites =prolog-rlm-source=, which =references.bib= pins to the
+snapshot =lost-rob0t/prolog-rlm= at commit =51d2530f0e18c84cff860b7c0bf3afcc3c488057=.  The prior
+foundation research pass ([[file:foundation-and-rlm-baseline.org][foundation-and-rlm-baseline.org]]) performed the read-only
+source inspection that the chapter prose rests on, on 2026-09-16, and this
+pass performed no new file-level inspection of that snapshot.
+
+Verification performed in this pass, 2026-11-03:
+- =git ls-remote https://github.com/lost-rob0t/prolog-rlm= succeeded; the
+  upstream repository is reachable and its =main= head resolves to
+  =05455bba3ee58b6a0a7a6d4242c8b64e8fe8af68=.
+- The cited snapshot commit =51d2530f= remains resolvable upstream (verified
+  through the repository commit API, HTTP 200, on 2026-11-03).  The commit is
+  a merge of upstream PR #458 into main, authored 2026-09-11.
+- The companion implementation referenced by Chapters 29 and 31, upstream PR
+  #445, exists in the upstream repository (API check, HTTP 200, 2026-11-03).
+
+Consequences:
+- Upstream =main= has advanced past the cited snapshot, so *behavior at
+  current upstream HEAD is UNVERIFIED*; the cited snapshot remains the
+  authority for what the chapter prose asserts about the runtime.
+- If the capstone is later re-based onto a newer =prolog-rlm= revision, this
+  record and =references.bib= must be re-pinned together; the chapter prose
+  must not silently describe a different revision.
+
+* DOCUMENTED-from-source claims
+The following appear in Chapters 29--31 attributed to
+=cite:@prolog-rlm-source= and are DOCUMENTED from the recorded read-only
+inspection of snapshot =51d2530f= (plus the primary RLM paper, Zhang,
+Kraska, and Khattab, arXiv:2512.24601, for motivation).  None of them was
+executed by this book against the upstream runtime:
+
+- the architectural thesis that the model chooses semantic strategy while
+  Prolog owns execution semantics;
+- the closed =rlm_plan= vocabulary (=context/3=, =model/4=, =rlm/2=,
+  =tool/3=, =parallel/2=, =retry/3=, =checkpoint/1=, =final/1=) with a closed
+  expression language, unknown operators rejected during normalization;
+- the parse -> normalize -> validate -> preflight -> execute pipeline, with
+  capability/binding/static-budget validation separated from preflight and
+  execution;
+- tool authority (capability list) and tool availability (host registry) as
+  separate facts; missing capability yields =capability_denied= even when the
+  closure is installed;
+- static plan estimation (steps, depth, parallel width, model/tool/context
+  counters) compared with the declared budget before execution; nested =rlm/2=
+  estimated at one greater depth; =retry/3= multiplied by maximum attempts;
+- one shared remaining budget threaded through nested execution -- children
+  do not mint a fresh budget; lexical variable scope is restored on child
+  return while accounting and append-only observations survive;
+- trace lineage recorded during execution, not reconstructed afterward;
+- duplicate lexical bindings and unbound plan variables rejected by
+  validation; generic duplicate-subproblem detection requires a trusted
+  identity scheme and is not claimed;
+- the public facade documents provider-backed recursion deeper than one as an
+  explicit opt-in experiment.
+
+* BOOK-EXECUTED claims
+The only executable evidence this book owns for the capstone is the
+repository-local boundary lab at
+=[[file:../code/prolog-rlm-lab/README.org][code/prolog-rlm-lab]]=:
+
+- The lab is a book-owned teaching model, not the upstream runtime.  It
+  encodes the three documented invariants above (closed plan language,
+  static-before-dynamic budget accounting over one decreasing balance, and
+  capability authorization independent of availability) as deterministic
+  SWI-Prolog checks.  Its simplifications versus the documented upstream
+  behavior are enumerated in that directory's README.
+- Executed locally on SWI-Prolog 10.0.2, 2026-11-03: the 27-test PL-Unit
+  suite passed with no failures and no choicepoint warnings
+  (=swipl -q -s books/prolog-llms/code/prolog-rlm-lab/run_tests.pl=).
+- Per the capstone claim policy below, these tests become the book's TESTED
+  evidence for the *lab's* semantics once the =prolog-llms-book= CI job runs
+  them on the exact merged head.  They never upgrade the upstream runtime's
+  behavior to TESTED.
+
+* Claim policy for the capstone
+- Chapters 29--31 remain =:STATUS: DRAFT= until the deterministic lab passes
+  in CI on the exact merged head.  A CI run on that head is the execution
+  evidence; a local run is recorded context, never a substitute.
+- No chapter claim may be promoted from prose inspection alone.
+  DOCUMENTED-from-source statements stay labeled as such and are never
+  relabeled TESTED by this book unless this book actually executes the
+  corresponding upstream behavior.
+- Performance, quality, and comparative statements about recursion remain
+  hypotheses; Chapter 31 defines the experiment contract they would require.
+  Nothing in this pass measures latency, tokens, cost, or accuracy.
+
+* Non-scope
+This pass and the capstone slice explicitly do not include:
+- live model calls of any kind (no provider keys, no network model traffic);
+- benchmarks of any system, upstream or book-owned, and no reproduction of
+  results reported by the RLM paper or the upstream repository;
+- execution of the upstream =prolog-rlm= runtime or its test suites;
+- claims about upstream behavior at revisions newer than the pinned snapshot;
+- supervised child-agent capability narrowing, effect-boundary/retry
+  semantics beyond what Chapter 30 documents, or duplicate-subproblem
+  detection.
+
+* Remaining questions
+- Re-pin the capstone to a newer =prolog-rlm= revision when the companion PR
+  referenced by Chapters 29 and 31 lands upstream, and re-diff the documented
+  invariants against that snapshot.
+- Decide whether a future provider-backed slice warrants a deterministic
+  fake-provider harness in this repository, and research provider-neutral
+  structured-output and cancellation behavior first.
+- Track whether upstream widens the plan vocabulary (new operations or
+  expression forms) in ways that would invalidate the lab's closed-set tests.

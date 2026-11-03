@@ -323,3 +323,40 @@ creative about the meaning of =tool/3=, how many calls remain, whether a
 capability exists, or whether a verifier accepted the result.
 
 Those are machine semantics.  In this capstone, Prolog owns them.
+
+** Exercises
+The lab this chapter exercises lives at
+=books/prolog-llms/code/prolog-rlm-lab/= and is a book-owned teaching model of
+the documented upstream invariants, not the upstream runtime.  Its
+deterministic tests are TESTED evidence once CI runs them on the merged head;
+every statement you cannot execute stays DOCUMENTED-only.
+
+*** ★ Classify data versus authority
+For each term below, say whether =validate_plan/2= admits it and, if not,
+which error it produces: =call(shell(id))=, =tool(study_verify, var(claim), verdict)=,
+=final(var(verified))=, =checkpoint(verified)=, =tool(study_verify)=.  State the
+rule in one sentence: is SWI-Prolog's ability to =call/1= a term relevant to
+the verdict, or is membership in a closed set the only criterion?
+
+*** ★★ Availability cannot rescue authority
+The lab's =authorize/3= takes no tool registry argument, and its test unit
+denies =tool(study_verify)= while the chapter's fixture leaves the verifier
+installed.  Trace which phase owns the rejection (normalize, validate,
+preflight, or execute), then explain in your own words why merging the
+capability list with the tool registry would make the chapter's audit
+question -- "is this installed, or is this granted?" -- impossible to answer.
+
+*** ★★ Extend the closed set
+Add one rejection case to the lab's test unit for an operation shape this
+chapter shows but the tests do not yet cover (for example =context/3= with a
+non-atomic bind name, or =model/4= with a non-list options argument).  Before
+running it, write down the exact =error/1= term you expect.  Label the result
+TESTED only after the suite passes locally and in CI.
+
+*** ★★★ Attempt an expression-language escape
+Try to smuggle executable authority into the lab through each admitted
+expression form: =input(Field)=, a list, a string, and a =var/1= reference.
+For each, either exhibit the rejection or explain why the admitted form is
+inert data.  Then state precisely what evidence would be required to claim
+the same property for the upstream runtime, and why an inspected snapshot can
+support only a DOCUMENTED claim.

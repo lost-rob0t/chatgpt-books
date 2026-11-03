@@ -137,3 +137,23 @@ Downstream: final model-free Chapter 6 mechanism / Project 1 milestone E. A type
 * Next research sessions
 - Current structured-output and tool-call documentation for any provider used in runnable examples.
 - Primary neuro-symbolic systems beyond RLM and evaluation methodology for verifier-assisted/recursive systems.
+
+* 2026-11-03 -- prolog-rlm capstone revision pin and claim separation
+Questions:
+- which exact =prolog-rlm= revision Chapters 29--31 document and whether it is still resolvable upstream;
+- which capstone claims are DOCUMENTED from the inspected snapshot versus executed by this book;
+- what the DRAFT-until-CI claim policy and the capstone non-scope are.
+
+Sources inspected:
+- =references.bib= entry =prolog-rlm-source= (snapshot =51d2530f0e18c84cff860b7c0bf3afcc3c488057=) and the recorded 2026-09-16 foundation-pass inspection;
+- =git ls-remote https://github.com/lost-rob0t/prolog-rlm= on 2026-11-03 (upstream reachable; =main= head =05455bba3ee58b6a0a7a6d4242c8b64e8fe8af68=);
+- repository commit API for the cited snapshot and PR #445 (both HTTP 200 on 2026-11-03).
+
+Result:
+- VERIFIED: the cited snapshot remains resolvable upstream; upstream =main= has advanced past it, so current-HEAD behavior stays UNVERIFIED and out of scope.
+- REPOSITORY-LOCAL EXECUTION: the =code/prolog-rlm-lab= teaching model's 27-test suite passed locally on SWI-Prolog 10.0.2 (2026-11-03); CI on the exact merged head is the book's TESTED evidence.
+- Chapters 29--31 stay =:STATUS: DRAFT= until that CI run; no prose-only promotion of upstream behavior to TESTED.
+
+Detailed evidence: [[file:prolog-rlm-capstone.org][prolog-rlm-capstone.org]].
+
+Downstream: Chapters 29--31 exercises, the boundary lab, and any future re-pin of the capstone onto a newer upstream revision.

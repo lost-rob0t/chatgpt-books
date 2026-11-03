@@ -1,0 +1,70 @@
+#+title: Prolog-RLM capstone boundary lab
+
+This directory is a *book-owned teaching model* for the Chapters 29--31
+capstone.  It is **not** the upstream =lost-rob0t/prolog-rlm= runtime and it
+does not execute plans.  It encodes three invariants that the manuscript
+documents for the upstream typed plan runtime as small, deterministic
+SWI-Prolog checks over lab-owned data.  Upstream fidelity for these invariants
+is DOCUMENTED-only; this lab makes them *executable in this repository*
+without copying any upstream code.
+
+Run from the repository root:
+
+#+begin_src sh
+swipl -q -s books/prolog-llms/code/prolog-rlm-lab/run_tests.pl
+#+end_src
+
+* What the lab encodes
+
+- =validate_plan/2= -- the closed plan language of Chapter 29.  Plans are
+  =plan/1= terms over a fixed operation vocabulary (=context/3=, =model/4=,
+  =rlm/2=, =tool/3=, =parallel/2=, =retry/3=, =checkpoint/1=, =final/1=) with a
+  closed expression grammar (input selection, bound =var/1= references,
+  literal atoms/numbers/strings/lists).  Anything outside the closed set --
+  including callable-looking terms such as =call(shell(id))= and known names
+  with wrong arity -- is rejected as data and never interpreted as a goal.
+  The =ok/1= result carries the structural estimate of Chapter 30 (steps,
+  maximum depth, tool calls, model calls).
+- =static_budget_check/3= -- Chapter 30's static-before-dynamic rule: the
+  structural estimate is compared with the declared budget before any
+  dynamic cost can be spent.
+- =budget/3= -- Chapter 30's one decreasing balance.  =charge(Field, N)=,
+  =enter_rlm=, and =exit_rlm= operate on a single shared balance.  Charges
+  fail closed without partial mutation; a nested entry spends the same
+  balance; returning from a nested plan restores only the depth slot, never
+  spent steps, tool calls, or model calls.
+- =authorize/3= -- Chapter 29's boundary 2.  An operation requiring an
+  unlisted capability is rejected before execution.  The predicate takes no
+  tool registry argument, so an installed closure cannot rescue an ungranted
+  operation (availability does not imply capability).
+
+* Deliberate simplifications versus the documented upstream runtime
+
+- The lab validates and estimates only; it has no executor, no provider
+  adapter, no tool registry, no trace lineage, and no wall-time limits.
+- Estimated dimensions are steps, depth, tool calls, and model calls.  The
+  documented upstream budget also tracks parallel width, context operations,
+  output bytes, and wall time; those are omitted here.
+- =retry/3= attributes the full multiplied child work to the retry node;
+  =parallel/2= sums child work and adds one wrapper step, without tracking
+  parallel width as a separate budget dimension.
+- The expression grammar omits the documented upstream field selection and
+  object forms; the lab admits the subset used by the chapters' fixture
+  plans.
+- A child binding that shadows a parent binding name is rejected
+  (conservative choice); upstream behavior for cross-scope shadowing is not
+  pinned in the capstone research pass.
+- The plan capability policy mirrors the documented =tool(Name)= / =rlm= /
+  =checkpoint= requirements; =model/4= and =context/3= are treated as
+  capability-gated operations, while =parallel/2= and =retry/3= need no
+  capability of their own because their nested plans are validated on their
+  own walks.
+
+* Claim status
+
+The 27-test PL-Unit suite in =test_prolog_rlm_lab.pl= is the lab's execution
+evidence.  It was executed locally on SWI-Prolog 10.0.2 (2026-11-03); the
+authoritative TESTED status comes from the =prolog-llms-book= CI job running
+on the exact merged head.  Chapters 29--31 remain =:STATUS: DRAFT= until that
+CI run is green; see [[file:../../research/prolog-rlm-capstone.org][research/prolog-rlm-capstone.org]] for the pinned upstream
+revision, claim separation, and capstone claim policy.

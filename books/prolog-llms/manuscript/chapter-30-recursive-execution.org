@@ -346,3 +346,41 @@ For the rest of this capstone, keep this checklist nearby:
 
 Recursion becomes much less mystical once every one of those statements has a
 place in the program.
+
+** Exercises
+Executable exercises use the book-owned teaching model at
+=books/prolog-llms/code/prolog-rlm-lab/=; the =budget/3= balance there is a
+lab-owned object that encodes the documented shared-balance invariant.  Label
+each conclusion with its evidence-ladder rung: lab output run locally is
+context, the CI run on the merged head is TESTED, and everything you merely
+read stays DOCUMENTED or UNTESTED.
+
+*** ★ Trace the budget path for a plan that spends exactly its remaining budget
+Starting from the lab's =study_balance= (=balance{steps:7, depth:2, tool_calls:3, model_calls:0}=),
+write the exact sequence of =charge/2= demands that empties the balance, run
+them, and give each outcome.  Then issue one more charge, record the
+=budget_exceeded/3= term, and verify the balance did not move.  Identify which
+phase owns that failure and why there is no partial charge to undo.
+
+*** ★★ Forbid budget-minting from recursion
+A naive design gives every nested child a fresh balance.  Express that
+anti-invariant as a sequence of lab demands and show exactly which outcomes
+forbid it: what =enter_rlm= spends, what =exit_rlm= restores, and what stays
+spent after a child returns.  Explain in one paragraph why a depth limit alone
+could not protect the other resource dimensions if children minted budget.
+
+*** ★★ Prove static-before-dynamic ordering
+Construct a plan whose static estimate violates =max_depth= by exactly one
+(the chapter's own negative experiment lowers =max_depth= to one).  Confirm
+that =static_budget_check/3= rejects it before any =budget/3= charge occurs,
+name the returned =budget_exceeded/3= term, and explain why dynamic accounting
+can never observe this particular plan.
+
+*** ★★★ Compute a retry estimate twice
+For =retry(3, plan([tool(t, input, x), final(var(x))]), y)= followed by
+=final(var(y))=, compute the structural estimate by hand from Chapter 30's
+rules (each operation one step; the child estimated at one greater depth;
+child work multiplied by the attempt maximum).  Then check your arithmetic
+with =validate_plan/2= and reconcile any difference.  State which parts of
+your hand computation are derived from DOCUMENTED upstream rules and which
+are the lab's own simplification.
