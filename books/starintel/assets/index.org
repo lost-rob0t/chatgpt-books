@@ -14,3 +14,8 @@
 - =actor-dispatch.dot/svg= -- Project 3 target acceptance, schedule, local registry resolution, Rabbit fallback, and observed handler boundary. The remote-consumer branch is explicitly marked UNTESTED in milestone A.
 * Rule
 Do not add decorative assets merely to inflate the book. Every informative figure gets caption + alt text.
+
+
+* Search chapter -- 2026-10-09
+Original editable Graphviz assets: =search-boundaries.dot= and
+=search-visibility.dot= with rendered SVGs. Captions and alt text are in Chapter 15.
