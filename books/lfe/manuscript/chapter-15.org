@@ -205,6 +205,8 @@ When =remote_route= fails, debug from the outside inward:
 
 This sequence matters because distributed symptoms collapse easily. A call timing out does not tell you whether the peer booted, the cookie matched, the application started, the name registered, the server wedged, or the network disappeared. Good failure labs preserve layer information instead of flattening it.
 
+The suite does contain one place where outcomes are deliberately ignored: =stop_peer/1= swallows every result of =peer:stop/1= and returns =ok= regardless. That is not the fail-closed rule bending. Teardown is best-effort cleanup that runs after the observations this checkpoint exists to make have already been recorded, so a failed =peer:stop/1= cannot retroactively spoil a result and a tidy shutdown cannot manufacture one. The fail-closed oracle rule applies to the observations themselves, not to the mopping up afterwards.
+
 * What this checkpoint proves -- and what it refuses to prove
 Once its exact-head workflow is green, checkpoint A may promote only these bounded claims:
 
