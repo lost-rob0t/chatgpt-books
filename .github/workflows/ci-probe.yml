@@ -61,4 +61,4 @@ jobs:
           git config user.email "ci-probe@noreply.git.starintel.actor"
           git add probe-logs || true
           git commit -m "ci-probe: books-ci step logs" || true
-          git push origin HEAD:refs/heads/ci-probe-results || echo "push failed"
+          git push origin HEAD:refs/heads/ci-probe-results-${GITHUB_SHA:0:8} || echo "push failed"
