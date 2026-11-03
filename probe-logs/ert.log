@@ -1,0 +1,53 @@
+Running 7 tests (2026-11-03 05:01:32+0000, selector ‘t’)
+   passed  1/7  chatgpt-books-discovers-current-book-set (0.003307 sec)
+   passed  2/7  chatgpt-books-project-discovery-excludes-paused-scaffold (0.006063 sec)
+   passed  3/7  chatgpt-books-roam-db-is-project-local (0.000286 sec)
+Emergency (magit): Magit requires ‘transient’ >= 0.13,
+but due to bad defaults, Emacs’ package manager, refuses to
+upgrade this and other built-in packages to higher releases
+from GNU Elpa.
+
+To fix this, you have to add this to your init file:
+
+  (setq package-install-upgrade-built-in t)
+
+Then evaluate that expression by placing the cursor after it
+and typing C-x C-e.
+
+Once you have done that, you have to explicitly upgrade ‘transient’:
+
+  M-x package-install transient RET
+
+Then you also must make sure the updated version is loaded,
+by evaluating this form:
+
+  (progn (unload-feature 'transient t) (require 'transient))
+
+If this does not work, then try uninstalling Magit and all of its
+dependencies.  After that exit and restart Emacs, and only then
+reinstalling Magit.
+
+If you don’t use the ‘package’ package manager but still get
+this warning, then your chosen package manager likely has a
+similar defect.
+Clearing removed files... 
+Clearing removed files...done
+Processing modified files... 
+Processing modified files...16% 
+Processing modified files...done
+Clearing removed files... 
+Clearing removed files...done
+Processing modified files... 
+Processing modified files...done
+Clearing removed files... 
+Clearing removed files...done
+Processing modified files... 
+Processing modified files...done
+   passed  4/7  chatgpt-books-roam-real-database-sync (1.156861 sec)
+   passed  5/7  chatgpt-books-roam-state-roundtrip (0.000056 sec)
+   passed  6/7  chatgpt-books-root-detection (0.000532 sec)
+   passed  7/7  chatgpt-books-safe-book-paths (0.011498 sec)
+
+Ran 7 tests, 7 results as expected, 0 unexpected (2026-11-03 05:01:34+0000, 1.179020 sec)
+
+-rw-r--r-- 1 root root 53248 Nov  3 05:01 .cache/org-roam.db
