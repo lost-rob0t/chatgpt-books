@@ -1,0 +1,4 @@
+from: too many arguments
+import-im6.q16: unable to open X server `' @ error/import.c/ImportImageCommand/346.
+./tools/check-structure: line 5: syntax error near unexpected token `('
+./tools/check-structure: line 5: `root = Path(__file__).resolve().parents[1]'

@@ -1,0 +1,11 @@
+Invalid function: ("gnu" . "https://elpa.gnu.org/packages/")
+
+Error: invalid-function (("gnu" . "https://elpa.gnu.org/packages/"))
+  mapbacktrace(#f(compiled-function (evald func args flags) #<bytecode 0x1d555bcbddae8127>))
+  debug-early-backtrace()
+  debug-early(error (invalid-function ("gnu" . "https://elpa.gnu.org/packages/")))
+  (("gnu" . "https://elpa.gnu.org/packages/") ("nongnu" . "https://elpa.nongnu.org/nongnu/") ("melpa" . "https://melpa.org/packages/"))
+  (setq package-archives (("gnu" . "https://elpa.gnu.org/packages/") ("nongnu" . "https://elpa.nongnu.org/nongnu/") ("melpa" . "https://melpa.org/packages/")))
+  command-line-1(("--eval" "(require (quote package))" "--eval" "(setq package-user-dir (expand-file-name \".cache/elpa\" default-directory))" "--eval" "(setq package-install-upgrade-built-in t)" "--eval" "(setq package-archives ((\"gnu\" . \"https://elpa.gnu.org/packages/\") (\"nongnu\" . \"https://elpa.nongnu.org/nongnu/\") (\"melpa\" . \"https://melpa.org/packages/\")))" "--eval" "(package-initialize)" "--eval" "(package-refresh-contents)" "--eval" "(package-install (quote org-roam))"))
+  command-line()
+  normal-top-level()

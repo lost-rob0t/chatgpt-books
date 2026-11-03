@@ -1,0 +1,16 @@
+Running 7 tests (2026-11-03 04:54:26+0000, selector ‘t’)
+   passed  1/7  chatgpt-books-discovers-current-book-set (0.003579 sec)
+   passed  2/7  chatgpt-books-project-discovery-excludes-paused-scaffold (0.005826 sec)
+   passed  3/7  chatgpt-books-roam-db-is-project-local (0.000292 sec)
+  skipped  4/7  chatgpt-books-roam-real-database-sync (0.001775 sec)
+   passed  5/7  chatgpt-books-roam-state-roundtrip (0.000045 sec)
+   passed  6/7  chatgpt-books-root-detection (0.000497 sec)
+   passed  7/7  chatgpt-books-safe-book-paths (0.011606 sec)
+
+Ran 7 tests, 6 results as expected, 0 unexpected, 1 skipped (2026-11-03 04:54:26+0000, 0.024072 sec)
+
+1 skipped results:
+  SKIPPED  chatgpt-books-roam-real-database-sync
+
+ert-exit=0
+ls: cannot access '.cache/org-roam.db': No such file or directory
