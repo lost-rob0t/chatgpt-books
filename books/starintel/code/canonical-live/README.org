@@ -26,6 +26,12 @@ The book-local stdlib client:
    and organization facts, and the relation's predicate and direction.
 6. Rejects storage-private/legacy keys in public canonical read-back.
 
+The OpenAPI discovery check pins the exact =x-starintel-operation-id=
+extension keys (=documents.create=, =documents.get=), not just the URL
+paths. Upstream contract drift therefore fails closed at discovery,
+before any document is written, instead of silently passing against a
+renamed or restructured API.
+
 Only after all checks pass does it emit
 =.cache/starintel-canonical-live.json= with an exact upstream SHA, status codes,
 observation counts, and explicit nonclaims. Raw payloads, credentials, response

@@ -273,7 +273,7 @@ jobs:
           test -s .cache/starintel-canonical-live.json
           jq -e '.schema == "starintel-book-canonical-service-proof-v1"
               and .schema_version == "0.10.1"
-              and .claim_status == "TESTED"
+              and .claim_status == "PASS"
               and ([.documents[].dtype] == ["person","org","relation"])
               and all(.documents[]; .readback_http_status == 200)'               .cache/starintel-canonical-live.json >/dev/null
 

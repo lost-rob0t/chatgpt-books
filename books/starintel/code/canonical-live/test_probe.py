@@ -79,7 +79,7 @@ class CanonicalLiveTests(unittest.TestCase):
     def test_three_canonical_types_are_submitted_and_read_back(self):
         fake = FakeTransport()
         report = self.execute(fake)
-        self.assertEqual(report["claim_status"], "TESTED")
+        self.assertEqual(report["claim_status"], "PASS")
         self.assertEqual(report["schema_version"], "0.10.1")
         self.assertEqual([item["dtype"] for item in report["documents"]],
                          ["person", "org", "relation"])

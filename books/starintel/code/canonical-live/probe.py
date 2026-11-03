@@ -196,7 +196,7 @@ def execute(
         "server_pin": server_pin,
         "canonical_authority": AUTHORITY,
         "schema_version": SCHEMA_VERSION,
-        "claim_status": "TESTED",
+        "claim_status": "PASS",
         "contract_discovery": "observed",
         "unauthenticated_get_http_status": denied.status,
         "malformed_canonical_post_http_status": rejection.status,

@@ -40,7 +40,7 @@ from pathlib import Path
 
 data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert data["schema"] == "starintel-book-canonical-service-proof-v1"
-assert data["claim_status"] == "TESTED"
+assert data["claim_status"] == "PASS"
 assert data["server_pin"] == sys.argv[2]
 assert [x["dtype"] for x in data["documents"]] == ["person", "org", "relation"]
 assert all(x["readback_http_status"] == 200 for x in data["documents"])
