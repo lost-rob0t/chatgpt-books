@@ -6,6 +6,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -81,6 +84,11 @@ jobs:
           test -s .cache/org-roam.db
 
       - uses: actions/upload-artifact@v4
+        if: github.server_url == 'https://github.com'
         with:
           name: bootstrap-epub-fixture
           path: dist/bootstrap-fixture.epub
+
+      - name: Publish fixture EPUB artifact (Forgejo)
+        if: always() && github.server_url != 'https://github.com'
+        run: tools/publish-ci-artifacts dist/bootstrap-fixture.epub

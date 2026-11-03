@@ -7,6 +7,9 @@ on:
         description: Book slug
         required: true
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,6 +37,11 @@ jobs:
         run: make check BOOK="${{ inputs.book }}"
 
       - uses: actions/upload-artifact@v4
+        if: github.server_url == 'https://github.com'
         with:
           name: "${{ inputs.book }}-epub"
           path: "books/${{ inputs.book }}/dist/${{ inputs.book }}.epub"
+
+      - name: Publish book EPUB artifact (Forgejo)
+        if: always() && github.server_url != 'https://github.com'
+        run: tools/publish-ci-artifacts "books/${{ inputs.book }}/dist/${{ inputs.book }}.epub"

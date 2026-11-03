@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Publish CI artifacts to a dedicated ci-artifacts/<sha> branch.
+# Used on Forgejo runners, where the actions/upload-artifact service is
+# unavailable. Usage: tools/publish-ci-artifacts PATH...
+set -euo pipefail
+if [ "$#" -eq 0 ]; then
+  echo "usage: $0 PATH..." >&2
+  exit 2
+fi
+if [ "${GITHUB_SERVER_URL:-}" = "https://github.com" ]; then
+  echo "github.com runner: use actions/upload-artifact instead" >&2
+  exit 0
+fi
+sha="$(git rev-parse HEAD)"
+branch="ci-artifacts/${sha:0:9}"
+git config user.name "ci-artifacts"
+git config user.email "ci-artifacts@noreply.git.starintel.actor"
+git switch --orphan "$branch" >/dev/null
+git add -f -- "$@"
+git commit -m "CI artifacts for ${sha}" >/dev/null
+git push --force origin "HEAD:refs/heads/${branch}"
+echo "published artifacts to ${branch}"

@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   project1-foundations:
@@ -127,7 +127,7 @@ jobs:
           make check BOOK=ml-starintel
 
       - uses: actions/upload-artifact@v7.0.1
-        if: always()
+        if: always() && github.server_url == 'https://github.com'
         with:
           name: ml-starintel-project1-research-results
           path: |
@@ -147,3 +147,23 @@ jobs:
             books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/candidate-generation-20newsgroups.json
             books/ml-starintel/dist/ml-starintel.epub
           if-no-files-found: warn
+
+      - name: Publish research artifacts (Forgejo)
+        if: always() && github.server_url != 'https://github.com'
+        run: |
+          tools/publish-ci-artifacts \
+            'books/ml-starintel/projects/project-01-investigation-dataset-pipeline/artifacts/project-01-reader-report.json' \
+            'books/ml-starintel/projects/project-01-investigation-dataset-pipeline/artifacts/chapter06/**' \
+            'books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/experiments.json' \
+            'books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/fixture-experiment.json' \
+            'books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-sample-acquisition.json' \
+            'books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-relation-adapter-experiment.json' \
+            'books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/full-provenance-experiment.json' \
+            'books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-selected-members/**' \
+            'books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/gleif-live-snapshot/**' \
+            'books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/leakage/results.json' \
+            'books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/leakage/*.svg' \
+            'books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/composite-planner-gleif.json' \
+            'books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/candidate-generation-tier-c.json' \
+            'books/ml-starintel/projects/project-01-investigation-dataset-pipeline/research-harness/artifacts/candidate-generation-20newsgroups.json' \
+            'books/ml-starintel/dist/ml-starintel.epub'

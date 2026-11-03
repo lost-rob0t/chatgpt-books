@@ -7,6 +7,9 @@ on:
       - '.github/workflows/starintel-book.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   records-and-book:
     runs-on: ubuntu-latest
@@ -139,10 +142,15 @@ jobs:
 
       - name: Upload validated StarIntel EPUB
         uses: actions/upload-artifact@v4
+        if: github.server_url == 'https://github.com'
         with:
           name: starintel-book-epub
           path: books/starintel/dist/starintel.epub
           if-no-files-found: error
+
+      - name: Publish validated StarIntel EPUB (Forgejo)
+        if: always() && github.server_url != 'https://github.com'
+        run: tools/publish-ci-artifacts books/starintel/dist/starintel.epub
 
   actor-runtime-upstream:
     runs-on: ubuntu-latest
@@ -209,10 +217,15 @@ jobs:
 
       - name: Upload sanitized service trace
         uses: actions/upload-artifact@v4
+        if: github.server_url == 'https://github.com'
         with:
           name: starintel-service-trace
           path: .cache/starintel-service-trace.json
           if-no-files-found: error
+
+      - name: Publish sanitized service trace (Forgejo)
+        if: always() && github.server_url != 'https://github.com'
+        run: tools/publish-ci-artifacts .cache/starintel-service-trace.json
 
   nix:
     runs-on: ubuntu-latest
