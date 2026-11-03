@@ -266,3 +266,23 @@
   url = {https://www.rfc-editor.org/info/rfc5905/},
   note = {Offset, delay, dispersion and jitter vocabulary; inspected 2026-10-08. The book's constant-offset simulation does not implement NTP.}
 }
+
+@misc{starintel-search-runtime-20261009,
+  author = {{lost-rob0t}},
+  title = {StarIntel Server: Search Contracts, Authorization Compiler and Full-Text Index},
+  year = {2026},
+  url = {https://github.com/lost-rob0t/starintel-server/tree/ce14c77ccd2f51f543410fdeef3d78fb9978b769},
+  note = {Inspected 2026-10-09; cli/http-contract-documents.lisp, source/frontends/http-contract-routes.lisp, http-authorization-routes.lisp, http-boundary-core.lisp, source/authorization/services-final.lisp and source/views/search.json; hermetic extracted-function tests do not establish deployed middleware or Clouseau behavior}
+}
+@misc{couchdb-search-index-book,
+  author = {{Apache CouchDB Project}},
+  title = {Apache CouchDB 3.5 Documentation: Search},
+  url = {https://docs.couchdb.org/en/stable/ddocs/search.html},
+  note = {Official documentation inspected 2026-10-09; Clouseau dependency, explicit field projection, analyzers and stored fields}
+}
+@misc{couchdb-search-api-book,
+  author = {{Apache CouchDB Project}},
+  title = {Apache CouchDB 3.5 Documentation: Search Index API},
+  url = {https://docs.couchdb.org/en/stable/api/ddoc/search.html},
+  note = {Official documentation inspected 2026-10-09; bookmarks, include_docs and sorting; no local running-service claim}
+}

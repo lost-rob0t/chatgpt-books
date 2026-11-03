@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -euo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd)"
+SERVER="${1:?usage: run-tests PINNED-SERVER PINNED-SDK}"
+SDK="${2:?usage: run-tests PINNED-SERVER PINNED-SDK}"
+export STAR_SEARCH_LAB_SERVER="$(cd "$SERVER" && pwd)"
+export PYTHONPATH="$(cd "$SDK" && pwd)${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONDONTWRITEBYTECODE=1
+python3 - "$HERE" "$STAR_SEARCH_LAB_SERVER" "$SDK" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from lab import require_pin, SERVER_PIN, SDK_PIN
+require_pin(Path(sys.argv[2]), SERVER_PIN)
+require_pin(Path(sys.argv[3]), SDK_PIN)
+PY
+# Verify the full canonical Org chapter table structure before native suites.
+python3 "$HERE/check_search_table_rules.py" "$HERE/../../manuscript/search-15.org"
+# Verify that the long Chapter 15 reader map links to unique Org export landmarks.
+python3 "$HERE/check_search_navigation.py" "$HERE/../../manuscript/search-15.org"
+# Static source-example validation: compile/parse only; never execute manuscript snippets.
+python3 "$HERE/check_search_examples.py" "$HERE/../../manuscript/search-15.org"
+# Check that Chapter 15 Org citations resolve to local BibTeX entries.
+python3 "$HERE/check_search_citations.py" "$HERE/../../manuscript/search-15.org" "$HERE/../../references.bib"
+STAR_SEARCH_STATS_DESIGN="$STAR_SEARCH_LAB_SERVER/source/views/data.json" node --test "$HERE/test_public_stats_scope_difference.js"
+node --test "$HERE/test_geo_index_coverage.js"
+node --test "$HERE/test_schema_version_index.js"
+node --test "$HERE/test_canonical_text_coverage.js"
+node --test "$HERE/test_language_metadata_fts.js"
+node --test "$HERE/test_artifact_ocr_fts.js"
+node --test "$HERE/test_email_message_payload_fts.js"
+node --test "$HERE/test_evidence_admissibility_fts.js"
+node --test "$HERE/test_asn_routing_fts.js"
+node --test "$HERE/test_projection_delta.js"
+node --test "$HERE/test_field_footprint.js"
+node --test "$HERE/test_canonical_org_type_coverage.js"
+node --test "$HERE/test_investigation_operation_fts.js"
+node --test "$HERE/test_event_observation_time_fts.js"
+node --test "$HERE/test_alert_lifecycle_fts.js"
+node --test "$HERE/test_taxonomy_metadata_fts.js"
+node --test "$HERE/test_http_transaction_fts.js"
+node --test "$HERE/test_canonical_tombstone_fts.js"
+node --test "$HERE/test_index_input_shape.js"
+STAR_SEARCH_WIRELESS_HISTORICAL_DESIGN="$STAR_SEARCH_LAB_SERVER/source/views/search.json" node --test "$HERE/test_wireless_network_fts.js"
+STAR_SEARCH_ACTOR_HISTORICAL_DESIGN="$STAR_SEARCH_LAB_SERVER/source/views/search.json" STAR_SEARCH_ACTOR_REGISTRY="$STAR_SEARCH_LAB_SERVER/source/actor-registry.lisp" node --test "$HERE/test_actor_registry_fts_boundary.js"
+node --test "$HERE/test_relation_fts_boundary.js"
+node --test "$HERE/test_visibility_index_boundary.js"
+node --test "$HERE/test_confidence_not_retrieval_score.js"
+node --test "$HERE/test_route_generation.js"
+node --test "$HERE/test_domain_dns_search_boundary.js"
+node --test "$HERE/test_webcapture_provenance_fts.js"
+node --test "$HERE/test_file_integrity_fts.js"
+node --test "$HERE/test_finding_triage_fts.js"
+node --test "$HERE/test_analysis_reasoning_fts.js"
+node --test "$HERE/test_service_tls_fts.js"
+node --test "$HERE/test_transcript_timeline_fts.js"
+node --test "$HERE/test_maplayer_rendering_fts.js"
+node --test "$HERE/test_meeting_decisions_fts.js"
+node --test "$HERE/test_product_sbom_fts.js"
+node --test "$HERE/test_port_state_fts.js"
+node --test "$HERE/test_legal_case_fts.js"
+node --test "$HERE/test_financial_observation_fts.js"
+python3 -m unittest discover -s "$HERE" -p 'test_*.py' -v
+EXTRACTED="$(mktemp)"
+trap 'rm -f "$EXTRACTED"' EXIT
+python3 "$HERE/extract_forms.py" "$STAR_SEARCH_LAB_SERVER" "$EXTRACTED"
+sbcl --script "$HERE/hermetic.lisp" "$EXTRACTED"

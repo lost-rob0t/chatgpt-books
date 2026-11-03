@@ -1,0 +1,15 @@
+{
+  "dataset": "book-synthetic",
+  "schemaVersion": "0.10.1",
+  "collector": "starintel-book-fixture",
+  "collectionMethod": "manually authored synthetic teaching example",
+  "tags": [
+    "synthetic",
+    "book-example"
+  ],
+  "id": "person:book-alex",
+  "dtype": "person",
+  "fname": "Alex",
+  "lname": "Example"
+}
+

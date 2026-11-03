@@ -1,0 +1,2071 @@
+#+title: Chapter 15 / Project 4 -- Pinned Search Lab
+
+* Purpose and evidence boundary
+This is a search client and inspection lab, not a local search engine.
+Canonical fixtures use the same generated SDK authority as Project 1.
+Historical runtime fixtures in the optional HTTP tier are explicitly different.
+
+Hermetic evidence: the Python regression suite and 16 hermetic Lisp scenario checks
+ran successfully in exact-head hosted CI at commit
+=8a40c5a2c45c28ce54942b59e7d72bcb6f0625ef= (starintel-book run
+=38300524893=, records-and-book job =114982069047=). The initial
+research pass recorded an earlier, smaller 23-Python/15-Lisp snapshot;
+that historical result is not the current scenario count.
+Python runs the real pinned JavaScript index under a capture callback and the
+real canonical SDK. SBCL runs unchanged selected upstream parser/handler/scope
+compiler/egress forms with dependency doubles declared in =hermetic.lisp=.
+These checks do not prove credential authentication, HTTP middleware, Lucene
+analysis, query containment, actual indexing, ranking or durable visibility.
+
+The service runner performs actual HTTP requests and synthetic writes. It is
+NOT part of hermetic discovery. Its assertions are UNTESTED in local authoring;
+absence of a service is not a skip or a pass. Use it only in a dedicated stack.
+No actor-failure or target-recovery experiment is duplicated from PR #136.
+
+* Immutable inputs and dependencies
+- Server: =ce14c77ccd2f51f543410fdeef3d78fb9978b769=.
+- Canonical SDK: =6aa8051dc7ea560943a60a25e1d600467f2778bc=.
+- Python 3.11+, =jsonschema[format]==4.26.0=, Node.js, SBCL.
+- Local verification: Python 3.12.14, Node v24.19.0, SBCL 2.2.9;
+  see =research/search-pass-15.org= for the full captured environment.
+
+#+begin_src sh
+git clone https://github.com/lost-rob0t/starintel-server .cache/search-server
+git -C .cache/search-server checkout ce14c77ccd2f51f543410fdeef3d78fb9978b769
+git clone https://github.com/lost-rob0t/starintel-doc .cache/search-sdk
+git -C .cache/search-sdk checkout 6aa8051dc7ea560943a60a25e1d600467f2778bc
+bash books/starintel/code/search-lab/run-tests .cache/search-server .cache/search-sdk
+#+end_src
+
+The shell runner verifies both upstream pins before its suite; a direct Python
+call to =lab.projection(root, document)= now also verifies the historical server
+HEAD and tracked-file cleanliness *before* executing its checked-in index code.
+A synthetic or unrelated directory is rejected rather than silently
+substituting another index function. This is source attestation for a teaching
+utility, not CouchDB/Clouseau validation, deployed search authorization, or
+canonical 0.10.1 runtime adoption.
+
+A clean-looking =git status --porcelain --untracked-files=no= cannot, by
+itself, attest to actual source bytes. Git's =skip-worktree= index bit can hide
+a changed tracked file from that status view. Therefore =projection()= also
+checks the bytes of =source/views/search.json= against the historical Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=, reusing the offline design
+comparator's hash function. =test_projection_source_blob.py= executes the real
+pinned JavaScript index, rejects modified function/analyzer bytes, and uses a
+disposable synthetic Git repository to demonstrate the status blind spot.
+Source-byte identity is *not* verification of an installed CouchDB design,
+active Clouseau index, canonical 0.10.1 validity, or HTTP authorization.
+
+The runner checks HEAD and tracked-file cleanliness. It installs nothing and
+edits neither checkout. No credentials or external service writes are used.
+The Node VM executes trusted code from the verified pin, not untrusted input
+programs. The form extractor handles the selected pinned forms; it is not a
+general Common Lisp parser or runtime loader.
+
+* Verify the pinned JavaScript capture envelope
+The offline =projection= helper consumes JSON emitted by the course's Node
+index-call capture. A successful child process and syntactically valid JSON
+alone are insufficient evidence. Each captured event must be a stored scalar
+value with a nonempty field name; an object, missing =store=true= metadata,
+null, or nested value fails closed. This is the observed emission protocol of
+the pinned historical =source/views/search.json=, not a claim about Lucene
+tokenization, installed index completeness, or canonical record validity.
+The isolated =test_projection_emissions_protocol.py= suite exercises malformed
+child-output seams, while existing pinned JavaScript tests execute the actual
+source function. Neither layer substitutes for the opt-in HTTP/CouchDB test.
+
+* Offline check of an exported installed FTS design
+A clean historical Git checkout only verifies the *source* index function.
+It does not prove that the running CouchDB database has installed that version
+of =_design/search=. An operator can export the installed design document as
+JSON from a dedicated local service, with credentials handled outside this
+book, then compare it offline against the pinned original:
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/verify_installed_design.py \
+  .cache/search-server/source/views/search.json \
+  PATH_TO_EXPORTED_DESIGN_JSON
+#+end_src
+
+The verifier checks the historical source Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=, the installed
+=_design/search= identity, and exact =indexes.fts= index-function/analyzer
+definitions. It ignores CouchDB's design-document =_rev= and unrelated
+views, because those are not the full-text projection contract. Any FTS
+difference fails instead of silently treating the deployed index as pinned.
+A deletion-marked exported design (=\"_deleted\": true=) is not evidence of
+an installed FTS design, even when its historical index declaration still
+matches. The offline comparator rejects deletion tombstones and malformed
+=_deleted= flags; absent or explicitly false values are permitted. This follows
+Apache CouchDB's documented deletion marker, not an actual deployment test.
+The eight =test_installed_design_deletion.py= checks cover both source generations,
+tombstones, malformed flags, allowed storage revisions and FTS drift. They use
+pinned source bytes and synthetic exported copies; live CouchDB and Clouseau
+remain UNTESTED. See the [[https://github.com/apache/couchdb/blob/d3884102b5a836f022d7d6a730ab29305d6e098a/src/docs/src/api/document/common.rst][CouchDB document-deletion API]].
+The nine network-free =test_installed_index_attestation.py= regressions use
+a *synthetic exported copy*, including changed function/analyzer and absent
+FTS controls. They do not fetch the actual running design, establish active
+Clouseau indexing, verify a rebuild, or prove query/tenant authorization.
+
+
+** Explicitly compare the merged 0.10.1 search design
+The offline comparison helper also accepts =--generation merged=. The
+historical default remains strict and unchanged. An operator who exports the
+installed =_design/search= from an independently provisioned merged server
+can compare it against the merged source design at
+=ca6fdcbdc1f3b8aa344c533a40d298f741a54f25=:
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/verify_installed_design.py \
+  CURRENT_MERGED_SERVER/source/views/search.json \
+  EXPORTED_DESIGN_JSON --generation merged
+#+end_src
+
+The helper requires Git blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=
+for the merged source; it does not silently infer a release from a filename.
+Mismatched source bytes, changed FTS index code and changed analyzer rules fail
+closed. =test_installed_design_generations.py= exercises both immutable source
+generations, source tampering, analyzer drift and backward compatibility using
+a constructed export. Passing an exported JSON comparison proves only that
+the two *design definitions* match, never that CouchDB actually installed the
+source, reindexed records, or served queries through Clouseau.
+
+* Optional real service experiment
+Provision a fresh local StarIntel stack at the server pin using its maintained
+stack tooling. This lab deliberately does not copy Docker/Nix deployment logic.
+Its prerequisite checklist is concrete:
+
+1. Running StarIntel HTTP, RabbitMQ ingest, CouchDB and connected Clouseau.
+2. Install =source/views/search.json= from this pin as =_design/search= in the
+   configured default database. Confirm the installed body and =fts= index.
+3. Public mode enabled with =STAR_PUBLIC_SEARCH_DATASETS=book-public,book-other-public=
+   before runtime configuration loads. A wildcard public list fails this experiment.
+   Set =STAR_TENANT_DATASET_MAP=book-other-public=other= in the *server* process
+   and leave =STAR_TENANT_FALLBACK= unset. The pinned server resolves tenancy
+   from dataset mapping for documents without client-supplied tenant fields;
+   a second dataset is necessary to seed the other-tenant control.
+4. Provision four valid credentials in the server credential store. Supply them
+   from a keyring or environment, never a checked-in configuration:
+
+| Environment variable | Tenant | Required scopes |
+|----------------------+--------+-----------------|
+| =STAR_SEARCH_LAB_WRITER= | default | identity:read, documents:write, documents:read, dataset:book-public, dataset:book-private, tenant:default |
+| =STAR_SEARCH_LAB_OTHER_WRITER= | other | identity:read, documents:write, documents:read, dataset:book-other-public, tenant:other |
+| =STAR_SEARCH_LAB_READER= | default | identity:read, search:read, dataset:book-public, tenant:default |
+| =STAR_SEARCH_LAB_NOSEARCH= | default | identity:read, dataset:book-public, tenant:default; deliberately no search:read |
+
+Do not grant admin or wildcard dimensions to READER/NOSEARCH. Authentication
+binding must match the declared tenants. The script first requires all four
+credentials to succeed at =/auth/context=, then performs the search denials.
+The current schema is historical =0.9.0= wire format; writes clone the existing
+=code/records/fixtures/person.json= and assign a fresh per-run synthetic identity.
+This is no claim that canonical 0.10.1 ingest migration has completed.
+
+Set =STAR_SEARCH_LAB_URL= to an HTTP(S) loopback base URL without a path,
+username/password or query, and =STAR_SEARCH_LAB_DISPOSABLE=1=. Then:
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/service_checks.py --seed
+#+end_src
+
+The =--seed= and =--expect-backend-failure= flags are mutually exclusive.
+A combined invocation is an error; it cannot silently skip fixture seeding
+while reporting a successful backend-failure experiment.
+
+The runner writes five synthetic records across =book-public=, =book-private=,
+and =book-other-public=, uses authenticated by-ID read-back with a 30-second
+ deadline per record, then separately polls exact search-visible sets with a
+30-second deadline. Three default-tenant public records allow one-row
+pagination; the private record remains in the default tenant, while the fifth
+record uses server-side dataset-to-tenant adaptation to the other tenant.
+The fourth and fifth records are negative/positive scope controls.
+The public set must contain four identities and the restricted reader set
+three. It checks eleven actual HTTP denial/input cases and tenant egress.
+A twelve-page budget, ten-second request timeout and response byte budget bound
+the client. Search output is a sanitized JSON summary; credentials are never
+included. Keep the stack quiescent and delete the entire disposable deployment
+when finished; the script does not delete records from an existing corpus.
+
+For a service failure experiment, stop only Clouseau in that isolated stack:
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/service_checks.py --expect-backend-failure
+#+end_src
+
+This mode requires a 5xx response rather than a successful empty page. A
+backend that maps its failure to 404 or another status needs an explicitly
+reviewed assertion, not a fabricated pass. Restore the service manually.
+No target recovery or actor failure is simulated.
+
+* Guard the Chapter 15 export spine
+
+=manuscript/index.org= includes =search-15.org= after the fieldwork chapters
+and before the glossary. Within that include, a stray single-star heading
+creates another top-level Org section instead of continuing Chapter 15.
+The meeting decision case originally contained that defect, and its worked
+exercise was also promoted to sibling level. The canonical manuscript now
+nests both under Chapter 15 and preserves every existing Org-roam ID.
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/check_search_outline.py
+python3 -m unittest discover -s books/starintel/code/search-lab -p 'test_search_outline.py' -v
+#+end_src
+
+The checker is network-free, preserves Org block boundaries, requires one
+Chapter 15 root and stable IDs, and rejects detached exercise headings.
+A source-exact RED case reproduces the previous accidental chapter split;
+the corrected outline passes the same assertions. These are structural
+checks only: they do not execute Babel, prove the book export, or replace
+=make book BOOK=starintel=, =make check BOOK=starintel= and EPUBCheck.
+The regular search-lab Python discovery runner also executes the tests.
+
+* Files
+- =lab.py=: version-pin checks, projection capture, URL encoding, hit interpretation.
+- =index_projection.js=: exact index function execution with captured emissions.
+- =extract_forms.py=: fail-closed selection of actual upstream definitions.
+- =hermetic.lisp=: explicit doubles and executable upstream-function checks.
+- =test_*.py=: hermetic SDK/projection/client/selection checks.
+- =service_checks.py=: opt-in actual HTTP experiment; never silently skipped.
+
+* Bound the parent Node process, not only VM execution
+The pinned JavaScript wrapper already limits its indexer invocation to one
+second inside a Node VM. That does not limit Python's wait for Node startup,
+file/JSON loading or child-process termination. =lab.projection()= therefore
+passes =timeout=30= to =subprocess.run()= in addition to the VM deadline.
+A timed-out child raises =subprocess.TimeoutExpired= and is a FAILED lab
+observation, never an empty search result or a successful index capture.
+
+=python3 -m unittest test_projection_parent_timeout -v= checks the parent
+deadline and error propagation with an injected child process. These are
+course-local resource limits, not StarIntel Server or Clouseau timeouts.
+
+* Bounded local index capture
+The Node capture wrapper limits each synthetic document to 2,048 emitted index
+field/value pairs. The ceiling belongs to this teaching harness, *not* to
+CouchDB/Clouseau or the production StarIntel server. The exact pinned server
+index function remains unchanged. A document that would exceed this budget
+raises an error and produces no partial JSON output; this is a failed lab
+observation, not evidence that the document is unindexable in production.
+
+Run =python3 -m unittest test_emission_budget -v= from the search-lab directory
+(or use the existing =run-tests= suite with its pinned dependencies). Boundary
+tests accept exactly 2,048 emissions, reject 2,049, and preserve regular
+small-document projections. The injected array is synthetic, not collected data.
+
+* Bounded pagination cycle check
+The optional HTTP client's twelve-page limit remains the final resource bound,
+but a shorter non-adjacent bookmark cycle (for example =A -> B -> A=) now
+fails at the first recurrence instead of resubmitting an earlier cursor.
+Continuation tokens are opaque; the client does not derive identities or
+ordering from their contents. Repeated result identities remain a separate
+error even when bookmarks themselves are distinct.
+
+=python3 -m unittest test_bookmark_cycle -v= executes network-free response
+doubles with the real =collect=, =interpret_page= and =next_bookmark= helpers.
+These tests do *not* prove live CouchDB/Clouseau bookmark guarantees or stable
+membership under concurrent writes; the opt-in HTTP tier remains untested.
+
+* Pinned search response row budget
+The pinned public =GET /api/v1/search= handler caps a requested page at 50
+results. The authenticated =documents.search= route inherits
+=+http-max-query-limit+=100=. The teaching =interpret_page= rejects more
+than 100 returned rows *before* decoding or deep-copying any row; it does not
+silently truncate. A server request limit, a client response limit, and the
+optional HTTP runner's twelve-page traversal budget are different bounds.
+Neither implies that a page is complete, indexed data is exhaustive, or a
+record is canonical. The 100-row response guard is specific to the inspected
+contract; it is not a limit claimed for arbitrary CouchDB search clients.
+
+=python3 -m unittest test_page_row_budget -v= runs six network-free cases:
+empty, one-row, maximum 100-row, and 101/250-row rejection including
+pre-iteration failure precedence. This does not test a live backend or its
+deployed page-size enforcement.
+
+* Hermetic multi-tenant fixture admission contract
+=python3 -m unittest test_tenant_seed_contract -v= checks the five historical
+synthetic fixture roles and the *declared* disposable configuration. It models
+the pinned server's =tenant-adaptation-for= mapping and public dataset list;
+it does NOT load native authorization machinery or prove real HTTP credential
+acceptance. The opt-in service run remains UNTESTED without that server stack.
+
+* Index projection and embedded-document agreement
+The =interpret_page= teaching client keeps =fields= (stored search-index
+projection) separate from =doc= (the embedded retrieved document). If both
+supply scalar =dataset= or =dtype= strings and disagree, the client rejects
+that hit rather than silently selecting the document value. Such disagreement
+could indicate a changed record or a stale projection; it does not establish
+which observation is current, nor does matching metadata prove a snapshot.
+Missing stored fields remain missing, and a fields-only hit is not promoted
+to a full document. The hermetic =test_index_document_consistency.py= covers
+both disagreements, ordinary hits and existing tenant/revision checks.
+
+
+* Require an object root for a captured projection
+
+A JSON array, string, number, boolean or =null= is not a StarIntel document.
+The historical JavaScript index can still emit a default =tenant_id= for some
+non-object roots because JavaScript permits property lookup on non-null
+primitives. That is an index-function emission, *not* a validated document.
+=lab.projection()= now rejects a non-dictionary root before calling Node.
+
+=python3 -m unittest test_projection_document_root -v= runs the actual pinned
+index over a synthetic mapping and rejects scalar/array roots before Node. It
+also preserves the existing rejection of non-finite JSON numbers. This
+course-local shape guard does *not* validate a dictionary as canonical StarLang
+0.10.1; the pinned generated SDK remains responsible for that admission.
+
+* Strict JSON before historical index execution
+
+=projection()= serializes synthetic Python fixtures before the pinned
+JavaScript index consumes them. Python's default =json.dumps()= accepts
+non-finite floats and emits =NaN=/=Infinity= spellings, but those tokens
+are *not* valid JSON and cause Node's =JSON.parse()= to fail. The book's
+transport boundary now uses =allow_nan=False= so invalid numeric inputs
+raise a direct Python =ValueError= before invoking Node.
+
+=python3 -m unittest test_projection_json_finite -v= covers NaN, both
+infinities, nested values, finite numbers and booleans against the actual
+pinned index capture. This is course-local input handling, not a change
+to CouchDB, Clouseau or StarIntel Server's JSON policy. It proves neither
+live search behavior nor canonical StarLang admissibility for non-finite
+numbers.
+
+* Distinct storage and canonical revision evidence
+A historical embedded CouchDB document may expose =_rev= (storage MVCC)
+while a canonical =0.10.1= record may expose =rev= (document contract).
+They are not interchangeable. When both appear, =Hit.storage_revision=
+and =Hit.canonical_revision= retain the two observed values separately.
+The existing =Hit.revision= convenience field remains backward compatible
+(storage value first), but its value alone does not identify the revision
+namespace or establish canonical validation.
+
+=python3 -m unittest test_dual_revision_evidence -v= checks both values,
+single-source and fields-only hits, plus malformed shadowed revisions.
+These are typed search-response observations, not proof that an embedded
+document passed the generated SDK, was durable at query time, or shares a
+snapshot with the index projection.
+
+* Detach retained search evidence from mutable decoded pages
+=Hit= uses a frozen Python dataclass for its outer attributes, but nested JSON
+dictionaries are mutable. Previously =Hit.document= and =Hit.fields= aliased
+the input response's nested objects. A caller changing or reusing that response
+could later change the appearance of retained stored fields and provenance.
+The client now deep-copies both validated payloads into a distinct observation
+snapshot; =Hit.revision= and the original revision-origin fields are unchanged.
+
+=python3 -m unittest test_evidence_detachment -v= covers mutable source pages,
+nested provenance, stored fields, repeat interpretation, fields-only hits and
+conflicting scope/type evidence. This detaches a hit *from its input page*;
+it does not recursively freeze =Hit.document= or validate canonical truth.
+These checks are course-local, not evidence of server-side consistency or
+CouchDB durability.
+
+* Reject contradictory search response envelopes
+=interpret_page= treats a top-level =error= member as a failed observation
+*even when* =rows= also contains an array. An otherwise well-shaped
+={"rows":[],"error":"backend_failed"}= is not evidence of zero hits, and a
+populated result alongside =error= cannot be trusted as a successful page.
+The six network-free =test_mixed_error_envelope.py= regressions include both
+mixed shapes, a null error member, ordinary empty and populated pages, and an
+error-only response. These checks are for the book client; they do not prove
+that a real server emits mixed envelopes or that live HTTP status mapping works.
+
+* Historical HTTP seed versus actual search-field emissions
+=python3 -m unittest test_historical_seed_projection -v= joins the five opt-in
+historical =fixture()= variants to the *actual pinned JavaScript index capture*
+in the hermetic runner. It verifies each document emits the exact =fname=
+search term, its assigned dataset, and =person= dtype; it also demonstrates
+nested-field precedence, null shadowing, and absence of =schema_version= in
+the captured fields. A changed fixture/adapter can otherwise leave all by-ID
+read-backs successful while the fielded search's positive controls never match.
+The tests do not execute Lucene tokenization, server tenant adaptation,
+authenticated middleware, live CouchDB/Clouseau or durable visibility. They
+establish raw index-field emission for the synthetic historical fixture only;
+server-side tenant metadata is intentionally not guessed from an offline seed.
+
+ 
+* Optional two-generation search index comparison
+The historical lab source pin =ce14c77ccd2f51f543410fdeef3d78fb9978b769=
+still omits =fullName=. Server PR #313 merged on 2026-10-10 as
+=ca6fdcbdc1f3b8aa344c533a40d298f741a54f25= and the merged source
+selects =fullName=, =displayName=, =legalName= and =orgType=, alongside the
+old snake_case keys. The merge's generated =0.10.1= schema lock points to
+StarLang =96d26c338078676ec1dc6928755901636c9f7ef0=.
+
+Obtain TWO clean, separate upstream checkouts at those exact commits.
+Run the following optional offline experiment against their original files:
+
+#+begin_src sh
+node books/starintel/code/search-lab/compare_index_generations.js \
+  PATH_TO_HISTORICAL/source/views/search.json \
+  PATH_TO_MERGED/source/views/search.json
+#+end_src
+
+The script requires exact historical blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and merged blob
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=; it refuses substitutes.
+The comparator now retains every original =index()= callback event rather
+than converting events to a one-value-per-field object. Arrays and structured
+=sources= can emit repeated field names; =Object.fromEntries= would silently
+discard earlier evidence. A synthetic three-value =content= array and two
+sources (four scalar values) produce *14 historical versus 18 merged emissions*,
+including the four added camelCase fields and all historical aliases. The
+script checks that each captured emission requested =store=true=.
+
+#+begin_src sh
+node books/starintel/code/search-lab/test_index_generation_multiplicity.js \
+  PATH_TO_HISTORICAL/source/views/search.json \
+  PATH_TO_MERGED/source/views/search.json
+#+end_src
+
+The five Node regressions separately verify actual event totals, ordered
+multi-value =content= and =sources= emissions, source SHA pins, and success.
+These are raw JavaScript emissions, *not* Clouseau analyzer results,
+live query visibility, installed design confirmation, reindex proof or
+canonical SDK validation. The standard one-pin CI runner does NOT run this
+two-checkout exercise; missing inputs do not count as a passing test.
+
+* Server-owned tenant stamping before historical FTS indexing
+
+A raw v0.9.0 fixture is *not* the server's internal indexed representation.
+=fixture()= deliberately contains no =tenant= or =tenant_id=. If the exact pinned
+historical JavaScript search index is executed directly on the raw fifth
+=book-other-public= fixture, its =tenant_id= fallback emits =default=.
+That does not mean the server's dataset-to-tenant map was ineffective:
+=resolved-server-tenant= and =stamp-server-tenant!= at the pinned server
+source derive and inject the configured tenant on the internal document before
+the relevant bulk publish paths. The unchanged index then selects
+=tenant_id=other= from the internally stamped document. It is incorrect to
+submit =tenant_id= from a client just to make an offline projection look right.
+
+=python3 -m unittest test_tenant_stamp_index -v= checks the exact original
+server Lisp form fingerprints and bulk publish call sites, plus the pinned
+JavaScript FTS index on the real synthetic client fixtures. The test uses a
+clearly identified Python *model* of the internal stamp for the Node index
+comparison: original SBCL Lisp stamping, credential admission, MQ, CouchDB,
+Clouseau, durable persistence and actual authenticated search were *not*
+executed by this new test. Unstamped =other= raw fixture produces default;
+modeled server-stamped fixture produces other; the remaining four fixture
+datasets stamp to default. The test also guards against altering the client
+fixture and checks a pre-existing internal tenant is not overwritten.
+
+This is a crucial pipeline boundary: raw fixture projection != server-stamped
+index projection != indexed search visibility != durable canonical verification.
+
+* Canonical GeoPoint versus historical full-text coverage
+
+With =STAR_SEARCH_LAB_SERVER= naming the clean, exact historical server checkout,
+=run-tests= includes =node --test test_geo_index_coverage.js=. It asserts the
+real =source/views/search.json= Git blob before executing its original
+= indexes.fts.index = callback in a Node VM. The seven native tests compare
+synthetic 0.10.1 GeoPoint-shaped inputs with altered coordinates, text, and
+dataset. Geographic fields =latitude=, =longitude=, =geohash=,
+=geometryType=, and =placeName= are absent from the historical FTS emission
+stream, while dataset/type/tenant metadata is emitted.
+
+A GeoPoint-shaped example follows the named fields and decimal-string
+coordinate types from the authoritative generated 0.10.1 schema. This
+test does *not* run the SDK validator, inspect an installed design, execute
+Clouseau or prove the absence of a separate geo API. Matching FTS emissions
+do not make two canonical spatial records equal, or establish geography.
+The separately controlled dataset/content fields show that the test is
+executing a nonempty, selective index callback.
+
+* Analyzer configuration is separate from index callback values
+
+The pinned =source/views/search.json= declares a =perfield= analyzer: =dataset=
+and =tenant_id= use =keyword=, as does =name=; =content= and the default use
+=standard=. =dtype= and =title= therefore fall back to =standard= in this
+historical design. These declarations matter when reading the server's scoped
+search query, but a captured =index(name, value, store=true)= callback has
+*not yet tokenized* =value= with Clouseau/Lucene.
+
+Run =python3 -m unittest test_search_analyzer_contract -v= in the pinned
+search-lab environment. The five tests read the original design document,
+check the concrete per-field contract, and execute the unchanged JavaScript
+index on a synthetic document where =name= and =content= contain identical
+text. Both raw emissions remain identical despite different declared
+analyzers. This is TESTED configuration and callback behavior, *not* a live
+keyword/standard tokenizer, query containment, authorization, or ranking test.
+
+* Two-generation analyzer migration is not field inheritance
+The optional two-checkout =compare_index_generations.js= now reports
+=declared_analyzers_by_generation= as a *source-configuration* observation
+beside its actual JavaScript index emissions. The merged 0.10.1 search design
+emits =fullName=, =displayName=, and =legalName=, but does not add analyzer
+overrides for those new names. They therefore use the declared =standard=
+default, unlike =name= (explicit =keyword=). The old =full_name= alias also
+uses the standard default. Server-owned =dataset= and =tenant_id= remain
+explicit =keyword= fields. Identical raw callback values can have different
+configured downstream analyzers; this tool does not run Lucene/Clouseau.
+
+With BOTH original pinned design files provided, run:
+
+#+begin_src sh
+node books/starintel/code/search-lab/test_index_generation_multiplicity.js \
+  HISTORICAL_PIN/source/views/search.json \
+  MERGED_PIN/source/views/search.json
+#+end_src
+
+The seven optional Node tests now include two analyzer-contract assertions
+in addition to the five existing source/emission checks. The historical
+=0.9.0= wire lab remains pinned to the older source; optional comparison
+does not prove a deployed design, reindex, tokenization, authorization, or
+canonical SDK acceptance.
+
+* Public sort parameter is not a paging guarantee
+
+The historical pinned server's =source/frontends/http-contract-routes.lisp=
+(=ce14c77ccd2f51f543410fdeef3d78fb9978b769=, Git blob
+=572e78602c2b273f7ed8b45ffaa8d939ce7ce88c=) constructs the public
+CouchDB request from =q=, =limit=, optional =bookmark= and =include_docs=;
+it does *not* forward =sort=. A URL containing =sort= on that route would
+mislead a reader into assuming that the backend honored the requested order.
+By contrast, the historical authenticated document-search handler in
+=source/frontends/http-authorization-routes.lisp= (Git blob
+=eac4f1d38973cbbe3d19e9ed5e7b1b3c520919a5=) does forward =sort=.
+
+The book-local =request_path('public', ...)= therefore rejects even an empty
+explicit =sort= parameter before encoding the URL, while the authenticated
+surface keeps its transport encoding behavior. =test_public_sort_boundary.py=
+covers both surfaces, opaque bookmark encoding and unknown-surface rejection.
+Those six Python tests exercise the client only: they cannot prove deployed
+Clouseau sort semantics, ranking stability or a frozen multi-page snapshot.
+
+* Offset-style paging is not part of either historical search route
+
+At historical Server pin =ce14c77ccd2f51f543410fdeef3d78fb9978b769=,
+the public route's =handle-public-search-route= and the authenticated route's
+=handle-authorized-search-route= both forward opaque =bookmark=, but neither
+reads or forwards caller =skip= or =offset=. The source files are pinned by
+Git blobs =572e78602c2b273f7ed8b45ffaa8d939ce7ce88c= and
+=eac4f1d38973cbbe3d19e9ed5e7b1b3c520919a5=, respectively.
+
+The book-local =request_path()= now rejects either explicit parameter on
+*both* surfaces, including falsey values, before URL encoding. Otherwise the
+resulting URL could appear to request page N while the backend still receives
+page one. Use the server-returned opaque =bookmark=, not an integer offset.
+
+=test_offset_pagination_contract.py= runs seven network-free client tests:
+unsupported parameters, their falsey spellings, correct bookmark encoding,
+authenticated sort/scope preservation, public sort rejection and invalid
+surface rejection. These assertions verify client behavior and inspected
+handler source, *not* a live CouchDB/Clouseau snapshot or its mutation behavior.
+
+* Public dataset scope binding lifetime
+
+The pinned historical server initializes =*public-search-datasets*= using
+=STAR_PUBLIC_SEARCH_DATASETS= in a Lisp =defparameter= form. The public
+search scope helper reads that bound value, not =getenv= on every call.
+The merged 0.10.1 server retains this definition at Git blob
+=a77ea2cda8337f5c52da73537f87e772cadc6b63=. A supervisor's environment
+edit alone does not update a process's already bound policy. Review and
+reapply the runtime's supported restart/reload/rebinding procedure, then
+verify the effective public scope. Do not mistake a configuration edit for
+an observed authorization change.
+
+=python3 -m unittest test_public_scope_binding_lifetime -v= checks the exact
+historical public-route Git blob and source call chain, detects a deliberately
+changed per-request environment lookup, and checks the exported Chapter 15
+lesson. This is not a native reload or live authorization test.
+
+* Standalone route-contract regressions now run in the pinned test suite
+
+The native Node tests in =test_route_generation.js= exercise the source
+comparator's Git blob format, extraction of named Lisp functions, duplicate
+function rejection, missing-definition failure, and a deliberate source-body
+change negative control. These *eight standalone unit tests* need only the
+checked-in JavaScript comparator and Node; they do not need a second pinned
+StarIntel Server checkout. The standard one-checkout =run-tests= now invokes
+them explicitly, and =test_runner_route_coverage.py= guards their registration
+after the existing server and canonical SDK pin checks.
+
+This is coverage of the comparator's implementation, *not* proof that the
+actual historical and merged server routes are identical. The two-checkout
+source audit below remains an independent command and is NOT RUN by the
+one-checkout test runner. Hosted checks that fail before runner allocation
+have executed neither of these test suites.
+
+* Optional cross-generation search route source audit
+The 2026-10-10 0.10.1 server merge changed the FTS index source, but an
+independent byte-level source audit found seven named public/authenticated
+search route and scope functions identical between historical
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769= and merged
+=ca6fdcbdc1f3b8aa344c533a40d298f741a54f25=.
+The entire authenticated route file has the same Git blob in both commits.
+This source identity does not establish mounted runtime behavior or credential
+checks; it proves only that those named Lisp definitions did not change.
+
+With *two separate, authentic pinned server checkouts*, run:
+
+#+begin_src sh
+node books/starintel/code/search-lab/compare_search_route_generations.js \
+  HISTORICAL/source/frontends/http-contract-routes.lisp \
+  MERGED/source/frontends/http-contract-routes.lisp \
+  HISTORICAL/source/frontends/http-authorization-routes.lisp \
+  MERGED/source/frontends/http-authorization-routes.lisp
+node --test books/starintel/code/search-lab/test_route_generation.js
+#+end_src
+
+The first command checks exact source Git blobs and named defun bytes, failing
+on a mismatch; the native unit tests exercise parser/error behavior with
+small synthetic Lisp forms. The standard one-checkout runner cannot run the
+cross-generation command; a missing second checkout is NOT RUN, not success.
+
+* Checking bounded search-query audit evidence
+
+=verify_query_audit.py= is a standalone offline checker for the attribute map
+emitted by the historical Server's =emit-search-query-audit= in
+=source/authorization/services-final.lisp= (Git blob
+=cb0344ca916ce54af8413289b12d234b5d61b781= at
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769=). It does not connect to a
+logger or infer whether authorization or the backend request succeeded.
+
+#+begin_src sh
+python3 -m unittest test_query_audit_evidence -v
+#+end_src
+
+A nontruncated =query.text=, =query.bytes= and =query.sha256= must agree
+byte-for-byte; a truncated entry instead retains only a bounded display,
+original byte count and full-query digest. When the original candidate query
+is independently available, the checker can compare its digest and byte count.
+It cannot reconstruct a missing suffix, authenticate an event, or infer an
+allow/deny outcome. The historical implementation emits the log before the
+authorization decision and does nothing if observability logging is disabled.
+The query text limit is 16,384 UTF-8 bytes; it is *not* the public HTTP search
+request limit of 512 characters.
+
+The test uses synthetic structured attributes and intentionally corrupt events.
+It executes native Python, not the pinned Common Lisp observability subsystem.
+
+* Chapter 15 SVG/DOT semantic consistency
+
+The two source-backed figures have editable Graphviz =.dot= files and checked-in
+=.svg= exports. =test_search_diagram_semantics.py= verifies the graph identity,
+every named node and its text, every directed edge, and any edge label in the
+rendered SVG. A changed authorization edge, public row-cap label, or meaning of
+the no-hit branch must not survive as a stale drawing.
+
+The test is included automatically in the normal =test_*.py= discovery and can
+be run independently, without a server or SDK checkout:
+
+#+begin_src sh
+python3 -m unittest discover -s books/starintel/code/search-lab -p 'test_search_diagram_semantics.py' -v
+#+end_src
+
+This source-to-export regression does not test pixel positioning, accessibility,
+deployed middleware, an installed search index, or real CouchDB/Clouseau search.
+Retain the separate figure-alt checks and official EPUBCheck build verification.
+
+The two maintained DOT sources share explicit =graph= and =node= default
+declarations. The semantic checker previously skipped every such declaration,
+which meant an injected =graph label=, background change, duplicate directive
+or different node font size could pass against an unchanged SVG. The parser
+now accepts only complete, known defaults exactly once and rejects missing,
+changed or duplicated declarations. New native regressions run under the
+existing =test_*.py= discovery:
+
+#+begin_src sh
+python3 -m unittest discover -s books/starintel/code/search-lab -p 'test_dot_default_semantics.py' -v
+#+end_src
+
+This guard checks known diagram semantics, not pixels, HTTP security,
+installed index visibility or EPUBCheck. Intentional Graphviz style edits
+must update this documented contract and regenerate both exports.
+
+* Typed canonical text field coverage across source generations
+
+Run the Git-blob-attested historical JavaScript FTS callback as part of the
+one-checkout Chapter 15 runner:
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_canonical_text_coverage.js
+#+end_src
+
+Optionally inspect the unchanged merged =0.10.1= source callback in the same
+native suite (without adopting it as the historical live service):
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+STAR_SEARCH_TEXT_MERGED_DESIGN=PINNED_MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_canonical_text_coverage.js
+#+end_src
+
+The historical design must match Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and the optional merged
+design =dd6336f3047982db2f0e3615fed1413ed1e58e13=. The canonical
+fields are sourced from StarLang's =0.10.1= generated schema blob
+=537163da436f67a973e280d1704e32bdba5b888b= at
+=96d26c338078676ec1dc6928755901636c9f7ef0=.
+
+The eight tests per source generation demonstrate that =Message.message=,
+=EmailMessage.body=, =Transcript.text= and =Policy.text= are not projected,
+while =SocialMediaPost.content= and =Policy.name= are projected. Each
+comparison includes emitted dataset/dtype/tenant controls. Tests execute
+original =index()= callbacks with synthetic canonical-*shaped* objects, not
+the StarLang SDK or a service. A missing text field in this raw projection is
+not a claim of failed storage, unavailable read-by-ID, or unauthorized access;
+reverse conclusions from a positive FTS emission are equally invalid.
+
+
+* Canonical Org type is not the indexed migration alias
+
+StarLang =org.starintel/core@1= =0.10.1= defines =Org.organizationType=
+as a string, but does *not* define =Org.orgType= or =Org.org_type=.
+The generated schema is pinned to
+=96d26c338078676ec1dc6928755901636c9f7ef0= (blob
+=537163da436f67a973e280d1704e32bdba5b888b=). Both historical and
+merged FTS callbacks omit =organizationType=; the historical callback
+selects =org_type=, while the merged callback additionally selects =orgType=.
+These superficially similar names are *not* automatically equivalent.
+
+=test_canonical_org_type_coverage.js= executes the unchanged original
+callback(s) over fictional canonical-shaped organization fields: mutating
+=organizationType=, including inside =data=, leaves raw emissions unchanged.
+An indexed =name= acts as a positive control, and a deliberately altered
+index function demonstrates that the negative assertion is discriminating.
+The default pinned checkout runs five historical tests; pass a second,
+independently pinned merged design to execute all ten:
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_canonical_org_type_coverage.js
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+STAR_SEARCH_ORG_MERGED_DESIGN=PINNED_MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_canonical_org_type_coverage.js
+#+end_src
+
+The samples are *not* SDK-validated, and the tests establish only raw index
+callback emissions, never installed Clouseau coverage, query matching,
+authorization, indexing freshness, or durable canonical provenance. A
+0.10.1 migration needs an explicitly reviewed canonical-field projection
+and separate live service validation, not an assumed spelling alias.
+
+* Canonical investigation work is not searchable lifecycle state
+
+Canonical StarLang =0.10.1= gives =InvestigationTarget= a required =target=
+and optional =query= / =status=; an =Operation= requires =mission=, =status=
+and =phases=. The pinned historical and merged FTS callbacks project the
+investigation target's =target=, but neither projects its =query=/=status=
+or the operation's =mission=/=status=/=phases=. Both still project =dtype=
+and =dataset=. The exact source-executing regression uses synthetic, fictional
+schema-shaped objects and a modified-index positive control:
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_investigation_operation_fts.js
+# Optional independent merged source generation:
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+STAR_SEARCH_WORK_MERGED_DESIGN=PINNED_MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_investigation_operation_fts.js
+#+end_src
+
+The source Git blobs must match
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= (historical) and
+=dd6336f3047982db2f0e3615fed1413ed1e58e13= (merged). Field names
+and the =Operation.status= controlled vocabulary were read from StarLang
+=0.10.1= generated schema blob
+=537163da436f67a973e280d1704e32bdba5b888b=.
+Six native historical checks run by default; providing the merged design
+executes twelve. These are callback-emission tests, *not* canonical SDK
+validation, installed FTS design attestation, server authorization, status
+query matching, durable storage or proof that work executed. The server owns
+tenant/dataset visibility. A search hit is not a workflow completion event.
+
+* Event and Observation time is not an FTS date-range contract
+
+Canonical =Event.startAt= / =endAt= are date-time strings, while =observedAt=
+is a Unix-time integer. =Observation= also distinguishes =observedAt= from
+=payloadObservedAt=. The generated StarLang =0.10.1= schema at
+=96d26c338078676ec1dc6928755901636c9f7ef0= (blob
+=537163da436f67a973e280d1704e32bdba5b888b=) defines these fields.
+The original historical and merged StarIntel =search/fts= callbacks do not
+emit them. =Event.name= *is* emitted, which provides a positive control for
+the same input. =Observation.description=, =value= and =subjectId= likewise
+are not emitted for this synthetic example. Dataset/type emissions remain.
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_event_observation_time_fts.js
+# Optional separately pinned merged source generation:
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+STAR_SEARCH_TIME_MERGED_DESIGN=PINNED_MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_event_observation_time_fts.js
+#+end_src
+
+Eight native checks run against the exact historical callback (Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=). Supplying the verified
+merged callback (Git blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=)
+executes sixteen. The callback functions are original; an intentionally altered
+callback is executed only as a test-sensitivity control. Inputs are fictional
+and schema-shaped, *not* independently accepted by the canonical SDK. This is
+not Lucene date-range matching, HTTP authorization, installed-design proof,
+stored canonical revision validation or evidence an event occurred. An absent
+full-text result cannot establish the nonexistence of a time-bounded event.
+
+* Canonical Relation fields are not indexed graph edges
+
+Canonical StarLang =0.10.1= defines a =Relation= with separate =source= and
+=destination= references, a typed =predicate=, an optional =direction= and
+revision/provenance fields. The historical and merged FTS callbacks do not
+emit those relation topology keys for the synthetic relation below. The raw
+projection emits only =tenant_id=, =dataset= and =dtype= when no other selected
+text fields are populated. This does NOT prove the record was stored, that any
+edge is traversable, that middleware permitted access, or that a graph service
+would make the same selection.
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_relation_fts_boundary.js
+# Optional read-only merged-generation comparison:
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+STAR_SEARCH_RELATION_MERGED_DESIGN=PINNED_MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_relation_fts_boundary.js
+#+end_src
+
+The harness checks the exact historical Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=, and the optional merged
+blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=. The relation field
+names come from generated canonical StarLang =0.10.1= schema blob
+=537163da436f67a973e280d1704e32bdba5b888b= at
+=96d26c338078676ec1dc6928755901636c9f7ef0=. This is a shape-based,
+synthetic, source-executing comparison, NOT an SDK validation, HTTP/CouchDB
+integration, or authorization test. A real graph/inference workflow requires
+its separately owned implementation and scoped, versioned canonical evidence.
+
+* Offline search-evidence triage (no service calls)
+
+=diagnose_search_evidence.py= turns *explicit observations* into a next
+verification step, never into a claim of data loss or authorization success.
+The input's =generation= chooses the immutable historical Server pin
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769= or the separately merged
+=0.10.1= Server pin =ca6fdcbdc1f3b8aa344c533a40d298f741a54f25=.
+It does not fetch either tree: the user must independently substantiate every
+observation. =surface= is either =public= or =authenticated=; the server, not
+this helper, decides tenant/dataset authorization for those routes.
+
+Supply only =true=, =false= or =null= for the optional =checks= below. Omission
+means unknown, *not* false; the tool refuses extra keys and string booleans.
+A =field_emitted=true= means the selected source callback was observed on
+that *specific synthetic input*. =installed_design_matched=true= means only
+that an independently exported FTS definition matched the source. A visible
+positive control checks the selected query context; it cannot authorize the
+target, establish completeness, or prove that the active index was rebuilt.
+
+#+begin_src sh
+printf '%s\n' '{"generation":"historical","surface":"public","checks":{"write_accepted":true,"durable_by_id":true,"field_emitted":false,"target_search_hit":false}}' | \
+  python3 books/starintel/code/search-lab/diagnose_search_evidence.py -
+python3 -m unittest discover -s books/starintel/code/search-lab \
+  -p 'test_diagnose_search_evidence.py' -v
+#+end_src
+
+The example chooses =choose_supported_search_field=: a durable read-back and
+omitted source field do not justify calling the record lost. If a by-ID read
+has not been observed, that is the first check even when search is empty.
+If a search hit exists but the by-ID read is unknown, the next check is still
+an authorized read. When all offline source/design/positive-control checks
+are affirmative but the target is absent, the tool says live indexing, query
+semantics and policy remain unresolved; it never declares a specific cause.
+
+The 13 Python tests exercise all decision boundaries, strict input handling,
+the CLI and an intentionally inconsistent observation. This decision aid is
+not an audit/authorization service, search engine, snapshot, or replacement
+for the opt-in HTTP/CouchDB/Clouseau experiment.
+
+* Examine a synthetic edit against each pinned search generation
+
+=projection_delta.js= answers a narrower question than a search request:
+/which raw fields emitted by the original JavaScript callback changed when one
+synthetic document changed?/ Unlike the fixed source-generation comparison
+example, it accepts two local JSON objects. It preserves duplicate emission
+counts and reports a pure emission-order change separately from a field/value
+change. It does not query an installed index or interpret Lucene ranking.
+
+For example, copy the synthetic =fixtures/person.json= into two temporary JSON
+files and supply differing =fullName= values while keeping =fname= unchanged.
+Compare each pair with the *appropriate independently checked* source tree:
+
+#+begin_src sh
+node books/starintel/code/search-lab/projection_delta.js historical \
+  PINNED_HISTORICAL_SERVER/source/views/search.json BEFORE.json AFTER.json
+node books/starintel/code/search-lab/projection_delta.js merged \
+  PINNED_MERGED_SERVER/source/views/search.json BEFORE.json AFTER.json
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_projection_delta.js
+#+end_src
+
+The historical pin requires index Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=; the merged pin requires
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=. A wrong generation/source
+pair fails before execution. With the =Person.fullName= example, historical
+emissions remain unchanged, whereas the merged function replaces one
+=fullName= value. Both still emit the unchanged =fname= value. This demonstrates
+version-sensitive *source projection*, not whether any query can retrieve the
+record, whether a deployed design was installed/reindexed, or what authorization
+permits. An unchanged projection does not establish absent durable changes;
+changing emissions does not establish a searchable, authorized hit.
+
+Use fictional records only. The comparison inputs are synthetic objects; this
+helper does not validate them against StarLang or the pinned canonical SDK.
+Validate canonical documents separately. The runner's ten Node regressions
+include source-blob attestation, input independence, changed/unchanged fields,
+repeated values, order-only changes and CLI failure cases. The fixed example
+=compare_index_generations.js= remains an independent generation comparison;
+this new helper isolates the effect of a *document edit* within a chosen pin.
+
+
+* Inventory single-field raw search effects without guessing a schema-to-index mapping
+
+Run =field_footprint.js= against one synthetic JSON document and the exact
+pinned historical or merged search design. The tool systematically perturbs
+supported *top-level* string, Boolean, safe-integer, and scalar-array values
+one field at a time, then executes the original checked Git-blob index callback.
+It reports =raw_emission_changed=, =no_raw_change=, or =not_probed= for each
+input field and the emitted field names affected by a change.
+
+#+begin_src sh
+node books/starintel/code/search-lab/field_footprint.js historical \
+  PINNED_HISTORICAL_SERVER/source/views/search.json \
+  books/starintel/code/search-lab/fixtures/org.json
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_field_footprint.js
+#+end_src
+
+This is a multi-field *experiment planner*, not a schema coverage percentage.
+Identifier, revision, dtype, dataset, tenant, visibility and access-control
+metadata are deliberately not probed. Structured values such as =data= and
+=provenance= are reported =not_probed=, never called unindexed; the historical
+callback can read supported fields from =data= ahead of root fields. A
+=no_raw_change= proves only that this particular controlled perturbation did
+not change captured index emissions. It says nothing about canonical validity,
+all possible values, a deployed index, query matching, access policy, or durable
+records. Even a =raw_emission_changed= result is not a successful query.
+
+The native regression executes the original, attested historical search
+callback. The merged mode is supported when supplied the separately pinned
+merged index file; the standard one-checkout runner does not pretend to have
+that second checkout. Input files must be fictional. The tool never writes to
+StarIntel or modifies its input JSON.
+
+* Native Node regression registration is a separate validation gate
+
+The Chapter 15 =run-tests= script explicitly registers twelve native Node
+=test_*.js= suites after validating the historical Server and canonical SDK
+source pins. It intentionally excludes =test_index_generation_multiplicity.js=
+because that comparison needs *two* immutable index-design generations; the
+standard runner has only the historical checkout. The excluded experiment is
+not reported as a hosted PASS.
+
+The native =test_runner_node_inventory.py= regression enumerates every Node
+test in this directory, rejects omitted or duplicate registrations, checks
+the single two-checkout exception, and rejects unsupported or wildcard
+invocations. It also verifies source-pin checks precede the Node phase.
+The existing Python unittest discovery automatically executes this guard.
+
+Registration is not execution evidence: a GitHub Actions workflow with zero
+allocated runners and zero executed steps has NOT run these regressions, even
+when every test command appears in the workflow's shell script.
+
+
+* Present already-authorized results without trusting document markup
+
+=render_search_hits.py= is a small *display-only* HTML-fragment renderer for the
+=Hit= observations returned by =lab.interpret_page=. It consumes selected stored
+search fields as text (not executable markup), HTML-escapes every interpolated
+identity, label, dtype, dataset and revision, and deliberately does not render
+the arbitrary embedded =doc=. If a supplied page is empty, it says only that
+the supplied page contains no rows, not that the corpus has no matching
+canonical evidence. No user authorization, record validation, installed-index
+read or durable read-back is performed in this renderer.
+
+Run focused synthetic tests with no network, SDK, or upstream checkout:
+
+#+begin_src sh
+cd books/starintel/code/search-lab
+python3 -m unittest -v test_render_search_hits
+#+end_src
+
+The standard =run-tests= Python discovery will also include this test in a
+complete pinned lab environment. These native rendering tests do not establish
+actual browser execution, HTTP security, CouchDB/Clouseau behavior, or a
+successful EPUB build. See the manuscript section \"Display a search hit without
+executing its markup\" for the combined =interpret_page= teaching example.
+
+* Alert lifecycle is not an FTS priority queue
+
+The generated canonical StarLang =0.10.1= =Alert= definition includes =status=,
+=severity=, =triggeredAt=, =resolvedAt=, =acknowledgedBy=,
+=suppressedUntil=, =ruleId= and =subjectIds=. The original historical Server
+FTS callback and the merged source callback emit none of these fields from a
+synthetic Alert. This does *not* establish a running alert service, a valid
+canonical write, or actual Clouseau search behavior.
+
+The original callbacks do emit =dataset= and =dtype=. Therefore a text-search
+hit or a =dtype:alert= filter, even when permitted by a server-owned
+public/authenticated scope, cannot demonstrate that an alert is still open,
+acknowledged, suppressed, severe, or resolved. For a state-dependent decision,
+perform a separately authorized canonical by-ID read and check the returned
+revision, state and evidence. A by-ID read is an observation at one time, not a
+transactional snapshot with previous search pages.
+
+This offline source regression compares two immutable designs with synthetic
+records; it does *not* call the canonical SDK validator:
+
+#+begin_src sh
+STAR_SEARCH_ALERT_HISTORICAL_DESIGN=HISTORICAL_SERVER/source/views/search.json \
+STAR_SEARCH_ALERT_MERGED_DESIGN=MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_alert_lifecycle_fts.js
+#+end_src
+
+Only the historical design is required by the normal pinned =run-tests=
+runner; the optional merged environment variable enables comparison. The
+regression verifies the Git blob of each original source before execution and
+has scope/type-positive controls. It verifies raw JavaScript =index()=
+emissions only, not schema acceptance, Lucene tokenization, installed index
+coverage, authentication, durable read-back or notification delivery.
+
+
+* Terminal-safe search-hit preview -- display-only boundary
+
+=terminal_hits.py= renders already-interpreted Chapter 15 =Hit= objects as an
+ASCII-only console report. It uses =json.dumps(..., ensure_ascii=True)= to
+make untrusted stored =name=/=title=, row IDs, dataset/dtype and revision
+strings inert in a terminal. Thus control characters, OSC 8 hyperlinks, line
+breaks, non-ASCII bidirectional controls and embedded quotation marks are
+shown as printable escapes rather than terminal instructions.
+
+Example after obtaining one authorized HTTP search-page response:
+
+#+begin_src python
+from lab import interpret_page
+from terminal_hits import render_hits
+hits, bookmark = interpret_page(page)
+print(render_hits(hits))  # bookmark stays opaque and is not displayed
+#+end_src
+
+This renderer performs *no HTTP request*, authentication, policy selection,
+CouchDB/Clouseau index attestation, canonical validation, by-ID read-back or
+log integrity verification. It does not use arbitrary embedded =doc= data as
+presentation instructions, infer operational Alert state, or present output
+as a durable evidence receipt. Identity/label output is truncated and marked
+when oversized; truncated identities must not be used for subsequent lookups.
+The all-ASCII choice sacrifices direct display of non-ASCII names intentionally.
+An empty preview means only that the supplied page has zero interpreted hits.
+
+#+begin_src sh
+cd books/starintel/code/search-lab
+python3 -m unittest -v test_terminal_hits
+#+end_src
+
+The standalone suite uses fictional Hit-shaped values and does not need a
+network, an SDK checkout, or a running server; the normal Python discovery in
+=run-tests= also registers it. No terminal emulator, live HTTP service or
+external dataset is exercised by these unit tests.
+
+
+* Text-encoded one-page CSV preview (not an evidence archive)
+
+=search_csv_evidence.py= accepts only already-interpreted =Hit= values from
+=lab.interpret_page=. It emits a five-column CSV for row identity, document
+type, dataset, and separate canonical/storage revisions, omitting embedded
+=doc=, stored search fields, scores, and opaque bookmarks. It cannot authorize
+a query, validate schema, attest index installation, or prove by-ID durability.
+
+The CSV uses Python's quoted writer, but every string value is also prefixed
+=s:= and serialized with =json.dumps(..., ensure_ascii=True)=. This prevents
+untrusted formula-leading values from beginning the emitted CSV *cell* even
+when raw text contains commas, quotes, CRLF, bidirectional controls, Unicode
+or spreadsheet-style formula prefixes. Null is an explicit =null= cell.
+Recover a text value with =json.loads(cell[2:])=; the =s:= prefix is part of
+the derived representation, not a canonical identifier. Do not remove it
+before importing into a spreadsheet. This is not a universal spreadsheet
+security certification: OWASP documents importer and save/reopen caveats.
+[[https://community.owasp.org/attacks/CSV_Injection][OWASP CSV Injection]] is the external threat reference.
+
+#+begin_src python
+from lab import interpret_page
+from search_csv_evidence import export_hit_page
+hits, bookmark = interpret_page(page)
+print(export_hit_page(hits))
+#+end_src
+
+Only a single materialized page of at most 100 rows and 4096 code points per
+cell is accepted; malformed or oversized inputs fail closed rather than
+silently truncate. Run the standard library native regressions:
+
+#+begin_src sh
+cd books/starintel/code/search-lab
+python3 -m unittest -v test_search_csv_evidence
+#+end_src
+
+These offline unit tests do not execute HTTP requests, a spreadsheet, CouchDB,
+Clouseau, the canonical SDK, or the complete book/EPUBCheck pipeline. The
+maintained =run-tests= Python discovery automatically includes the new test
+only when its authentic pinned upstream checkouts are available.
+
+* Canonical taxonomy arrays are not raw FTS facets
+
+The generated StarLang =0.10.1= schema defines =labels=, =tags= and
+=topics= as arrays of strings on canonical =Org=, =Event= and =Alert=.
+The original historical and merged StarIntel Server =search.json= callbacks
+do not emit those fields as independent FTS properties. This lab tests the
+source boundary rather than promising installed Lucene facets.
+
+Run with the historical immutable checkout:
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_taxonomy_metadata_fts.js
+#+end_src
+
+For a two-generation offline comparison, set
+=STAR_SEARCH_TAXONOMY_HISTORICAL_DESIGN= and
+=STAR_SEARCH_TAXONOMY_MERGED_DESIGN= to the respective pinned
+=source/views/search.json= files. The test verifies each Git blob, executes
+the unaltered source with synthetic records, checks tags/labels/topics
+perturbations, and confirms known indexed fields still change emissions.
+The standard =run-tests= executes the historical half. This is not an
+SDK-validation, HTTP, CouchDB/Clouseau, indexed-coverage, authorization or
+by-ID persistence test.
+
+* An HTTP-transaction URL is not a searchable request/response audit
+
+The generated canonical StarLang =org.starintel/core@1= =0.10.1= contract
+contains =HttpTransaction= with required =transactionId=, =method=, =url= and
+=responseStatus= (as well as =id=, =dataset=, =dtype= and =schemaVersion=).
+It separately describes redacted headers and request/response body artifact
+hashes. These fields have different evidentiary purposes; a full-text search
+hit for a URL is not proof of the request method, returned HTTP status, or
+integrity or availability of the body artifact.
+
+=test_http_transaction_fts.js= executes *both original JavaScript callbacks*
+from the pinned historical Server FTS design (Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=) and, when explicitly
+supplied, merged 0.10.1 Server FTS design (Git blob
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=). It rejects incorrect
+source bytes before loading the callback. The fixture is synthetic and
+canonical-*shaped*, not validated by the StarLang-generated SDK or submitted
+to a service. The callback's =index()= emissions are observed with Node's
+native VM; no Clouseau analyzer, HTTP route, persistence, or authorization
+check is simulated.
+
+#+begin_src sh
+STAR_SEARCH_HTTP_HISTORICAL_DESIGN=PINNED_HISTORICAL_SERVER/source/views/search.json \
+STAR_SEARCH_HTTP_MERGED_DESIGN=PINNED_MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_http_transaction_fts.js
+#+end_src
+
+For the maintained single-generation =run-tests= pipeline only the historical
+file is required; the separately set merged path activates the optional second
+comparison. The test expects =url=, =dataset= and =dtype= index emissions and
+confirms that changes to =method=, =responseStatus=, redacted headers, and
+request/response body hashes do not change raw emissions. A deliberately
+changed callback that adds =responseStatus= must break this observational
+invariance (regression sensitivity control).
+
+The outcome is *not* that requests with different statuses cannot be found:
+a shared URL can be searched through the indexed =url= field. Rather, a hit
+alone cannot distinguish whether that transaction returned 200 or 503, and
+there is no present raw =responseStatus= index field to filter by. A caller
+must use an independently authorized canonical by-ID read, verify provenance
+and body digest against the durable artifact, and distinguish record existence
+from fresh search-index coverage. Public search uses server-owned dataset and
+tenant scopes; authenticated =documents.search= uses caller authorization.
+Neither raw projection test establishes those live policy outcomes.
+
+* Canonical tombstones are not raw FTS lifecycle filters
+
+The generated =org.starintel/core@1= =0.10.1= =Person= contract includes
+=deleted= (boolean), =tombstoneReason=, =validFrom=, =validUntil= and
+=retentionPolicy=. Neither pinned FTS callback selects these canonical
+lifecycle fields. The source-exact regression toggles each on a fictional
+=Person=-shaped record and compares captured raw =index()= emissions. Its
+positive controls change the indexed =fname= and =dataset= fields, and a
+mutated callback demonstrates that a =deleted= transition *would* be detectable
+if deliberately indexed. The test uses byte-attested original Git blobs:
+
+- Historical Server =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=.
+- Merged 0.10.1 Server =dd6336f3047982db2f0e3615fed1413ed1e58e13=.
+- Canonical schema =537163da436f67a973e280d1704e32bdba5b888b=
+  from StarLang commit =96d26c338078676ec1dc6928755901636c9f7ef0=.
+
+#+begin_src sh
+STAR_SEARCH_TOMBSTONE_HISTORICAL_DESIGN=PINNED_HISTORICAL/source/views/search.json \
+STAR_SEARCH_TOMBSTONE_MERGED_DESIGN=MERGED_SERVER/source/views/search.json \
+node --test books/starintel/code/search-lab/test_canonical_tombstone_fts.js
+#+end_src
+
+The normal =run-tests= integration requires the historical checkout and runs
+its historical cases; the merged test tier is opt-in through the second path.
+This is source-index projection evidence, not canonical SDK admission or a
+live CouchDB/Clouseau deletion test. In particular, canonical =deleted=true=
+means something different from CouchDB's storage-level =_deleted= marker. The
+callback is invoked directly with =_deleted=true= only as a structural
+control; that *does not demonstrate* how CouchDB handles deleted documents.
+Do not infer retention enforcement, purge, current existence or active
+visibility from a raw index emission or a search hit. Verify via an
+independently authorized canonical by-ID read and the relevant storage,
+revision and provenance evidence. Public search scope is server-owned;
+authenticated search uses caller scopes. Neither is proof of indexed coverage.
+
+* Raw index callback accepts shapes that canonical StarLang rejects
+
+This is a separate test of *projection behavior*, not canonical admission or a
+working search index. StarLang =0.10.1= declares
+=SocialMediaPost.content= as a string in generated schema blob
+=537163da436f67a973e280d1704e32bdba5b888b=, from canonical commit
+=96d26c338078676ec1dc6928755901636c9f7ef0=. The historical Server
+search design is Git blob =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=; the
+merged =0.10.1= design is blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=.
+
+The original JavaScript callback uses a recursive =add= helper. It does not
+validate an entire document. When explicitly fed *invalid* =content= shapes,
+its raw behavior is:
+
+| Synthetic content input | Captured =content= emissions |
+|-------------------------+------------------------------|
+| ="alpha"=               | ="alpha"=                    |
+| =["alpha","beta"]=      | ="alpha"=, ="beta"=          |
+| =[["alpha"],["beta"]]=   | ="alpha"=, ="beta"=          |
+| ={"text":"alpha"}=      | none                         |
+| =null= or absent        | none                         |
+| =""=                    | one empty string             |
+
+Only the string and empty-string cases have the correct =content= *type* for
+this canonical property; the other shapes are deliberate hostile inputs to
+an isolated index function, not SDK-validated canonical records. Even an
+emitted empty string does not establish any Clouseau/Lucene tokens or matches.
+
+The test uses the original Git-blob-attested callbacks, not a reimplementation.
+Run in a checkout of the pinned historical Server:
+
+#+begin_src sh
+STAR_SEARCH_LAB_SERVER=/absolute/path/to/historical/starintel-server \
+  node --test books/starintel/code/search-lab/test_index_input_shape.js
+#+end_src
+
+Optionally supply =STAR_SEARCH_SHAPE_MERGED_DESIGN=/absolute/path/to/merged/source/views/search.json=
+for an additional *read-only* generation. The script pins both Git blobs and
+fails closed on drift. It needs no CouchDB, Clouseau, credentials or network.
+
+*Interpretation*: seeing an =index()= call proves neither schema validity nor
+stored durability. Scope and publication rights are decided by the server's
+authorization and document validation boundaries; an FTS callback is not a
+second validator. Search visibility, canonical evidence and the source index
+emission stream must be tested independently.
+
+* Canonical wireless and social channel share a raw FTS field name
+
+=WirelessNetwork.channel= is a StarLang =0.10.1= integer; the unrelated
+=SocialMediaPost.channel= is a string. The generated schema authority is
+commit =96d26c338078676ec1dc6928755901636c9f7ef0=, Git blob
+=537163da436f67a973e280d1704e32bdba5b888b=. Both Server FTS callbacks
+index both as raw =channel= emissions (historical design blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=; merged blob
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=). The indexer does not
+emit =ssid=, =bssid=, =security=, =frequencyMhz= or =signalDbm= for the
+fictional canonical-shaped =WirelessNetwork= input.
+
+#+begin_src sh
+STAR_SEARCH_WIRELESS_HISTORICAL_DESIGN=PINNED_HISTORICAL/source/views/search.json \
+STAR_SEARCH_WIRELESS_MERGED_DESIGN=PINNED_MERGED/source/views/search.json \
+node --test books/starintel/code/search-lab/test_wireless_network_fts.js
+#+end_src
+
+The main pinned =run-tests= runner passes the historical file; the merged
+path is optional/read-only. The source-exact native tests confirm two
+semantically different =channel= raw emissions, absent wireless-specific
+fields, invariance under synthetic security/SSID changes, and sensitivity
+under actual indexed channel/dataset changes. The experiment is synthetic,
+network-free and *not* an SDK validation, radio capture, authorized HTTP
+request, installed Clouseau test, or durable document proof. No query-result
+cross-type matching is asserted: raw field-name reuse does not prove Lucene
+analyzer equivalence or deployed search scope.
+
+* Canonical actor-manifest search is not actor/service discovery
+
+The StarLang =0.10.1= =ActorManifest= document type requires an =actor=
+string and supports =accepts=, =produces= and =capabilities= arrays.  This
+canonical document shape is *not* the runtime catalog manifest: the pinned
+Server's semantic registry consumes a separate manifest with
+=resourceUri=, =resourceKind=, =semantic=, contracts, capabilities,
+=operatorVisible= and package provenance.  Do not turn either contract
+into the other by guessing fields.
+
+The historical Server FTS callback (Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=) and inspected merged
+0.10.1 callback (blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=)
+do not select canonical =ActorManifest.actor=, =accepts=, =produces= or
+=capabilities=.  On a fictional canonical-shaped document with no
+optional display fields, both emit only =tenant_id=, =dataset= and
+=dtype=.  Changing only the actor name and its contracts changes no raw
+index emissions.  Changing =dataset= or =dtype= does change emissions.
+
+#+begin_src sh
+STAR_SEARCH_ACTOR_HISTORICAL_DESIGN=PINNED_SERVER/source/views/search.json \
+STAR_SEARCH_ACTOR_MERGED_DESIGN=MERGED_SERVER/source/views/search.json \
+STAR_SEARCH_ACTOR_REGISTRY=PINNED_SERVER/source/actor-registry.lisp \
+node --test books/starintel/code/search-lab/test_actor_registry_fts_boundary.js
+#+end_src
+
+The native test runs source-attested callbacks in an isolated Node VM and
+inspects the original registry source when provided.  Its registry checks
+assert source structure only; they do not execute Lisp or authorize HTTP.
+The main runner binds the historical design and registry from the one pinned
+Server checkout; a merged-design checkout is optional.
+
+** Diagnostic case: a missing search hit is not an absent actor
+
+Given an actor name known to a deployment, do not decide registration or
+availability from =GET /api/v1/search= or =documents.search=.  Instead use a
+principal permitted =actors:read= on the separate =GET /v1/actors= control
+surface; it lists operator-visible registered actor/service resources and
+reports =status= and =ready= from separate runtime observations.  An invisible
+manifest must not be inferred absent, nor does catalog presence imply
+liveness.  FTS index coverage, read authorization, registry eligibility and
+runtime readiness are four distinct questions.  Canonical durability and
+provenance require independently authorized document read-back.
+
+A public search uses server-owned datasets; authenticated document search
+uses the caller's permitted tenant/dataset scopes.  Neither search capability
+is interchangeable with =actors:read=.  An opaque search bookmark cannot
+be reused as a registry cursor or treated as proof of an actor's state.
+
+** Rolling-generation field preflight
+
+=python3 generation_field_gate.py HISTORICAL/source/views/search.json
+--merged MERGED/source/views/search.json --field name --field fullName
+--require both= tests a specific *raw source-index emission* against two
+immutable Git-blob pins.  Exit 1 means a requested emission was not observed
+in a required generation; exit 2 means the source/probe could not be safely
+evaluated.  The tool does not parse Lucene, authorize a caller, validate a
+canonical document, inspect an installed CouchDB design, or establish a
+search hit.  The Python native tests run from the standard historical-server
+runner.  Set =STAR_SEARCH_FIELD_GATE_MERGED= to a separately pinned merged
+design to run the optional two-generation assertions; no second checkout is
+silently assumed.
+
+
+* Canonically equivalent Unicode does not establish identical raw FTS emissions
+
+The canonical StarLang 0.10.1 =Person.fname= and =Person.notes= schema
+properties have string types.  Unicode nevertheless permits different code-point
+sequences for some visually similar text: =Caf\u00e9= (U+00E9) and
+=Cafe\u0301= (=e= plus U+0301) normalize to the same NFC string.
+An equivalent example is =\u00c5sa= versus =A\u030asa=.
+
+The pinned historical and merged JavaScript FTS callbacks copy the original
+=fname= scalar to =index('fname', value, {store:true})= without normalizing
+it in the callback.  The existing =test_canonical_text_coverage.js= now runs
+five additional Node regressions for *each* supplied Git-blob-attested source:
+NFC/NFD raw-emission differences for two examples; =name= emission under the
+source's =keyword= analyzer declaration; the absence of =id=/=rev= from these
+raw emissions; and a positive =fname= control against unindexed =Person.notes=.
+No separate test-registration exception or fallback runner was added.
+
+#+begin_src sh
+STAR_SEARCH_TEXT_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_canonical_text_coverage.js
+# Optional, only with independently pinned merged source:
+STAR_SEARCH_TEXT_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_TEXT_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_canonical_text_coverage.js
+#+end_src
+
+The precise finding is about *raw source callback emissions*.  Although
+the source design declares =perfield= analysis, =name= keyword analysis and a
+=standard= default, these Node tests do not execute CouchDB, Clouseau or its
+Lucene analyzer.  They cannot determine whether a live query normalizes either
+spelling, how it ranks, or whether any hit appears.  They do not validate the
+fixtures with the generated 0.10.1 SDK.  Public search still uses server-owned
+visible datasets; authenticated search still requires permitted dataset and
+tenant scopes.  A bookmark remains opaque, and a matched index token is not
+an authorized by-ID read, durable canonical revision or source provenance.
+
+* Canonical language metadata and FTS source coverage
+
+StarLang =org.starintel/core@1= =0.10.1= declares =language= as an
+optional string on =Person= and =SocialMediaPost=.  In the historical
+Server callback (=ce14c77ccd2f51f543410fdeef3d78fb9978b769=,
+Git blob =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=) and the
+merged Server callback (=ca6fdcbdc1f3b8aa344c533a40d298f741a54f25=,
+blob =dd6336f3047982db2f0e3615fed1413ed1e58e13=), changing
+only the fictional document's =language= leaves raw =index()=
+emissions unchanged.  The explicit analyzer map also has no
+=language= field override; =standard= is its default.  In contrast,
+changing the indexed =content= or =dataset= changes the emissions.
+
+#+begin_src sh
+STAR_SEARCH_LANGUAGE_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_language_metadata_fts.js
+# Optional, with independently pinned merged design:
+STAR_SEARCH_LANGUAGE_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_LANGUAGE_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_language_metadata_fts.js
+#+end_src
+
+The maintained =run-tests= executes the historical generation through its
+already-verified pinned Server checkout.  The second-generation experiment
+is optional; neither source is silently substituted for the other.
+The native regression uses synthetic shapes, not generated SDK admission,
+CouchDB, Clouseau, an installed design, or HTTP.  An FTS callback can omit
+=language= without proving what a deployed query for =language:fr= does.
+The public search surface uses server-controlled visible datasets;
+authenticated search is constrained by permitted tenant and dataset.
+Index coverage, authorized hit visibility, opaque bookmarks, and durable
+canonical evidence are distinct observations.
+
+* HTML search labels disclose display truncation
+
+=render_search_hits.py= presents already interpreted, previously authorized
+search hits.  The historical HTML preview clipped =name=/=title= to 160
+Python characters without indicating a suffix was removed.  The renderer
+now emits an inert =<span class="label-truncation">[display truncated]</span>=
+only when the selected name/title exceeds 160 characters.  The original
+=Hit= and its stored fields remain unmodified and the omitted suffix is
+not copied into a title attribute, hidden element, or raw HTML.  The
+identity, dataset, dtype, and two revision namespaces remain independent
+search-result observations, not durable canonical attestations.
+
+#+begin_src sh
+python3 -m unittest -v books/starintel/code/search-lab/test_render_search_hits.py
+#+end_src
+
+The focused native control demonstrates a RED test on the exact earlier
+renderer (four missing-marker failures across 17 tests).  The corrected
+renderer passes all 17, including existing markup/inertness checks, exact
+160/161 boundaries, title fallback, per-row marking, and avoidance of
+embedded =doc= content.  This proof does not execute Server HTTP,
+CouchDB/Clouseau, the complete book build or EPUBCheck.  Public
+visibility remains server-owned; authenticated retrieval requires
+permitted tenant/dataset scope.  Opaque bookmarks are not stable corpus
+snapshots, and a clipped search label is never evidence of full index
+coverage or durable canonical provenance.
+
+* Canonical Artifact OCR is not raw FTS coverage
+
+The StarLang =org.starintel/core@1= =0.10.1= generated schema (source commit
+=96d26c338078676ec1dc6928755901636c9f7ef0=, Git blob
+=537163da436f67a973e280d1704e32bdba5b888b=) defines independent
+=Artifact.ocrText=, =extractedText=, =rawContent= and =name= string fields,
+and =filename=, =mediaType= and =contentHash= metadata. A generic =content=
+field is *not* declared for this document type.
+
+The historical Server index Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and merged 0.10.1
+Server blob =dd6336f3047982db2f0e3615fed1413ed1e58e13= are
+executed *unchanged* by =test_artifact_ocr_fts.js=. The Node test attests
+each source as a Git blob, checks that fictional OCR/extracted/raw text does
+not change index emissions, checks that =filename= alone does not stand in
+for =name=, and verifies =name= and =dataset= positive controls.
+
+#+begin_src sh
+# Uses the existing, independently pinned historical Server checkout:
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+  node --test books/starintel/code/search-lab/test_artifact_ocr_fts.js
+# Opt-in separately pinned merged source:
+STAR_SEARCH_LAB_SERVER=PINNED_HISTORICAL_SERVER \
+STAR_SEARCH_ARTIFACT_MERGED_DESIGN=PINNED_MERGED_SERVER/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_artifact_ocr_fts.js
+#+end_src
+
+The source-exact test is NOT canonical SDK validation, live HTTP,
+CouchDB/Clouseau tokenization, installed-design attestation, or a by-ID
+read-back. A hit on an indexed name and non-emission of OCR fields are
+separate observations. Public search binds server-owned dataset/tenant
+visibility; authenticated =documents.search= is scoped to the caller.
+Neither a row nor an opaque bookmark proves a durable canonical record.
+
+* Canonical ASN routing data versus document full-text search
+
+Run =test_asn_routing_fts.js= against independently pinned historical and,
+optionally, merged Server =source/views/search.json= files.  The test
+attests the exact Git blob of each source before executing its original
+callback in a bounded Node VM.  Synthetic =Asn= values follow fields
+from canonical StarLang =org.starintel/core@1= / =0.10.1=, schema Git blob
+=537163da436f67a973e280d1704e32bdba5b888b=; they are not validated
+or persisted by the schema SDK in this focused test.
+
+#+begin_src sh
+STAR_SEARCH_ASN_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_ASN_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_asn_routing_fts.js
+#+end_src
+
+The test records that ASN =number=, =prefixes=, =peers=, =upstreams=,
+=rir= and =registry= do not appear in either callback's raw emissions;
+=dataset=, =dtype=, optional =name= and server fallback =tenant_id= do.
+It also runs positive controls and a deliberately mutated callback RED
+control offline.  No live index, source-to-server installation, BGP
+lookup, public/authenticated authorization, canonical admission, durable
+read, bookmark traversal or Lucene scoring was tested.  Never treat the
+absence of a field emission as proof that the corresponding typed
+canonical document does not exist.
+
+* EmailMessage payload versus raw FTS projection
+
+The source-pinned =test_email_message_payload_fts.js= covers canonical-shaped
+fictional EmailMessage subjects, plain/HTML bodies, message/thread identifiers
+and address headers. The generated StarLang =0.10.1= EmailMessage type permits
+these fields but not a generic =content= convenience key. In both historical
+and merged server callback sources, the message fields make no direct raw
+=index()= emissions. The positive controls vary =dataset= and add a deliberately
+noncanonical =content= key to show precisely what the callback would index.
+The latter does NOT authorize altering a canonical document to force a hit.
+
+#+begin_src sh
+STAR_SEARCH_EMAIL_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_email_message_payload_fts.js
+STAR_SEARCH_EMAIL_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_EMAIL_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_email_message_payload_fts.js
+#+end_src
+
+Immutable index-source Git blobs: historical
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=; merged
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=.
+Canonical schema authority: =96d26c338078676ec1dc6928755901636c9f7ef0=.
+These tests do not attest to SDK admission, installed CouchDB/Clouseau,
+public or authenticated search authorization, opaque bookmark semantics,
+canonical durability or corpus coverage. See =manuscript/search-15.org=.
+
+* EvidenceRecord assessment/custody fields versus searchable claim text
+
+The source-pinned =test_evidence_admissibility_fts.js= executes the unchanged
+historical and merged Server search callbacks against a fictional,
+canonical-shaped =0.10.1= EvidenceRecord.  Both callbacks emit =claim=,
+=dataset=, =dtype= and server tenant scope, but not =verificationStatus=,
+=admissibilityStatus=, =status=, =contentHash=, =chainOfCustody=,
+=claimIds=, =collectionMethod=, or =provenance=.  These absences are
+observations about *raw callback field selection*, not Lucene matches,
+canonical SDK admission, authorized access, durable evidence or verified
+integrity.  The negative control deliberately adds a verification-status
+emission and causes the unchanged-field assertion to fail.
+
+#+begin_src sh
+STAR_SEARCH_EVIDENCE_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_evidence_admissibility_fts.js
+STAR_SEARCH_EVIDENCE_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_EVIDENCE_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_evidence_admissibility_fts.js
+#+end_src
+
+Git design blobs: historical =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=,
+merged =dd6336f3047982db2f0e3615fed1413ed1e58e13=.
+StarLang =0.10.1= schema: =96d26c338078676ec1dc6928755901636c9f7ef0=
+(blob =537163da436f67a973e280d1704e32bdba5b888b=).
+See =manuscript/search-15.org= for the authorization/evidence exercise.
+
+* Domain name versus DNS state -- two-source raw index experiment
+Canonical =0.10.1= Domain fields include DNS records, DNSSEC, nameservers,
+MX/TXT entries and registrar information, but a searchable Domain name
+is not an authoritative resolver answer. This source-pinned experiment
+changes fictional DNS state without changing =name= and executes the
+historical and optional merged *original index callbacks* to distinguish
+raw FTS emission from the canonical document's other fields.
+
+#+begin_src sh
+STAR_SEARCH_DOMAIN_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_DOMAIN_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_domain_dns_search_boundary.js
+node books/starintel/code/search-lab/domain_dns_search_boundary.js \
+  HISTORICAL/source/views/search.json MERGED/source/views/search.json
+#+end_src
+
+Only source Git blobs =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and
+=dd6336f3047982db2f0e3615fed1413ed1e58e13= are admitted. The normal
+historical-only =run-tests= lane uses =STAR_SEARCH_LAB_SERVER= and does not
+claim an optional second checkout exists. The negative-control test mutates a
+throwaway callback *in memory*, not an upstream checkout. The fixed .invalid
+name and documentation IP are entirely fictional. This is *not* canonical SDK
+admission, a DNS request, a verified resolver answer, an HTTP search, a
+CouchDB/Clouseau query, or a durable by-ID read. See the exercise in Chapter 15.
+
+* WebCapture screenshot provenance is not FTS evidence
+Canonical StarLang =0.10.1= WebCapture requires =captureId=, =url=,
+=screenshotUri= and =screenshotHash=, but the historical and merged pinned FTS
+callbacks select =url=/=title=, not screenshot or DOM hashes. The new native
+regression executes both original Git-blob-attested callbacks against fictional
+canonical-shaped inputs, changes screenshot/DOM artifact claims without changing
+raw emissions, and uses a URL/title mutation as a positive control.
+
+#+begin_src sh
+STAR_SEARCH_WEBCAPTURE_HISTORICAL_DESIGN=PINNED_HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_webcapture_provenance_fts.js
+# To execute both pinned generations, also set:
+# STAR_SEARCH_WEBCAPTURE_MERGED_DESIGN=PINNED_MERGED/source/views/search.json
+#+end_src
+
+This is a *raw indexing test*, not a canonical SDK admission, installed
+Clouseau coverage measurement, HTTP/authorization test, screenshot retrieval,
+image integrity test or durable by-ID read. The named hashes/URLs are invented
+and never fetched. A hash printed in a WebCapture is an assertion until verified
+against separately retrieved authorized bytes. See =manuscript/search-15.org=.
+
+* File integrity and quarantine are not FTS search evidence
+
+Use =test_file_integrity_fts.js= to compare the original historical Server
+search index (Git blob =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=)
+with the optional merged 0.10.1 Server index (Git blob
+=dd6336f3047982db2f0e3615fed1413ed1e58e13=). The synthetic =File=
+fixture draws its fields from canonical StarLang =org.starintel/core@1=
+version =0.10.1= at schema commit
+=96d26c338078676ec1dc6928755901636c9f7ef0= (generated schema blob
+=537163da436f67a973e280d1704e32bdba5b888b=).
+
+#+begin_src sh
+STAR_SEARCH_FILE_HISTORICAL_DESIGN=PINNED_HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_file_integrity_fts.js
+# Optional separately pinned merged design:
+STAR_SEARCH_FILE_HISTORICAL_DESIGN=PINNED_HISTORICAL/source/views/search.json \
+STAR_SEARCH_FILE_MERGED_DESIGN=PINNED_MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_file_integrity_fts.js
+#+end_src
+
+Both source-exact callbacks emit synthetic File =name= and scope fields, but
+not =filename=, =bytesHash=, =bytesHashAlgorithm=, =storageUri=,
+=quarantined=, =executable=, =passwordProtected=, =encrypted=, or
+=parseStatus=. The fixture changes all these unindexed assertions while
+raw emissions remain equal; changing =name= or =dataset= changes emissions.
+A disposable mutated callback in the test intentionally violates the
+non-emission boundary as a regression detector. No upstream file is changed.
+
+The test checks captured raw =index()= calls, *not* canonical SDK admission,
+actual archive parsing, content digest verification, antivirus/quarantine
+policy, HTTP authorization, installed CouchDB/Clouseau state, search ranking,
+completed bookmark pagination, or durable by-ID retrieval. The pinned public
+handler's datasets are server-owned; authenticated scope is caller-authorized.
+Never interpret a searchable filename/label as safe-to-open or bitwise verified.
+See =manuscript/search-15.org= for the worked integrity exercise.
+
+* Canonical Finding severity and remediation claims are not raw FTS evidence
+The canonical StarLang 0.10.1 =Finding= type has =title=, =severity=,
+=status=, =cve=, =cvss=, =cwe=, =recommendation=, and timestamp fields.
+Both pinned historical and merged original Server callbacks emit the
+fictional Finding =title= but omit those triage/remediation properties.
+The network-free =test_finding_triage_fts.js= runs each exact Git-blob-attested
+callback under a bounded Node VM and compares synthetic revisions that change
+risk and workflow claims while preserving an identical raw index projection.
+It includes a title positive control, dataset scope control, and a deliberate
+in-memory severity-indexing mutant. No canonical SDK admission, live
+search/authorization, deployed Clouseau result, or durable read is claimed.
+
+#+begin_src sh
+STAR_SEARCH_FINDING_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_finding_triage_fts.js
+# Optional: STAR_SEARCH_FINDING_MERGED_DESIGN=MERGED/source/views/search.json
+#+end_src
+
+* Analysis reasoning is not search projection evidence
+Canonical StarLang 0.10.1 =Analysis= records declare questions, hypotheses,
+conclusions, counterarguments, limitations, input IDs, reasoning-artifact IDs,
+review IDs, and status. The exact historical and merged Server FTS callback
+Git blobs do not emit those reasoning fields, even when the same fictional
+title remains discoverable. The network-free =test_analysis_reasoning_fts.js=
+executes both original callbacks under Git-blob attestation, checks that
+opposing conclusions yield identical raw emissions, checks a title-positive
+control, and deliberately injects a conclusion-indexing mutation as RED
+control. It tests callback projection only—not SDK admission, actual
+Clouseau, installed index state, authorization, review validity, or durable
+canonical evidence. Read the Chapter 15 worked exercise before interpreting
+a hit as an analytical finding.
+
+#+begin_src sh
+STAR_SEARCH_ANALYSIS_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_ANALYSIS_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_analysis_reasoning_fts.js
+#+end_src
+
+* Service discovery versus verified TLS state
+
+Canonical StarLang 0.10.1 =Service= requires a host reference and port; it
+also declares optional =tls=, =tlsCertificate=, =state=, =transport= and
+=fingerprints= properties. The two source-pinned historical/merged Server
+=_design/search= callbacks emit a fictional Service =name= and scope fields,
+not those protocol/certificate claims. Network-free
+=test_service_tls_fts.js= executes both unchanged original Git-blob-attested
+callbacks, confirms unchanged raw emission after changing TLS, port, state,
+host and certificate assertions, exercises =name=/=dataset= positive
+controls, and detects a deliberately mutated TLS-indexing callback as RED.
+
+#+begin_src sh
+STAR_SEARCH_SERVICE_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_service_tls_fts.js
+# Optional independently pinned merged generation:
+STAR_SEARCH_SERVICE_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_SERVICE_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_service_tls_fts.js
+#+end_src
+
+This is a test of source JavaScript emission only. It is not canonical SDK
+admission, deployed search coverage, a protocol/TLS handshake, certificate
+validation, an authorized by-ID read, or durable canonical evidence. Public
+search is confined by server-owned dataset settings; authenticated search
+remains confined by principal-scoped permissions. Pagination bookmarks are
+opaque. See the Chapter 15 worked Service exercise.
+
+* Timed speech is not indexed transcript content
+
+Canonical StarLang =org.starintel/core@1= v0.10.1 declares three different
+persistent document types relevant to time-aligned audio: =transcript= requires
+=sourceMedia= and may have =text=, =segments=, =speakerTurns= and =wordTimings=;
+=audio-segment= requires =recording=, =startMs= and =endMs=; and
+=speech-segment= extends =audio-segment= with optional =text=, =speaker= and
+=transcript=. The canonical segment =channel= is an *integer*, not a label for
+the words spoken. Source: pinned =specs/starintel/0.10.1/core.star= at
+=96d26c338078676ec1dc6928755901636c9f7ef0=, declarations
+=audio-segment=, =speech-segment= and =transcript=.
+
+=test_transcript_timeline_fts.js= runs the actual unchanged historical and
+merged =_design/search= JavaScript index functions under exact Git blob
+attestation. It records the raw index calls for fictional transcript,
+speech-segment and audio-segment objects, then edits the utterance, word
+alignment, segment times, and media/speaker links. Each edit leaves the index
+emissions unchanged. An indexed transcript =title= change and integer
+=channel= change are positive controls. An in-memory =text= indexing mutation
+supplies a deliberately failing RED control without changing the pinned server.
+
+#+begin_src sh
+STAR_SEARCH_TRANSCRIPT_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_transcript_timeline_fts.js
+# Optional second original source generation, independently hash-attested:
+STAR_SEARCH_TRANSCRIPT_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_TRANSCRIPT_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_transcript_timeline_fts.js
+#+end_src
+
+The test does *not* claim generated-SDK admission of its canonical-shaped
+fictional examples, verification of an audio recording, transcription
+accuracy, installed CouchDB/Clouseau behavior, deployment search coverage,
+search authorization, or persisted canonical evidence. In particular,
+source-level emission of =channel= does not prove Lucene query matching. The
+public search endpoint remains bounded by *server-selected* public datasets;
+authenticated search is limited by the principal's server-enforced dataset and
+tenant scope. A bookmark is opaque and not an audio time cursor. See the
+Chapter 15 worked transcript exercise for the required evidence ladder.
+
+* Map-layer names versus feature and renderer coverage
+
+The 0.10.1 canonical =map-layer= type requires =name= and =kind=, but a
+searchable name is not evidence that =features=, =sourceDataset=, =style=,
+=visible= or zoom behavior have been verified. The network-free
+=test_maplayer_rendering_fts.js= runs the original pinned historical and
+merged Server indexing callbacks, checks a label/scope positive control and
+absence of the feature/renderer fields, and provides an intentional RED
+index-mutation control. Both fixture and mutation are synthetic; neither
+canonical SDK admission nor live Clouseau, HTTP or map rendering is tested.
+
+#+begin_src sh
+STAR_SEARCH_MAP_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_MAP_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_maplayer_rendering_fts.js
+# Set STAR_SEARCH_MAP_RED=1 only when confirming the expected failing control.
+#+end_src
+
+The exact source blobs are =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=
+(historical) and =dd6336f3047982db2f0e3615fed1413ed1e58e13=
+(merged). Schema authority is =org.starintel/core@1= =0.10.1=, separate
+from either Server runtime generation. The lesson does not grant access
+to datasets referenced by a map-layer document.
+
+* Meeting labels versus decision/minutes evidence
+
+Canonical StarLang =0.10.1= =meeting= declares names separately from
+=participantIds=, =attendeeRoles=, =minuteFileIds=, =decisionIds=, =decisions=,
+=agenda=, =outcome=, =startAt=, =endAt=, and =status=. In both pinned historical
+and merged Server =source/views/search.json= callbacks, a fictional meeting
+=name= can be emitted while those other fields produce no raw emissions.
+Changing the fictional approval outcome and minutes reference therefore does
+not change the raw search projection; renaming the meeting does.
+
+#+begin_src sh
+STAR_SEARCH_MEETING_HISTORICAL_DESIGN=HISTORICAL/source/views/search.json \
+STAR_SEARCH_MEETING_MERGED_DESIGN=MERGED/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_meeting_decisions_fts.js
+# Run STAR_SEARCH_MEETING_RED=1 only for the expected failing control.
+#+end_src
+
+This is an exact Git-blob-pinned Node index-callback regression, not proof of
+canonical SDK admission, installed CouchDB/Clouseau indexing, minutes content,
+meeting decisions, actual attendance, HTTP authorization or durable by-ID
+retrieval. The public search dataset scope belongs to the server, authenticated
+search is caller-scoped, and opaque bookmarks are not version evidence. The
+Chapter 15 exercise spells out the separate proof obligations.
+
+* Runner inventory: environment-pinned Node suites
+
+The Chapter 15 =run-tests= script intentionally invokes most Node suites
+without inline environment assignments. Three exceptions bind paths inside
+the already attested historical Server checkout: public aggregate statistics
+use =source/views/data.json=, the wireless-search regression uses
+=source/views/search.json=, and the actor-registry boundary regression uses
+both =source/views/search.json= and =source/actor-registry.lisp=.
+
+The first inventory checker recognized only the statistics prefix. Consequently,
+its own native inventory test rejected the real wireless invocation as
+"unrecognized" before determining whether the runner had registered every
+suite. This was a test-harness defect, not a search-result observation or an
+explanation for hosted jobs that never allocated a runner.
+
+The checker now recognizes inline assignments but compares the *complete*
+ordered binding string against an explicit three-suite allowlist. Swapped
+file paths, a missing actor registry binding, an extra assignment, an unknown
+variable reference, omitted suites and duplicate invocations fail. Plain
+suites cannot inherit one of the special bindings by accident. The two-checkout
+index-generation experiment remains explicitly excluded from the single-server
+runner; this does not weaken any of its separate prerequisites.
+
+Run the focused native regression on a complete source checkout:
+
+#+begin_src sh
+python3 -m unittest discover -s books/starintel/code/search-lab \
+  -p test_runner_node_inventory.py -v
+#+end_src
+
+For an end-to-end lab run, use the existing =run-tests= command with the exact
+historical Server and canonical SDK pins. The focused inventory test observes
+shell command registration *as text*; it executes no Node indexing callback,
+no HTTP request, and no authorization middleware. Successful registration does
+not prove that a local Node suite ran, that CouchDB/Clouseau installed the
+source index, that a public caller can see a result, that an authenticated
+caller has tenant/dataset rights, or that by-ID canonical evidence exists.
+Opaque bookmarks are only continuation tokens, not proof of freshness or
+index coverage. Those remain separate Chapter 15 evidence gates.
+
+* Verify Org search-evidence table structure before EPUB export
+
+The Chapter 15 evidence matrices are part of the teaching contract: each
+row must retain its observation, supported claim, and missing proof in the
+correct column. The original Analysis matrix used the abbreviated rule
+=|-=. Pandoc accepted it and generated the same HTML table as an expanded
+separator, so this is *source consistency and regression protection*, not
+an observed broken EPUB or a claimed exporter failure.
+
+=check_search_table_rules.py= checks consecutive Org table rows outside
+source/example/export/comment/verse blocks. It detects mismatched cell
+counts, abbreviated/mis-sized horizontal rules and malformed table shapes.
+The native =test_search_table_rules.py= suite includes a regression built
+from the actual Analysis table and checks the entire manuscript when an
+authentic book checkout is available.
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/check_search_table_rules.py \
+  books/starintel/manuscript/search-15.org
+python3 -m unittest discover -s books/starintel/code/search-lab \
+  -p test_search_table_rules.py -v
+#+end_src
+
+This source check neither interprets truth of table cells nor verifies
+Pandoc's full EPUB output. The actual server's public scopes remain
+server-owned; authenticated scopes remain caller-bound. Index projections,
+search visibility and durable canonical documents require independent
+source/runtime evidence, not merely well-formatted evidence tables.
+
+
+* GitHub Actions evidence: JSON booleans are not numeric execution identities
+
+The offline =classify_hosted_ci.py= helper consumes GitHub-App-exported job
+metadata to report *observed* execution evidence, not to diagnose a test
+failure. Python =bool= is a subclass of =int=. Before this regression, a
+malformed job payload with =runner_id=true= and a listed step could be
+classified as =SUCCESSFUL_JOBS_WITH_STEPS_NOT_TEST_ATTESTATION=; =id=true=,
+=total_count=true=, and a nonhex 40-character head could also pass the
+identity checks. None is a valid GitHub job/runner/commit identity.
+
+The hardened classifier now requires positive, nonboolean integer job and
+workflow IDs; an exact 40-hex-character head; a nonboolean total count matching
+the complete list; runner IDs that are either null or nonnegative integers;
+and named step-object entries rather than arbitrary list members. Missing
+steps still fail closed. =runner_id=0 with =runner_name=""= and an empty
+step list remains an *observation of no reported execution*, not a claimed
+root cause, billing diagnosis or finding against the book code.
+
+#+begin_src sh
+python3 -m unittest discover -s books/starintel/code/search-lab \
+  -p test_classify_hosted_ci.py -v
+python3 -m unittest discover -s books/starintel/code/search-lab \
+  -p test_hosted_ci_identity_types.py -v
+#+end_src
+
+The regression's seven deliberately malformed inputs are synthetic negative
+controls; the maintained baseline suite's pre-runner observations are only
+compact historical App records. It performs no GitHub API calls, does not
+allocate a runner, and cannot explain the repository's recurring zero-step
+failures. It prevents manufactured numeric-looking metadata from being
+mistaken for valid exact-head job evidence. A green local classifier test
+neither validates the full book/EPUB nor proves public/authenticated search
+scope, indexed coverage, opaque bookmark behavior, or durable canonical data.
+
+* Product-name discovery versus software supply-chain evidence
+
+=StarLang= 0.10.1 Product declares =name=, =displayName=,
+=versionName=, =dependencyIds=, =sbomFileIds=,
+=securityAdvisoryIds=, =supportEndAt=, and related properties. The
+original source-pinned Server callbacks index product names but *not* the
+listed supply-chain or support evidence. The merged callback also indexes
+=displayName=; the historical callback does not. This does not establish
+search permission or a deployed full-text index.
+
+#+begin_src sh
+STAR_SEARCH_PRODUCT_HISTORICAL_DESIGN=/path/to/historical/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_product_sbom_fts.js
+# Optional separate merged-edition source, verified by its Git blob SHA:
+STAR_SEARCH_PRODUCT_HISTORICAL_DESIGN=/path/to/historical/source/views/search.json \
+STAR_SEARCH_PRODUCT_MERGED_DESIGN=/path/to/merged/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_product_sbom_fts.js
+# Intended failing control, never production mutation:
+STAR_SEARCH_PRODUCT_RED=1 STAR_SEARCH_PRODUCT_HISTORICAL_DESIGN=/path/to/historical/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_product_sbom_fts.js
+#+end_src
+
+The first file must match Git blob
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=; the optional merged file
+must match =dd6336f3047982db2f0e3615fed1413ed1e58e13=. The test uses
+fictional canonical-shaped Product input and executes the exact unchanged
+Server JavaScript callback. It does *not* validate with the StarLang SDK,
+contact an HTTP endpoint, confirm installed Clouseau design or assess actual
+SBOM bytes or advisory applicability. The normal runner includes only the
+historical mandatory input.
+
+* Chapter 15 Org ID ownership regression
+
+=check_search_outline.py= previously accepted the expected Chapter 15 =:ID:=
+anywhere in the manuscript, including a later section's property drawer or an
+ordinary text line. That passes the simple uniqueness test but fails to show
+that the Chapter 15 heading itself owns its stable Org anchor. A downstream
+Org link or EPUB navigation target can therefore silently lose the intended
+chapter ID while the former checker reports success.
+
+The native =test_root_id_binding.py= suite covers the original defect and the
+corrected behavior. The checker now requires the Chapter 15 top-level heading
+to be followed by its own closed =:PROPERTIES:= drawer containing exactly the
+stable chapter =:ID:=. Other properties are allowed; an ID in a subheading,
+source block, prose, or misspelled/unclosed drawer is not accepted. The
+existing uniqueness, chapter-count, exercise hierarchy, and Org block checks
+remain in place.
+
+#+begin_src sh
+python3 -m unittest discover -s books/starintel/code/search-lab \
+  -p test_root_id_binding.py -v
+python3 books/starintel/code/search-lab/check_search_outline.py \
+  books/starintel/manuscript/search-15.org
+#+end_src
+
+The first command exercises synthetic *Org text only*; the second needs the
+authentic manuscript checkout. Neither substitutes for a complete production
+=make check BOOK=starintel= or official EPUBCheck. The root ID check is
+source-level structural evidence, not validation of links or EPUB navigation
+artifacts. No HTTP, CouchDB, Clouseau, canonical document ingest, public or
+authenticated tenant scopes, or opaque search bookmarks are executed here.
+
+
+* Port reachability assertions versus discoverability
+
+The native =test_port_state_fts.js= regression executes the original pinned
+historical =_design/search= callback and optionally the merged 0.10.1 design.
+The source file's Git blob SHA is verified *before* execution. Fictional,
+canonical-shaped Port inputs are not admitted through the SDK, persisted or
+sent to an actual host. The test distinguishes raw =name= and =dataset=
+search emissions from unindexed =number=, =state=, =host=, =protocol=,
+=transport=, =banner=, =firstOpenAt= and =lastOpenAt= assertions.
+
+#+begin_src sh
+STAR_SEARCH_PORT_HISTORICAL_DESIGN=/path/to/historical/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_port_state_fts.js
+# Optional exact original merged design:
+STAR_SEARCH_PORT_HISTORICAL_DESIGN=/path/to/historical/source/views/search.json \
+STAR_SEARCH_PORT_MERGED_DESIGN=/path/to/merged/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_port_state_fts.js
+# Intentional negative control; must fail without changing the pinned design:
+STAR_SEARCH_PORT_RED=1 STAR_SEARCH_PORT_HISTORICAL_DESIGN=/path/to/historical/source/views/search.json \
+  node --test books/starintel/code/search-lab/test_port_state_fts.js
+#+end_src
+
+The historical and merged designs must match Git blobs
+=0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a= and
+=dd6336f3047982db2f0e3615fed1413ed1e58e13= respectively. Canonical
+Port field declarations originate in StarLang =org.starintel/core@1=
+=0.10.1= generated schema Git blob
+=537163da436f67a973e280d1704e32bdba5b888b=.
+
+*Claim limit:* a passing test only establishes the raw source callback's
+behavior. It cannot authorize public or authenticated queries, confirm
+installed Clouseau index content, establish a complete corpus, interpret an
+opaque bookmark, validate a canonical Port with the SDK, prove an authorized
+by-ID durable read, or establish current port reachability. No network probe
+is made. See the Chapter 15 Port exercise for the evidence ladder.
+
+** Legal-case names versus historical/merged search projection
+
+The native =test_legal_case_fts.js= suite executes the original pinned Server
+FTS functions against a fictional, canonical-shaped =LegalCase= example. The
+canonical StarLang 0.10.1 schema defines =caseName= and docket/disposition
+properties, but neither Server generation's raw search projection emits them.
+This is a projection test, not SDK validation, Lucene recall, installed design
+attestation, legal analysis, or authorization testing.
+
+#+begin_src sh
+STAR_SEARCH_LEGALCASE_HISTORICAL_DESIGN=PATH_TO_HISTORICAL_SOURCE_VIEWS_SEARCH_JSON \
+STAR_SEARCH_LEGALCASE_MERGED_DESIGN=PATH_TO_MERGED_SOURCE_VIEWS_SEARCH_JSON \
+node --test books/starintel/code/search-lab/test_legal_case_fts.js
+#+end_src
+
+Each source is verified against its exact Git blob before execution:
+- historical =0ba24ba15b43f6895f4f6b53f6a7a860e3a5b66a=;
+- merged =dd6336f3047982db2f0e3615fed1413ed1e58e13=.
+
+The normal =run-tests= registration uses its required pinned historical
+checkout. Supply the optional merged design path for a two-generation run.
+Use =STAR_SEARCH_LEGALCASE_RED=1= only to observe the deliberate failing
+mutation control. A green historical-only run must not be reported as a
+merged-generation test. No real court records or personal data are involved.
+
+* Search API discovery is not the mounted handler
+
+The historical Server contract registry at
+=ce14c77ccd2f51f543410fdeef3d78fb9978b769= declares
+=public.search.get= without =:query-parameters= even though its public handler
+requires =q=. The authenticated =documents.search= contract declares a
+required =q= through =+document-search-query-parameters+=. This is a source
+contract discovery gap, not a claim about a deployed OpenAPI JSON artifact.
+
+The read-only tool checks four exact historical Git blobs before extracting
+Lisp forms; it does not run Lisp or communicate with GitHub or a service:
+
+#+begin_src sh
+python3 books/starintel/code/search-lab/compare_search_discovery.py \
+  PATH_TO_PINNED_HISTORICAL_SERVER
+python3 -m unittest books/starintel/code/search-lab/test_search_discovery.py -v
+#+end_src
+
+The first command returns 0 and outputs =public_discovery_q_gap=true= for the
+expected historical source state, 1 if a recognized source has no such gap,
+and 2 on invalid/mismatched inputs. The second command tests the analyzer
+using deliberately small, *source-shaped* fixtures and source-integrity
+controls; it does not replace the four-file authentic-pin verification. The
+normal =run-tests= suite picks it up through Python discovery when the pinned
+server/SDK checkouts are already available. OpenAPI rendering, credential
+policy, public server-owned scopes, Clouseau and durable document evidence
+remain outside this source-only regression.
+
+** Preserve negative, inconclusive and unreported diagnostic observations
+The read-only =diagnose_search_evidence.py= helper now emits
+=observation_states= for every supported check without changing its
+=next_check= recommendation. Input =true= and =false= are explicitly tagged
+=reported_true= and =reported_false=; explicit JSON =null= is
+=reported_inconclusive=; an omitted key is =not_reported=. These are
+caller-supplied reports, never authenticated measurements by the helper.
+
+#+begin_src sh
+printf '%s\n' '{"generation":"historical","surface":"public","checks":{"target_search_hit":false,"durable_by_id":null}}' | \
+  python3 books/starintel/code/search-lab/diagnose_search_evidence.py -
+python3 -m unittest discover -s books/starintel/code/search-lab \
+  -p 'test_diagnose_observation_states.py' -v
+#+end_src
+
+The network-free regression distinguishes missing/negative/inconclusive
+checks for both exact historical and merged source pins. It does not query a
+service, attest the caller's observations or grant additional public or
+authenticated dataset/tenant access. See the executable exercise in
+=manuscript/search-15.org=.

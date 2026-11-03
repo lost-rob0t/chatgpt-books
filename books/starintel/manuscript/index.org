@@ -9,4 +9,6 @@
 #+include: "service-trace-05.org"
 #+include: "temporal-sightings-12.org"
 #+include: "equipment-profiling-13.org"
+#+include: "search-15.org"
 #+include: "glossary-07.org"
+
