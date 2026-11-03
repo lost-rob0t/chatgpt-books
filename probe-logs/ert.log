@@ -1,0 +1,2 @@
+/var/run/act/workflow/1.sh: line 36: emacs: command not found
+ls: cannot access '.cache/org-roam.db': No such file or directory
