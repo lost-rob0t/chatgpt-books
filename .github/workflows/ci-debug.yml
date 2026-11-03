@@ -1,0 +1,105 @@
+name: ci-debug
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+          sudo apt-get update
+          sudo apt-get install -y emacs-nox graphviz python3-matplotlib curl unzip default-jre-headless
+          curl --fail --location --retry 3 \
+            --output pandoc.deb \
+            https://github.com/jgm/pandoc/releases/download/3.10.1/pandoc-3.10.1-1-amd64.deb
+          sudo dpkg -i pandoc.deb
+          curl --fail --location --retry 3 \
+            --output epubcheck.zip \
+            https://github.com/w3c/epubcheck/releases/download/v5.3.0/epubcheck-5.3.0.zip
+          unzip -q epubcheck.zip -d .cache
+          pandoc --version | head -1
+          java -jar .cache/epubcheck-5.3.0/epubcheck.jar --version
+          } > step-1-install.log 2>&1
+
+      - name: Structural validation
+        run: ./tools/check-structure > step-2-structure.log 2>&1
+
+      - name: Pandoc Org-reader contract
+        run: python3 ./tools/check-pandoc-org-reader > step-3-pandoc-reader.log 2>&1
+
+      - name: Build deterministic assets and fixture
+        run: ./tools/build-fixture > step-4-fixture.log 2>&1
+
+      - name: EPUBCheck 5.3.0
+        run: java -jar .cache/epubcheck-5.3.0/epubcheck.jar dist/bootstrap-fixture.epub > step-5-epubcheck.log 2>&1
+
+      - name: Publication regression assertions
+        run: python3 ./tools/check-epub-fixture dist/bootstrap-fixture.epub > step-6-regression.log 2>&1
+
+      - name: Per-book citation rendering regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+          make book BOOK=prolog
+          python3 ./tools/check-book-citations \
+            books/prolog/dist/prolog.epub \
+            swi-stable-download \
+            'SWI-Prolog stable downloads'
+          } > step-7-book-prolog.log 2>&1
+
+      - name: Install Org-roam for ERT
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+          emacs -Q --batch \
+            --eval "(require 'package)" \
+            --eval "(setq package-user-dir (expand-file-name \".cache/elpa\" default-directory))" \
+            --eval "(setq package-install-upgrade-built-in t)" \
+            --eval "(setq package-archives '((\"gnu\" . \"https://elpa.gnu.org/packages/\") (\"nongnu\" . \"https://elpa.nongnu.org/nongnu/\") (\"melpa\" . \"https://melpa.org/packages/\")))" \
+            --eval "(package-initialize)" \
+            --eval "(package-refresh-contents)" \
+            --eval "(package-install 'org-roam)"
+          } > step-8-org-roam-install.log 2>&1
+
+      - name: ERT and real Org-roam DB sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+          emacs -Q --batch \
+            --eval "(require 'package)" \
+            --eval "(setq package-user-dir (expand-file-name \".cache/elpa\" default-directory))" \
+            --eval "(package-initialize)" \
+            -L elisp \
+            -l test/chatgpt-books-test.el \
+            -f ert-run-tests-batch-and-exit
+          test -s .cache/org-roam.db
+          } > step-9-ert.log 2>&1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-epub-fixture
+          path: dist/bootstrap-fixture.epub
+
+      - name: Publish step logs
+        if: always()
+        run: |
+          git config user.name "ci-probe"
+          git config user.email "ci-probe@noreply.git.starintel.actor"
+          ls step-*.log > /dev/null 2>&1 || (echo "no logs" > step-0-none.log)
+          mkdir -p ci-debug-logs && mv step-*.log ci-debug-logs/
+          git add ci-debug-logs || true
+          git commit -m "ci-debug: step logs ${GITHUB_SHA:0:8}" || true
+          git push origin HEAD:refs/heads/ci-debug-logs-${GITHUB_SHA:0:9} || echo "push failed"
