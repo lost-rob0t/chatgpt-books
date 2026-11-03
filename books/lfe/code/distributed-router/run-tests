@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
+PROJECT="$ROOT/books/lfe/code/distributed-router"
+OTP_ROUTER="$ROOT/books/lfe/code/otp-router"
+EVENT_RULES="$ROOT/books/lfe/code/event-rules/src/event-rules.lfe"
+BUILD="$PROJECT/.build"
+LOGS="$PROJECT/.ct-logs"
+
+command -v lfec >/dev/null || { echo "lfec is required" >&2; exit 2; }
+command -v erlc >/dev/null || { echo "erlc is required" >&2; exit 2; }
+command -v erl >/dev/null || { echo "erl is required" >&2; exit 2; }
+
+rm -rf "$BUILD" "$LOGS"
+mkdir -p "$BUILD" "$LOGS"
+
+# Project 4 deliberately reuses the accepted Project 3 service.  It adds a
+# distributed test boundary, not a fork of the routing or supervision code.
+lfec -o "$BUILD" \
+  "$EVENT_RULES" \
+  "$OTP_ROUTER/src/otp-router.lfe" \
+  "$OTP_ROUTER/src/otp-router-sup.lfe" \
+  "$OTP_ROUTER/src/otp-router-app.lfe"
+cp "$OTP_ROUTER/src/otp_router.app.src" "$BUILD/otp_router.app"
+erlc -o "$BUILD" "$PROJECT/test/distributed_router_SUITE.erl"
+
+export LFE_DIST_BUILD="$BUILD"
+export LFE_DIST_LOGS="$LOGS"
+
+# Common Test runs inside a real distributed origin node.  The suite creates
+# disposable OTP peer nodes with the same test cookie, starts the already-built
+# LFE application remotely, and then exercises both success and node-loss paths.
+erl -sname "lfe_book_dist_$$" \
+    -setcookie lfe_book_test_cookie \
+    -pa "$BUILD" \
+    -noshell \
+    -eval '
+      Build = os:getenv("LFE_DIST_BUILD"),
+      Logs = os:getenv("LFE_DIST_LOGS"),
+      Result = ct:run_test([{dir, Build},
+                            {suite, distributed_router_SUITE},
+                            {logdir, Logs},
+                            {auto_compile, false}]),
+      case Result of
+        {Ok, 0, {0, 0}} when Ok >= 2 ->
+          io:format("distributed-router: Common Test ~p~n", [Result]),
+          halt(0);
+        Other ->
+          io:format("distributed-router: Common Test failed ~p~n", [Other]),
+          halt(1)
+      end.'
+
+echo "distributed-router: remote route, node-local supervision identity, nodedown observation, and remote-call failure passed"

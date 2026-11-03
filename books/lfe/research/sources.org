@@ -185,3 +185,59 @@ Authority: official Erlang/OTP repository, tagged implementation and upstream re
 Versions inspected: OTP 25.3.2.8 and OTP 29.1.
 Relevant material: =make_script/2= silent error structure; application version mismatch represented by nested =no_valid_version= under =error_reading=; missing application closure represented by ={undefined_applications, Apps}=; current upstream test pattern-matches the version-mismatch structure.
 Affects: Chapter 14 and Project 3 checkpoint C failure-injection oracle. The book asserts structured categories rather than human-formatted diagnostic prose.
+
+** Distributed Erlang
+URL: https://www.erlang.org/doc/system/distributed.html
+Authority: official Erlang/OTP System Documentation.
+Version inspected: current 29-series documentation, retrieved 2026-09-17.
+Relevant material: node identity, transparent remote PID communication, node-local registered-name addressing, short/long names, connection/authentication model, and explicit warning that default distribution/cookies are not secure for untrusted networks and traffic is clear text.
+Affects: Chapter 15 and Project 4 checkpoint A.
+
+** Erlang/OTP =gen_server= remote references
+URL: https://www.erlang.org/doc/apps/stdlib/gen_server.html
+Authority: official Erlang/OTP STDLIB documentation.
+Version inspected: current 29-series documentation, re-inspected 2026-09-17 for Project 4.
+Relevant material: ={Name,Node}= server references and ={nodedown,Node}= among remote =call/3= failure reasons.
+Affects: Chapter 15 remote-call success/failure contract and Project 4 Common Test oracle.
+
+** =erlang:monitor_node/2= and =net_kernel= node monitoring
+URLs:
+- https://www.erlang.org/doc/apps/erts/erlang.html
+- https://www.erlang.org/doc/apps/kernel/net_kernel.html
+Authority: official Erlang/OTP ERTS/Kernel documentation.
+Version inspected: OTP 29.1 / current 29-series documentation, retrieved 2026-09-17.
+Relevant material: ={nodedown,Node}= notification, connection attempt behavior, and the warning that =monitor_node/2= notification is not ordered relative to all other remote signals; stronger ordered node-event monitoring lives at =net_kernel:monitor_nodes/*= when required.
+Affects: Chapter 15 failure-observation lab and its explicit ordering non-claim.
+
+** Erlang/OTP =peer= -- compatibility and current behavior
+URLs:
+- https://www.erlang.org/docs/25/man/peer.html
+- https://www.erlang.org/doc/apps/stdlib/peer.html
+Authority: official Erlang/OTP documentation.
+Versions inspected: OTP 25 reference plus current 29-series STDLIB docs, retrieved 2026-09-17.
+Relevant material: =peer= introduced in OTP 25.0; =start_link/1=; disposable linked-node startup/control/cleanup; stated multi-node/Common Test purpose.
+Affects: Chapter 15 and Project 4 same-host disposable-node test architecture. The OTP-25 introduction point is recorded separately because the focused runner has historically used OTP 25.3.2.8.
+
+** Common Test execution/result boundary
+URLs:
+- https://www.erlang.org/doc/apps/common_test/write_test_chapter.html
+- https://www.erlang.org/doc/apps/common_test/run_test_chapter.html
+- https://www.erlang.org/doc/apps/common_test/api-reference.html
+Authority: official Erlang/OTP Common Test documentation.
+Version inspected: OTP 29.1 / current 29-series documentation, retrieved 2026-09-17.
+Relevant material: =*_SUITE.erl= structure, =all/0=, testcase lifecycle, distributed/system-test facilities, and =ct:run_test/1= result tuple with explicit passed/failed/skipped counts.
+Affects: Chapter 15 and Project 4. Unlike Chapter 13's deferred discussion, checkpoint A authors an executable Common Test boundary; it remains UNTESTED until exact-head CI runs it.
+
+** Secure Coding Guidelines -- Erlang distribution
+URL: https://www.erlang.org/docs/29/system/secure_coding.html
+Authority: official Erlang/OTP System Documentation.
+Version inspected: OTP 29.1, retrieved 2026-09-17.
+Relevant material: DEP-001 guidance against exposing default Erlang distribution on untrusted networks and recommendation for TLS distribution where untrusted transport is unavoidable.
+Affects: Chapter 15 security boundary. The fixed test cookie is not presented as a production deployment mechanism.
+
+** Erlang Distribution over TLS
+URL: https://www.erlang.org/doc/apps/ssl/ssl_distribution.html
+Authority: official Erlang/OTP SSL documentation.
+Version inspected: current 29-series documentation, retrieved 2026-09-17.
+Relevant material: =inet_tls_dist= transport and certificate/TLS distribution configuration model.
+Affects: Chapter 15 as an explicitly deferred production-security direction; checkpoint A does not claim TLS configuration has been executed.

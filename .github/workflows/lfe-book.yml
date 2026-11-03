@@ -18,7 +18,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y build-essential git erlang-nox erlang-dev graphviz python3-matplotlib curl unzip default-jre-headless
+          sudo apt-get install -y build-essential git erlang-nox erlang-dev erlang-common-test graphviz python3-matplotlib curl unzip default-jre-headless
           curl --fail --location --retry 3 \
             --output pandoc.deb \
             https://github.com/jgm/pandoc/releases/download/3.10.1/pandoc-3.10.1-1-amd64.deb
@@ -29,6 +29,8 @@ jobs:
           unzip -q epubcheck.zip -d .cache
           erl -noshell -eval 'io:format("OTP ~s~n", [erlang:system_info(otp_release)]), halt().'
           test -f "$(erl -noshell -eval 'io:format("~s", [code:lib_dir(eunit, include)]), halt().' 2>/dev/null)/eunit.hrl"
+          erl -noshell -eval 'case code:ensure_loaded(peer) of {module,peer} -> halt(0); Other -> io:format("peer unavailable: ~p~n", [Other]), halt(1) end.'
+          erl -noshell -eval 'case code:ensure_loaded(ct) of {module,ct} -> halt(0); Other -> io:format("Common Test unavailable: ~p~n", [Other]), halt(1) end.'
           pandoc --version | head -1
           java -jar .cache/epubcheck-5.3.0/epubcheck.jar --version
 
@@ -49,6 +51,9 @@ jobs:
       - name: Run Project 3 OTP service and supervision regressions
         run: bash books/lfe/code/otp-router/run-tests
 
+      - name: Run Project 4 distributed Common Test regressions
+        run: bash books/lfe/code/distributed-router/run-tests
+
       - name: Validate LFE teaching diagrams
         shell: bash
         run: |
@@ -59,6 +64,7 @@ jobs:
           dot -Tsvg books/lfe/assets/otp-supervision.dot >/dev/null
           dot -Tsvg books/lfe/assets/testing-layers.dot >/dev/null
           dot -Tsvg books/lfe/assets/release-boot.dot >/dev/null
+          dot -Tsvg books/lfe/assets/distribution-boundary.dot >/dev/null
 
       - name: Build LFE book
         run: make book BOOK=lfe
