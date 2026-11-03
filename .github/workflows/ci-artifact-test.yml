@@ -1,0 +1,20 @@
+name: ci-artifact-test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "test artifact v4" > a4.txt
+          echo "test artifact v3" > a3.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-v4
+          path: a4.txt
+      - uses: actions/upload-artifact@v3
+        with:
+          name: test-v3
+          path: a3.txt
