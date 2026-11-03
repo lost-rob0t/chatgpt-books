@@ -1,0 +1,39 @@
+name: ci-probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe runner environment
+        shell: bash
+        run: |
+          exec > >(tee probe.txt) 2>&1 || true
+          echo "== identity"; id || true
+          echo "== sudo"; command -v sudo || echo "sudo: NOT FOUND"
+          sudo -n true 2>&1 && echo sudo-ok || echo sudo-unavailable
+          echo "== apt"; command -v apt-get || echo "apt-get: NOT FOUND"
+          echo "== os"; cat /etc/os-release 2>/dev/null | head -2 || true
+          echo "== tools"; for t in emacs pandoc java git make python3; do command -v $t || echo "$t: NOT FOUND"; done
+          echo "== net to github releases"
+          curl -sI -m 20 -o /dev/null -w 'github-releases: %{http_code}\n' -L https://github.com/jgm/pandoc/releases/download/3.10.1/pandoc-3.10.1-1-amd64.deb || echo "github curl FAILED"
+          echo "== apt update (60s cap)"
+          timeout 60 apt-get update 2>&1 | tail -3 || echo "apt-get update FAILED (no sudo attempt)"
+          timeout 120 sudo -n apt-get install -y --no-install-recommends hello 2>&1 | tail -3 || echo "sudo apt install FAILED"
+          echo "== done"
+
+      - name: Publish probe results
+        if: always()
+        run: |
+          git config user.name "ci-probe"
+          git config user.email "ci-probe@noreply.git.starintel.actor"
+          git add probe.txt || true
+          git commit -m "ci-probe: runner environment results" || true
+          git push origin HEAD:refs/heads/ci-probe-results || echo "push failed"
