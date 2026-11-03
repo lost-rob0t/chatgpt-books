@@ -42,6 +42,17 @@ durable storage, or complete corpus coverage.
 - [[#search15-lab][Run the reproducible lab]] -- Reproduce bounded, source-pinned local evidence while leaving real HTTP and Clouseau behavior unclaimed.
 - [[#search15-project4][Project 4 integration -- A search hit is a claim to investigate]] -- Apply those boundaries to a worked investigation, without treating search as a graph inference engine.
 
+** Part 1 -- Query surfaces, visibility, and index evidence
+
+This first part of the chapter gathers three reader-map anchors:
+[[#search15-version][Evidence and version map]],
+[[#search15-scope][Choose the search surface deliberately]], and
+[[#search15-index][Stored documents become selected index fields]]. Read in
+order, they establish which pinned sources a search claim may cite, why the
+public and authenticated search surfaces are different routes with different
+visibility decisions, and how canonical documents are projected into the
+selected index fields that a full-text query can actually observe.
+
 ** Evidence and version map
 :PROPERTIES:
 :CUSTOM_ID: search15-version
@@ -1132,6 +1143,18 @@ an actual deployed generation and index state still require separate evidence.
 Opaque bookmarks are followed by the service experiment before its collected
 identities can be compared; the evaluator itself never traverses a page.
 
+** Part 2 -- Reading results, pagination, and the reproducible lab
+
+The second part gathers four reader-map anchors:
+[[#search15-page][Interpret a page as retrieval evidence]],
+[[#search15-bookmark][Pagination needs a bounded client]],
+[[#search15-debug][The visibility ladder is a debugging method]], and
+[[#search15-lab][Run the reproducible lab]]. It moves from reading one page
+of hits as bounded evidence, through opaque bookmark pagination, to the
+visibility ladder that locates where a missing observation was lost, and ends
+inside the pinned, hermetic search lab that reproduces this chapter's
+executable claims locally.
+
 ** Interpret a page as retrieval evidence
 :PROPERTIES:
 :CUSTOM_ID: search15-page
@@ -1690,6 +1713,16 @@ policy appropriate to the operation. No raw emission check proves installed
 Clouseau coverage, a successful 0.10.1 ingest, an authorized search result,
 notification delivery, or coherent state across concurrent changes.
 
+
+** Part 3 -- The evidence boundary catalogue and Project 4
+
+The longest part of the chapter is a reference catalogue of
+per-document-type search boundaries, closing with the
+[[#search15-project4][Project 4 integration -- A search hit is a claim to
+investigate]] anchor that turns the catalogue into a worked investigation.
+Each boundary follows the same pattern: a search hit proves that a query
+matched a projection, not that the underlying canonical record admits, stores,
+verifies, or permits what the hit appears to describe.
 
 ** Display a search result in a terminal without executing source text
 
