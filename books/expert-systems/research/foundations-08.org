@@ -1,0 +1,167 @@
+#+title: Expert Systems Research -- Machine-Facing systemd Evidence and Invocation Identity
+:PROPERTIES:
+:ID:       d177fb28-a60a-48eb-a568-cbde290b0399
+:END:
+
+* Scope
+This record supports Project 2 milestone B / issue #131 only: parsing captured =systemctl show= property output, validating a bounded required-property contract, preserving unit-local invocation identity, separating service result from raw main-process exit status, and adapting accepted observations into the milestone-A dependency-diagnosis fact model.
+
+It does *not* establish a real-host collector, shell-command execution API, automatic transaction reconstruction, journal correlation, historical invocation collection, production diagnosis accuracy, certainty scores, persistence, concurrency, or benchmarks.
+
+Research/inspection date: 2026-09-17. Pinned systemd release: v261.3, published 2026-09-10.
+
+* Current primary source: systemctl v261.3
+Source: upstream =systemd/systemd= tag v261.3, =man/systemctl.xml= [cite:@systemctl-v2613].
+
+The pinned manual describes =status= as human-readable runtime status and points programs that need computer-parsable output to =show=. =show= exposes properties of units/jobs/the manager rather than a presentation intended for humans. Milestone B therefore consumes already captured =KEY=VALUE= property text; it never scrapes =systemctl status= and it never executes =systemctl= itself.
+
+DOCUMENTED boundary used by the project:
+- machine-facing collection should start from documented properties, not formatted status prose;
+- the parser still has to validate the exact fields the book requires before creating reasoning facts.
+
+The second point is deliberately course-local defensive engineering. A machine-oriented interface is not permission to treat incomplete input as complete evidence.
+
+* Current primary source: Unit D-Bus surface at v261.3
+Source: upstream =man/org.freedesktop.systemd1.xml= at tag v261.3 [cite:@systemd-dbus-v2613].
+
+The generated Unit interface exposes an =InvocationID= property on each unit object. The same interface exposes =ActiveState= and =SubState= as Unit properties. The manager also exposes =GetUnitByInvocationID=.
+
+DOCUMENTED claim used here: =InvocationID= is a property of a unit object. The course does not infer from that fact that one unit's invocation ID is a job, transaction, request, or cross-unit correlation identifier.
+
+That distinction repairs an initially tempting but invalid model. Project 2 milestone A used one course-local =ATTEMPT= value across the dependent unit and its required unit so joins could reject stale evidence. A real =InvocationID= belongs to the observed unit. Two units participating in one higher-level operator action can therefore carry distinct unit-local invocation identities. Milestone B preserves both dimensions:
+
+#+begin_example
+unit-local identity:     InvocationID from the observed unit
+cross-unit correlation: explicit caller-supplied activation context
+configuration identity: explicit caller-supplied generation
+#+end_example
+
+The activation context and generation are course model fields. They are not claimed systemd properties.
+
+* Current primary source: systemd.service v261.3
+Source: upstream =man/systemd.service.xml= at tag v261.3 [cite:@systemd-service-v2613].
+
+The =SuccessExitStatus== documentation states that additional numeric exit statuses or signals can be considered successful termination. It also explicitly says that this setting does not change the numeric-status/name mapping; it changes how the exit status propagates to the state of the service as a whole.
+
+DOCUMENTED consequence: a non-zero =ExecMainStatus= is not, by itself, a valid service-failure predicate.
+
+This matters because a naive troubleshooting rule often looks like:
+
+#+begin_example
+ExecMainStatus != 0 -> failed service
+#+end_example
+
+Milestone B rejects that rule. It preserves =Result=, =ExecMainCode=, and =ExecMainStatus= as separate evidence. For the bounded adapter used by milestone A, only an exact high-level =ActiveState= value of =failed= produces the existing =activation-outcome ... :failed= fact.
+
+This does not claim that =ActiveState= alone is a complete cause analysis. It is merely the explicit, tested boundary for this small knowledge model.
+
+* Current implementation cross-check: systemd's own v261.3 test
+Source: upstream =test/units/TEST-07-PID1.pr-31351.sh= at v261.3.
+
+The current test starts a service whose ignored missing =ExecStart= command leaves a positive =ExecMainStatus=, while asserting that =Result= is =success=. This is implementation evidence on the exact pinned release that raw main-process status and service result can diverge.
+
+IMPLEMENTATION-CHECKED claim used here: the current codebase contains a regression where =Result= is success while =ExecMainStatus= is greater than zero. The book does not generalize the test into a complete service-state model; it uses it to falsify the shortcut “nonzero main status means service failure.”
+
+* Upstream-reported boundary: missing requested properties
+Source: systemd issue #40046, “=systemctl show= gives zero exit status, even if a property cannot be shown,” opened 2025-12-09 against 259-rc2 [cite:@systemd-show-issue-40046]. The issue was open when inspected on 2026-09-17.
+
+The report demonstrates a requested nonexistent property being omitted while =systemctl show= still exits zero. This worker did *not* reproduce that behavior on v261.3.
+
+Claim state: *UPSTREAM-REPORTED*, not DOCUMENTED and not TESTED by this repository.
+
+Course consequence: the normalizer never receives or trusts a subprocess exit code as proof of completeness. It validates the required property names in the captured text itself. Even if the upstream report is later fixed, explicit required-field validation remains a sensible typed input contract.
+
+* Derived parser contract
+** First equals sign only
+Property output is modeled as one non-empty property name, then the first equals sign, then an opaque value string. Values may contain additional equals signs. Therefore:
+
+#+begin_example
+StatusText=alpha=beta=gamma
+#+end_example
+
+parses as property =StatusText= with value =alpha=beta=gamma=.
+
+The parser does not trim or reinterpret values. It ignores completely empty lines and accepts empty values at the syntax layer because some properties may legitimately serialize to empty text.
+
+** Fail closed before facts exist
+The parser/normalizer rejects:
+- non-empty lines without an equals sign;
+- empty property names;
+- duplicate property names;
+- missing required properties;
+- empty =Id= or =InvocationID=;
+- an =Id= that conflicts with the caller's optional expected-unit value;
+- missing course-local activation context, configuration generation, capture ID, or collector ID.
+
+No partially normalized fact list is returned after one of these failures.
+
+** Required property set
+Milestone B's intentionally bounded property contract is:
+
+#+begin_example
+Id
+InvocationID
+ActiveState
+SubState
+Result
+ExecMainCode
+ExecMainStatus
+#+end_example
+
+This is not a claim that every future systemd diagnosis needs exactly these fields. It is the smallest explicit interface for the current teaching slice.
+
+* Derived fact contract
+One accepted capture yields distinct facts rather than one giant property blob:
+
+#+begin_example
+(systemd-show-capture UNIT INVOCATION CONTEXT GENERATION CAPTURE)
+(unit-invocation UNIT INVOCATION CONTEXT GENERATION)
+(unit-active-state-observation UNIT STATE INVOCATION CONTEXT GENERATION)
+(unit-sub-state-observation UNIT SUBSTATE INVOCATION CONTEXT GENERATION)
+(service-result-observation UNIT RESULT INVOCATION CONTEXT GENERATION)
+(service-main-exit-observation UNIT CODE STATUS INVOCATION CONTEXT GENERATION)
+(activation-attempt UNIT CONTEXT GENERATION)
+#+end_example
+
+If and only if =ActiveState= is exactly =failed=, the adapter additionally emits:
+
+#+begin_example
+(activation-outcome UNIT CONTEXT GENERATION :failed)
+#+end_example
+
+Every fact carries capture provenance including source interface, pinned systemd release, capture ID, collector ID, source status, the properties used by that fact, and the complete parsed property alist for debugging.
+
+The duplicated raw property alist is acceptable for this small teaching fixture and favors inspectability. It is not presented as the storage design for a production collector.
+
+* End-to-end dependency diagnosis
+Milestone A's rule still expects a shared course-local activation context:
+
+#+begin_example
+(unit-requirement frontend api :requires generation-1)
+(unit-ordering frontend api :after generation-1)
+(activation-attempt frontend context-7 generation-1)
+(activation-outcome api context-7 generation-1 :failed)
+#+end_example
+
+Milestone B can now derive the last two facts from two separate captures while retaining distinct real unit invocation IDs:
+
+#+begin_example
+frontend.service InvocationID = 1111...
+api.service      InvocationID = 2222...
+activation context           = context-7
+#+end_example
+
+The explanation graph can therefore preserve both source lineages without claiming that =1111...= equals =2222...= or that either one is a systemd transaction ID.
+
+* Claim-state ledger
+- DOCUMENTED: pinned =systemctl= directs machine consumers toward =show= rather than human =status= output.
+- DOCUMENTED: the v261.3 Unit D-Bus surface exposes unit properties including =InvocationID=, =ActiveState=, and =SubState=.
+- DOCUMENTED: =SuccessExitStatus== may make additional nonzero statuses/signals successful termination and changes service-level propagation without changing the raw numeric mapping.
+- IMPLEMENTATION-CHECKED: v261.3's own =TEST-07-PID1.pr-31351.sh= contains a case with =Result= success and =ExecMainStatus > 0=.
+- UPSTREAM-REPORTED: issue #40046 reports =systemctl show --property= can omit an unknown property while returning exit status zero on 259-rc2. This repository has not reproduced that report on v261.3.
+- COURSE-LOCAL: first-equals parser, exact required-property set, capture provenance shape, explicit cross-unit activation context, configuration-generation field, and the adapter from =ActiveState=failed= to the existing =:failed= activation outcome.
+- TESTED only after exact-head CI passes: malformed/duplicate/missing-field rejection, unit mismatch rejection, per-unit invocation preservation, nonzero-main-status non-failure behavior, end-to-end milestone-A diagnosis from two normalized captures, cross-context/generation rejection, and all earlier regressions.
+- NOT IMPLEMENTED: host command execution, privilege handling, D-Bus collector, journal history, previous-boot lookup, automatic transaction reconstruction, source trust ranking, uncertainty, persistence, concurrency, production operations, or benchmarks.
+
+* Verification plan
+Run the complete accepted inference-engine suite, milestone-A service-KB tests, and the new normalization regressions. Validate the editable normalization diagram. Then run =make book BOOK=expert-systems=, =make check BOOK=expert-systems=, focused =expert-systems-book= including Nix, and generic =books-ci=. Only exact-head successful results may change this slice from IMPLEMENTED/UNTESTED to TESTED.
