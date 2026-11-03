@@ -100,3 +100,14 @@ Sources: Bluetooth SIG primer/Core6/privacy/ranging, Android ScanResult and
 permission documentation, RFC5905, current StarLang declarations and pinned SDK.
 Outcome: two substantive chapters and a fictional offline zone/profile lab.
 Details: [[file:owned-equipment-pass-12.org][Pass 12 research record]].
+
+
+* 2026-10-09 -- Chapter 15 search boundaries
+Question: how do the maintained public/authenticated document-search routes,
+index projection and canonical records differ?
+Method: retrieve immutable server source at ce14c77ccd2f51f543410fdeef3d78fb9978b769,
+inspect operation/mount/policy/index/helper files, execute actual selected forms
+and index projection, validate canonical fixtures with the pinned SDK; inspect
+Apache CouchDB search/index API documentation. Result: substantial Chapter 15,
+23 Python tests + 15 hermetic Lisp checks; opt-in live HTTP tier remains UNTESTED.
+Detailed source and exact verification ledger: [[file:search-pass-15.org]].
