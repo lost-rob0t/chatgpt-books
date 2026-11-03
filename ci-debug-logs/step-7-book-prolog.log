@@ -1,0 +1,4 @@
+./tools/build-book "prolog"
+prepared /workspace/nsaspy/chatgpt-books/books/prolog/manuscript/index.org -> /workspace/nsaspy/chatgpt-books/books/prolog/manuscript/.index-pandoc.57ZQ1A.org: 11 stable Org ID alias(es), Org includes expanded
+/workspace/nsaspy/chatgpt-books/books/prolog/dist/prolog.epub
+CITATION OK: swi-stable-download rendered with bibliography entry
